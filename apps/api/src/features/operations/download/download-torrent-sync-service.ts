@@ -27,6 +27,10 @@ import { mapQBitState } from "@/features/operations/qbittorrent/qbittorrent.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 import { TorrentClientService } from "@/features/operations/qbittorrent/torrent-client-service.ts";
 import { currentTimeNanos, nowIso as currentNowIso } from "@/infra/time.ts";
+import {
+  isClaimToken,
+  isStaleClaimToken,
+} from "@/features/operations/download/download-claim-token.ts";
 import { DownloadReconciliationService } from "@/features/operations/download/download-reconciliation-service.ts";
 import { MediaRepository } from "@/features/media/shared/media-repository.ts";
 import { DatabaseError } from "@/db/database.ts";
@@ -38,6 +42,8 @@ function shouldReconcileCompletedDownloads(config: Config | null) {
 
 const TORRENT_SYNC_UPDATE_CHUNK_SIZE = 50;
 const TORRENT_CONTENTS_REFINE_CONCURRENCY = 4;
+/** A queued row absent from qBittorrent for this long is considered lost. */
+const STALE_QUEUED_THRESHOLD_MS = 10 * 60 * 1000;
 
 /** Job-edge union — reconcile domain tags collapsed for background sync. */
 export type DownloadTorrentSyncError = DatabaseError | InfrastructureError;
@@ -164,14 +170,18 @@ export class DownloadTorrentSyncService extends Effect.Service<DownloadTorrentSy
 
       const updateDownloadsFromTorrentRows = Effect.fn(
         "TorrentSync.updateDownloadsFromTorrentRows",
-      )(function* (rows: readonly TorrentSyncUpdate[]) {
-        if (rows.length === 0) {
-          return;
-        }
-
+      )(function* (
+        rows: readonly TorrentSyncUpdate[],
+        eventsByHash: ReadonlyMap<string, DownloadEventRecordInput>,
+        syncNow: string,
+      ) {
         for (let index = 0; index < rows.length; index += TORRENT_SYNC_UPDATE_CHUNK_SIZE) {
           const chunk = rows.slice(index, index + TORRENT_SYNC_UPDATE_CHUNK_SIZE);
-          yield* syncRepo.bulkUpdateTorrentSyncRows(chunk);
+          const chunkHashes = new Set(chunk.map((row) => row.hash));
+          const chunkEvents = [...eventsByHash].flatMap(([hash, event]) =>
+            chunkHashes.has(hash) ? [event] : [],
+          );
+          yield* syncRepo.bulkUpdateTorrentSyncRows(chunk, chunkEvents, syncNow);
         }
       });
 
@@ -242,11 +252,35 @@ export class DownloadTorrentSyncService extends Effect.Service<DownloadTorrentSy
             );
 
             const syncNow = yield* currentNowIso();
+
+            // Sweep reconciliation claims orphaned by a hard crash: the claim
+            // token embeds its timestamp, so anything past the threshold has no
+            // live fiber and must be released for auto-reconcile to retry.
+            for (const existing of allExistingDownloads) {
+              if (!isStaleClaimToken(existing.reconciledAt, syncNow)) {
+                continue;
+              }
+
+              yield* syncRepo.releaseDownloadReconciliationClaim({
+                downloadId: existing.id,
+                claimToken: existing.reconciledAt ?? "",
+              });
+              yield* Effect.logWarning("Released stale reconciliation claim").pipe(
+                Effect.annotateLogs({
+                  downloadId: existing.id,
+                  claimToken: existing.reconciledAt ?? "",
+                }),
+              );
+            }
+
             const updateRows = torrents.map((torrent): TorrentSyncUpdate => {
               const status = mapQBitState(torrent.state);
               const hash = torrent.hash.toLowerCase();
               const existing = existingDownloadsMap.get(hash);
-              const preservedImported = Boolean(existing?.reconciledAt);
+              // A leftover claim token means the import never finished — treat
+              // the row as not imported so presentation stays actionable.
+              const preservedImported =
+                Boolean(existing?.reconciledAt) && !isClaimToken(existing?.reconciledAt);
               const nextStatus = preservedImported ? "imported" : status;
               const nextExternalState = preservedImported
                 ? (existing?.externalState ?? "imported")
@@ -280,10 +314,56 @@ export class DownloadTorrentSyncService extends Effect.Service<DownloadTorrentSy
               };
             });
 
-            yield* updateDownloadsFromTorrentRows(updateRows);
-
             const statusEvents = yield* buildStatusChangeEvents(updateRows, existingDownloadsMap);
-            yield* syncRepo.insertDownloadEvents(statusEvents, syncNow);
+            // Key events by the torrent hash of their download row so each
+            // chunked update transaction carries its own events.
+            const hashByDownloadId = new Map<number, string>();
+            for (const existing of allExistingDownloads) {
+              if (existing.infoHash) {
+                hashByDownloadId.set(existing.id, existing.infoHash.toLowerCase());
+              }
+            }
+            const eventsByTorrentHash = new Map<string, DownloadEventRecordInput>();
+            const orphanEvents: DownloadEventRecordInput[] = [];
+            for (const event of statusEvents) {
+              const hash =
+                event.downloadId === undefined ? undefined : hashByDownloadId.get(event.downloadId);
+              if (hash !== undefined) {
+                eventsByTorrentHash.set(hash, event);
+              } else {
+                orphanEvents.push(event);
+              }
+            }
+            if (orphanEvents.length > 0) {
+              yield* Effect.logWarning(
+                "Dropping status change events for downloads without infoHash",
+              ).pipe(Effect.annotateLogs({ orphanCount: orphanEvents.length }));
+              // Orphans have no torrent hash to pin to a chunk — persist them directly.
+              for (const orphan of orphanEvents) {
+                yield* syncRepo.insertDownloadEvent(orphan, syncNow).pipe(
+                  Effect.catchAll((cause) =>
+                    Effect.logWarning("Failed to persist orphan status event").pipe(
+                      Effect.annotateLogs({
+                        cause: String(cause),
+                        downloadId: orphan.downloadId,
+                      }),
+                    ),
+                  ),
+                );
+              }
+            }
+
+            yield* updateDownloadsFromTorrentRows(updateRows, eventsByTorrentHash, syncNow);
+
+            const staleQueuedSwept = yield* syncRepo.failStaleQueuedDownloads({
+              now: syncNow,
+              staleBefore: new Date(Date.parse(syncNow) - STALE_QUEUED_THRESHOLD_MS).toISOString(),
+            });
+            if (staleQueuedSwept > 0) {
+              yield* Effect.logWarning("Marked phantom queued downloads as failed").pipe(
+                Effect.annotateLogs({ sweptCount: staleQueuedSwept }),
+              );
+            }
 
             const batchRefinementRows = updateRows.flatMap(
               (
@@ -297,7 +377,8 @@ export class DownloadTorrentSyncService extends Effect.Service<DownloadTorrentSy
                 readonly torrentName: string;
               }[] => {
                 const existing = existingDownloadsMap.get(updateRow.hash);
-                const preservedImported = Boolean(existing?.reconciledAt);
+                const preservedImported =
+                  Boolean(existing?.reconciledAt) && !isClaimToken(existing?.reconciledAt);
 
                 if (!existing || !existing.isBatch || preservedImported) {
                   return [];
@@ -333,16 +414,41 @@ export class DownloadTorrentSyncService extends Effect.Service<DownloadTorrentSy
               { concurrency: TORRENT_CONTENTS_REFINE_CONCURRENCY, discard: true },
             );
 
+            // One poisoned download must not abort the whole sync pass: each
+            // reconcile is isolated, failures are logged and counted.
+            let failedReconciliations = 0;
             for (const updateRow of updateRows) {
               if (
-                updateRow.status === "completed" &&
-                shouldReconcileCompletedDownloads(runtimeConfig)
+                updateRow.status !== "completed" ||
+                !shouldReconcileCompletedDownloads(runtimeConfig)
               ) {
-                yield* reconciliationService.reconcileCompletedTorrentEffect(
+                continue;
+              }
+
+              const reconcileResult = yield* Effect.either(
+                reconciliationService.reconcileCompletedTorrentEffect(
                   updateRow.hash,
                   updateRow.contentPath ?? updateRow.savePath ?? undefined,
+                ),
+              );
+
+              if (reconcileResult._tag === "Left") {
+                failedReconciliations += 1;
+                yield* Effect.logWarning(
+                  "Failed to reconcile completed download; continuing with remaining torrents",
+                ).pipe(
+                  Effect.annotateLogs({
+                    downloadHash: updateRow.hash,
+                    error: String(reconcileResult.left),
+                  }),
                 );
               }
+            }
+
+            if (failedReconciliations > 0) {
+              yield* Effect.logWarning("Download sync finished with reconciliation failures").pipe(
+                Effect.annotateLogs({ failedReconciliations }),
+              );
             }
           }).pipe(Effect.mapError((error) => mapSyncError(error)));
         },

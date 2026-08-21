@@ -1,5 +1,5 @@
 // oxlint-disable oxc/no-async-await -- async/await required by transaction callbacks, test callbacks, and tryPromise wrappers
-import { and, eq, gt } from "drizzle-orm";
+import { and, eq, gt, lt } from "drizzle-orm";
 import { Effect, Option } from "effect";
 
 import { AppDrizzleDatabase, type AppDatabase, type DatabaseError } from "@/db/database.ts";
@@ -48,6 +48,7 @@ export interface AuthUserRepositoryShape {
   readonly findUserByUsername: (
     username: string,
   ) => Effect.Effect<Option.Option<AuthUserRow>, DatabaseError>;
+  readonly pruneExpiredSessions: (now: string) => Effect.Effect<void, DatabaseError>;
   readonly regenerateApiKeyState: (input: {
     readonly apiKeyHash: string;
     readonly regeneratedAt: string;
@@ -62,6 +63,11 @@ export interface AuthUserRepositoryShape {
     readonly expiresAt: string;
     readonly lastSeenAt: string;
     readonly tokenHash: string;
+  }) => Effect.Effect<void, DatabaseError>;
+  readonly updatePasswordHash: (input: {
+    readonly passwordHash: string;
+    readonly updatedAt: string;
+    readonly userId: number;
   }) => Effect.Effect<void, DatabaseError>;
   readonly writeLog: (input: {
     readonly createdAt: string;
@@ -269,6 +275,27 @@ export function makeAuthUserRepositoryShape(db: AppDatabase): AuthUserRepository
     );
   });
 
+  const pruneExpiredSessions = Effect.fn("AuthUserRepository.pruneExpiredSessions")(function* (
+    now: string,
+  ) {
+    yield* tryDatabasePromise("Failed to prune expired sessions", () =>
+      db.delete(sessions).where(lt(sessions.expiresAt, now)),
+    );
+  });
+
+  const updatePasswordHash = Effect.fn("AuthUserRepository.updatePasswordHash")(function* (input: {
+    readonly passwordHash: string;
+    readonly updatedAt: string;
+    readonly userId: number;
+  }) {
+    yield* tryDatabasePromise("Failed to update password hash", () =>
+      db
+        .update(users)
+        .set({ passwordHash: input.passwordHash, updatedAt: input.updatedAt })
+        .where(eq(users.id, input.userId)),
+    );
+  });
+
   const writeLog = Effect.fn("AuthUserRepository.writeLog")(function* (input: {
     readonly createdAt: string;
     readonly details?: string;
@@ -296,9 +323,11 @@ export function makeAuthUserRepositoryShape(db: AppDatabase): AuthUserRepository
     findUserByApiKey,
     findUserById,
     findUserByUsername,
+    pruneExpiredSessions,
     regenerateApiKeyState,
     refreshSession,
     resolveUserBySessionToken,
+    updatePasswordHash,
     writeLog,
   } satisfies AuthUserRepositoryShape;
 }

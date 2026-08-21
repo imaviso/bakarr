@@ -1,6 +1,7 @@
-import { Effect, Option } from "effect";
+import { Effect, Option, Redacted } from "effect";
+import { dirname } from "node:path";
 
-import { BootstrapConfig } from "@/config/schema.ts";
+import { AppConfig, BootstrapConfig } from "@/config/schema.ts";
 import { nowIso as currentNowIso } from "@/infra/time.ts";
 import { randomHexFrom, RandomService } from "@/infra/random.ts";
 import { hashPassword, PasswordCrypto } from "@/security/password.ts";
@@ -10,6 +11,7 @@ import { AuthUserRepository } from "@/features/auth/user-repository.ts";
 
 const makeAuthBootstrapService = Effect.fn("AuthBootstrapService.make")(function* () {
   const users = yield* AuthUserRepository;
+  const appConfig = yield* AppConfig;
   const config = yield* BootstrapConfig;
   const passwordCrypto = yield* PasswordCrypto;
   const random = yield* RandomService;
@@ -46,7 +48,9 @@ const makeAuthBootstrapService = Effect.fn("AuthBootstrapService.make")(function
       return;
     }
 
-    const bootstrapPassword = config.bootstrapPassword;
+    // Single consumption site: the redacted bootstrap password is unwrapped
+    // only here, for hashing and (generated passwords only) file announcement.
+    const bootstrapPassword = Redacted.value(config.bootstrapPassword);
 
     const now = yield* nowIso();
     const passwordHash = yield* hashPassword(passwordCrypto, bootstrapPassword);
@@ -70,11 +74,12 @@ const makeAuthBootstrapService = Effect.fn("AuthBootstrapService.make")(function
 
     yield* announceBootstrapCredentials({
       username: config.bootstrapUsername,
-      // Intentionally print only generated bootstrap passwords. The bootstrap
+      // Intentionally announce only generated bootstrap passwords. The bootstrap
       // account is forced to rotate credentials on first login
       // (`mustChangePassword: true`), but operator-provided credentials from
       // env/config should never be echoed back to logs.
       ...(config.bootstrapPasswordIsEnvOverride ? {} : { password: bootstrapPassword }),
+      outputDir: dirname(appConfig.databaseFile),
     });
   });
 
@@ -84,6 +89,8 @@ const makeAuthBootstrapService = Effect.fn("AuthBootstrapService.make")(function
 export class AuthBootstrapService extends Effect.Service<AuthBootstrapService>()(
   "@bakarr/api/AuthBootstrapService",
   {
+    // AppConfig comes from the lifecycle layer (same pattern as
+    // SystemBootstrapService); it must respect the app-level overrides.
     dependencies: [
       AuthUserRepository.Default,
       PasswordCrypto.Default,

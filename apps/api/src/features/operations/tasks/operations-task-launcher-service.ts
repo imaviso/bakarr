@@ -1,10 +1,15 @@
 // oxlint-disable typescript/no-restricted-types -- `unknown` is the honest type at error/cause boundaries (Effect error channels, try/catch causes, Logger messages)
-import { Cause, Effect, Queue } from "effect";
+import { Cause, Effect, Queue, Ref } from "effect";
 
-import type { AsyncOperationAccepted, OperationTaskPayload } from "@packages/shared/index.ts";
+import {
+  brandOperationTaskId,
+  type AsyncOperationAccepted,
+  type OperationTaskPayload,
+} from "@packages/shared/index.ts";
 import type { DatabaseError } from "@/db/database.ts";
 import { InfrastructureError } from "@/features/errors.ts";
 import { compactLogAnnotations, errorLogAnnotations } from "@/infra/logging.ts";
+import { nowIso as currentNowIso } from "@/infra/time.ts";
 import {
   type OperationsTaskKey,
   OperationsTaskWriteService,
@@ -41,6 +46,10 @@ const makeOperationsTaskLauncherService = Effect.fn("OperationsTaskLauncherServi
       Queue.unbounded<Effect.Effect<void, DatabaseError | InfrastructureError>>(),
       Queue.shutdown,
     );
+    // Coalescing: taskKey → id of the pending/running task. A launch for a
+    // key that already has an active task is folded into it (single-user
+    // app; CONTEXT.md "Supports coalescing concurrent requests").
+    const activeTaskIds = yield* Ref.make(new Map<OperationsTaskKey, number>());
 
     const runQueuedTask = Effect.fn("OperationsTaskLauncherService.runQueuedTask")(
       (taskEffect: Effect.Effect<void, DatabaseError | InfrastructureError>) =>
@@ -71,12 +80,34 @@ const makeOperationsTaskLauncherService = Effect.fn("OperationsTaskLauncherServi
     const launch = Effect.fn("OperationsTaskLauncherService.launch")(
       <A>(input: OperationsTaskLaunchInput<A>) =>
         Effect.gen(function* () {
+          const existingTaskId = (yield* Ref.get(activeTaskIds)).get(input.taskKey);
+
+          if (existingTaskId !== undefined) {
+            yield* Effect.logDebug("Coalesced operations task launch into active task").pipe(
+              Effect.annotateLogs({
+                activeTaskId: existingTaskId,
+                taskKey: input.taskKey,
+              }),
+            );
+
+            const now = yield* currentNowIso();
+            const accepted: AsyncOperationAccepted = {
+              accepted_at: now,
+              message: input.queuedMessage,
+              status: "queued",
+              task_id: brandOperationTaskId(existingTaskId),
+              task_key: input.taskKey,
+            };
+            return accepted;
+          }
+
           const accepted = yield* tasks.createTask({
             ...(input.mediaId === undefined ? {} : { mediaId: input.mediaId }),
             message: input.queuedMessage,
             taskKey: input.taskKey,
           });
           const taskId = accepted.task_id;
+          yield* Ref.update(activeTaskIds, (map) => new Map(map).set(input.taskKey, taskId));
 
           const runTask = Effect.gen(function* () {
             yield* tasks.markRunningTask({
@@ -101,6 +132,13 @@ const makeOperationsTaskLauncherService = Effect.fn("OperationsTaskLauncherServi
               taskId,
             });
           }).pipe(
+            Effect.ensuring(
+              Ref.update(activeTaskIds, (map) => {
+                const next = new Map(map);
+                next.delete(input.taskKey);
+                return next;
+              }),
+            ),
             Effect.catchAllCause((cause) => {
               const error = Cause.squash(cause);
 

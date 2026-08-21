@@ -8,7 +8,7 @@ import {
   extractVideoCodec,
   normalizeAirDate,
   normalizeText,
-} from "@/infra/scanned-file-metadata.ts";
+} from "@/infra/media/identity/scanned-file-metadata.ts";
 
 it("extractQualitySourceLabel detects common quality sources", () => {
   assert.deepStrictEqual(extractQualitySourceLabel("[Group] Show - 01 [BluRay 1080p]"), "BluRay");

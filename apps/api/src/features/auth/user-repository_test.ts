@@ -240,6 +240,73 @@ it.scoped("changePasswordState writes system log entry", () =>
   }),
 );
 
+it.scoped("pruneExpiredSessions deletes only expired rows", () =>
+  withSqliteTestDbEffect({
+    run: (db) =>
+      Effect.gen(function* () {
+        const repo = makeAuthUserRepository(db);
+        const user = yield* seedUser(db);
+
+        yield* tryDatabasePromise("Failed to seed expired session", () =>
+          db.insert(sessions).values({
+            createdAt: "2025-01-01T00:00:00.000Z",
+            expiresAt: "2025-01-31T00:00:00.000Z",
+            lastSeenAt: "2025-01-01T00:00:00.000Z",
+            token: "expired-session-token",
+            userId: user.id,
+          }),
+        );
+        yield* tryDatabasePromise("Failed to seed active session", () =>
+          db.insert(sessions).values({
+            createdAt: "2025-06-01T00:00:00.000Z",
+            expiresAt: "2025-12-01T00:00:00.000Z",
+            lastSeenAt: "2025-06-01T00:00:00.000Z",
+            token: "active-session-token",
+            userId: user.id,
+          }),
+        );
+
+        yield* repo.pruneExpiredSessions("2025-06-15T00:00:00.000Z");
+
+        const remaining = yield* tryDatabasePromise("Failed to query sessions after pruning", () =>
+          db.select().from(sessions),
+        );
+        assert.deepStrictEqual(remaining.length, 1);
+        assert.deepStrictEqual(remaining[0]?.token, "active-session-token");
+      }),
+    schema,
+  }),
+);
+
+it.scoped("pruneExpiredSessions keeps rows expiring exactly at the boundary", () =>
+  withSqliteTestDbEffect({
+    run: (db) =>
+      Effect.gen(function* () {
+        const repo = makeAuthUserRepository(db);
+        const user = yield* seedUser(db);
+
+        yield* tryDatabasePromise("Failed to seed boundary session", () =>
+          db.insert(sessions).values({
+            createdAt: "2025-01-01T00:00:00.000Z",
+            expiresAt: "2025-06-15T00:00:00.000Z",
+            lastSeenAt: "2025-01-01T00:00:00.000Z",
+            token: "boundary-session-token",
+            userId: user.id,
+          }),
+        );
+
+        yield* repo.pruneExpiredSessions("2025-06-15T00:00:00.000Z");
+
+        const remaining = yield* tryDatabasePromise(
+          "Failed to query sessions after boundary pruning",
+          () => db.select().from(sessions),
+        );
+        assert.deepStrictEqual(remaining.length, 1);
+      }),
+    schema,
+  }),
+);
+
 it.scoped("regenerateApiKeyState updates apiKey and deletes sessions", () =>
   withSqliteTestDbEffect({
     run: (db) =>

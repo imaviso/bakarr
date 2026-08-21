@@ -11,6 +11,7 @@ import {
 import { media } from "@/db/schema.ts";
 import { DomainPathError, InfrastructureError } from "@/features/errors.ts";
 import { ImportFileError } from "@/features/operations/download/download-file-import-errors.ts";
+import type { FileSystemError } from "@/infra/filesystem/filesystem.ts";
 import { isCrossFilesystemError, isNotFoundError } from "@/infra/filesystem/fs-errors.ts";
 import { isWithinPathRoot, type FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import { pathExtension } from "@/infra/path.ts";
@@ -58,10 +59,11 @@ export const buildLibraryFileWritePlan = Effect.fn("Operations.buildLibraryFileW
     const preferredTitle = input.preferredTitle ?? "romaji";
     let namingPlan = buildNamingPlan(input, preferredTitle, input.localMediaMetadata);
 
-    if (input.mediaProbe && hasMissingLocalMediaNamingFields(namingPlan.missingFields)) {
-      const localMediaMetadata = yield* probeMediaMetadataOrUndefined(
+    if (input.mediaProbe) {
+      const localMediaMetadata = yield* probeMissingNamingMetadata(
         input.mediaProbe,
         input.sourcePath,
+        namingPlan.missingFields,
       );
 
       if (localMediaMetadata) {
@@ -83,6 +85,21 @@ export const buildLibraryFileWritePlan = Effect.fn("Operations.buildLibraryFileW
       filename,
       namingPlan,
     } satisfies LibraryFileWritePlan;
+  },
+);
+
+/**
+ * Shared naming→probe fallback: probe the file for local media metadata only
+ * when the naming plan is missing heuristic fields. Callers feed the result
+ * back into plan building / import options.
+ */
+export const probeMissingNamingMetadata = Effect.fn("Operations.probeMissingNamingMetadata")(
+  function* (mediaProbe: MediaProbeShape, filePath: string, missingFields: readonly string[]) {
+    if (!hasMissingLocalMediaNamingFields(missingFields)) {
+      return undefined;
+    }
+
+    return yield* probeMediaMetadataOrUndefined(mediaProbe, filePath);
   },
 );
 
@@ -146,29 +163,56 @@ export const importDownloadedFile = Effect.fn("Operations.importDownloadedFile")
       : { localMediaMetadata: options.localMediaMetadata }),
     ...(options.season === undefined ? {} : { season: options.season }),
   });
-  const tempDestination = `${importPlan.destination}.tmp.${yield* options.randomUuid()}`;
-  const backupDestination = `${importPlan.destination}.bak.${yield* options.randomUuid()}`;
 
-  yield* fs.mkdir(animeRow.rootFolder, { recursive: true });
-  yield* Effect.acquireUseRelease(
-    stageSourceIntoTempFile({
-      fs,
-      importMode,
-      sourcePath,
-      tempDestination,
-    }).pipe(Effect.as(tempDestination)),
-    (tempDestination) =>
-      replaceDestinationWithStagedFile({
-        backupDestination,
-        destination: importPlan.destination,
-        fs,
-        tempDestination,
-      }),
-    (tempDestination) => cleanupStagedTempFile(fs, tempDestination),
-  );
+  yield* writeImportedFileAtomically({
+    destination: importPlan.destination,
+    destinationRoot: animeRow.rootFolder,
+    fs,
+    importMode,
+    randomUuid: options.randomUuid,
+    sourcePath,
+  });
 
   return importPlan.destination;
 });
+
+/**
+ * Atomic library write shared by every import path: stage the source into a
+ * temp file, then swap it in via backup + rename. An existing destination is
+ * backed up first and restored when the commit rename fails; the staged temp
+ * file is always cleaned up.
+ */
+export const writeImportedFileAtomically = Effect.fn("Operations.writeImportedFileAtomically")(
+  function* (input: {
+    readonly destination: string;
+    readonly destinationRoot: string;
+    readonly fs: FileSystemShape;
+    readonly importMode: ImportMode;
+    readonly randomUuid: () => Effect.Effect<string>;
+    readonly sourcePath: string;
+  }) {
+    const tempDestination = `${input.destination}.tmp.${yield* input.randomUuid()}`;
+    const backupDestination = `${input.destination}.bak.${yield* input.randomUuid()}`;
+
+    yield* input.fs.mkdir(input.destinationRoot, { recursive: true });
+    yield* Effect.acquireUseRelease(
+      stageSourceIntoTempFile({
+        fs: input.fs,
+        importMode: input.importMode,
+        sourcePath: input.sourcePath,
+        tempDestination,
+      }).pipe(Effect.as(tempDestination)),
+      (tempDestination) =>
+        replaceDestinationWithStagedFile({
+          backupDestination,
+          destination: input.destination,
+          fs: input.fs,
+          tempDestination,
+        }),
+      (tempDestination) => cleanupStagedTempFile(input.fs, tempDestination),
+    );
+  },
+);
 
 export const stageSourceIntoTempFile = Effect.fn("Operations.stageSourceIntoTempFile")(
   function* (input: {
@@ -307,6 +351,7 @@ export const replaceDestinationWithStagedFile = Effect.fn(
 export const writeLibraryImportFile = Effect.fn("Operations.writeLibraryImportFile")((input: {
   readonly mediaUnitRepository: MediaUnitRepositoryShape;
   readonly fs: FileSystemShape;
+  readonly randomUuid: () => Effect.Effect<string>;
   readonly plan: {
     readonly allEpisodeNumbers: readonly number[];
     readonly animeRow: typeof media.$inferSelect;
@@ -319,31 +364,20 @@ export const writeLibraryImportFile = Effect.fn("Operations.writeLibraryImportFi
   };
 }): Effect.Effect<
   ImportResult["imported_files"][number],
-  DomainPathError | InfrastructureError
+  DomainPathError | InfrastructureError | ImportFileError | FileSystemError
 > => {
   const { mediaUnitRepository, fs, plan } = input;
   return Effect.gen(function* () {
-    if (plan.importMode === "move") {
-      yield* fs.rename(plan.resolvedSource, plan.destination).pipe(
-        Effect.mapError(
-          (cause) =>
-            new DomainPathError({
-              cause,
-              message: `Failed to move file into library: ${plan.sourcePath}`,
-            }),
-        ),
-      );
-    } else {
-      yield* fs.copyFile(plan.resolvedSource, plan.destination).pipe(
-        Effect.mapError(
-          (cause) =>
-            new DomainPathError({
-              cause,
-              message: `Failed to copy file into library: ${plan.sourcePath}`,
-            }),
-        ),
-      );
-    }
+    // Same staged → backup → atomic-rename write as the download import path;
+    // never a bare rename/copy onto the destination.
+    yield* writeImportedFileAtomically({
+      destination: plan.destination,
+      destinationRoot: plan.animeRow.rootFolder,
+      fs,
+      importMode: plan.importMode,
+      randomUuid: input.randomUuid,
+      sourcePath: plan.resolvedSource,
+    });
 
     const dbResult = yield* mediaUnitRepository
       .upsertUnitFiles(plan.animeRow.id, plan.allEpisodeNumbers, plan.destination)

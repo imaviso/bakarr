@@ -1,5 +1,6 @@
 // oxlint-disable oxc/no-async-await -- drizzle transaction callbacks require async/await
 import { and, eq, gte, inArray, isNotNull, isNull, lte, sql } from "drizzle-orm";
+import type { SQL } from "drizzle-orm";
 import { Effect, Schema } from "effect";
 
 import { AppDrizzleDatabase, type AppDatabase, type DatabaseError } from "@/db/database.ts";
@@ -93,7 +94,6 @@ export interface MediaUnitRepositoryShape {
     startDate: string | undefined,
     endDate: string | undefined,
     futureAiringSchedule: ReadonlyArray<FutureAiringScheduleEntry> | undefined,
-    resetMissingOnly: boolean,
     nowIso: () => Effect.Effect<string, E>,
   ) => Effect.Effect<void, DatabaseError | E>;
   readonly updateUnitAirDates: <E>(
@@ -111,7 +111,7 @@ export interface MediaUnitRepositoryShape {
   ) => Effect.Effect<void, DatabaseError>;
   readonly syncUnitSchedule: <E>(
     mediaId: number,
-    nextAnimeRow: {
+    nextMediaRow: {
       readonly unitCount: number | null;
       readonly status: string;
       readonly startDate: string | null;
@@ -160,27 +160,8 @@ export function makeMediaUnitRepositoryShape(db: AppDatabase): MediaUnitReposito
     patchUnitProbeMetadata: (unitId, patch) => patchUnitProbeMetadata(db, unitId, patch),
     setMediaRootAndMapUnits: (mediaId, patch, mappings) =>
       setMediaRootAndMapUnits(db, mediaId, patch, mappings),
-    ensureUnits: (
-      mediaId,
-      unitCount,
-      status,
-      startDate,
-      endDate,
-      futureAiringSchedule,
-      resetMissingOnly,
-      nowIso,
-    ) =>
-      ensureUnits(
-        db,
-        mediaId,
-        unitCount,
-        status,
-        startDate,
-        endDate,
-        futureAiringSchedule,
-        resetMissingOnly,
-        nowIso,
-      ),
+    ensureUnits: (mediaId, unitCount, status, startDate, endDate, futureAiringSchedule, nowIso) =>
+      ensureUnits(db, mediaId, unitCount, status, startDate, endDate, futureAiringSchedule, nowIso),
     updateUnitAirDates: (
       mediaId,
       unitCount,
@@ -201,8 +182,8 @@ export function makeMediaUnitRepositoryShape(db: AppDatabase): MediaUnitReposito
         nowIso,
       ),
     syncUnitMetadata: (mediaId, episodeMetadata) => syncUnitMetadata(db, mediaId, episodeMetadata),
-    syncUnitSchedule: (mediaId, nextAnimeRow, futureAiringSchedule, nowIso) =>
-      syncUnitSchedule(db, mediaId, nextAnimeRow, futureAiringSchedule, nowIso),
+    syncUnitSchedule: (mediaId, nextMediaRow, futureAiringSchedule, nowIso) =>
+      syncUnitSchedule(db, mediaId, nextMediaRow, futureAiringSchedule, nowIso),
     backfillFromNextAiring: (input) => backfillFromNextAiring(db, input),
   } satisfies MediaUnitRepositoryShape;
 }
@@ -330,6 +311,8 @@ const bulkMapUnitFiles = Effect.fn("MediaUnitRepository.bulkMapUnitFiles")(funct
             set: {
               downloaded: true,
               filePath: entry.file_path,
+              // Remapping to a different file invalidates cached probe data.
+              ...probeResetOnFilePathChange(),
             },
           });
       }
@@ -495,6 +478,8 @@ async function writeUnitMapping(
       set: {
         downloaded: true,
         filePath: mapping.filePath,
+        // Remapping to a different file invalidates cached probe data.
+        ...probeResetOnFilePathChange(),
       },
     });
 }
@@ -507,7 +492,6 @@ const ensureUnits = Effect.fn("MediaUnitRepository.ensureUnits")(function* <E>(
   startDate: string | undefined,
   endDate: string | undefined,
   futureAiringSchedule: ReadonlyArray<FutureAiringScheduleEntry> | undefined,
-  resetMissingOnly: boolean,
   nowIso: () => Effect.Effect<string, E>,
 ) {
   const now = yield* nowIso();
@@ -525,7 +509,6 @@ const ensureUnits = Effect.fn("MediaUnitRepository.ensureUnits")(function* <E>(
     existingRows,
     futureAiringSchedule,
     nowIso: now,
-    resetMissingOnly,
     startDate,
     status,
   });
@@ -657,7 +640,7 @@ const syncUnitMetadata = Effect.fn("MediaUnitRepository.syncUnitMetadata")(funct
 const syncUnitSchedule = Effect.fn("MediaUnitRepository.syncUnitSchedule")(function* <E>(
   db: AppDatabase,
   mediaId: number,
-  nextAnimeRow: {
+  nextMediaRow: {
     readonly unitCount: number | null;
     readonly status: string;
     readonly startDate: string | null;
@@ -669,21 +652,20 @@ const syncUnitSchedule = Effect.fn("MediaUnitRepository.syncUnitSchedule")(funct
   yield* ensureUnits(
     db,
     mediaId,
-    nextAnimeRow.unitCount ?? undefined,
-    nextAnimeRow.status,
-    nextAnimeRow.startDate ?? undefined,
-    nextAnimeRow.endDate ?? undefined,
+    nextMediaRow.unitCount ?? undefined,
+    nextMediaRow.status,
+    nextMediaRow.startDate ?? undefined,
+    nextMediaRow.endDate ?? undefined,
     futureAiringSchedule,
-    false,
     nowIso,
   );
   yield* updateUnitAirDates(
     db,
     mediaId,
-    nextAnimeRow.unitCount ?? undefined,
-    nextAnimeRow.status,
-    nextAnimeRow.startDate ?? undefined,
-    nextAnimeRow.endDate ?? undefined,
+    nextMediaRow.unitCount ?? undefined,
+    nextMediaRow.status,
+    nextMediaRow.startDate ?? undefined,
+    nextMediaRow.endDate ?? undefined,
     futureAiringSchedule,
     nowIso,
   );
@@ -741,17 +723,17 @@ const backfillFromNextAiring = Effect.fn("MediaUnitRepository.backfillFromNextAi
         ),
   );
 
-  const existingByAnimeId = new Map<number, Set<number>>();
+  const existingByMediaId = new Map<number, Set<number>>();
 
   for (const row of existingRows) {
-    const numbers = existingByAnimeId.get(row.mediaId);
+    const numbers = existingByMediaId.get(row.mediaId);
 
     if (numbers) {
       numbers.add(row.number);
       continue;
     }
 
-    existingByAnimeId.set(row.mediaId, new Set([row.number]));
+    existingByMediaId.set(row.mediaId, new Set([row.number]));
   }
 
   const rowsToInsert: (typeof mediaUnits.$inferInsert)[] = [];
@@ -770,7 +752,7 @@ const backfillFromNextAiring = Effect.fn("MediaUnitRepository.backfillFromNextAi
       continue;
     }
 
-    const existingNumbers = existingByAnimeId.get(candidate.id) ?? new Set<number>();
+    const existingNumbers = existingByMediaId.get(candidate.id) ?? new Set<number>();
     const scheduleMap = new Map<number, string>([[nextAiringUnit, nextAiringAt]]);
 
     const missingRows = range(1, upperBound).flatMap((unitNumber) => {
@@ -838,8 +820,47 @@ function buildInsertEpisodeValues(mediaId: number, unitNumber: number, patch: Up
   } satisfies typeof mediaUnits.$inferInsert;
 }
 
+type UnitProbeColumnName =
+  | "audioChannels"
+  | "audioCodec"
+  | "durationSeconds"
+  | "fileSize"
+  | "groupName"
+  | "quality"
+  | "resolution"
+  | "videoCodec";
+
+const UNIT_PROBE_COLUMN_NAMES: ReadonlyArray<UnitProbeColumnName> = [
+  "audioChannels",
+  "audioCodec",
+  "durationSeconds",
+  "fileSize",
+  "groupName",
+  "quality",
+  "resolution",
+  "videoCodec",
+];
+
+/**
+ * Conflict-set fragment that keeps each cached probe column only when the
+ * conflicting insert targets the same `file_path`; a remap to a different
+ * file nulls the stale probe data. Explicit patch values spread after this
+ * fragment and win.
+ */
+function probeResetOnFilePathChange(): Partial<Record<UnitProbeColumnName, SQL>> {
+  const reset: Partial<Record<UnitProbeColumnName, SQL>> = {};
+
+  for (const name of UNIT_PROBE_COLUMN_NAMES) {
+    reset[name] = sql`case when excluded.${sql.identifier("file_path")} is ${
+      mediaUnits.filePath
+    } then ${mediaUnits[name]} else null end`;
+  }
+
+  return reset;
+}
+
 function buildEpisodeConflictSet(patch: UpsertUnitPatch) {
-  return {
+  const patchSet = {
     ...(patch.aired === undefined ? {} : { aired: patch.aired }),
     ...(patch.audioChannels === undefined ? {} : { audioChannels: patch.audioChannels }),
     ...(patch.audioCodec === undefined ? {} : { audioCodec: patch.audioCodec }),
@@ -852,6 +873,15 @@ function buildEpisodeConflictSet(patch: UpsertUnitPatch) {
     ...(patch.resolution === undefined ? {} : { resolution: patch.resolution }),
     ...(patch.title === undefined ? {} : { title: patch.title }),
     ...(patch.videoCodec === undefined ? {} : { videoCodec: patch.videoCodec }),
+  };
+
+  if (patch.filePath === undefined) {
+    return patchSet;
+  }
+
+  return {
+    ...probeResetOnFilePathChange(),
+    ...patchSet,
   };
 }
 

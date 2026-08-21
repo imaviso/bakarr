@@ -1,6 +1,6 @@
 import { CommandExecutor } from "@effect/platform";
 import { dirname, join, resolve } from "node:path";
-import { Cache, Effect } from "effect";
+import { Cache, Effect, Schema } from "effect";
 import type { ReaderPage, ReaderPagesResponse } from "@packages/shared/index.ts";
 
 import type { DatabaseError } from "@/db/database.ts";
@@ -84,26 +84,45 @@ const ARCHIVE_EXTENSIONS = new Set([".cbz", ".zip"]);
 const EPUB_EXTENSIONS = new Set([".epub"]);
 const PDF_EXTENSIONS = new Set([".pdf"]);
 // Archives are read fully into memory, so refuse anything beyond 2 GiB.
+// With a 2 GiB worst case per entry, a capacity of 2 bounds the cache to
+// ~4 GiB instead of letting 16 entries pin ~32 GiB.
 const MAX_ARCHIVE_BYTES = 2 * 1024 * 1024 * 1024;
-const ARCHIVE_CACHE_CAPACITY = 16;
+const ARCHIVE_CACHE_CAPACITY = 2;
 const ARCHIVE_CACHE_TTL = "10 minutes";
 const naturalPathCollator = new Intl.Collator(undefined, {
   numeric: true,
   sensitivity: "base",
 });
 
-/** Cache key for a unit file: path + size + name (a file that changes size is a different file). */
+const UnitFileCacheKeySchema = Schema.parseJson(
+  Schema.Struct({
+    fileName: Schema.String,
+    filePath: Schema.String,
+    fileSize: Schema.Number,
+  }),
+);
+
+/** Structured cache key: JSON base64url so every field round-trips safely. */
 function unitFileCacheKey(unitFile: ReaderUnitFile) {
-  return `${unitFile.filePath}:${unitFile.fileSize}:${unitFile.fileName}`;
+  return Buffer.from(
+    JSON.stringify({
+      fileName: unitFile.fileName,
+      filePath: unitFile.filePath,
+      fileSize: unitFile.fileSize,
+    }),
+    "utf8",
+  ).toString("base64url");
 }
 
 function cacheKeyFile(cacheKey: string): ReaderUnitFile {
-  const firstSeparator = cacheKey.indexOf(":");
-  const lastSeparator = cacheKey.lastIndexOf(":");
+  const decoded = Schema.decodeUnknownSync(UnitFileCacheKeySchema)(
+    Buffer.from(cacheKey, "base64url").toString("utf8"),
+  );
+
   return {
-    fileName: cacheKey.slice(lastSeparator + 1),
-    filePath: cacheKey.slice(0, firstSeparator),
-    fileSize: Number(cacheKey.slice(firstSeparator + 1, lastSeparator)),
+    fileName: decoded.fileName,
+    filePath: decoded.filePath,
+    fileSize: decoded.fileSize,
     isDirectory: false,
     isFile: true,
   };

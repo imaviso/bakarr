@@ -44,6 +44,7 @@ export interface BackgroundJobRepositoryShape {
     nowIso: NowIso<E>,
     message?: string,
   ) => Effect.Effect<void, DatabaseError | E>;
+  readonly clearStaleRunningJobs: () => Effect.Effect<void, DatabaseError>;
 }
 
 export class BackgroundJobRepository extends Effect.Service<BackgroundJobRepository>()(
@@ -59,6 +60,7 @@ export class BackgroundJobRepository extends Effect.Service<BackgroundJobReposit
 
 export function makeBackgroundJobRepositoryShape(db: AppDatabase): BackgroundJobRepositoryShape {
   return {
+    clearStaleRunningJobs: () => clearStaleRunningJobs(db),
     loadByName: (name) => loadByName(db, name),
     markStarted: (name, nowIso) => markStarted(db, name, nowIso),
     markSucceeded: (name, message, nowIso) => markSucceeded(db, name, message, nowIso),
@@ -67,6 +69,25 @@ export function makeBackgroundJobRepositoryShape(db: AppDatabase): BackgroundJob
       updateProgress(db, name, progressCurrent, progressTotal, nowIso, message),
   } satisfies BackgroundJobRepositoryShape;
 }
+
+/**
+ * Startup recovery: rows left with is_running=true by a crash or kill have no
+ * live worker behind them. Called once during bootstrap before workers start.
+ */
+const clearStaleRunningJobs = Effect.fn("BackgroundJobRepository.clearStaleRunningJobs")(function* (
+  db: AppDatabase,
+) {
+  yield* tryDatabasePromise("Failed to clear stale running jobs", () =>
+    db
+      .update(backgroundJobs)
+      .set({
+        isRunning: false,
+        lastMessage: "Interrupted by application restart",
+        lastStatus: "failed",
+      })
+      .where(eq(backgroundJobs.isRunning, true)),
+  );
+});
 
 const loadByName = Effect.fn("BackgroundJobRepository.loadByName")(function* (
   db: AppDatabase,

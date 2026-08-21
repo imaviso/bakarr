@@ -15,6 +15,7 @@ import {
   type JikanNormalizedSeasonalEntry,
 } from "@/features/media/metadata/jikan-model.ts";
 import { ExternalCall, ExternalCallError, type ExternalCallShape } from "@/infra/effect/retry.ts";
+import { executeProviderRequest } from "@/infra/effect/provider-http.ts";
 
 const JIKAN_URL = "https://api.jikan.moe/v4";
 
@@ -110,7 +111,7 @@ const fetchDetail = Effect.fn("JikanClient.fetchDetail")(function* (
   const fullResponse = yield* callJikan(
     client,
     externalCall,
-    `/media/${malId}/full`,
+    `/anime/${malId}/full`,
     "jikan.detail.full",
   );
 
@@ -135,7 +136,7 @@ const fetchDetail = Effect.fn("JikanClient.fetchDetail")(function* (
   const basicResponse = yield* callJikan(
     client,
     externalCall,
-    `/media/${malId}`,
+    `/anime/${malId}`,
     "jikan.detail.basic",
   );
 
@@ -215,7 +216,7 @@ const fetchRecommendations = Effect.fn("JikanClient.fetchRecommendations")(funct
     const response = yield* callJikan(
       client,
       externalCall,
-      `/media/${malId}/recommendations`,
+      `/anime/${malId}/recommendations`,
       "jikan.detail.recommendations",
     );
 
@@ -259,19 +260,18 @@ const callJikan = Effect.fn("JikanClient.callJikan")(function* (
 ) {
   const url = `${JIKAN_URL}${path}`;
 
-  const request = HttpClientRequest.get(url);
-  const response = yield* externalCall.tryExternalEffect(operation, client.execute(request));
+  const response = yield* executeProviderRequest({
+    client,
+    externalCall,
+    failureMessage: `Jikan ${operation}`,
+    // 404 means "no such resource" and is surfaced as `None`, not an error.
+    isExpectedStatus: (status) => status === 404 || (status >= 200 && status < 300),
+    operation,
+    request: HttpClientRequest.get(url),
+  });
 
   if (response.status === 404) {
     return Option.none<HttpClientResponse.HttpClientResponse>();
-  }
-
-  if (response.status < 200 || response.status >= 300) {
-    return yield* ExternalCallError.make({
-      cause: new Error(`Jikan ${operation} failed with status ${response.status}`),
-      message: `Jikan ${operation} failed`,
-      operation: `${operation}.response`,
-    });
   }
 
   return Option.some(response);

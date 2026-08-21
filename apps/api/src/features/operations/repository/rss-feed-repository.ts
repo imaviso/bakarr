@@ -51,7 +51,7 @@ const listAll = Effect.fn("RssFeedRepository.listAll")(function* (db: AppDatabas
   const rows = yield* tryDatabasePromise("Failed to list RSS feeds", () =>
     db.select().from(rssFeeds).orderBy(desc(rssFeeds.id)),
   );
-  return rows.map(toRssFeed);
+  return rows.map((row) => toRssFeed(row));
 });
 
 const listByMediaId = Effect.fn("RssFeedRepository.listByMediaId")(function* (
@@ -61,7 +61,7 @@ const listByMediaId = Effect.fn("RssFeedRepository.listByMediaId")(function* (
   const rows = yield* tryDatabasePromise("Failed to list media RSS feeds", () =>
     db.select().from(rssFeeds).where(eq(rssFeeds.mediaId, mediaId)),
   );
-  return rows.map(toRssFeed);
+  return rows.map((row) => toRssFeed(row));
 });
 
 const listEnabledRows = Effect.fn("RssFeedRepository.listEnabledRows")(function* (db: AppDatabase) {

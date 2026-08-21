@@ -6,6 +6,7 @@ import { nowIso as currentNowIso } from "@/infra/time.ts";
 import { FileSystem } from "@/infra/filesystem/filesystem.ts";
 import { encodeNumberList } from "@/features/system/profile-codec.ts";
 import { getConfiguredLibraryPathEffect } from "@/features/media/shared/config-support.ts";
+import { decodeStoredMediaKindEffect } from "@/features/media/shared/media-kind.ts";
 import {
   resolveConfiguredLibraryRoot,
   assertPathWithinLibraryRoot,
@@ -28,7 +29,7 @@ export interface MediaSettingsServiceShape {
     path: string,
   ) => Effect.Effect<
     void,
-    DatabaseError | MediaNotFoundError | MediaConflictError | DomainPathError
+    DatabaseError | MediaNotFoundError | MediaConflictError | DomainPathError | StoredDataError
   >;
   readonly updateProfile: (
     id: number,
@@ -65,9 +66,12 @@ const makeMediaSettingsService = Effect.fn("MediaSettingsService.make")(function
     path: string,
   ) {
     const trimmedPath = path.trim();
+    const mediaRow = yield* mediaRepository.getMediaRow(id);
+    const mediaKind = yield* decodeStoredMediaKindEffect(mediaRow.mediaKind);
 
     const configuredLibraryPath = yield* getConfiguredLibraryPathEffect(
       systemConfigRepository,
+      mediaKind,
     ).pipe(
       Effect.mapError(
         (cause) =>
@@ -81,7 +85,6 @@ const makeMediaSettingsService = Effect.fn("MediaSettingsService.make")(function
     const canonicalLibraryRoot = yield* resolveConfiguredLibraryRoot(fs, configuredLibraryPath);
 
     yield* assertPathWithinLibraryRoot(fs, trimmedPath, canonicalLibraryRoot);
-    yield* mediaRepository.requireMediaExists(id);
 
     yield* fs.mkdir(trimmedPath, { recursive: true }).pipe(
       Effect.mapError(

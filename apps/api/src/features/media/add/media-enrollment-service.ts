@@ -185,7 +185,6 @@ const makeMediaEnrollmentService = Effect.fn("MediaEnrollmentService.make")(func
       existingRows: [],
       futureAiringSchedule: validMetadata.futureAiringSchedule,
       nowIso: createdAt,
-      resetMissingOnly: true,
       startDate: validMetadata.startDate ?? undefined,
       status: validMetadata.status,
     });
@@ -209,10 +208,10 @@ const makeMediaEnrollmentService = Effect.fn("MediaEnrollmentService.make")(func
       payload: { message: `Added ${mediaRow.titleRomaji} to library` },
     });
 
-    const persistedEpisodeRows = yield* mediaRepository.listUnitRowsByMediaId(mediaRow.id);
+    const persistedUnitRows = yield* mediaRepository.listUnitRowsByMediaId(mediaRow.id);
     const media = yield* toMediaDto(
       mediaRow,
-      deriveDetailProgress(persistedEpisodeRows, mediaRow.unitCount ?? undefined),
+      deriveDetailProgress(persistedUnitRows, mediaRow.unitCount ?? undefined),
     );
 
     if (input.monitor_and_search) {
@@ -221,7 +220,7 @@ const makeMediaEnrollmentService = Effect.fn("MediaEnrollmentService.make")(func
         failureMessage: `Post-enrollment missing-unit search failed for media ${media.id}`,
         operation: () => searchBackgroundService.triggerSearchMissing(media.id),
         queuedMessage: `Queued post-enrollment missing-unit search for media ${media.id}`,
-        runningMessage: `Searching missing mediaUnits for media ${media.id}`,
+        runningMessage: `Searching missing episodes for media ${media.id}`,
         successMessage: () => `Finished post-enrollment missing-unit search for media ${media.id}`,
         taskKey: "downloads_search_missing_manual",
       });

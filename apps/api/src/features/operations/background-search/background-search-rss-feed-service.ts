@@ -6,6 +6,7 @@ import { rssFeeds } from "@/db/schema.ts";
 import { nowIso as currentNowIso } from "@/infra/time.ts";
 import { RssClient } from "@/features/operations/rss/rss-client.ts";
 import { BackgroundSearchQueueService } from "@/features/operations/background-search/background-search-queue-service.ts";
+import { requireQualityProfile } from "@/features/operations/background-search/background-search-quality-profile-support.ts";
 import { DomainInputError, InfrastructureError } from "@/features/errors.ts";
 import { DownloadRepository } from "@/features/operations/repository/download-repository.ts";
 import {
@@ -17,6 +18,8 @@ import { MediaRepository } from "@/features/media/shared/media-repository.ts";
 import { RssFeedRepository } from "@/features/operations/repository/rss-feed-repository.ts";
 import { QualityProfileRepository } from "@/features/system/repository/quality-profile-repository.ts";
 import { ReleaseProfileRepository } from "@/features/system/repository/release-profile-repository.ts";
+
+const RSS_FEED_ITEM_LIMIT = 10;
 
 export type BackgroundSearchRssFeedError =
   | DatabaseError
@@ -44,20 +47,6 @@ export class BackgroundSearchRssFeedService extends Effect.Service<BackgroundSea
       const rssFeedRepository = yield* RssFeedRepository;
       const downloadRepository = yield* DownloadRepository;
       const nowIso = currentNowIso;
-
-      const requireQualityProfile = Effect.fn("BackgroundSearchRssFeed.requireQualityProfile")(
-        function* (profileName: string) {
-          const profileOption = yield* qualityProfileRepository.loadQualityProfile(profileName);
-
-          if (Option.isNone(profileOption)) {
-            return yield* new DomainInputError({
-              message: `Quality profile '${profileName}' not found`,
-            });
-          }
-
-          return profileOption.value;
-        },
-      );
 
       const logRssSkip = Effect.fn("BackgroundSearchRssFeed.logRssSkip")(function* (input: {
         mediaId?: number;
@@ -102,12 +91,15 @@ export class BackgroundSearchRssFeedService extends Effect.Service<BackgroundSea
                 return 0;
               }
 
-              const profile = yield* requireQualityProfile(animeRow.profileName);
+              const profile = yield* requireQualityProfile(
+                qualityProfileRepository,
+                animeRow.profileName,
+              );
               yield* validateQualityProfileSizeLabels(profile);
               const rules = yield* releaseProfileRepository.loadReleaseRules(animeRow);
               let queuedForFeed = 0;
 
-              const slice = items.slice(0, 10);
+              const slice = items.slice(0, RSS_FEED_ITEM_LIMIT);
               if (slice.length === 0) {
                 yield* logRssSkip({
                   mediaId: animeRow.id,
@@ -120,6 +112,41 @@ export class BackgroundSearchRssFeedService extends Effect.Service<BackgroundSea
                 return 0;
               }
 
+              if (items.length > slice.length) {
+                yield* Effect.logDebug("RSS feed truncated for processing").pipe(
+                  Effect.annotateLogs({
+                    droppedCount: items.length - slice.length,
+                    feedId: feed.id,
+                    feedName: feed.name ?? feed.url,
+                    keptCount: slice.length,
+                  }),
+                );
+              }
+
+              // Batch-load unit states for every parsed unit number up front
+              // instead of one query per release item.
+              const parsedItems = slice.map((item) => ({
+                item,
+                unitNumber: parseRssReleaseUnitNumbers({
+                  mediaKind: animeRow.mediaKind,
+                  title: item.title,
+                })[0],
+              }));
+              const parsedUnitNumbers = [
+                ...new Set(
+                  parsedItems.flatMap((parsed) =>
+                    parsed.unitNumber == null ? [] : [parsed.unitNumber],
+                  ),
+                ),
+              ];
+              const unitRows = yield* mediaRepository.loadUnitsByNumbers(
+                animeRow.id,
+                parsedUnitNumbers,
+              );
+              const unitStateByNumber = new Map<number, { downloaded: boolean }>(
+                unitRows.map((row) => [row.number, { downloaded: row.downloaded }]),
+              );
+
               const existingRows = yield* downloadRepository.listDownloadsByInfoHashes(
                 slice.map((item) => item.infoHash),
               );
@@ -129,7 +156,9 @@ export class BackgroundSearchRssFeedService extends Effect.Service<BackgroundSea
                 .map((row) => row.number)
                 .toSorted((left, right) => left - right);
 
-              for (const item of slice) {
+              for (const parsed of parsedItems) {
+                const { item, unitNumber } = parsed;
+
                 if (existingHashes.has(item.infoHash.toLowerCase())) {
                   yield* logRssSkip({
                     mediaId: animeRow.id,
@@ -139,11 +168,6 @@ export class BackgroundSearchRssFeedService extends Effect.Service<BackgroundSea
                   });
                   continue;
                 }
-
-                const unitNumber = parseRssReleaseUnitNumbers({
-                  mediaKind: animeRow.mediaKind,
-                  title: item.title,
-                })[0];
 
                 if (unitNumber == null) {
                   yield* logRssSkip({
@@ -155,10 +179,11 @@ export class BackgroundSearchRssFeedService extends Effect.Service<BackgroundSea
                   continue;
                 }
 
-                const currentEpisode = yield* mediaRepository.loadCurrentUnitState(
-                  animeRow.id,
-                  unitNumber,
-                );
+                const unitState = unitStateByNumber.get(unitNumber);
+                const currentEpisode = unitState
+                  ? Option.some(unitState)
+                  : Option.none<{ downloaded: boolean }>();
+
                 const action = decideDownloadAction(
                   profile,
                   rules,

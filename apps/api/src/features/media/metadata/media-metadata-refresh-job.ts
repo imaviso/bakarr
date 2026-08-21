@@ -122,7 +122,7 @@ export const refreshMetadataForMonitoredMediaEffect = Effect.fn(
       monitoredMediaIds,
       (mediaId) =>
         Effect.gen(function* () {
-          const { metadata, nextAnimeRow } = yield* syncMediaMetadataEffect({
+          const { metadata, nextMediaRow } = yield* syncMediaMetadataEffect({
             imageCacheService: input.imageCacheService,
             metadataProvider: input.metadataProvider,
             mediaId,
@@ -134,7 +134,7 @@ export const refreshMetadataForMonitoredMediaEffect = Effect.fn(
 
           yield* input.mediaUnitRepository.syncUnitSchedule(
             mediaId,
-            nextAnimeRow,
+            nextMediaRow,
             metadata?.futureAiringSchedule,
             nowIso,
           );

@@ -15,10 +15,10 @@ export const resolveUnitFileEffect = Effect.fn("MediaFileRead.resolveUnitFileEff
     unitNumber: number;
     fs: FileSystemShape;
   }) {
-    const animeRow = yield* input.mediaRepository.getMediaRow(input.mediaId);
-    const episodeRow = yield* input.mediaRepository.getUnitRow(input.mediaId, input.unitNumber);
+    const mediaRow = yield* input.mediaRepository.getMediaRow(input.mediaId);
+    const unitRow = yield* input.mediaRepository.getUnitRow(input.mediaId, input.unitNumber);
 
-    if (!episodeRow.filePath) {
+    if (!unitRow.filePath) {
       return yield* new UnitFileResolveError({
         mediaId: input.mediaId,
         message: "MediaUnit file not found",
@@ -27,37 +27,37 @@ export const resolveUnitFileEffect = Effect.fn("MediaFileRead.resolveUnitFileEff
       });
     }
 
-    const animeRootResult = yield* Effect.either(input.fs.realPath(animeRow.rootFolder));
+    const mediaRootResult = yield* Effect.either(input.fs.realPath(mediaRow.rootFolder));
 
-    if (animeRootResult._tag === "Left") {
+    if (mediaRootResult._tag === "Left") {
       yield* Effect.logDebug("Media root folder not accessible").pipe(
         Effect.annotateLogs({
           mediaId: input.mediaId,
           unitNumber: input.unitNumber,
-          rootFolder: animeRow.rootFolder,
+          rootFolder: mediaRow.rootFolder,
         }),
       );
       return yield* new UnitFileResolveError({
         mediaId: input.mediaId,
         message: "Media root folder is inaccessible",
         reason: "root-inaccessible",
-        rootFolder: animeRow.rootFolder,
+        rootFolder: mediaRow.rootFolder,
         unitNumber: input.unitNumber,
       });
     }
 
-    const filePathResult = yield* Effect.either(input.fs.realPath(episodeRow.filePath));
+    const filePathResult = yield* Effect.either(input.fs.realPath(unitRow.filePath));
 
     if (filePathResult._tag === "Left") {
       yield* Effect.logDebug("MediaUnit file path not accessible").pipe(
         Effect.annotateLogs({
           mediaId: input.mediaId,
           unitNumber: input.unitNumber,
-          filePath: episodeRow.filePath,
+          filePath: unitRow.filePath,
         }),
       );
       return yield* new UnitFileResolveError({
-        filePath: episodeRow.filePath,
+        filePath: unitRow.filePath,
         mediaId: input.mediaId,
         message: "MediaUnit file not found",
         reason: "missing",
@@ -67,13 +67,13 @@ export const resolveUnitFileEffect = Effect.fn("MediaFileRead.resolveUnitFileEff
 
     const filePath = filePathResult.right;
 
-    if (!isWithinPathRoot(filePath, animeRootResult.right)) {
+    if (!isWithinPathRoot(filePath, mediaRootResult.right)) {
       yield* Effect.logDebug("MediaUnit file outside media root").pipe(
         Effect.annotateLogs({
           mediaId: input.mediaId,
           unitNumber: input.unitNumber,
           filePath,
-          animeRoot: animeRootResult.right,
+          mediaRoot: mediaRootResult.right,
         }),
       );
       return yield* new UnitFileResolveError({
@@ -81,7 +81,7 @@ export const resolveUnitFileEffect = Effect.fn("MediaFileRead.resolveUnitFileEff
         mediaId: input.mediaId,
         message: "MediaUnit file mapping is invalid",
         reason: "outside-root",
-        rootFolder: animeRootResult.right,
+        rootFolder: mediaRootResult.right,
         unitNumber: input.unitNumber,
       });
     }

@@ -2,7 +2,9 @@ import { Effect, Either, Encoding, Schema } from "effect";
 import { timingSafeEqual as nodeTimingSafeEqual } from "node:crypto";
 
 const PASSWORD_SCHEME = "pbkdf2_sha256";
-const ITERATIONS = 310_000;
+// OWASP 2024 recommendation for PBKDF2-HMAC-SHA256. Stored hashes embed their
+// own iteration count, so hashes written with older values still verify.
+export const ITERATIONS = 600_000;
 const KEY_LENGTH = 32;
 
 interface PasswordCryptoPrimitives {
@@ -136,6 +138,15 @@ export const verifyPassword = Effect.fn("Password.verify")(function* (
 
   return timingSafeEqual(expected, actual);
 });
+
+export function isPasswordHashOutdated(storedHash: string): boolean {
+  const parts = storedHash.split("$");
+  if (parts.length !== 4) {
+    return true;
+  }
+  const iterations = Number(parts[1]);
+  return !Number.isInteger(iterations) || iterations < ITERATIONS;
+}
 
 function deriveKeyMaterialWith(primitives: PasswordCryptoPrimitives) {
   return Effect.fn("PasswordCrypto.deriveKeyMaterial")(function* (password: string) {

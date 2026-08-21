@@ -46,31 +46,34 @@ it("manami source URL parsing extracts AniList and MAL ids", () => {
   assert.deepStrictEqual(parseMalIdFromSource("https://anilist.co/anime/5114"), undefined);
 });
 
-it.scoped("ManamiClient maps non-2xx response as ExternalCallError with response operation", () =>
-  withFileSystemSandboxEffect(({ fs, root }) =>
-    Effect.gen(function* () {
-      const clientLayer = makeManamiClientLayer({
-        fs,
-        httpClient: HttpClient.make((request) =>
-          Effect.sync(() =>
-            HttpClientResponse.fromWeb(
-              request,
-              Response.json({ message: "bad gateway" }, { status: 502 }),
+// Live clock: the failing status now goes through the retry schedule.
+it.scopedLive(
+  "ManamiClient maps non-2xx response as ExternalCallError with response operation",
+  () =>
+    withFileSystemSandboxEffect(({ fs, root }) =>
+      Effect.gen(function* () {
+        const clientLayer = makeManamiClientLayer({
+          fs,
+          httpClient: HttpClient.make((request) =>
+            Effect.sync(() =>
+              HttpClientResponse.fromWeb(
+                request,
+                Response.json({ message: "bad gateway" }, { status: 502 }),
+              ),
             ),
           ),
-        ),
-        root,
-      });
+          root,
+        });
 
-      const result = yield* Effect.flatMap(ManamiCacheRefreshClient, (client) =>
-        client.refreshCacheIfNeeded(),
-      ).pipe(Effect.provide(clientLayer), Effect.either);
+        const result = yield* Effect.flatMap(ManamiCacheRefreshClient, (client) =>
+          client.refreshCacheIfNeeded(),
+        ).pipe(Effect.provide(clientLayer), Effect.either);
 
-      assert.ok(Either.isLeft(result));
-      assert.ok(result.left instanceof ExternalCallError);
-      assert.deepStrictEqual(result.left.operation, "manami.dataset.response");
-    }),
-  ),
+        assert.ok(Either.isLeft(result));
+        assert.ok(result.left instanceof ExternalCallError);
+        assert.deepStrictEqual(result.left.operation, "manami.dataset.download.response");
+      }),
+    ),
 );
 
 it.scoped("ManamiClient maps decode failures as ExternalCallError with json operation", () =>

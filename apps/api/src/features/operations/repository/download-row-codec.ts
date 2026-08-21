@@ -125,19 +125,6 @@ export const insertDownloadEventRow = Effect.fn("DownloadRepository.insertDownlo
   },
 );
 
-export const insertDownloadEventRows = Effect.fn("DownloadRepository.insertDownloadEventRows")(
-  function* (db: AppDatabase, inputs: readonly DownloadEventRecordInput[], createdAt: string) {
-    if (inputs.length === 0) {
-      return;
-    }
-
-    const rows = yield* Effect.forEach(inputs, (input) => toDownloadEventInsert(input, createdAt));
-    yield* tryDatabasePromise("Failed to record download events", () =>
-      db.insert(downloadEvents).values(rows),
-    );
-  },
-);
-
 export const deleteDownloadRow = Effect.fn("DownloadRepository.deleteDownloadRow")(function* (
   db: AppDatabase,
   id: number,

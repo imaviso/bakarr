@@ -2,6 +2,7 @@ import * as Cron from "effect/Cron";
 import { Either } from "effect";
 
 import type { Config } from "@packages/shared/index.ts";
+import { DOWNLOAD_SYNC_INTERVAL_MS } from "@/background/schedule.ts";
 
 export function normalizeLevel(level: string): "info" | "warn" | "error" | "success" {
   if (level === "warn" || level === "error" || level === "success") {
@@ -45,6 +46,10 @@ export function toBackgroundJobStatus(
   };
 }
 
+function formatIntervalMs(intervalMs: number): string {
+  return Number.isInteger(intervalMs / 1000) ? `${intervalMs / 1000}s` : `${intervalMs}ms`;
+}
+
 function describeJobSchedule(
   config: Config,
   name: string,
@@ -53,7 +58,10 @@ function describeJobSchedule(
   readonly value: string | undefined;
 } {
   if (name === "download_sync") {
-    return { mode: "interval", value: "15s" };
+    return {
+      mode: "interval",
+      value: formatIntervalMs(DOWNLOAD_SYNC_INTERVAL_MS),
+    };
   }
 
   if (name === "rss") {

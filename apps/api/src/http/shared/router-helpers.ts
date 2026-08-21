@@ -10,7 +10,6 @@ import {
   RequestValidationError,
 } from "@/http/shared/route-validation.ts";
 import type { RouteErrorResponse } from "@/http/shared/route-types.ts";
-import type { AuthUser } from "@packages/shared/index.ts";
 
 export const MAX_JSON_BODY_BYTES = 1_048_576;
 
@@ -109,6 +108,13 @@ export const routeResponse = <A, E, R, E2, R2>(
       Effect.flatMap((value) => onSuccess(value)),
       Effect.catchAllCause((cause) =>
         Effect.gen(function* () {
+          // Client disconnects and shutdown surface as interrupt-only causes.
+          // The response channel is already dead: re-interrupt quietly instead
+          // of mapping the request to a 500 and logging an error.
+          if (Cause.isInterruptedOnly(cause)) {
+            return yield* Effect.interrupt;
+          }
+
           const failure = Cause.failureOption(cause);
           const mapped = Option.match(failure, {
             onNone: (): RouteErrorResponse => ({ message: "Unexpected server error", status: 500 }),
@@ -161,11 +167,6 @@ export const schemaAcceptedResponse =
       { data: value, success: true },
       { status: 202 },
     );
-
-export const withAuthViewer = <A, E, R>(
-  effect: (viewer: AuthUser) => Effect.Effect<A, E, R>,
-  options: { readonly allowPasswordChangeRequired?: boolean } = {},
-) => Effect.flatMap(requireViewerFromHttpRequest(options), effect);
 
 export const authedRouteResponse = <A, E, R, E2, R2>(
   effect: Effect.Effect<A, E, R>,

@@ -1,5 +1,5 @@
 // oxlint-disable oxc/no-async-await -- async/await required by transaction callbacks, test callbacks, and tryPromise wrappers
-import { and, desc, eq, inArray, isNull, sql, type SQL } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, lt, sql, type SQL } from "drizzle-orm";
 import { Effect, type Stream } from "effect";
 
 import type {
@@ -27,7 +27,6 @@ import { loadDownloadPresentationContexts } from "@/features/operations/reposito
 import {
   deleteDownloadRow,
   insertDownloadEventRow,
-  insertDownloadEventRows,
   toDownloadEventInsert,
   type DownloadEventRecordInput,
   updateDownloadStatusRow,
@@ -89,19 +88,41 @@ function buildTorrentSyncCase(
 export interface DownloadRepositoryShape {
   readonly bulkUpdateTorrentSyncRows: (
     chunk: readonly TorrentSyncUpdate[],
-  ) => Effect.Effect<void, DatabaseError>;
+    events: readonly DownloadEventRecordInput[],
+    createdAt: string,
+  ) => Effect.Effect<void, DatabaseError | StoredDataError>;
   /**
    * Atomic claim: only one concurrent reconcile may import a given download.
-   * Sets `reconciledAt` to the token only when it is currently NULL; returns
-   * whether the claim was acquired. The token marks an in-flight claim;
-   * finalization overwrites it with a timestamp, so a leftover token always
-   * means the claim must be released for retry.
+   * Sets `reconciledAt` to the token (`claim:<isotimestamp>:<uuid>`) only when
+   * it is currently NULL; returns whether the claim was acquired. The token
+   * marks an in-flight claim; finalization overwrites it with a timestamp, so
+   * a leftover token always means the claim must be released for retry.
    */
   readonly claimDownloadReconciliation: (
     infoHash: string,
     claimToken: string,
   ) => Effect.Effect<boolean, DatabaseError>;
   readonly deleteDownloadRow: (id: number) => Effect.Effect<void, DatabaseError>;
+  /**
+   * Atomic delete write: deleted event + row removal in one transaction, so a
+   * download never disappears without its deletion event.
+   */
+  readonly deleteDownloadWithEventTx: (input: {
+    readonly createdAt: string;
+    readonly downloadId: number;
+    readonly event: DownloadEventRecordInput;
+  }) => Effect.Effect<void, DatabaseError | StoredDataError>;
+  /**
+   * Phantom-queued sweep: rows stuck in `queued` whose `lastSyncedAt` predates
+   * `staleBefore` are absent from qBittorrent's listing (the add was lost).
+   * Marks them failed with an event in one transaction; returns swept count.
+   * Both timestamps are ISO-8601 UTC (`toISOString`) so SQLite TEXT `lt`
+   * is chronologically correct via lexicographic compare.
+   */
+  readonly failStaleQueuedDownloads: (input: {
+    readonly now: string;
+    readonly staleBefore: string;
+  }) => Effect.Effect<number, DatabaseError>;
   /** Atomic import write: downloads + download_events + system_logs (lifecycle tx). Guarded by claim token. */
   readonly finalizeDownloadImport: (input: {
     readonly claimToken: string;
@@ -137,10 +158,6 @@ export interface DownloadRepositoryShape {
   }) => Effect.Effect<void, DatabaseError | StoredDataError>;
   readonly insertDownloadEvent: (
     input: DownloadEventRecordInput,
-    createdAt: string,
-  ) => Effect.Effect<void, DatabaseError | StoredDataError>;
-  readonly insertDownloadEvents: (
-    inputs: readonly DownloadEventRecordInput[],
     createdAt: string,
   ) => Effect.Effect<void, DatabaseError | StoredDataError>;
   readonly insertQueuedDownloadRow: (input: {
@@ -248,14 +265,16 @@ export class DownloadRepository extends Effect.Service<DownloadRepository>()(
 
 export function makeDownloadRepositoryShape(db: AppDatabase): DownloadRepositoryShape {
   return {
-    bulkUpdateTorrentSyncRows: (chunk) => bulkUpdateTorrentSyncRows(db, chunk),
+    bulkUpdateTorrentSyncRows: (chunk, events, createdAt) =>
+      bulkUpdateTorrentSyncRows(db, chunk, events, createdAt),
     claimDownloadReconciliation: (infoHash, claimToken) =>
       claimDownloadReconciliation(db, infoHash, claimToken),
     deleteDownloadRow: (id) => deleteDownloadRow(db, id, "Failed to remove download"),
+    deleteDownloadWithEventTx: (input) => deleteDownloadWithEventTx(db, input),
+    failStaleQueuedDownloads: (input) => failStaleQueuedDownloads(db, input),
     finalizeDownloadImport: (input) => finalizeDownloadImport(db, input),
     finalizeQueuedDownloadTx: (input) => finalizeQueuedDownloadTx(db, input),
     insertDownloadEvent: (input, createdAt) => insertDownloadEventRow(db, input, createdAt),
-    insertDownloadEvents: (inputs, createdAt) => insertDownloadEventRows(db, inputs, createdAt),
     insertQueuedDownloadRow: (input) => insertQueuedDownloadRow(db, input),
     countActiveDownloads: () => countActiveDownloads(db),
     listActiveDownloadRows: (limit) => listActiveDownloadRows(db, limit),
@@ -282,73 +301,100 @@ export function makeDownloadRepositoryShape(db: AppDatabase): DownloadRepository
   } satisfies DownloadRepositoryShape;
 }
 
+/**
+ * Chunked sync write: status updates and their status-change events commit in
+ * one transaction per chunk, so a synced row never observes a status without
+ * its event (same guarantee as `finalizeQueuedDownloadTx`).
+ */
 const bulkUpdateTorrentSyncRows = Effect.fn("DownloadRepository.bulkUpdateTorrentSyncRows")(
-  function* (db: AppDatabase, chunk: readonly TorrentSyncUpdate[]) {
-    yield* tryDatabasePromise("Failed to sync downloads with qBittorrent", () =>
-      db
-        .update(downloads)
-        .set({
-          contentPath: buildTorrentSyncCase(
-            chunk,
-            (row) => row.contentPath,
-            sql`${downloads.contentPath}`,
-          ),
-          downloadDate: buildTorrentSyncCase(
-            chunk,
-            (row) => row.downloadDate,
-            sql`${downloads.downloadDate}`,
-          ),
-          downloadedBytes: buildTorrentSyncCase(
-            chunk,
-            (row) => row.downloadedBytes,
-            sql`${downloads.downloadedBytes}`,
-          ),
-          errorMessage: buildTorrentSyncCase(
-            chunk,
-            (row) => row.errorMessage,
-            sql`${downloads.errorMessage}`,
-          ),
-          etaSeconds: buildTorrentSyncCase(
-            chunk,
-            (row) => row.etaSeconds,
-            sql`${downloads.etaSeconds}`,
-          ),
-          externalState: buildTorrentSyncCase(
-            chunk,
-            (row) => row.externalState,
-            sql`${downloads.externalState}`,
-          ),
-          lastErrorAt: buildTorrentSyncCase(
-            chunk,
-            (row) => row.lastErrorAt,
-            sql`${downloads.lastErrorAt}`,
-          ),
-          lastSyncedAt: buildTorrentSyncCase(
-            chunk,
-            (row) => row.lastSyncedAt,
-            sql`${downloads.lastSyncedAt}`,
-          ),
-          progress: buildTorrentSyncCase(chunk, (row) => row.progress, sql`${downloads.progress}`),
-          savePath: buildTorrentSyncCase(chunk, (row) => row.savePath, sql`${downloads.savePath}`),
-          speedBytes: buildTorrentSyncCase(
-            chunk,
-            (row) => row.speedBytes,
-            sql`${downloads.speedBytes}`,
-          ),
-          status: buildTorrentSyncCase(chunk, (row) => row.nextStatus, sql`${downloads.status}`),
-          totalBytes: buildTorrentSyncCase(
-            chunk,
-            (row) => row.totalBytes,
-            sql`${downloads.totalBytes}`,
-          ),
-        })
-        .where(
-          inArray(
-            downloads.infoHash,
-            chunk.map((row) => row.hash),
-          ),
-        ),
+  function* (
+    db: AppDatabase,
+    chunk: readonly TorrentSyncUpdate[],
+    events: readonly DownloadEventRecordInput[],
+    createdAt: string,
+  ) {
+    const eventRows = yield* Effect.forEach(events, (event) =>
+      toDownloadEventInsert(event, createdAt),
     );
+
+    yield* tryDatabasePromise("Failed to sync downloads with qBittorrent", async () => {
+      await db.transaction(async (tx) => {
+        await tx
+          .update(downloads)
+          .set({
+            contentPath: buildTorrentSyncCase(
+              chunk,
+              (row) => row.contentPath,
+              sql`${downloads.contentPath}`,
+            ),
+            downloadDate: buildTorrentSyncCase(
+              chunk,
+              (row) => row.downloadDate,
+              sql`${downloads.downloadDate}`,
+            ),
+            downloadedBytes: buildTorrentSyncCase(
+              chunk,
+              (row) => row.downloadedBytes,
+              sql`${downloads.downloadedBytes}`,
+            ),
+            errorMessage: buildTorrentSyncCase(
+              chunk,
+              (row) => row.errorMessage,
+              sql`${downloads.errorMessage}`,
+            ),
+            etaSeconds: buildTorrentSyncCase(
+              chunk,
+              (row) => row.etaSeconds,
+              sql`${downloads.etaSeconds}`,
+            ),
+            externalState: buildTorrentSyncCase(
+              chunk,
+              (row) => row.externalState,
+              sql`${downloads.externalState}`,
+            ),
+            lastErrorAt: buildTorrentSyncCase(
+              chunk,
+              (row) => row.lastErrorAt,
+              sql`${downloads.lastErrorAt}`,
+            ),
+            lastSyncedAt: buildTorrentSyncCase(
+              chunk,
+              (row) => row.lastSyncedAt,
+              sql`${downloads.lastSyncedAt}`,
+            ),
+            progress: buildTorrentSyncCase(
+              chunk,
+              (row) => row.progress,
+              sql`${downloads.progress}`,
+            ),
+            savePath: buildTorrentSyncCase(
+              chunk,
+              (row) => row.savePath,
+              sql`${downloads.savePath}`,
+            ),
+            speedBytes: buildTorrentSyncCase(
+              chunk,
+              (row) => row.speedBytes,
+              sql`${downloads.speedBytes}`,
+            ),
+            status: buildTorrentSyncCase(chunk, (row) => row.nextStatus, sql`${downloads.status}`),
+            totalBytes: buildTorrentSyncCase(
+              chunk,
+              (row) => row.totalBytes,
+              sql`${downloads.totalBytes}`,
+            ),
+          })
+          .where(
+            inArray(
+              downloads.infoHash,
+              chunk.map((row) => row.hash),
+            ),
+          );
+        if (eventRows.length > 0) {
+          await tx.insert(downloadEvents).values(eventRows);
+        }
+      });
+    });
   },
 );
 
@@ -445,6 +491,77 @@ const finalizeQueuedDownloadTx = Effect.fn("DownloadRepository.finalizeQueuedDow
           .set({ externalState: input.externalState, status: input.status })
           .where(eq(downloads.id, input.downloadId));
         await tx.insert(downloadEvents).values(eventRow);
+      });
+    });
+  },
+);
+
+const deleteDownloadWithEventTx = Effect.fn("DownloadRepository.deleteDownloadWithEventTx")(
+  function* (
+    db: AppDatabase,
+    input: {
+      readonly createdAt: string;
+      readonly downloadId: number;
+      readonly event: DownloadEventRecordInput;
+    },
+  ) {
+    const eventRow = yield* toDownloadEventInsert(input.event, input.createdAt);
+
+    yield* tryDatabasePromise("Failed to remove download", async () => {
+      await db.transaction(async (tx) => {
+        await tx.insert(downloadEvents).values(eventRow);
+        await tx.delete(downloads).where(eq(downloads.id, input.downloadId));
+      });
+    });
+  },
+);
+
+const failStaleQueuedDownloads = Effect.fn("DownloadRepository.failStaleQueuedDownloads")(
+  function* (db: AppDatabase, input: { readonly now: string; readonly staleBefore: string }) {
+    return yield* tryDatabasePromise("Failed to sweep stale queued downloads", async () => {
+      return await db.transaction(async (tx): Promise<number> => {
+        const staleRows = await tx
+          .select({
+            id: downloads.id,
+            mediaId: downloads.mediaId,
+            torrentName: downloads.torrentName,
+          })
+          .from(downloads)
+          .where(
+            and(eq(downloads.status, "queued"), lt(downloads.lastSyncedAt, input.staleBefore)),
+          );
+
+        if (staleRows.length === 0) {
+          return 0;
+        }
+
+        await tx
+          .update(downloads)
+          .set({
+            errorMessage: "qBittorrent no longer reports this queued download",
+            externalState: "failed",
+            status: "failed",
+          })
+          .where(
+            inArray(
+              downloads.id,
+              staleRows.map((row) => row.id),
+            ),
+          );
+        await tx.insert(downloadEvents).values(
+          staleRows.map((row) => ({
+            mediaId: row.mediaId,
+            createdAt: input.now,
+            downloadId: row.id,
+            eventType: "download.failed",
+            fromStatus: "queued",
+            message: `Lost track of queued download ${row.torrentName}`,
+            metadata: null,
+            toStatus: "failed",
+          })),
+        );
+
+        return staleRows.length;
       });
     });
   },

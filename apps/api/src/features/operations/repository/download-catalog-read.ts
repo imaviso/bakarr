@@ -18,7 +18,8 @@ import {
   type DownloadEventPresentationContext,
   type DownloadEventRowLike,
 } from "@/features/operations/download/download-event-presentations.ts";
-import { decodeOptionalNumberList } from "@/features/system/profile-codec.ts";
+import { parseCoveredUnitsEffect } from "@/features/operations/download/download-coverage.ts";
+import { isClaimToken } from "@/features/operations/download/download-claim-token.ts";
 import { StoredDataError } from "@/features/errors.ts";
 import type { DownloadPresentationContext } from "@/features/operations/repository/types.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
@@ -164,7 +165,7 @@ export const loadDownloadPresentationContexts = Effect.fn(
   const importedMediaIds = [
     ...new Set(
       rows
-        .filter((row) => row.status === "imported" || row.reconciledAt !== null)
+        .filter((row) => isImportedReconciled(row.status, row.reconciledAt))
         .map((row) => row.mediaId),
     ),
   ];
@@ -206,14 +207,16 @@ export const loadDownloadPresentationContexts = Effect.fn(
     rows,
     (row): Effect.Effect<[number, DownloadPresentationContext], StoredDataError> =>
       Effect.gen(function* () {
-        const coveredUnits = (yield* decodeCoveredEpisodes(row.coveredUnits)) ?? [];
+        const coveredUnits = yield* parseCoveredUnitsEffect(row.coveredUnits);
         const unitNumbers = coveredUnits.length > 0 ? coveredUnits : [row.unitNumber];
-        const rowCanShowImportedPath = row.status === "imported" || row.reconciledAt !== null;
+        const rowCanShowImportedPath = isImportedReconciled(row.status, row.reconciledAt);
         const importedPath = rowCanShowImportedPath
           ? (unitNumbers
               .map((unitNumber) => importedPathByEpisode.get(`${row.mediaId}:${unitNumber}`))
               .find((value): value is string => typeof value === "string") ??
-            (row.reconciledAt ? (row.contentPath ?? row.savePath ?? undefined) : undefined))
+            (isImportedReconciled(row.status, row.reconciledAt)
+              ? (row.contentPath ?? row.savePath ?? undefined)
+              : undefined))
           : undefined;
 
         return [
@@ -229,23 +232,13 @@ export const loadDownloadPresentationContexts = Effect.fn(
   return new Map(contexts);
 });
 
-const decodeCoveredEpisodes = Effect.fn("DownloadRepository.decodeCoveredEpisodes")(function* (
-  value: string | null | undefined,
-) {
-  if (!value) {
-    return undefined;
-  }
-
-  return yield* decodeOptionalNumberList(value).pipe(
-    Effect.mapError(
-      (cause) =>
-        new StoredDataError({
-          cause,
-          message: "Stored covered episode metadata is corrupt",
-        }),
-    ),
-  );
-});
+/**
+ * A claim token in `reconciledAt` marks an in-flight (or crashed) import, not
+ * a completed one: the row must not present an imported path yet.
+ */
+function isImportedReconciled(status: string, reconciledAt: string | null): boolean {
+  return (status === "imported" || reconciledAt !== null) && !isClaimToken(reconciledAt);
+}
 
 export interface DownloadEventListQuery {
   readonly mediaId?: number;

@@ -32,7 +32,7 @@ it.scoped("JikanClient maps full detail with recommendations", () =>
     assert.deepStrictEqual(Option.isSome(result), true);
     if (Option.isSome(result)) {
       assert.deepStrictEqual(result.value.malId, 5114);
-      assert.deepStrictEqual(result.value.url, "https://myanimelist.net/media/5114");
+      assert.deepStrictEqual(result.value.url, "https://myanimelist.net/anime/5114");
       assert.deepStrictEqual(result.value.title.romaji, "Fullmetal Alchemist: Brotherhood");
       assert.deepStrictEqual(result.value.title.english, "Fullmetal Alchemist: Brotherhood");
       assert.deepStrictEqual(result.value.title.native, "鋼の錬金術師 FULLMETAL ALCHEMIST");
@@ -91,7 +91,7 @@ it.scoped("JikanClient maps full detail with recommendations", () =>
         {
           malId: 11061,
           title: "Hunter x Hunter (2011)",
-          url: "https://myanimelist.net/media/11061",
+          url: "https://myanimelist.net/anime/11061",
         },
       ]);
       assert.deepStrictEqual(result.value.relations, [
@@ -99,7 +99,7 @@ it.scoped("JikanClient maps full detail with recommendations", () =>
           malId: 121,
           relation: "Sequel",
           title: "Fullmetal Alchemist: The Sacred Star of Milos",
-          url: "https://myanimelist.net/media/121",
+          url: "https://myanimelist.net/anime/121",
         },
       ]);
       assert.deepStrictEqual(result.value.producers, [
@@ -107,7 +107,7 @@ it.scoped("JikanClient maps full detail with recommendations", () =>
           malId: 100,
           name: "Aniplex",
           type: "media",
-          url: "https://myanimelist.net/media/producer/100",
+          url: "https://myanimelist.net/anime/producer/100",
         },
       ]);
       assert.deepStrictEqual(result.value.licensors, [
@@ -115,7 +115,7 @@ it.scoped("JikanClient maps full detail with recommendations", () =>
           malId: 200,
           name: "Funimation",
           type: "media",
-          url: "https://myanimelist.net/media/producer/200",
+          url: "https://myanimelist.net/anime/producer/200",
         },
       ]);
     }
@@ -138,7 +138,7 @@ it.scoped("JikanClient falls back to basic detail when full endpoint missing", (
               Effect.sync(() => {
                 requests.push(request.url);
 
-                if (request.url.endsWith("/media/21/full")) {
+                if (request.url.endsWith("/anime/21/full")) {
                   return HttpClientResponse.fromWeb(
                     request,
                     new Response(JSON.stringify({ message: "Not Found" }), {
@@ -148,7 +148,7 @@ it.scoped("JikanClient falls back to basic detail when full endpoint missing", (
                   );
                 }
 
-                if (request.url.endsWith("/media/21")) {
+                if (request.url.endsWith("/anime/21")) {
                   return HttpClientResponse.fromWeb(
                     request,
                     new Response(
@@ -171,7 +171,7 @@ it.scoped("JikanClient falls back to basic detail when full endpoint missing", (
                           title_synonyms: ["Hagane no Renkinjutsushi"],
                           titles: [{ title: "FMA", type: "Synonym" }],
                           type: "TV",
-                          url: "https://myanimelist.net/media/21",
+                          url: "https://myanimelist.net/anime/21",
                         },
                       }),
                       {
@@ -201,9 +201,9 @@ it.scoped("JikanClient falls back to basic detail when full endpoint missing", (
     );
 
     assert.deepStrictEqual(requests, [
-      "https://api.jikan.moe/v4/media/21/full",
-      "https://api.jikan.moe/v4/media/21",
-      "https://api.jikan.moe/v4/media/21/recommendations",
+      "https://api.jikan.moe/v4/anime/21/full",
+      "https://api.jikan.moe/v4/anime/21",
+      "https://api.jikan.moe/v4/anime/21/recommendations",
     ]);
     assert.deepStrictEqual(Option.isSome(result), true);
     if (Option.isSome(result)) {
@@ -234,7 +234,7 @@ it.scoped("JikanClient falls back to basic detail when full detail decode fails"
               Effect.sync(() => {
                 requests.push(request.url);
 
-                if (request.url.endsWith("/media/21/full")) {
+                if (request.url.endsWith("/anime/21/full")) {
                   return HttpClientResponse.fromWeb(
                     request,
                     new Response(JSON.stringify({ message: "temporary upstream payload" }), {
@@ -244,7 +244,7 @@ it.scoped("JikanClient falls back to basic detail when full detail decode fails"
                   );
                 }
 
-                if (request.url.endsWith("/media/21")) {
+                if (request.url.endsWith("/anime/21")) {
                   return HttpClientResponse.fromWeb(
                     request,
                     new Response(JSON.stringify(buildDetailPayload(21)), {
@@ -273,9 +273,9 @@ it.scoped("JikanClient falls back to basic detail when full detail decode fails"
     );
 
     assert.deepStrictEqual(requests, [
-      "https://api.jikan.moe/v4/media/21/full",
-      "https://api.jikan.moe/v4/media/21",
-      "https://api.jikan.moe/v4/media/21/recommendations",
+      "https://api.jikan.moe/v4/anime/21/full",
+      "https://api.jikan.moe/v4/anime/21",
+      "https://api.jikan.moe/v4/anime/21/recommendations",
     ]);
     assert.deepStrictEqual(Option.isSome(result), true);
     if (Option.isSome(result)) {
@@ -327,7 +327,7 @@ it.scoped("JikanClient maps detail decode failures with operation name", () =>
             HttpClient.HttpClient,
             HttpClient.make((request) =>
               Effect.sync(() => {
-                if (request.url.endsWith("/media/7/full")) {
+                if (request.url.endsWith("/anime/7/full")) {
                   return HttpClientResponse.fromWeb(
                     request,
                     new Response(JSON.stringify({ message: "Not Found" }), {
@@ -379,7 +379,7 @@ it.scoped("JikanClient ignores missing recommendations endpoint", () =>
             HttpClient.HttpClient,
             HttpClient.make((request) =>
               Effect.sync(() => {
-                if (request.url.endsWith("/media/44/full")) {
+                if (request.url.endsWith("/anime/44/full")) {
                   return HttpClientResponse.fromWeb(
                     request,
                     new Response(JSON.stringify(buildDetailPayload(44)), {
@@ -414,7 +414,8 @@ it.scoped("JikanClient ignores missing recommendations endpoint", () =>
   }),
 );
 
-it.scoped("JikanClient ignores failing recommendations endpoint", () =>
+// Live clock: the failing status now goes through the retry schedule.
+it.scopedLive("JikanClient ignores failing recommendations endpoint", () =>
   Effect.gen(function* () {
     const clientLayer = JikanClientLive.pipe(
       Layer.provide(
@@ -424,7 +425,7 @@ it.scoped("JikanClient ignores failing recommendations endpoint", () =>
             HttpClient.HttpClient,
             HttpClient.make((request) =>
               Effect.sync(() => {
-                if (request.url.endsWith("/media/55/full")) {
+                if (request.url.endsWith("/anime/55/full")) {
                   return HttpClientResponse.fromWeb(
                     request,
                     new Response(JSON.stringify(buildDetailPayload(55)), {
@@ -434,7 +435,7 @@ it.scoped("JikanClient ignores failing recommendations endpoint", () =>
                   );
                 }
 
-                if (request.url.endsWith("/media/55/recommendations")) {
+                if (request.url.endsWith("/anime/55/recommendations")) {
                   return HttpClientResponse.fromWeb(
                     request,
                     new Response(JSON.stringify({ message: "Service Unavailable" }), {
@@ -568,7 +569,7 @@ function makeJikanClient(onRequest: () => void) {
     Effect.sync(() => {
       onRequest();
 
-      if (request.url.endsWith("/media/5114/full")) {
+      if (request.url.endsWith("/anime/5114/full")) {
         return HttpClientResponse.fromWeb(
           request,
           new Response(JSON.stringify(buildDetailPayload(5114)), {
@@ -578,7 +579,7 @@ function makeJikanClient(onRequest: () => void) {
         );
       }
 
-      if (request.url.endsWith("/media/5114/recommendations")) {
+      if (request.url.endsWith("/anime/5114/recommendations")) {
         return HttpClientResponse.fromWeb(
           request,
           new Response(
@@ -588,14 +589,14 @@ function makeJikanClient(onRequest: () => void) {
                   entry: {
                     mal_id: 11061,
                     title: "Hunter x Hunter (2011)",
-                    url: "https://myanimelist.net/media/11061",
+                    url: "https://myanimelist.net/anime/11061",
                   },
                 },
                 {
                   entry: {
                     mal_id: 11061,
                     title: "Hunter x Hunter (2011)",
-                    url: "https://myanimelist.net/media/11061",
+                    url: "https://myanimelist.net/anime/11061",
                   },
                 },
               ],
@@ -641,7 +642,7 @@ function buildDetailPayload(malId: number) {
           mal_id: 27,
           name: "Shounen",
           type: "media",
-          url: "https://myanimelist.net/media/genre/27/Shounen",
+          url: "https://myanimelist.net/anime/genre/27/Shounen",
         },
       ],
       duration: "24 min per ep",
@@ -651,7 +652,7 @@ function buildDetailPayload(malId: number) {
           mal_id: 50,
           name: "Adult Cast",
           type: "media",
-          url: "https://myanimelist.net/media/genre/50/Adult_Cast",
+          url: "https://myanimelist.net/anime/genre/50/Adult_Cast",
         },
       ],
       favorites: 300000,
@@ -660,7 +661,7 @@ function buildDetailPayload(malId: number) {
           mal_id: 1,
           name: "Action",
           type: "media",
-          url: "https://myanimelist.net/media/genre/1/Action",
+          url: "https://myanimelist.net/anime/genre/1/Action",
         },
       ],
       images: {
@@ -680,7 +681,7 @@ function buildDetailPayload(malId: number) {
           mal_id: 200,
           name: "Funimation",
           type: "media",
-          url: "https://myanimelist.net/media/producer/200",
+          url: "https://myanimelist.net/anime/producer/200",
         },
       ],
       mal_id: malId,
@@ -691,7 +692,7 @@ function buildDetailPayload(malId: number) {
           mal_id: 100,
           name: "Aniplex",
           type: "media",
-          url: "https://myanimelist.net/media/producer/100",
+          url: "https://myanimelist.net/anime/producer/100",
         },
       ],
       rank: 1,
@@ -703,7 +704,7 @@ function buildDetailPayload(malId: number) {
               mal_id: 121,
               name: "Fullmetal Alchemist: The Sacred Star of Milos",
               type: "media",
-              url: "https://myanimelist.net/media/121",
+              url: "https://myanimelist.net/anime/121",
             },
           ],
           relation: "Sequel",
@@ -719,7 +720,7 @@ function buildDetailPayload(malId: number) {
           mal_id: 4,
           name: "Bones",
           type: "media",
-          url: "https://myanimelist.net/media/producer/4",
+          url: "https://myanimelist.net/anime/producer/4",
         },
       ],
       synopsis: "Alchemy meets military thriller.",
@@ -728,7 +729,7 @@ function buildDetailPayload(malId: number) {
           mal_id: 38,
           name: "Military",
           type: "media",
-          url: "https://myanimelist.net/media/genre/38/Military",
+          url: "https://myanimelist.net/anime/genre/38/Military",
         },
       ],
       title: "Fullmetal Alchemist: Brotherhood",
@@ -747,7 +748,7 @@ function buildDetailPayload(malId: number) {
         youtube_id: "abcd1234",
       },
       type: "TV",
-      url: `https://myanimelist.net/media/${malId}`,
+      url: `https://myanimelist.net/anime/${malId}`,
       year: 2009,
     },
   };
@@ -771,13 +772,13 @@ function buildSeasonalPayload() {
             mal_id: 1,
             name: "Action",
             type: "media",
-            url: "https://myanimelist.net/media/genre/1/Action",
+            url: "https://myanimelist.net/anime/genre/1/Action",
           },
           {
             mal_id: 8,
             name: "Drama",
             type: "media",
-            url: "https://myanimelist.net/media/genre/8/Drama",
+            url: "https://myanimelist.net/anime/genre/8/Drama",
           },
         ],
         images: {
@@ -798,7 +799,7 @@ function buildSeasonalPayload() {
         title_english: "Spring Hero",
         title_japanese: "春のヒーロー",
         type: "TV",
-        url: "https://myanimelist.net/media/50001",
+        url: "https://myanimelist.net/anime/50001",
         year: 2025,
       },
       {
@@ -811,7 +812,7 @@ function buildSeasonalPayload() {
         status: "Currently Airing",
         title: "Spring Fantasy",
         type: "TV",
-        url: "https://myanimelist.net/media/50002",
+        url: "https://myanimelist.net/anime/50002",
         year: 2025,
       },
     ],

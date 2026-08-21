@@ -27,7 +27,7 @@ import {
   collectVolumeFiles,
   extractUnitNumbersFromFile,
 } from "@/features/media/files/files.ts";
-import { buildScannedFileMetadata } from "@/infra/scanned-file-metadata.ts";
+import { buildScannedFileMetadata } from "@/infra/media/identity/scanned-file-metadata.ts";
 import {
   loadMediaRoot,
   validateUnitFilePath,
@@ -167,9 +167,18 @@ const makeMediaFileService = Effect.fn("MediaFileService.make")(function* () {
   const nowIso = currentNowIso;
 
   const listFiles = Effect.fn("MediaFileService.listFiles")(function* (mediaId: number) {
-    const animeRow = yield* mediaRepository.getMediaRow(mediaId);
-    const collectFiles = animeRow.mediaKind === "anime" ? collectVideoFiles : collectVolumeFiles;
-    const files = yield* collectFiles(fs, animeRow.rootFolder).pipe(
+    const mediaRow = yield* mediaRepository.getMediaRow(mediaId);
+    const collectFiles = mediaRow.mediaKind === "anime" ? collectVideoFiles : collectVolumeFiles;
+    const mediaRoot = yield* loadMediaRoot(fs, mediaRow.rootFolder).pipe(
+      Effect.mapError(
+        (cause) =>
+          new DomainPathError({
+            cause,
+            message: "Media root folder does not exist or is inaccessible",
+          }),
+      ),
+    );
+    const files = yield* collectFiles(fs, mediaRoot).pipe(
       Effect.mapError(
         (cause) =>
           new DomainPathError({
@@ -180,7 +189,7 @@ const makeMediaFileService = Effect.fn("MediaFileService.make")(function* () {
     );
 
     const mappedRows = yield* mediaRepository.listMappedUnitRows(mediaId);
-    const cachedEpisodeRows: EpisodeMediaCacheRow[] = mappedRows.map((row) => ({
+    const cachedUnitRows: EpisodeMediaCacheRow[] = mappedRows.map((row) => ({
       audioChannels: row.audioChannels,
       audioCodec: row.audioCodec,
       durationSeconds: row.durationSeconds,
@@ -190,16 +199,16 @@ const makeMediaFileService = Effect.fn("MediaFileService.make")(function* () {
       videoCodec: row.videoCodec,
     }));
 
-    const cachedEpisodeRowsByPath = new Map<string, EpisodeMediaCacheRow[]>();
+    const cachedUnitRowsByPath = new Map<string, EpisodeMediaCacheRow[]>();
 
-    for (const row of cachedEpisodeRows) {
+    for (const row of cachedUnitRows) {
       if (!row.filePath) {
         continue;
       }
 
-      const current = cachedEpisodeRowsByPath.get(row.filePath) ?? [];
+      const current = cachedUnitRowsByPath.get(row.filePath) ?? [];
       current.push(row);
-      cachedEpisodeRowsByPath.set(row.filePath, current);
+      cachedUnitRowsByPath.set(row.filePath, current);
     }
 
     const processMediaFile = Effect.fn("MediaFileService.processMediaFile")(function* (file: {
@@ -207,11 +216,11 @@ const makeMediaFileService = Effect.fn("MediaFileService.make")(function* () {
       readonly path: string;
       readonly size: number;
     }) {
-      const cachedRowsForFile = cachedEpisodeRowsByPath.get(file.path) ?? [];
+      const cachedRowsForFile = cachedUnitRowsByPath.get(file.path) ?? [];
       const parsed = parseFileSourceIdentity(file.path);
       const identity = parsed.source_identity;
       const sharedIdentity = toSharedParsedEpisodeIdentity(identity);
-      const isVolumeMedia = animeRow.mediaKind !== "anime";
+      const isVolumeMedia = mediaRow.mediaKind !== "anime";
       const unitNumbers = extractUnitNumbersFromFile(file.name, file.path, isVolumeMedia);
       const unitNumber = unitNumbers.length > 0 ? unitNumbers[0] : undefined;
 
@@ -304,19 +313,27 @@ const makeMediaFileService = Effect.fn("MediaFileService.make")(function* () {
   });
 
   const scanFolder = Effect.fn("MediaFileService.scanFolder")(function* (mediaId: number) {
-    const startAnimeRow = yield* mediaRepository.getMediaRow(mediaId);
+    const mediaRow = yield* mediaRepository.getMediaRow(mediaId);
 
     yield* eventBus.publish({
       type: "ScanFolderStarted",
       payload: {
         media_id: brandMediaId(mediaId),
-        title: startAnimeRow.titleRomaji,
+        title: mediaRow.titleRomaji,
       },
     });
 
-    const animeRow = yield* mediaRepository.getMediaRow(mediaId);
-    const collectFiles = animeRow.mediaKind === "anime" ? collectVideoFiles : collectVolumeFiles;
-    const files = yield* collectFiles(fs, animeRow.rootFolder).pipe(
+    const collectFiles = mediaRow.mediaKind === "anime" ? collectVideoFiles : collectVolumeFiles;
+    const mediaRoot = yield* loadMediaRoot(fs, mediaRow.rootFolder).pipe(
+      Effect.mapError(
+        (cause) =>
+          new DomainPathError({
+            cause,
+            message: "Media root folder does not exist or is inaccessible",
+          }),
+      ),
+    );
+    const files = yield* collectFiles(fs, mediaRoot).pipe(
       Effect.mapError(
         (cause) =>
           new DomainPathError({
@@ -333,11 +350,11 @@ const makeMediaFileService = Effect.fn("MediaFileService.make")(function* () {
 
     let found = 0;
     const airingScheduleByEpisode = buildAiringScheduleMap(
-      animeRow.nextAiringAt && animeRow.nextAiringUnit
+      mediaRow.nextAiringAt && mediaRow.nextAiringUnit
         ? [
             {
-              airingAt: animeRow.nextAiringAt,
-              episode: animeRow.nextAiringUnit,
+              airingAt: mediaRow.nextAiringAt,
+              episode: mediaRow.nextAiringUnit,
             },
           ]
         : undefined,
@@ -376,7 +393,7 @@ const makeMediaFileService = Effect.fn("MediaFileService.make")(function* () {
 
       const mergedMetadata = mergeProbedMediaMetadata(probeInput, probedMetadata);
 
-      const isVolumeMedia = animeRow.mediaKind !== "anime";
+      const isVolumeMedia = mediaRow.mediaKind !== "anime";
       const unitNumbers = extractUnitNumbersFromFile(file.name, file.path, isVolumeMedia);
       if (unitNumbers.length === 0) {
         continue;
@@ -387,11 +404,11 @@ const makeMediaFileService = Effect.fn("MediaFileService.make")(function* () {
       for (const unitNumber of unitNumbers) {
         yield* mediaUnitRepository.upsertUnit(mediaId, unitNumber, {
           aired: inferAiredAt(
-            animeRow.status,
+            mediaRow.status,
             unitNumber,
-            animeRow.unitCount ?? undefined,
-            animeRow.startDate ?? undefined,
-            animeRow.endDate ?? undefined,
+            mediaRow.unitCount ?? undefined,
+            mediaRow.startDate ?? undefined,
+            mediaRow.endDate ?? undefined,
             airingScheduleByEpisode,
             currentIso,
           ),
@@ -424,12 +441,12 @@ const makeMediaFileService = Effect.fn("MediaFileService.make")(function* () {
     yield* systemLogRepository.appendLog(
       "media.folder.scanned",
       "success",
-      `Scanned ${animeRow.titleRomaji} folder and found ${found} files`,
+      `Scanned ${mediaRow.titleRomaji} folder and found ${found} files`,
       nowIso,
     );
     yield* eventBus.publish({
       type: "ScanFolderFinished",
-      payload: { media_id: brandMediaId(mediaId), found, title: animeRow.titleRomaji },
+      payload: { media_id: brandMediaId(mediaId), found, title: mediaRow.titleRomaji },
     });
 
     return { found, total: files.length };
@@ -439,9 +456,9 @@ const makeMediaFileService = Effect.fn("MediaFileService.make")(function* () {
     mediaId: number,
     unitNumber: number,
   ) {
-    const animeRow = yield* mediaRepository.getMediaRow(mediaId);
-    const episodeState = yield* mediaRepository.loadCurrentUnitState(mediaId, unitNumber);
-    const filePath = episodeState._tag === "Some" ? episodeState.value.filePath : undefined;
+    const mediaRow = yield* mediaRepository.getMediaRow(mediaId);
+    const unitState = yield* mediaRepository.loadCurrentUnitState(mediaId, unitNumber);
+    const filePath = unitState._tag === "Some" ? unitState.value.filePath : undefined;
 
     if (filePath) {
       const resolvedPath = yield* fs.realPath(filePath).pipe(
@@ -453,13 +470,12 @@ const makeMediaFileService = Effect.fn("MediaFileService.make")(function* () {
             }),
         ),
       );
-      const animeRoot = yield* loadMediaRoot(fs, animeRow.rootFolder);
+      const mediaRoot = yield* loadMediaRoot(fs, mediaRow.rootFolder);
 
-      if (!isWithinPathRoot(resolvedPath, animeRoot)) {
+      if (!isWithinPathRoot(resolvedPath, mediaRoot)) {
         yield* new DomainPathError({
           message: "File path is not within the media root folder",
         });
-        return;
       }
 
       yield* fs.remove(resolvedPath).pipe(
@@ -482,7 +498,7 @@ const makeMediaFileService = Effect.fn("MediaFileService.make")(function* () {
     unitNumber: number,
     filePath: string,
   ) {
-    const animeRow = yield* mediaRepository.getMediaRow(mediaId);
+    const mediaRow = yield* mediaRepository.getMediaRow(mediaId);
 
     if (filePath.trim().length === 0) {
       yield* mediaUnitRepository.clearUnitMapping(mediaId, unitNumber);
@@ -490,17 +506,18 @@ const makeMediaFileService = Effect.fn("MediaFileService.make")(function* () {
       return;
     }
 
-    const animeRoot = yield* loadMediaRoot(fs, animeRow.rootFolder);
-    yield* validateUnitFilePath({
-      animeRoot,
+    const mediaRoot = yield* loadMediaRoot(fs, mediaRow.rootFolder);
+    // Store the canonicalized path so later scans compare like with like.
+    const canonicalFilePath = yield* validateUnitFilePath({
       filePath,
       fs,
+      mediaRoot,
       outOfRootMessage: "File path is not within the media root folder",
     });
 
     yield* mediaUnitRepository.upsertUnit(mediaId, unitNumber, {
       downloaded: true,
-      filePath,
+      filePath: canonicalFilePath,
     });
     yield* eventBus.publishInfo(`Mapped file for media ${mediaId} episode ${unitNumber}`);
   });
@@ -509,8 +526,8 @@ const makeMediaFileService = Effect.fn("MediaFileService.make")(function* () {
     mediaId: number,
     mappings: readonly { unit_number: number; file_path: string }[],
   ) {
-    const animeRow = yield* mediaRepository.getMediaRow(mediaId);
-    const animeRoot = yield* loadMediaRoot(fs, animeRow.rootFolder);
+    const mediaRow = yield* mediaRepository.getMediaRow(mediaId);
+    const mediaRoot = yield* loadMediaRoot(fs, mediaRow.rootFolder);
 
     const validated: {
       unit_number: number;
@@ -528,16 +545,17 @@ const makeMediaFileService = Effect.fn("MediaFileService.make")(function* () {
         continue;
       }
 
-      yield* validateUnitFilePath({
-        animeRoot,
+      // Store the canonicalized path so later scans compare like with like.
+      const canonicalFilePath = yield* validateUnitFilePath({
         filePath: mapping.file_path,
         fs,
+        mediaRoot,
         outOfRootMessage: `File path for episode ${mapping.unit_number} is not within the media root folder`,
       });
 
       validated.push({
         unit_number: mapping.unit_number,
-        file_path: mapping.file_path,
+        file_path: canonicalFilePath,
         clear: false,
       });
     }

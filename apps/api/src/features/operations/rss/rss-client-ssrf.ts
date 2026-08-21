@@ -4,21 +4,7 @@ import ipaddr from "ipaddr.js";
 import { DnsResolver, isDnsNoRecordError } from "@/infra/dns-resolver.ts";
 import { parseUrlEffect } from "@/infra/url.ts";
 import { RssFeedRejectedError } from "@/features/operations/errors.ts";
-
-const PRIVATE_IPV4_CIDRS: readonly [ipaddr.IPv4, number][] = [
-  ipaddr.IPv4.parseCIDR("10.0.0.0/8"),
-  ipaddr.IPv4.parseCIDR("172.16.0.0/12"),
-  ipaddr.IPv4.parseCIDR("192.168.0.0/16"),
-  ipaddr.IPv4.parseCIDR("127.0.0.0/8"),
-  ipaddr.IPv4.parseCIDR("169.254.0.0/16"),
-  ipaddr.IPv4.parseCIDR("0.0.0.0/8"),
-  ipaddr.IPv4.parseCIDR("100.64.0.0/10"),
-];
-
-const PRIVATE_IPV6_CIDRS: readonly [ipaddr.IPv6, number][] = [
-  ipaddr.IPv6.parseCIDR("fc00::/7"),
-  ipaddr.IPv6.parseCIDR("fe80::/10"),
-];
+import { isPrivateIpString } from "@/security/private-host.ts";
 
 const ALLOWED_PORTS = new Set(["80", "443", ""]);
 const BLOCKED_HOSTNAME_SUFFIXES = [".local", ".internal", ".localhost", ".localdomain"];
@@ -212,46 +198,9 @@ function isIpLiteral(hostname: string) {
 }
 
 function isPrivateIpAddress(addr: string): boolean {
-  return Option.getOrElse(
-    Option.liftThrowable(() => {
-      const parsed = ipaddr.parse(addr);
-      if (parsed instanceof ipaddr.IPv4) {
-        return isPrivateIpv4Address(parsed);
-      }
-      return isPrivateIpv6Address(parsed);
-    })(),
-    () => false,
-  );
+  return isPrivateIpString(addr);
 }
 
 function isIpv4Address(addr: string) {
   return ipaddr.parse(addr).kind() === "ipv4";
-}
-
-function isPrivateIpv4Address(ip: ipaddr.IPv4): boolean {
-  for (const cidr of PRIVATE_IPV4_CIDRS) {
-    if (ip.match(cidr)) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
-function isPrivateIpv6Address(ip: ipaddr.IPv6): boolean {
-  if (ip.toString() === "::1" || ip.toString() === "::") {
-    return true;
-  }
-
-  if (ip.isIPv4MappedAddress()) {
-    return isPrivateIpv4Address(ip.toIPv4Address());
-  }
-
-  for (const cidr of PRIVATE_IPV6_CIDRS) {
-    if (ip.match(cidr)) {
-      return true;
-    }
-  }
-
-  return false;
 }

@@ -23,6 +23,7 @@ export interface ImportLibraryFilesInput {
   readonly mediaRepository: typeof MediaRepository.Service;
   readonly mediaUnitRepository: MediaUnitRepositoryShape;
   readonly mediaProbe: MediaProbeShape;
+  readonly randomUuid: () => Effect.Effect<string>;
   readonly runtimeConfig: Config;
   readonly files: readonly LibraryImportFileInput[];
 }
@@ -30,8 +31,16 @@ export interface ImportLibraryFilesInput {
 export const importLibraryFiles = Effect.fn("Operations.importLibraryFiles")((
   input: ImportLibraryFilesInput,
 ): Effect.Effect<ImportResult> => {
-  const { eventBus, fs, mediaRepository, mediaUnitRepository, mediaProbe, runtimeConfig, files } =
-    input;
+  const {
+    eventBus,
+    fs,
+    mediaRepository,
+    mediaUnitRepository,
+    mediaProbe,
+    randomUuid,
+    runtimeConfig,
+    files,
+  } = input;
   return Effect.gen(function* () {
     yield* eventBus.publish({
       type: "ImportStarted",
@@ -63,6 +72,7 @@ export const importLibraryFiles = Effect.fn("Operations.importLibraryFiles")((
       const imported = yield* writeLibraryImportFile({
         mediaUnitRepository,
         fs,
+        randomUuid,
         plan: planned.right,
       }).pipe(Effect.either);
       if (imported._tag === "Left") {

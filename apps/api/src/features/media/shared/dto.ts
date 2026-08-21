@@ -13,27 +13,27 @@ import {
   decodeStoredStringListEffect,
   decodeStoredSynonymsEffect,
 } from "@/features/media/shared/decode-support.ts";
-import { decodeMediaKind } from "@/features/media/shared/media-kind.ts";
+import { decodeStoredMediaKindEffect } from "@/features/media/shared/media-kind.ts";
 
 export type MediaDtoProgress = Media["progress"];
 
 /**
- * Detail-path progress: derive from the full persisted episode rows.
+ * Detail-path progress: derive from the full persisted unit rows.
  * `missing` is the complement of downloaded units within [1, total].
  */
 export function deriveDetailProgress(
-  episodeRows: readonly (typeof mediaUnits.$inferSelect)[],
+  unitRows: readonly (typeof mediaUnits.$inferSelect)[],
   total: number | undefined,
 ): MediaDtoProgress {
-  const downloadedUnits = episodeRows
-    .filter((episode) => episode.downloaded)
-    .map((episode) => episode.number)
+  const downloadedUnits = unitRows
+    .filter((unit) => unit.downloaded)
+    .map((unit) => unit.number)
     .toSorted((left, right) => left - right);
   const missing = total
     ? range(1, total).filter((number) => !downloadedUnits.includes(number))
     : [];
   const downloadedPercent = deriveDownloadedPercent(downloadedUnits.length, total);
-  const latestDownloadedUnit = deriveLatestDownloadedEpisode(downloadedUnits);
+  const latestDownloadedUnit = deriveLatestDownloadedUnit(downloadedUnits);
 
   return {
     downloaded: downloadedUnits.length,
@@ -81,7 +81,7 @@ interface AnimeDiscoveryMetadata {
   synonyms?: string[];
 }
 
-function deriveLatestDownloadedEpisode(numbers: number[]) {
+function deriveLatestDownloadedUnit(numbers: number[]) {
   return numbers.length > 0 ? numbers[numbers.length - 1] : undefined;
 }
 
@@ -107,6 +107,7 @@ export const toMediaDto = Effect.fn("MediaDto.toMediaDto")(function* (
 ) {
   const season = deriveAnimeSeason(row.startDate);
   const seasonYear = row.startYear ?? extractYearFromDate(row.startDate);
+  const mediaKind = yield* decodeStoredMediaKindEffect(row.mediaKind);
   const genres = yield* decodeStoredStringListEffect(row.genres, "genres");
   const releaseProfileIds = yield* decodeStoredNumberListEffect(
     row.releaseProfileIds,
@@ -140,7 +141,7 @@ export const toMediaDto = Effect.fn("MediaDto.toMediaDto")(function* (
     format: row.format,
     genres,
     id: brandMediaId(row.id),
-    media_kind: decodeMediaKind(row.mediaKind),
+    media_kind: mediaKind,
     mal_id: row.malId ?? undefined,
     members: row.members ?? undefined,
     monitored: row.monitored,

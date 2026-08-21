@@ -16,6 +16,18 @@ it("parseAniDbResponse decodes tagged headers and body lines", () => {
     code: 230,
     lines: ["101|Title"],
     rest: "OK",
+    tag: "mytag",
+  });
+});
+
+it("parseAniDbResponse decodes untagged headers", () => {
+  const parsed = parseAniDbResponse("230 OK\n101|Title\n");
+
+  assert.deepStrictEqual(parsed, {
+    code: 230,
+    lines: ["101|Title"],
+    rest: "OK",
+    tag: undefined,
   });
 });
 

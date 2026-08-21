@@ -22,7 +22,11 @@ export function isWithinPathRoot(path: string, root: string) {
     return true;
   }
 
-  if (relativePath.startsWith("..") || NodePath.isAbsolute(relativePath)) {
+  // Segment check, not a raw prefix check: `..foo` is a legal name while
+  // a leading `..` segment escapes the root.
+  const firstRelativeSegment = relativePath.split(/[\\/]/)[0];
+
+  if (firstRelativeSegment === ".." || NodePath.isAbsolute(relativePath)) {
     return false;
   }
 

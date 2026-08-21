@@ -25,6 +25,7 @@ import { DownloadRepository } from "@/features/operations/repository/download-re
 import { MediaRepository } from "@/features/media/shared/media-repository.ts";
 import { MediaUnitRepository } from "@/features/media/units/media-unit-repository.ts";
 import { DownloadReconciliationService } from "@/features/operations/download/download-reconciliation-service.ts";
+import { buildClaimToken } from "@/features/operations/download/download-claim-token.ts";
 
 it.scoped("reconcile releases the claim when the download content is unreachable", () =>
   withSqliteTestDbEffect({
@@ -96,6 +97,58 @@ it.scoped("reconcile skips downloads already marked reconciled", () =>
 
         // the timestamp is preserved; the download stays reconciled
         assert.deepStrictEqual(yield* loadReconciledAt(db, 1), "2024-02-01T00:00:00.000Z");
+      }),
+    schema,
+  }),
+);
+
+it.scoped("claim round-trip: prefixed token claims once and releases exactly", () =>
+  withSqliteTestDbEffect({
+    run: (db) =>
+      Effect.gen(function* () {
+        yield* tryDatabasePromise("Failed to seed media for reconcile test", () =>
+          db.insert(media).values(makeReconcileMediaRow()),
+        );
+        yield* tryDatabasePromise("Failed to seed download for reconcile test", () =>
+          db.insert(downloads).values({
+            addedAt: "2024-01-01T00:00:00.000Z",
+            contentPath: "/missing/reconcilable.mkv",
+            infoHash: "hash-claim-roundtrip",
+            mediaId: 1,
+            mediaTitle: "Naruto",
+            status: "completed",
+            torrentName: "Naruto - 01",
+            unitNumber: 1,
+          }),
+        );
+
+        const repo = makeDownloadRepository(db);
+        const claimToken = buildClaimToken("2026-01-01T00:00:00.000Z", "roundtrip-uuid");
+
+        // First claim wins; a concurrent claim for the same row loses.
+        assert.deepStrictEqual(
+          yield* repo.claimDownloadReconciliation("hash-claim-roundtrip", claimToken),
+          true,
+        );
+        assert.deepStrictEqual(
+          yield* repo.claimDownloadReconciliation(
+            "hash-claim-roundtrip",
+            buildClaimToken("2026-01-01T00:00:01.000Z", "other-uuid"),
+          ),
+          false,
+        );
+        assert.deepStrictEqual(yield* loadReconciledAt(db, 1), claimToken);
+
+        // Release with a mismatched token is a no-op (finalize already won).
+        yield* repo.releaseDownloadReconciliationClaim({
+          downloadId: 1,
+          claimToken: buildClaimToken("2026-01-01T00:00:02.000Z", "wrong-uuid"),
+        });
+        assert.deepStrictEqual(yield* loadReconciledAt(db, 1), claimToken);
+
+        // Release with the exact token resets reconciledAt for retry.
+        yield* repo.releaseDownloadReconciliationClaim({ downloadId: 1, claimToken });
+        assert.deepStrictEqual(yield* loadReconciledAt(db, 1), null);
       }),
     schema,
   }),

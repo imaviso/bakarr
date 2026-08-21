@@ -4,6 +4,7 @@ import { Effect } from "effect";
 import type { AsyncOperationAccepted } from "@packages/shared/index.ts";
 import { withLockEffectOrFail } from "@/background/workers.ts";
 import { BackgroundWorkerMonitor } from "@/background/monitor.ts";
+import { BackgroundWorkerTimeouts } from "@/background/worker-timeouts.ts";
 import type { WorkerTimeoutError } from "@/background/workers.ts";
 import type { DatabaseError } from "@/db/database.ts";
 import { InfrastructureError } from "@/features/errors.ts";
@@ -172,6 +173,7 @@ export class BackgroundTaskRunner extends Effect.Service<BackgroundTaskRunner>()
     // from the lifecycle layer.
     dependencies: [
       BackgroundSearchRssWorkerService.Default,
+      BackgroundWorkerTimeouts.Default,
       CatalogLibraryScanService.Default,
       DownloadTorrentSyncService.Default,
       MediaMaintenanceService.Default,

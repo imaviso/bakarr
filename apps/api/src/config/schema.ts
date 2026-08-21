@@ -1,4 +1,4 @@
-import { Config, Context, Effect, Layer, Option, Schema } from "effect";
+import { Config, Context, Effect, Layer, Option, Redacted, Schema } from "effect";
 
 import { PositiveIntSchema } from "@/domain/domain-schema.ts";
 import { randomHex } from "@/infra/random.ts";
@@ -19,7 +19,7 @@ export type AppConfigShape = Schema.Schema.Type<typeof AppConfigModel>;
 export class BootstrapConfigModel extends Schema.Class<BootstrapConfigModel>(
   "BootstrapConfigModel",
 )({
-  bootstrapPassword: Schema.String,
+  bootstrapPassword: Schema.Redacted(Schema.String),
   bootstrapPasswordIsEnvOverride: Schema.Boolean,
   bootstrapUsername: Schema.String,
 }) {}
@@ -59,7 +59,7 @@ export function makeDefaultAppConfig(): AppConfigShape {
 
 export function makeDefaultBootstrapConfig(): BootstrapConfigShape {
   return new BootstrapConfigModel({
-    bootstrapPassword: "",
+    bootstrapPassword: Redacted.make(""),
     bootstrapPasswordIsEnvOverride: false,
     bootstrapUsername: "admin",
   });
@@ -136,8 +136,8 @@ export class BootstrapConfig extends Context.Tag("@bakarr/api/BootstrapConfig")<
             ? Option.some(overrides.bootstrapPassword)
             : yield* Config.option(Schema.Config("BAKARR_BOOTSTRAP_PASSWORD", Schema.String));
         const bootstrapPassword = Option.isSome(bootstrapPasswordFromEnv)
-          ? bootstrapPasswordFromEnv.value
-          : yield* randomHex(GENERATED_BOOTSTRAP_PASSWORD_BYTES);
+          ? Redacted.make(bootstrapPasswordFromEnv.value)
+          : Redacted.make(yield* randomHex(GENERATED_BOOTSTRAP_PASSWORD_BYTES));
         const bootstrapUsername =
           overrides.bootstrapUsername ??
           (yield* Schema.Config("BAKARR_BOOTSTRAP_USERNAME", Schema.String).pipe(

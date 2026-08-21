@@ -97,3 +97,25 @@ it.effect("toDownload marks batch coverage pending only when covered mediaUnits 
     assert.deepStrictEqual(covered.covered_units, [1, 2]);
   }),
 );
+
+it.effect("a claim token in reconciledAt keeps the download actionable", () =>
+  Effect.gen(function* () {
+    const claimed = yield* toDownload(
+      makeDownloadRow({
+        reconciledAt: "claim:2025-01-01T00:00:00.000Z:uuid",
+        status: "completed",
+      }),
+    );
+
+    // Claim = import in flight/crashed: reconcile stays available and no fake
+    // timestamp leaks into the presentation.
+    assert.deepStrictEqual(claimed.allowed_actions, ["delete", "reconcile"]);
+    assert.deepStrictEqual(claimed.reconciled_at, undefined);
+
+    const finalized = yield* toDownload(
+      makeDownloadRow({ reconciledAt: "2025-01-01T01:00:00.000Z", status: "completed" }),
+    );
+    assert.deepStrictEqual(finalized.allowed_actions, ["delete"]);
+    assert.deepStrictEqual(finalized.reconciled_at, "2025-01-01T01:00:00.000Z");
+  }),
+);

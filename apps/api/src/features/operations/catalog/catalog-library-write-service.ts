@@ -7,6 +7,7 @@ import { EventBus } from "@/features/events/event-bus.ts";
 import type { InfrastructureError } from "@/features/errors.ts";
 import { MediaProbe } from "@/infra/media/probe.ts";
 import { FileSystem } from "@/infra/filesystem/filesystem.ts";
+import { RandomService } from "@/infra/random.ts";
 import type { MediaNotFoundError } from "@/features/media/errors.ts";
 import {
   importLibraryFiles,
@@ -41,6 +42,7 @@ export class CatalogLibraryWriteService extends Effect.Service<CatalogLibraryWri
       const mediaRepository = yield* MediaRepository;
       const mediaUnitRepository = yield* MediaUnitRepository;
       const mediaProbe = yield* MediaProbe;
+      const random = yield* RandomService;
       const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
       const taskLauncher = yield* OperationsTaskLauncherService;
       const taskWriteService = yield* OperationsTaskWriteService;
@@ -56,6 +58,7 @@ export class CatalogLibraryWriteService extends Effect.Service<CatalogLibraryWri
           mediaRepository,
           mediaUnitRepository,
           mediaProbe,
+          randomUuid: () => random.randomUuid,
           runtimeConfig,
         });
       });
@@ -127,6 +130,7 @@ export class CatalogLibraryWriteService extends Effect.Service<CatalogLibraryWri
       MediaUnitRepository.Default,
       OperationsTaskLauncherService.Default,
       OperationsTaskWriteService.Default,
+      RandomService.Default,
     ],
   },
 ) {}

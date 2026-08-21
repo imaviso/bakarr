@@ -8,10 +8,11 @@ import {
   type DownloadStatus,
 } from "@packages/shared/index.ts";
 import type { downloads } from "@/db/schema.ts";
-import { decodeOptionalNumberList } from "@/features/system/profile-codec.ts";
 import type { DownloadPresentationContext } from "@/features/operations/repository/types.ts";
 import { StoredDataError } from "@/features/errors.ts";
 import { decodeDownloadSourceMetadata } from "@/features/operations/repository/download-repository.ts";
+import { parseCoveredUnitsEffect } from "@/features/operations/download/download-coverage.ts";
+import { isClaimToken } from "@/features/operations/download/download-claim-token.ts";
 
 type DownloadRow = typeof downloads.$inferSelect;
 
@@ -28,8 +29,8 @@ export const toDownload = Effect.fn("OperationsPresentation.toDownload")(functio
   row: DownloadRow,
   context?: DownloadPresentationContext,
 ) {
-  const coveredUnits = yield* decodeCoveredEpisodes(row.coveredUnits);
-  const coveragePending = row.isBatch && (!coveredUnits || coveredUnits.length === 0);
+  const coveredUnits = yield* parseCoveredUnitsEffect(row.coveredUnits);
+  const coveragePending = row.isBatch && coveredUnits.length === 0;
   const sourceMetadata = yield* decodeDownloadSourceMetadata(row.sourceMetadata);
   const policy = resolveDownloadActionPolicy(row.status, row.reconciledAt);
 
@@ -40,7 +41,7 @@ export const toDownload = Effect.fn("OperationsPresentation.toDownload")(functio
     media_title: row.mediaTitle,
     content_path: row.contentPath ?? undefined,
     coverage_pending: coveragePending || undefined,
-    covered_units: coveredUnits,
+    covered_units: coveredUnits.length > 0 ? coveredUnits : undefined,
     decision_reason: sourceMetadata?.decision_reason,
     download_date: row.downloadDate ?? undefined,
     downloaded_bytes: row.downloadedBytes ?? undefined,
@@ -55,7 +56,7 @@ export const toDownload = Effect.fn("OperationsPresentation.toDownload")(functio
     last_error_at: row.lastErrorAt ?? undefined,
     last_synced_at: row.lastSyncedAt ?? undefined,
     progress: row.progress ?? undefined,
-    reconciled_at: row.reconciledAt ?? undefined,
+    reconciled_at: toPresentedReconciledAt(row.reconciledAt),
     retry_count: row.retryCount,
     save_path: row.savePath ?? undefined,
     speed_bytes: row.speedBytes ?? undefined,
@@ -74,8 +75,8 @@ export const toDownloadStatus = Effect.fn("OperationsPresentation.toDownloadStat
   const progress = row.progress ?? 0;
   const totalBytes = row.totalBytes ?? 0;
   const downloadedBytes = row.downloadedBytes ?? 0;
-  const coveredUnits = yield* decodeCoveredEpisodes(row.coveredUnits);
-  const coveragePending = row.isBatch && (!coveredUnits || coveredUnits.length === 0);
+  const coveredUnits = yield* parseCoveredUnitsEffect(row.coveredUnits);
+  const coveragePending = row.isBatch && coveredUnits.length === 0;
   const infoHash =
     row.infoHash ??
     (yield* new StoredDataError({
@@ -89,7 +90,7 @@ export const toDownloadStatus = Effect.fn("OperationsPresentation.toDownloadStat
     media_image: context?.mediaImage,
     media_title: row.mediaTitle,
     coverage_pending: coveragePending || undefined,
-    covered_units: coveredUnits,
+    covered_units: coveredUnits.length > 0 ? coveredUnits : undefined,
     decision_reason: sourceMetadata?.decision_reason,
     downloaded_bytes: downloadedBytes,
     eta: row.etaSeconds ?? 0,
@@ -109,6 +110,15 @@ export const toDownloadStatus = Effect.fn("OperationsPresentation.toDownloadStat
   return result;
 });
 
+/**
+ * A claim token in `reconciledAt` marks an in-flight (or crashed) import, not
+ * a completed one: presentation treats it as not reconciled so the row stays
+ * actionable and no fake timestamp leaks to the UI.
+ */
+function toPresentedReconciledAt(reconciledAt: string | null): string | undefined {
+  return reconciledAt === null || isClaimToken(reconciledAt) ? undefined : reconciledAt;
+}
+
 function resolveDownloadActionPolicy(
   status: string | null | undefined,
   reconciledAt: string | null | undefined,
@@ -117,6 +127,7 @@ function resolveDownloadActionPolicy(
   readonly runtime: DownloadAllowedAction[] | undefined;
 } {
   const state = normalizeDownloadState(status);
+  const reconciled = Boolean(reconciledAt) && !isClaimToken(reconciledAt);
   const download = new Set<DownloadAllowedAction>(["delete"]);
   const runtime = new Set<DownloadAllowedAction>(["delete"]);
 
@@ -140,7 +151,7 @@ function resolveDownloadActionPolicy(
       break;
     }
     case "completed": {
-      if (!reconciledAt) {
+      if (!reconciled) {
         download.add("reconcile");
       }
       break;
@@ -177,21 +188,3 @@ function toAllowedActionArray(
 ): DownloadAllowedAction[] | undefined {
   return actions.size > 0 ? [...actions] : undefined;
 }
-
-const decodeCoveredEpisodes = Effect.fn("OperationsPresentation.decodeCoveredEpisodes")(function* (
-  value: string | null | undefined,
-) {
-  if (!value) {
-    return undefined;
-  }
-
-  return yield* decodeOptionalNumberList(value).pipe(
-    Effect.mapError(
-      (cause) =>
-        new StoredDataError({
-          cause,
-          message: "Stored covered episode metadata is corrupt",
-        }),
-    ),
-  );
-});

@@ -3,10 +3,7 @@ import { Effect, Option, Stream } from "effect";
 import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import { isNotFoundError } from "@/infra/filesystem/fs-errors.ts";
 import { classifyMediaArtifact, parseFileSourceIdentity } from "@/infra/media/identity/identity.ts";
-import {
-  scanVideoFiles,
-  scanVideoFilesStream,
-} from "@/features/operations/import-scan/file-scanner.ts";
+import { scanVideoFilesStream } from "@/features/operations/import-scan/file-scanner.ts";
 
 export function parseMagnetInfoHash(magnet: string | null | undefined): Option.Option<string> {
   if (!magnet) {
@@ -160,8 +157,6 @@ export function applyRemotePathMappings(
 
   return results;
 }
-
-export { scanVideoFiles };
 
 const statMaybe = Effect.fn("Operations.statMaybe")(function* (fs: FileSystemShape, path: string) {
   return yield* fs.stat(path).pipe(

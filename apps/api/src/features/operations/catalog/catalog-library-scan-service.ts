@@ -1,6 +1,7 @@
-import { Effect, Ref } from "effect";
+import { Effect, Ref, Stream } from "effect";
 
 import type { DatabaseError } from "@/db/database.ts";
+import { media } from "@/db/schema.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
 import { DomainPathError, InfrastructureError } from "@/features/errors.ts";
 import {
@@ -8,9 +9,14 @@ import {
   type MediaRepositoryShape,
 } from "@/features/media/shared/media-repository.ts";
 import { MediaUnitRepository } from "@/features/media/units/media-unit-repository.ts";
+import type { MediaUnitRepositoryShape } from "@/features/media/units/media-unit-repository.ts";
 import { OperationsProgress } from "@/features/operations/tasks/operations-progress-service.ts";
 import { FileSystem, type FileSystemShape } from "@/infra/filesystem/filesystem.ts";
-import { scanMediaLibraryRow } from "@/features/operations/catalog/catalog-library-scan-row-support.ts";
+import {
+  countLibraryScanFile,
+  type LibraryScanCounts,
+} from "@/features/operations/catalog/catalog-library-scan-file-support.ts";
+import { scanVideoFilesStream } from "@/features/operations/import-scan/file-scanner.ts";
 import {
   BackgroundJobRunner,
   type BackgroundJobRunnerShape,
@@ -23,12 +29,38 @@ export interface CatalogLibraryScanServiceShape {
   >;
 }
 
+const scanMediaLibraryRow = Effect.fn("CatalogLibraryScan.scanMediaLibraryRow")(function* (
+  mediaUnitRepository: MediaUnitRepositoryShape,
+  fs: FileSystemShape,
+  animeRow: typeof media.$inferSelect,
+) {
+  return yield* scanVideoFilesStream(fs, animeRow.rootFolder).pipe(
+    Stream.mapError(
+      (cause) =>
+        new DomainPathError({
+          cause,
+          message: `Media library folder is inaccessible: ${animeRow.rootFolder}`,
+        }),
+    ),
+    Stream.runFoldEffect(
+      { matchedFiles: 0, scannedFiles: 0 } satisfies LibraryScanCounts,
+      (counts, file) =>
+        countLibraryScanFile(mediaUnitRepository, {
+          mediaId: animeRow.id,
+          mediaKind: animeRow.mediaKind,
+          counts,
+          file,
+        }),
+    ),
+  );
+});
+
 function makeCatalogLibraryScanSupport(input: {
   backgroundJobRunner: BackgroundJobRunnerShape;
   eventBus: typeof EventBus.Service;
   fs: FileSystemShape;
   mediaRepository: MediaRepositoryShape;
-  mediaUnitRepository: import("@/features/media/units/media-unit-repository.ts").MediaUnitRepositoryShape;
+  mediaUnitRepository: MediaUnitRepositoryShape;
   publishLibraryScanProgress: (scanned: number) => Effect.Effect<void>;
 }): CatalogLibraryScanServiceShape {
   const runLibraryScan = Effect.fn("CatalogLibraryScan.runLibraryScan")(function* () {

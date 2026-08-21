@@ -10,6 +10,7 @@ import {
 } from "@/features/media/metadata/manami-url.ts";
 import { currentTimeMillis } from "@/infra/time.ts";
 import { ExternalCallError, type ExternalCallShape } from "@/infra/effect/retry.ts";
+import { executeProviderRequest } from "@/infra/effect/provider-http.ts";
 import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import { isNotFoundError } from "@/infra/filesystem/fs-errors.ts";
 
@@ -307,22 +308,20 @@ const downloadManamiDataset = Effect.fn("ManamiCache.downloadDataset")(function*
         : { "If-Modified-Since": condition.lastModified }),
     }),
   );
-  const response = yield* externalCall.tryExternalEffect(
-    "manami.dataset.download",
-    client.execute(request),
-  );
+
+  const response = yield* executeProviderRequest({
+    client,
+    externalCall,
+    failureMessage: "Manami dataset download",
+    // 304 means "cache still valid" and is surfaced as `NotModified`.
+    isExpectedStatus: (status) => status === 304 || (status >= 200 && status < 300),
+    operation: "manami.dataset.download",
+    request,
+  });
 
   if (response.status === 304) {
     const result: DownloadResult = { _tag: "NotModified" };
     return result;
-  }
-
-  if (response.status < 200 || response.status >= 300) {
-    return yield* ExternalCallError.make({
-      cause: new Error(`Manami dataset download failed with status ${response.status}`),
-      message: "Manami dataset download failed",
-      operation: "manami.dataset.response",
-    });
   }
 
   const datasetJson = yield* response.text.pipe(

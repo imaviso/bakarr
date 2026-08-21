@@ -1,4 +1,4 @@
-import { DateTime, Duration, Effect, Option } from "effect";
+import { Clock, DateTime, Duration, Effect, Option, Ref } from "effect";
 
 import {
   brandUserId,
@@ -12,13 +12,22 @@ import { DatabaseError } from "@/db/database.ts";
 import type { users } from "@/db/schema.ts";
 import { nowIso as currentNowIso } from "@/infra/time.ts";
 import { randomHexFrom, RandomService } from "@/infra/random.ts";
-import { PasswordCrypto, verifyPassword } from "@/security/password.ts";
+import {
+  hashPassword,
+  isPasswordHashOutdated,
+  PasswordCrypto,
+  verifyPassword,
+} from "@/security/password.ts";
 import { TokenHasher, type TokenHasherError } from "@/security/token-hasher.ts";
 import {
   type AuthCryptoError,
   type AuthError,
   AuthUnauthorizedError,
 } from "@/features/auth/errors.ts";
+import {
+  makeLoginRateLimiter,
+  type LoginRateLimiterShape,
+} from "@/features/auth/login-rate-limiter.ts";
 import { AuthUserRepository } from "@/features/auth/user-repository.ts";
 
 export interface SessionIdentity {
@@ -49,6 +58,9 @@ export interface AuthSessionServiceShape {
 }
 
 const SESSION_REFRESH_INTERVAL = Duration.minutes(5);
+const SESSION_PRUNE_INTERVAL = Duration.minutes(5);
+
+type LoginAttemptError = DatabaseError | AuthCryptoError | AuthUnauthorizedError;
 
 const makeAuthSessionService = Effect.fn("AuthSessionService.make")(function* () {
   const usersRepository = yield* AuthUserRepository;
@@ -56,6 +68,8 @@ const makeAuthSessionService = Effect.fn("AuthSessionService.make")(function* ()
   const passwordCrypto = yield* PasswordCrypto;
   const random = yield* RandomService;
   const tokenHasher = yield* TokenHasher;
+  const loginRateLimiter: LoginRateLimiterShape = yield* makeLoginRateLimiter();
+  const lastPruneAtMsRef = yield* Ref.make(0);
   const nowIso = currentNowIso;
   const randomHex = (bytes: number) => randomHexFrom(random, bytes);
   const hashToken = tokenHasher.hashToken;
@@ -81,25 +95,98 @@ const makeAuthSessionService = Effect.fn("AuthSessionService.make")(function* ()
     return token;
   });
 
+  /**
+   * Opportunistic cleanup: expired session rows are deleted at most once per
+   * SESSION_PRUNE_INTERVAL while auth requests flow through resolveViewer.
+   * Failures are swallowed — pruning must never break authentication.
+   */
+  const maybePruneExpiredSessions = Effect.fn("AuthSessionService.maybePruneExpiredSessions")(
+    function* (nowIsoValue: string) {
+      const nowMs = yield* Clock.currentTimeMillis;
+      const shouldPrune = yield* Ref.modify(
+        lastPruneAtMsRef,
+        (lastPrunedAtMs): readonly [boolean, number] =>
+          nowMs - lastPrunedAtMs >= Duration.toMillis(SESSION_PRUNE_INTERVAL)
+            ? [true, nowMs]
+            : [false, lastPrunedAtMs],
+      );
+
+      if (!shouldPrune) {
+        return;
+      }
+
+      yield* usersRepository
+        .pruneExpiredSessions(nowIsoValue)
+        .pipe(
+          Effect.catchAll((cause) =>
+            Effect.logWarning("Failed to prune expired sessions; will retry next interval").pipe(
+              Effect.annotateLogs({ cause: String(cause) }),
+              Effect.zipRight(Effect.void),
+            ),
+          ),
+        );
+    },
+  );
+
+  const guardLogin = <A>(attempt: Effect.Effect<A, LoginAttemptError>) =>
+    loginRateLimiter.rejectWhileLocked().pipe(
+      Effect.zipRight(
+        attempt.pipe(
+          Effect.tapErrorTag("AuthUnauthorizedError", () => loginRateLimiter.recordFailure()),
+          Effect.tap(() => loginRateLimiter.reset()),
+        ),
+      ),
+    );
+
+  const authenticateWithPassword = Effect.fn("AuthSessionService.authenticateWithPassword")(
+    function* (request: LoginRequest) {
+      const rowOption = yield* usersRepository.findUserByUsername(request.username);
+
+      if (Option.isNone(rowOption)) {
+        return yield* AuthUnauthorizedError.make({
+          message: "Invalid username or password",
+        });
+      }
+
+      const row = rowOption.value;
+
+      const verified = yield* verifyPassword(passwordCrypto, request.password, row.passwordHash);
+
+      if (!verified) {
+        return yield* AuthUnauthorizedError.make({
+          message: "Invalid username or password",
+        });
+      }
+
+      if (isPasswordHashOutdated(row.passwordHash)) {
+        const newHash = yield* hashPassword(passwordCrypto, request.password).pipe(
+          Effect.catchAll((cause) =>
+            Effect.logWarning("Failed to rehash outdated password hash").pipe(
+              Effect.annotateLogs({ cause: String(cause), userId: row.id }),
+              Effect.zipRight(Effect.succeed(undefined)),
+            ),
+          ),
+        );
+        if (newHash !== undefined) {
+          const now = yield* nowIso();
+          yield* usersRepository
+            .updatePasswordHash({ passwordHash: newHash, updatedAt: now, userId: row.id })
+            .pipe(
+              Effect.catchAll((cause) =>
+                Effect.logWarning("Failed to persist rehashed password").pipe(
+                  Effect.annotateLogs({ cause: String(cause), userId: row.id }),
+                ),
+              ),
+            );
+        }
+      }
+
+      return row;
+    },
+  );
+
   const login = Effect.fn("AuthSessionService.login")(function* (request: LoginRequest) {
-    const rowOption = yield* usersRepository.findUserByUsername(request.username);
-
-    if (Option.isNone(rowOption)) {
-      return yield* AuthUnauthorizedError.make({
-        message: "Invalid username or password",
-      });
-    }
-
-    const row = rowOption.value;
-
-    const verified = yield* verifyPassword(passwordCrypto, request.password, row.passwordHash);
-
-    if (!verified) {
-      return yield* AuthUnauthorizedError.make({
-        message: "Invalid username or password",
-      });
-    }
-
+    const row = yield* guardLogin(authenticateWithPassword(request));
     const token = yield* createSession(row.id);
 
     yield* usersRepository.writeLog({
@@ -112,7 +199,7 @@ const makeAuthSessionService = Effect.fn("AuthSessionService.make")(function* ()
     return toLoginResult(row, token);
   });
 
-  const loginWithApiKey = Effect.fn("AuthSessionService.loginWithApiKey")(function* (
+  const authenticateWithApiKey = Effect.fn("AuthSessionService.authenticateWithApiKey")(function* (
     request: ApiKeyLoginRequest,
   ) {
     const hashedApiKey = yield* hashToken(request.api_key);
@@ -123,8 +210,13 @@ const makeAuthSessionService = Effect.fn("AuthSessionService.make")(function* ()
       return yield* AuthUnauthorizedError.make({ message: "Invalid API key" });
     }
 
-    const row = rowOption.value;
+    return rowOption.value;
+  });
 
+  const loginWithApiKey = Effect.fn("AuthSessionService.loginWithApiKey")(function* (
+    request: ApiKeyLoginRequest,
+  ) {
+    const row = yield* guardLogin(authenticateWithApiKey(request));
     const token = yield* createSession(row.id);
 
     yield* usersRepository.writeLog({
@@ -144,6 +236,8 @@ const makeAuthSessionService = Effect.fn("AuthSessionService.make")(function* ()
     if (sessionToken) {
       const hashedSessionToken = yield* hashToken(sessionToken);
       const sessionNow = yield* nowIso();
+
+      yield* maybePruneExpiredSessions(sessionNow);
 
       const result = yield* usersRepository.resolveUserBySessionToken(
         hashedSessionToken,

@@ -11,7 +11,7 @@ import {
   extractVideoCodec,
   normalizeAirDate,
   normalizeText,
-} from "@/infra/scanned-file-metadata.ts";
+} from "@/infra/media/identity/scanned-file-metadata.ts";
 
 export function buildDownloadSourceMetadataFromRelease(input: {
   title: string;

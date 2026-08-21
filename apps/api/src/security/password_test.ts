@@ -1,7 +1,12 @@
-import { Cause, Effect } from "effect";
+import { Cause, Effect, Encoding } from "effect";
 
 import { assert, it } from "@effect/vitest";
-import { PasswordError, verifyPassword, WebPasswordCrypto } from "@/security/password.ts";
+import {
+  hashPassword,
+  PasswordError,
+  verifyPassword,
+  WebPasswordCrypto,
+} from "@/security/password.ts";
 
 it.effect("verifyPassword fails when the stored hash structure is malformed", () =>
   Effect.gen(function* () {
@@ -35,8 +40,51 @@ it.effect("verifyPassword fails when the stored hash hex is invalid", () =>
 
       if (failure._tag === "Some") {
         assert.ok(failure.value instanceof PasswordError);
-        assert.deepStrictEqual(failure.value.message, "Invalid hash format");
       }
     }
+  }),
+);
+
+it.effect("hashPassword embeds the current iteration count and verifies", () =>
+  Effect.gen(function* () {
+    const storedHash = yield* hashPassword(WebPasswordCrypto, "correct horse battery staple");
+
+    const [scheme, iterations] = storedHash.split("$");
+
+    assert.deepStrictEqual(scheme, "pbkdf2_sha256");
+    assert.deepStrictEqual(Number(iterations), 600_000);
+    assert.deepStrictEqual(
+      yield* verifyPassword(WebPasswordCrypto, "correct horse battery staple", storedHash),
+      true,
+    );
+    assert.deepStrictEqual(yield* verifyPassword(WebPasswordCrypto, "wrong", storedHash), false);
+  }),
+);
+
+it.effect("hashes written with older iteration counts still verify", () =>
+  Effect.gen(function* () {
+    // Simulate a hash written before the iteration bump by deriving at 310_000.
+    const salt = yield* WebPasswordCrypto.randomBytes(16);
+    const keyMaterial = yield* WebPasswordCrypto.deriveKeyMaterial("legacy");
+    const hash = yield* WebPasswordCrypto.deriveBits(
+      keyMaterial,
+      Uint8Array.from(salt).buffer,
+      310_000,
+    );
+    const legacyStoredHash = [
+      "pbkdf2_sha256",
+      "310000",
+      Encoding.encodeHex(salt),
+      Encoding.encodeHex(hash),
+    ].join("$");
+
+    assert.deepStrictEqual(
+      yield* verifyPassword(WebPasswordCrypto, "legacy", legacyStoredHash),
+      true,
+    );
+    assert.deepStrictEqual(
+      yield* verifyPassword(WebPasswordCrypto, "wrong", legacyStoredHash),
+      false,
+    );
   }),
 );

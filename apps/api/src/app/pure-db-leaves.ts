@@ -6,7 +6,6 @@ import { MediaUnitRepository } from "@/features/media/units/media-unit-repositor
 import { AniDbUnitCacheRepository } from "@/features/media/units/anidb-unit-cache-repository.ts";
 import { SeasonalMediaCacheRepository } from "@/features/media/query/seasonal-media-cache-repository.ts";
 import { DownloadRepository } from "@/features/operations/repository/download-repository.ts";
-import { LibraryRootsRepository } from "@/features/operations/repository/library-roots-repository.ts";
 import { OperationsTaskRepository } from "@/features/operations/repository/task-repository.ts";
 import { RssFeedRepository } from "@/features/operations/repository/rss-feed-repository.ts";
 import { BackgroundJobRepository } from "@/features/system/repository/background-job-repository.ts";
@@ -34,7 +33,6 @@ export const PureDbLeaves = Layer.mergeAll(
   MediaUnitRepository.Default,
   AniDbUnitCacheRepository.Default,
   SeasonalMediaCacheRepository.Default,
-  LibraryRootsRepository.Default,
   OperationsTaskRepository.Default,
   RssFeedRepository.Default,
   SystemLogRepository.Default,

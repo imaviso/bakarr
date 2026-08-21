@@ -87,8 +87,12 @@ export class DownloadTorrentActionService extends Effect.Service<DownloadTorrent
         if (action === "delete") {
           const sourceMetadata = yield* decodeDownloadSourceMetadata(row.sourceMetadata);
           const deleteNow = yield* currentNowIso();
-          yield* actionRepo.insertDownloadEvent(
-            {
+          // Event + row removal commit together: a deleted download never
+          // disappears without its deletion event.
+          yield* actionRepo.deleteDownloadWithEventTx({
+            createdAt: deleteNow,
+            downloadId: row.id,
+            event: {
               mediaId: row.mediaId,
               downloadId: row.id,
               eventType: "download.deleted",
@@ -100,9 +104,7 @@ export class DownloadTorrentActionService extends Effect.Service<DownloadTorrent
               message: `Deleted ${row.torrentName}`,
               toStatus: "deleted",
             },
-            deleteNow,
-          );
-          yield* actionRepo.deleteDownloadRow(id);
+          });
         } else {
           const nextStatus = action === "pause" ? "paused" : row.status;
           yield* actionRepo.updateDownloadStatusRow({

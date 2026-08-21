@@ -14,6 +14,7 @@ import {
   AuthErrorSchema,
   AuthForbiddenError,
   AuthNotFoundError,
+  AuthRateLimitedError,
   AuthUnauthorizedError,
 } from "@/features/auth/errors.ts";
 import { mapMediaRouteError } from "@/http/shared/route-errors/media.ts";
@@ -69,6 +70,11 @@ const taggedCommonRouteErrorMappers: {
   AuthNotFoundError: (error: AuthNotFoundError): RouteErrorResponse => ({
     message: error.message,
     status: 404,
+  }),
+  AuthRateLimitedError: (error: AuthRateLimitedError): RouteErrorResponse => ({
+    headers: { "retry-after": String(Math.max(1, Math.ceil(error.retryAfterMs / 1000))) },
+    message: error.message,
+    status: 429,
   }),
   AuthUnauthorizedError: (error: AuthUnauthorizedError): RouteErrorResponse => ({
     message: error.message,

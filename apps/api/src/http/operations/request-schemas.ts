@@ -103,7 +103,7 @@ export class DownloadEventsQuerySchema extends Schema.Class<DownloadEventsQueryS
   direction: Schema.optional(Schema.Literal("next", "prev")),
   end_date: Schema.optional(IsoDateTimeStringSchema),
   event_type: Schema.optional(DownloadEventTypeStringSchema),
-  limit: Schema.optional(PositiveIntFromStringSchema),
+  limit: Schema.optional(PositiveIntFromStringSchema.pipe(Schema.lessThanOrEqualTo(500))),
   start_date: Schema.optional(IsoDateTimeStringSchema),
   status: Schema.optional(DownloadEventStatusStringSchema),
 }) {}
@@ -116,7 +116,7 @@ export class DownloadEventsExportQuerySchema extends Schema.Class<DownloadEvents
   end_date: Schema.optional(IsoDateTimeStringSchema),
   event_type: Schema.optional(DownloadEventTypeStringSchema),
   format: Schema.optional(Schema.Literal("csv", "json")),
-  limit: Schema.optional(PositiveIntFromStringSchema),
+  limit: Schema.optional(PositiveIntFromStringSchema.pipe(Schema.lessThanOrEqualTo(500))),
   order: Schema.optional(Schema.Literal("asc", "desc")),
   start_date: Schema.optional(IsoDateTimeStringSchema),
   status: Schema.optional(DownloadEventStatusStringSchema),

@@ -46,6 +46,10 @@ export const persistSessionResponse = Effect.fn("Http.persistSessionResponse")(f
   const config = yield* AppConfig;
   const response = yield* HttpServerResponse.schemaJson(LoginResponseSchema)(body);
 
+  // CSRF boundary: SameSite=Lax keeps the session cookie off cross-site
+  // requests except top-level navigations. This is safe only because the API
+  // has NO state-changing GET routes — every mutation is POST/PUT/DELETE,
+  // which Lax never sends cookies on cross-site.
   return HttpServerResponse.unsafeSetCookie(response, config.sessionCookieName, token, {
     httpOnly: true,
     maxAge: Duration.days(config.sessionDurationDays),

@@ -13,7 +13,7 @@ import {
   extractVideoCodec,
   normalizeAirDate,
   normalizeText,
-} from "@/infra/scanned-file-metadata.ts";
+} from "@/infra/media/identity/scanned-file-metadata.ts";
 
 export function buildEpisodeNamingInputFromPath(input: {
   animeStartDate?: string | null;

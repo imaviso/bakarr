@@ -5,6 +5,7 @@ import {
   UnitNumberFromStringSchema,
   PositiveIntFromStringSchema,
 } from "@/domain/domain-schema.ts";
+import { httpUrlTargetsPrivateHost } from "@/security/private-host.ts";
 
 export const FilesystemPathStringSchema = Schema.String.pipe(
   Schema.minLength(1),
@@ -18,9 +19,14 @@ export const AbsoluteFilesystemPathStringSchema = Schema.String.pipe(
   Schema.brand("AbsoluteFilesystemPath"),
 );
 
+// SSRF boundary: feed URLs must not target loopback, private, or link-local
+// hosts (same guard as the qBittorrent URL config).
 export const HttpUrlStringSchema = Schema.String.pipe(
   Schema.minLength(1),
   Schema.pattern(/^https?:\/\/[^\s]+$/),
+  Schema.filter((value) => !httpUrlTargetsPrivateHost(value), {
+    message: () => "URL must not target loopback, private, or link-local hosts",
+  }),
   Schema.brand("HttpUrl"),
 );
 

@@ -31,16 +31,26 @@ export class AuthNotFoundError extends Schema.TaggedError<AuthNotFoundError>()(
   },
 ) {}
 
+export class AuthRateLimitedError extends Schema.TaggedError<AuthRateLimitedError>()(
+  "AuthRateLimitedError",
+  {
+    message: Schema.String,
+    retryAfterMs: Schema.Number,
+  },
+) {}
+
 export type AuthError =
   | AuthBadRequestError
   | AuthForbiddenError
   | AuthNotFoundError
+  | AuthRateLimitedError
   | AuthUnauthorizedError;
 
 export const AuthErrorSchema = Schema.Union(
   AuthBadRequestError,
   AuthForbiddenError,
   AuthNotFoundError,
+  AuthRateLimitedError,
   AuthUnauthorizedError,
 );
 

@@ -13,7 +13,6 @@ import { SearchBackgroundMissingService } from "@/features/operations/background
 import { SearchUnitService } from "@/features/operations/search/search-unit-service.ts";
 import { SearchReleaseService } from "@/features/operations/search/search-orchestration-release-search.ts";
 import { MediaQueryService } from "@/features/media/query/query-service.ts";
-import { nowIso } from "@/infra/time.ts";
 import {
   CalendarQuerySchema,
   SearchDownloadBodySchema,
@@ -51,11 +50,7 @@ export const searchRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const query = yield* decodeQueryWithLabel(CalendarQuerySchema, "calendar");
-        const nowIsoValue = yield* nowIso();
-        return yield* (yield* MediaQueryService).listCalendarEvents(
-          query.start ?? nowIsoValue,
-          query.end ?? nowIsoValue,
-        );
+        return yield* (yield* MediaQueryService).listCalendarEvents(query.start, query.end);
       }),
       schemaJsonResponse(Schema.Array(CalendarEventSchema)),
     ),

@@ -13,7 +13,7 @@ import {
   getLibraryPathForMediaKind,
   resolveMediaRootFolderEffect,
 } from "@/features/media/shared/config-support.ts";
-import { decodeMediaKind } from "@/features/media/shared/media-kind.ts";
+import { decodeStoredMediaKindEffect } from "@/features/media/shared/media-kind.ts";
 import { DomainInputError, DomainPathError, InfrastructureError } from "@/features/errors.ts";
 import { OperationsConflictError, OperationsNotFoundError } from "@/features/operations/errors.ts";
 import type { MediaNotFoundError } from "@/features/media/errors.ts";
@@ -111,7 +111,16 @@ function buildUnmappedImportWorkflow(input: {
   const importUnmappedFolder = Effect.fn("UnmappedImportService.importUnmappedFolder")(
     function* (input: { folder_name: string; media_id: number; profile_name?: string }) {
       const animeRow = yield* mediaRepository.getMediaRow(input.media_id);
-      const mediaKind = decodeMediaKind(animeRow.mediaKind);
+      const mediaKind = yield* decodeStoredMediaKindEffect(animeRow.mediaKind).pipe(
+        Effect.catchTag("StoredDataError", (e) =>
+          Effect.fail(
+            new InfrastructureError({
+              message: "Failed to import unmapped folder",
+              cause: e,
+            }),
+          ),
+        ),
+      );
       const libraryPath = yield* getLibraryPath(mediaKind);
       const folderName = yield* sanitizePathSegmentEffect(input.folder_name).pipe(
         Effect.mapError(

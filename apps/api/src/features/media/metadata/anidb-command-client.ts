@@ -3,21 +3,41 @@ import { type Socket } from "node:dgram";
 import { Clock, Effect, Ref } from "effect";
 
 import { parseAniDbResponse } from "@/features/media/metadata/anidb-protocol.ts";
-import { sendAndReceiveAniDbPacketEffect } from "@/features/media/metadata/anidb-socket.ts";
+import {
+  sendAndReceiveAniDbPacketEffect,
+  type AniDbPeer,
+} from "@/features/media/metadata/anidb-socket.ts";
 import { ExternalCallError } from "@/infra/effect/retry.ts";
 
 const ANIDB_PROTO_VERSION = 3;
 const ANIDB_MIN_PACKET_INTERVAL_MS = 2_200;
 
+/**
+ * Per-session request state shared by every socket send: the atomic packet
+ * pacing slot, the monotonically increasing response-tag counter, and the
+ * validated UDP peer.
+ */
+export interface AniDbRequestContext {
+  readonly lastPacketAtRef: Ref.Ref<number>;
+  readonly nextTagRef: Ref.Ref<number>;
+  readonly peer: AniDbPeer;
+}
+
 export const sendAniDbCommandEffect = Effect.fn("AniDbClient.sendCommand")(function* (
   socket: Socket,
   command: string,
-  lastPacketAtRef: Ref.Ref<number>,
+  context: AniDbRequestContext,
   operation: string,
 ) {
-  yield* waitForPacketWindowEffect(lastPacketAtRef);
+  yield* reservePacketSlot(context.lastPacketAtRef);
+  const tag = yield* nextRequestTag(context.nextTagRef);
 
-  const responseRaw = yield* sendAndReceiveAniDbPacketEffect(socket, command).pipe(
+  const responseRaw = yield* sendAndReceiveAniDbPacketEffect(
+    socket,
+    `${command}&tag=${tag}`,
+    context.peer,
+    tag,
+  ).pipe(
     Effect.mapError((cause) =>
       ExternalCallError.make({
         cause,
@@ -46,7 +66,7 @@ export const authenticateAniDbEffect = Effect.fn("AniDbClient.authenticate")(fun
   password: string,
   client: string,
   clientVersion: number,
-  lastPacketAtRef: Ref.Ref<number>,
+  context: AniDbRequestContext,
 ) {
   const response = yield* sendAniDbCommandEffect(
     socket,
@@ -57,7 +77,7 @@ export const authenticateAniDbEffect = Effect.fn("AniDbClient.authenticate")(fun
       `client=${encodeCommandValue(client)}`,
       `clientver=${clientVersion}`,
     ].join("&"),
-    lastPacketAtRef,
+    context,
     "auth",
   );
 
@@ -85,12 +105,12 @@ export const authenticateAniDbEffect = Effect.fn("AniDbClient.authenticate")(fun
 export const logoutAniDbEffect = Effect.fn("AniDbClient.logout")(function* (
   socket: Socket,
   sessionToken: string,
-  lastPacketAtRef: Ref.Ref<number>,
+  context: AniDbRequestContext,
 ) {
   const response = yield* sendAniDbCommandEffect(
     socket,
     `LOGOUT s=${sessionToken}`,
-    lastPacketAtRef,
+    context,
     "logout",
   );
 
@@ -105,19 +125,33 @@ export const logoutAniDbEffect = Effect.fn("AniDbClient.logout")(function* (
   });
 });
 
-const waitForPacketWindowEffect = Effect.fn("AniDbClient.waitForPacketWindow")(function* (
+/**
+ * Atomically reserve the next ≥2.2s packet slot. The ref holds the timestamp
+ * at which the next packet may be sent; `Ref.modify` both computes this
+ * caller's wait and advances the reservation, so concurrent callers can never
+ * share a window.
+ */
+const reservePacketSlot = Effect.fn("AniDbClient.reservePacketSlot")(function* (
   lastPacketAtRef: Ref.Ref<number>,
 ) {
   const now = yield* Clock.currentTimeMillis;
-  const lastPacketAt = yield* Ref.get(lastPacketAtRef);
-  const elapsed = now - lastPacketAt;
+  const waitMs = yield* Ref.modify(lastPacketAtRef, (nextAllowedAt): readonly [number, number] => {
+    const startAt = Math.max(now, nextAllowedAt);
+    return [startAt - now, startAt + ANIDB_MIN_PACKET_INTERVAL_MS];
+  });
 
-  if (elapsed < ANIDB_MIN_PACKET_INTERVAL_MS) {
-    yield* Effect.sleep(`${ANIDB_MIN_PACKET_INTERVAL_MS - elapsed} millis`);
+  if (waitMs > 0) {
+    yield* Effect.sleep(`${waitMs} millis`);
   }
+});
 
-  const nextPacketAt = yield* Clock.currentTimeMillis;
-  yield* Ref.set(lastPacketAtRef, nextPacketAt);
+const nextRequestTag = Effect.fn("AniDbClient.nextRequestTag")(function* (
+  nextTagRef: Ref.Ref<number>,
+) {
+  return yield* Ref.modify(nextTagRef, (current): readonly [string, number] => [
+    String(current),
+    current + 1,
+  ]);
 });
 
 function encodeCommandValue(value: string) {

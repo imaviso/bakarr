@@ -9,7 +9,7 @@ import {
   scoreAnimeSearchResultMatch,
   summarizeEpisodeCoverage,
 } from "@/domain/media/derivations.ts";
-import { buildScannedFileMetadata } from "@/infra/scanned-file-metadata.ts";
+import { buildScannedFileMetadata } from "@/infra/media/identity/scanned-file-metadata.ts";
 import {
   buildPathParseContext,
   classifyMediaArtifact,

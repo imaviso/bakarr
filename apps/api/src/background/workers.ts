@@ -6,16 +6,13 @@ import type { Scope } from "effect";
 import type { Config } from "@packages/shared/index.ts";
 import type { BackgroundWorkerSpawner } from "@/background/controller-core.ts";
 import { buildBackgroundSchedule, resolveBackgroundWorkerLoopPlan } from "@/background/schedule.ts";
+import { BackgroundWorkerTimeouts } from "@/background/worker-timeouts.ts";
 import type {
   BackgroundTaskRunnerError,
   BackgroundTaskRunnerShape,
 } from "@/background/task-runner.ts";
 import type { BackgroundWorkerMonitorShape } from "@/background/monitor.ts";
-import {
-  BACKGROUND_WORKER_NAMES,
-  BACKGROUND_WORKER_TIMEOUT_MS,
-  type BackgroundWorkerName,
-} from "@/domain/worker-model.ts";
+import { BACKGROUND_WORKER_NAMES, type BackgroundWorkerName } from "@/domain/worker-model.ts";
 import { currentTimeNanos } from "@/infra/time.ts";
 import { makeSerializedDropEffectRunner } from "@/infra/effect/serialized-runner.ts";
 import { compactLogAnnotations, errorLogAnnotations } from "@/infra/logging.ts";
@@ -156,7 +153,8 @@ export const withLockEffectOrFail = Effect.fn("Background.withLockEffectOrFail")
   monitor: BackgroundWorkerMonitorShape,
   timeoutMs?: number,
 ) {
-  const effectiveTimeout = timeoutMs ?? BACKGROUND_WORKER_TIMEOUT_MS[workerName];
+  // Explicit timeouts (tests) skip the config-backed service entirely.
+  const effectiveTimeout = timeoutMs ?? (yield* BackgroundWorkerTimeouts)[workerName];
   const taskWithTimeout = task.pipe(
     Effect.timeoutFail({
       duration: `${effectiveTimeout} millis`,

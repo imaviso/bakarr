@@ -130,10 +130,15 @@ function toLibrarySettings(
 }
 
 function toSafePathSegment(value: string) {
-  return (
-    value
-      .replace(/[<>:"/\\|?*]/g, " ")
-      .replace(/\s+/g, " ")
-      .trim() || "media"
-  );
+  const sanitized = value
+    .replace(/[<>:"/\\|?*]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  // Pure dot segments are path traversal, not folder names — drop them.
+  if (sanitized.length === 0 || sanitized === "." || sanitized === "..") {
+    return "media";
+  }
+
+  return sanitized;
 }

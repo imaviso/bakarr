@@ -13,7 +13,7 @@ it("isSqliteUniqueConstraint detects sqlite unique errors across code and messag
 
 it("isSqliteUniqueConstraint walks nested cause chains and avoids cycles", () => {
   const root: { cause?: unknown; message: string } = { message: "outer" };
-  const inner = { cause: { code: "SQLITE_CONSTRAINT" } };
+  const inner = { cause: { code: "SQLITE_CONSTRAINT_UNIQUE" } };
   root.cause = inner;
 
   assert.deepStrictEqual(isSqliteUniqueConstraint(root), true);
@@ -21,6 +21,17 @@ it("isSqliteUniqueConstraint walks nested cause chains and avoids cycles", () =>
   const cyclic: { cause?: unknown; message: string } = { message: "not sqlite" };
   cyclic.cause = cyclic;
   assert.deepStrictEqual(isSqliteUniqueConstraint(cyclic), false);
+});
+
+it("isSqliteUniqueConstraint rejects non-unique constraint violations", () => {
+  assert.deepStrictEqual(isSqliteUniqueConstraint({ code: "SQLITE_CONSTRAINT" }), false);
+  assert.deepStrictEqual(isSqliteUniqueConstraint({ errno: 19 }), false);
+  assert.deepStrictEqual(isSqliteUniqueConstraint({ errno: 787 }), false);
+  assert.deepStrictEqual(
+    isSqliteUniqueConstraint({ message: "FOREIGN KEY constraint failed" }),
+    false,
+  );
+  assert.deepStrictEqual(isSqliteUniqueConstraint({ message: "NOT NULL constraint failed: x" }), false);
 });
 
 it("isSqliteBusyLock detects busy lock codes and messages", () => {

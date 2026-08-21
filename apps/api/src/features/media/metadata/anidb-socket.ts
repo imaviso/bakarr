@@ -1,18 +1,49 @@
 // oxlint-disable typescript/no-restricted-types -- `unknown` is the honest type at error/cause boundaries (Effect error channels, try/catch causes, Logger messages)
 import { createSocket, type Socket } from "node:dgram";
+import { resolve4 } from "node:dns/promises";
 
 import { Cause, Data, Effect } from "effect";
 
 import { ExternalCallError } from "@/infra/effect/retry.ts";
+import { parseAniDbResponseTag } from "@/features/media/metadata/anidb-protocol.ts";
 
-const ANIDB_HOST = "api.anidb.net";
-const ANIDB_PORT = 9000;
+export const ANIDB_HOST = "api.anidb.net";
+export const ANIDB_PORT = 9000;
 const ANIDB_PACKET_TIMEOUT_MS = 10_000;
 
 class AniDbSocketPacketError extends Data.TaggedError("AniDbSocketPacketError")<{
   readonly cause: unknown;
   readonly message: string;
 }> {}
+
+/** The UDP peer this client talks to: the resolved addresses of the AniDB host plus its port. */
+export interface AniDbPeer {
+  readonly addresses: ReadonlySet<string>;
+  readonly port: number;
+}
+
+/**
+ * Resolve the AniDB host to its A records so every response datagram can be
+ * validated against the expected source address. The socket is udp4, so only
+ * A records apply (AAAA would require udp6). DNS change needs restart — peer
+ * is resolved once at client construction.
+ */
+export const resolveAniDbPeerEffect = Effect.fn("AniDbClient.resolvePeer")(function* () {
+  const addresses = yield* Effect.tryPromise({
+    try: () => resolve4(ANIDB_HOST),
+    catch: (cause) =>
+      ExternalCallError.make({
+        cause,
+        message: "AniDB host could not be resolved",
+        operation: "anidb.socket.resolve",
+      }),
+  });
+
+  return {
+    addresses: new Set(addresses),
+    port: ANIDB_PORT,
+  } satisfies AniDbPeer;
+});
 
 export const openAniDbSocketEffect = Effect.fn("AniDbClient.openSocket")(function* (
   localPort: number,
@@ -70,7 +101,7 @@ export const closeAniDbSocketEffect = Effect.fn("AniDbClient.closeSocket")(funct
 });
 
 export const sendAndReceiveAniDbPacketEffect = Effect.fn("AniDbClient.sendAndReceivePacket")(
-  function* (socket: Socket, command: string) {
+  function* (socket: Socket, command: string, peer: AniDbPeer, expectedTag: string) {
     return yield* Effect.async<string, AniDbSocketPacketError>((resume) => {
       let done = false;
 
@@ -96,8 +127,18 @@ export const sendAndReceiveAniDbPacketEffect = Effect.fn("AniDbClient.sendAndRec
         );
       };
 
-      const onMessage = (message: Buffer) => {
+      const onMessage = (message: Buffer, rinfo: { address: string; port: number }) => {
         if (done) {
+          return;
+        }
+
+        // Drop datagrams from unexpected peers and responses whose echoed tag
+        // does not match the pending request — both are noise on the socket.
+        if (rinfo.port !== peer.port || !peer.addresses.has(rinfo.address)) {
+          return;
+        }
+
+        if (parseAniDbResponseTag(message.toString("utf8")) !== expectedTag) {
           return;
         }
 
@@ -110,10 +151,10 @@ export const sendAndReceiveAniDbPacketEffect = Effect.fn("AniDbClient.sendAndRec
         settleFailure(cause);
       };
 
-      socket.once("message", onMessage);
+      socket.on("message", onMessage);
       socket.once("error", onError);
 
-      socket.send(Buffer.from(command, "utf8"), ANIDB_PORT, ANIDB_HOST, (cause) => {
+      socket.send(Buffer.from(command, "utf8"), peer.port, ANIDB_HOST, (cause) => {
         if (cause) {
           settleFailure(cause);
         }

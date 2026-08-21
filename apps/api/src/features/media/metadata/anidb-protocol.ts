@@ -49,6 +49,7 @@ export interface AniDbResponse {
   readonly code: number;
   readonly lines: ReadonlyArray<string>;
   readonly rest: string;
+  readonly tag: string | undefined;
 }
 
 export function parseAniDbResponse(raw: string): AniDbResponse | undefined {
@@ -78,7 +79,13 @@ export function parseAniDbResponse(raw: string): AniDbResponse | undefined {
     code: parsed.code,
     lines: lines.slice(1),
     rest: parsed.rest,
+    tag: parsed.tag,
   };
+}
+
+/** Extract only the echoed tag from a raw response — used to drop packets that belong to other requests. */
+export function parseAniDbResponseTag(raw: string): string | undefined {
+  return parseAniDbResponse(raw)?.tag;
 }
 
 export function parseAid(line: string | undefined): number | undefined {
@@ -204,13 +211,14 @@ export function scoreAnimeLookupCandidate(
 
 function parseAniDbHeader(
   header: string,
-): { readonly code: number; readonly rest: string } | undefined {
-  const withTag = header.match(/^\S+\s+(\d{3})\s*(.*)$/);
+): { readonly code: number; readonly rest: string; readonly tag: string | undefined } | undefined {
+  const withTag = header.match(/^(\S+)\s+(\d{3})\s*(.*)$/);
 
   if (withTag) {
     return {
-      code: Number.parseInt(withTag[1] ?? "", 10),
-      rest: withTag[2] ?? "",
+      code: Number.parseInt(withTag[2] ?? "", 10),
+      rest: withTag[3] ?? "",
+      tag: withTag[1],
     };
   }
 
@@ -223,6 +231,7 @@ function parseAniDbHeader(
   return {
     code: Number.parseInt(withoutTag[1] ?? "", 10),
     rest: withoutTag[2] ?? "",
+    tag: undefined,
   };
 }
 

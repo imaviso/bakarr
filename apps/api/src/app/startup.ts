@@ -6,6 +6,7 @@ import { initializeBackgroundWorkerMetrics } from "@/background/monitor.ts";
 import { AppConfig, type AppConfigShape } from "@/config/schema.ts";
 import { migrateDatabase } from "@/db/migrate.ts";
 import { AuthBootstrapService } from "@/features/auth/bootstrap-service.ts";
+import { BackgroundJobRepository } from "@/features/system/repository/background-job-repository.ts";
 import { SystemBootstrapService } from "@/features/system/system-bootstrap-service.ts";
 import { SystemConfigService } from "@/features/system/system-config-service.ts";
 import { compactLogAnnotations } from "@/infra/logging.ts";
@@ -15,6 +16,8 @@ export const bootstrapProgram = Effect.fn("api.bootstrap")(function* () {
 
   const systemBootstrap = yield* SystemBootstrapService;
   yield* systemBootstrap.ensureInitialized();
+
+  yield* (yield* BackgroundJobRepository).clearStaleRunningJobs();
 
   const auth = yield* AuthBootstrapService;
   yield* auth.ensureBootstrapUser();

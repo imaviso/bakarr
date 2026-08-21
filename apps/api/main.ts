@@ -39,7 +39,12 @@ const mainProgram = Effect.gen(function* () {
       NodeHttpServer.layer(
         () => {
           const srv = createServer();
-          srv.keepAliveTimeout = 5000;
+          // Slowloris / stalled-request protections. @effect/platform-node's
+          // serve layer exposes no timeout hooks, so set them on the raw Node
+          // server (headersTimeout must be > keepAliveTimeout).
+          srv.keepAliveTimeout = 5_000;
+          srv.headersTimeout = 10_000;
+          srv.requestTimeout = 60_000;
           return srv;
         },
         { port: config.port },

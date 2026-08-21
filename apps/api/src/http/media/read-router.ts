@@ -99,7 +99,7 @@ export const mediaReadRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
-        return yield* (yield* MediaQueryService).listEpisodes(params.id);
+        return yield* (yield* MediaQueryService).listUnits(params.id);
       }),
       schemaJsonResponse(Schema.Array(MediaUnitSchema)),
     ),

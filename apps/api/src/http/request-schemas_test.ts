@@ -294,6 +294,28 @@ it("DownloadEventsQuerySchema accepts filtered query params", () => {
   assert.deepStrictEqual(query._tag, "Right");
 });
 
+it("DownloadEventsQuerySchema caps limit at 500", () => {
+  const atCap = Schema.decodeUnknownEither(DownloadEventsQuerySchema)({ limit: "500" });
+  const overCap = Schema.decodeUnknownEither(DownloadEventsQuerySchema)({ limit: "501" });
+
+  assert.deepStrictEqual(atCap._tag, "Right");
+  assert.deepStrictEqual(overCap._tag, "Left");
+});
+
+it("DownloadEventsExportQuerySchema caps limit at 500", () => {
+  const atCap = Schema.decodeUnknownEither(DownloadEventsExportQuerySchema)({
+    format: "csv",
+    limit: "500",
+  });
+  const overCap = Schema.decodeUnknownEither(DownloadEventsExportQuerySchema)({
+    format: "csv",
+    limit: "9999",
+  });
+
+  assert.deepStrictEqual(atCap._tag, "Right");
+  assert.deepStrictEqual(overCap._tag, "Left");
+});
+
 it("DownloadEventsExportQuerySchema accepts export query params", () => {
   const query = Schema.decodeUnknownEither(DownloadEventsExportQuerySchema)({
     media_id: "20",
@@ -344,6 +366,25 @@ it("AddRssFeedBodySchema accepts http(s) RSS URLs", () => {
 
   assert.deepStrictEqual(httpsResult._tag, "Right");
   assert.deepStrictEqual(httpResult._tag, "Right");
+});
+
+it("AddRssFeedBodySchema rejects private, loopback, and link-local feed URLs", () => {
+  const urls = [
+    "http://localhost:8080/feed.xml",
+    "http://127.0.0.1:9192/feed",
+    "https://192.168.1.10/feed.xml",
+    "https://10.0.0.5/feed.xml",
+    "https://172.16.0.9/feed.xml",
+    "https://169.254.1.1/feed.xml",
+    "http://[::1]:8080/feed.xml",
+    "https://[fe80::1]/feed.xml",
+    "http://myhost.localhost/feed",
+  ];
+
+  for (const url of urls) {
+    const result = Schema.decodeUnknownEither(AddRssFeedBodySchema)({ media_id: 20, url });
+    assert.deepStrictEqual(result._tag, "Left", `expected rejection for ${url}`);
+  }
 });
 
 it("boundary request schemas reject malformed URL, path, and date inputs", () => {

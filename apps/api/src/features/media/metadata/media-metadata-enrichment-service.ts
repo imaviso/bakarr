@@ -58,15 +58,11 @@ const makeMediaMetadataEnrichmentService = Effect.fn("MediaMetadataEnrichmentSer
       request: AniDbRefreshRequest,
     ) {
       const lookupResult = yield* aniDb.getEpisodeMetadata(request);
-      const updatedAt = yield* currentNowIso();
 
       if (lookupResult._tag === "AniDbLookupSkipped") {
-        yield* aniDbUnitCacheRepository.upsert({
-          mediaId: request.mediaId,
-          mediaUnits: [],
-          updatedAt,
-        });
-
+        // A transient skip (disabled provider, missing credentials, …) must
+        // not overwrite or refresh a cached entry — only successful lookups
+        // may touch cache freshness.
         yield* Effect.logInfo("AniDB refresh skipped").pipe(
           Effect.annotateLogs({
             mediaId: request.mediaId,
@@ -75,6 +71,8 @@ const makeMediaMetadataEnrichmentService = Effect.fn("MediaMetadataEnrichmentSer
         );
         return;
       }
+
+      const updatedAt = yield* currentNowIso();
 
       yield* aniDbUnitCacheRepository.upsert({
         mediaId: request.mediaId,

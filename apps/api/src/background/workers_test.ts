@@ -6,6 +6,7 @@ import type { Config } from "@packages/shared/index.ts";
 import { buildBackgroundSchedule } from "@/background/schedule.ts";
 import { makeBackgroundWorkerController } from "@/background/controller-core.ts";
 import { makeBackgroundWorkerMonitor } from "@/background/monitor.ts";
+import { BackgroundWorkerTimeouts } from "@/background/worker-timeouts.ts";
 import { repeatWorker, withLockEffectOrFail } from "@/background/workers.ts";
 import { BACKGROUND_WORKER_TIMEOUT_MS } from "@/domain/worker-model.ts";
 import { makeLatestValuePublisher } from "@/infra/effect/coalescing-latest-value-publisher.ts";
@@ -283,7 +284,9 @@ it.effect("background worker timeouts are tagged and recorded", () =>
     const logger = Logger.make<unknown, void>(({ message }) => {
       messages.push(String(message));
     });
-    const lockedTask = yield* withLockEffectOrFail("rss", Effect.never, monitor, 1);
+    const lockedTask = yield* withLockEffectOrFail("rss", Effect.never, monitor, 1).pipe(
+      Effect.provide(BackgroundWorkerTimeouts.Default),
+    );
     const fiber = yield* Effect.fork(
       lockedTask.pipe(Effect.provide(Logger.replace(Logger.defaultLogger, logger))),
     );
@@ -307,7 +310,9 @@ it.effect("background worker timeouts are tagged and recorded", () =>
 it.effect("background worker interruption marks run as interrupted", () =>
   Effect.gen(function* () {
     const monitor = yield* makeBackgroundWorkerMonitor();
-    const lockedTask = yield* withLockEffectOrFail("rss", Effect.never, monitor, 10_000);
+    const lockedTask = yield* withLockEffectOrFail("rss", Effect.never, monitor, 10_000).pipe(
+      Effect.provide(BackgroundWorkerTimeouts.Default),
+    );
 
     const fiber = yield* Effect.fork(lockedTask);
     yield* Fiber.interrupt(fiber);
@@ -434,7 +439,7 @@ it.effect("BackgroundWorkerController reload spawns new workers and stops old", 
   }),
 );
 
-it.effect("BackgroundWorkerController reload stops old workers before spawning new scope", () =>
+it.effect("BackgroundWorkerController reload spawns new scope before closing old workers", () =>
   Effect.gen(function* () {
     const events: string[] = [];
     let handleId = 0;
@@ -452,11 +457,11 @@ it.effect("BackgroundWorkerController reload stops old workers before spawning n
     yield* controller.start(baseConfig);
     yield* controller.reload(baseConfig);
 
-    assert.deepStrictEqual(events, ["spawn-1", "stop-1", "spawn-2"]);
+    assert.deepStrictEqual(events, ["spawn-1", "spawn-2", "stop-1"]);
   }),
 );
 
-it.effect("BackgroundWorkerController stops workers when reload spawn fails", () =>
+it.effect("BackgroundWorkerController reload keeps old workers when spawn fails", () =>
   Effect.gen(function* () {
     const stoppedHandles: number[] = [];
     let spawnCallCount = 0;
@@ -478,9 +483,12 @@ it.effect("BackgroundWorkerController stops workers when reload spawn fails", ()
     const exitResult = yield* Effect.exit(controller.reload(baseConfig));
     assert.deepStrictEqual(exitResult._tag, "Failure");
 
-    assert.deepStrictEqual(stoppedHandles.length, 1);
+    assert.deepStrictEqual(stoppedHandles.length, 0);
     const started = yield* controller.isStarted();
-    assert.deepStrictEqual(started, false);
+    assert.deepStrictEqual(started, true);
+
+    yield* controller.stop();
+    assert.deepStrictEqual(stoppedHandles.length, 1);
   }),
 );
 
@@ -658,6 +666,33 @@ it.scoped("latest value publisher keeps only the newest pending update", () =>
     yield* publisher.flush;
 
     assert.deepStrictEqual(published, [1, 3]);
+  }),
+);
+
+it.scoped("latest value publisher keeps draining after a failed publish", () =>
+  Effect.gen(function* () {
+    const published: number[] = [];
+    const secondPublished = yield* Deferred.make<void>();
+
+    const failedPublish: Effect.Effect<void, string> = Effect.fail("boom");
+    const publisher = yield* makeLatestValuePublisher((value: number) =>
+      value === 1
+        ? failedPublish
+        : Effect.gen(function* () {
+            published.push(value);
+            yield* Deferred.succeed(secondPublished, void 0);
+          }),
+    );
+
+    yield* publisher.offer(1);
+    const firstFlush = yield* Effect.either(publisher.flush);
+
+    assert.deepStrictEqual(firstFlush._tag, "Left");
+
+    yield* publisher.offer(2);
+    yield* Deferred.await(secondPublished);
+
+    assert.deepStrictEqual(published, [2]);
   }),
 );
 

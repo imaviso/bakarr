@@ -66,14 +66,15 @@ export const makeBackgroundWorkerController = Effect.fn(
   const reload = Effect.fn("BackgroundWorkerController.reload")(function* (config: Config) {
     yield* lifecycleSemaphore.withPermits(1)(
       Effect.gen(function* () {
-        const current = yield* Ref.getAndSet(scopeRef, null);
+        // Swap-then-close: spawn the new scope first and only close the old one
+        // after a successful spawn. If spawning fails, the previous workers keep
+        // running under the previous config instead of leaving zero workers.
+        const scope = yield* spawnWorkerScope(config);
+        const current = yield* Ref.getAndSet(scopeRef, scope);
 
         if (current !== null) {
           yield* Scope.close(current, Exit.succeed(void 0));
         }
-
-        const scope = yield* spawnWorkerScope(config);
-        yield* Ref.set(scopeRef, scope);
       }),
     );
   });

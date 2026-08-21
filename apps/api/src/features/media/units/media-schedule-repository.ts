@@ -19,7 +19,6 @@ export function buildMissingEpisodeRows(input: {
   endDate: string | undefined;
   futureAiringSchedule: ReadonlyArray<FutureAiringScheduleEntry> | undefined;
   nowIso?: string;
-  resetMissingOnly: boolean;
   existingRows: readonly (typeof mediaUnits.$inferSelect)[];
 }): (typeof mediaUnits.$inferInsert)[] {
   const unitNumbers = resolveEpisodeNumbers(input.unitCount, input.futureAiringSchedule);

@@ -74,6 +74,6 @@ export const collectBoundedText = Effect.fn("BoundedStream.collectBoundedText")(
       text += decoder.decode(chunk, { stream: true });
       return Effect.void;
     }),
-    Effect.map(() => text),
+    Effect.map(() => text + decoder.decode()),
   );
 });

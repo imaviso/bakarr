@@ -1,4 +1,4 @@
-import { Effect, Option } from "effect";
+import { Effect } from "effect";
 
 import {
   brandMediaId,
@@ -16,7 +16,8 @@ import {
 import { MediaRepository } from "@/features/media/shared/media-repository.ts";
 import { MediaUnitRepository } from "@/features/media/units/media-unit-repository.ts";
 import { BackgroundSearchQueueService } from "@/features/operations/background-search/background-search-queue-service.ts";
-import { DomainInputError, InfrastructureError } from "@/features/errors.ts";
+import { requireQualityProfile } from "@/features/operations/background-search/background-search-quality-profile-support.ts";
+import { InfrastructureError } from "@/features/errors.ts";
 import { nowIso as currentNowIso } from "@/infra/time.ts";
 import { OperationsProgress } from "@/features/operations/tasks/operations-progress-service.ts";
 import { OperationsTaskLauncherService } from "@/features/operations/tasks/operations-task-launcher-service.ts";
@@ -49,20 +50,6 @@ export class SearchBackgroundMissingService extends Effect.Service<SearchBackgro
       const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
       const taskLauncher = yield* OperationsTaskLauncherService;
       const nowIso = currentNowIso;
-
-      const requireQualityProfile = Effect.fn("BackgroundSearchMissing.requireQualityProfile")(
-        function* (profileName: string) {
-          const profileOption = yield* qualityProfileRepository.loadQualityProfile(profileName);
-
-          if (Option.isNone(profileOption)) {
-            return yield* new DomainInputError({
-              message: `Quality profile '${profileName}' not found`,
-            });
-          }
-
-          return profileOption.value;
-        },
-      );
 
       const logSearchMissingSkip = Effect.fn("BackgroundSearchMissing.logSearchMissingSkip")(
         function* (input: { mediaId: number; unitNumber: number; reason: string }) {
@@ -117,11 +104,16 @@ export class SearchBackgroundMissingService extends Effect.Service<SearchBackgro
           }
         }
 
-        for (const row of missingRows) {
+        const processMissingRow = Effect.fn("BackgroundSearchMissing.processMissingRow")(function* (
+          row: (typeof missingRows)[number],
+        ) {
           let profile = qualityProfileByName.get(row.media.profileName);
 
           if (profile === undefined) {
-            const loadedProfile = yield* requireQualityProfile(row.media.profileName);
+            const loadedProfile = yield* requireQualityProfile(
+              qualityProfileRepository,
+              row.media.profileName,
+            );
             yield* validateQualityProfileSizeLabels(loadedProfile);
             qualityProfileByName.set(row.media.profileName, loadedProfile);
             profile = loadedProfile;
@@ -159,7 +151,7 @@ export class SearchBackgroundMissingService extends Effect.Service<SearchBackgro
               unitNumber: row.media_units.number,
               reason: "no acceptable release candidates",
             });
-            continue;
+            return false;
           }
 
           const decisionReason =
@@ -186,6 +178,32 @@ export class SearchBackgroundMissingService extends Effect.Service<SearchBackgro
               unitNumber: row.media_units.number,
               reason: "overlapping download already queued",
             });
+            return false;
+          }
+
+          return true;
+        });
+
+        for (const row of missingRows) {
+          // Per-row isolation: one poisoned unit (profile/rules/search/queue
+          // failure) must not abort the pass — log, skip, continue so
+          // SearchMissingFinished still publishes.
+          const rowResult = yield* processMissingRow(row).pipe(Effect.either);
+
+          if (rowResult._tag === "Left") {
+            yield* Effect.logWarning(
+              "Missing-unit search row failed; continuing with remaining rows",
+            ).pipe(
+              Effect.annotateLogs({
+                mediaId: row.media.id,
+                unitNumber: row.media_units.number,
+                error: String(rowResult.left),
+              }),
+            );
+            continue;
+          }
+
+          if (!rowResult.right) {
             continue;
           }
 

@@ -66,7 +66,7 @@ export interface MediaRepositoryShape {
   ) => Effect.Effect<readonly (typeof mediaUnits.$inferSelect)[], DatabaseError>;
   readonly listUnitRowsWithMediaKind: (mediaId: number) => Effect.Effect<
     readonly {
-      readonly episode: typeof mediaUnits.$inferSelect;
+      readonly unit: typeof mediaUnits.$inferSelect;
       readonly mediaKind: string;
     }[],
     DatabaseError
@@ -439,26 +439,26 @@ const listCalendarEventsEffect = Effect.fn("MediaRepository.listCalendarEvents")
       .orderBy(mediaUnits.aired, media.titleRomaji),
   );
 
-  return rows.map(({ media: mediaRow, media_units: episodeRow }) => {
-    const timeline = deriveEpisodeTimelineMetadata(episodeRow.aired ?? undefined, now);
+  return rows.map(({ media: mediaRow, media_units: unitRow }) => {
+    const timeline = deriveEpisodeTimelineMetadata(unitRow.aired ?? undefined, now);
 
     return {
-      all_day: isAllDayAiring(episodeRow.aired),
-      end: episodeRow.aired ?? nowIsoValue,
+      all_day: isAllDayAiring(unitRow.aired),
+      end: unitRow.aired ?? nowIsoValue,
       extended_props: {
         airing_status: timeline.airing_status,
         media_id: brandMediaId(mediaRow.id),
         media_image: mediaRow.coverImage ?? undefined,
         media_title: mediaRow.titleRomaji,
-        downloaded: episodeRow.downloaded,
+        downloaded: unitRow.downloaded,
         unit_kind: mediaRow.mediaKind === "anime" ? "episode" : "volume",
-        unit_number: episodeRow.number,
-        unit_title: episodeRow.title ?? undefined,
+        unit_number: unitRow.number,
+        unit_title: unitRow.title ?? undefined,
         is_future: timeline.is_future,
       },
-      id: `${mediaRow.id}-${episodeRow.number}`,
-      start: episodeRow.aired ?? nowIsoValue,
-      title: buildCalendarEventTitle(mediaRow.titleRomaji, episodeRow, mediaRow.mediaKind),
+      id: `${mediaRow.id}-${unitRow.number}`,
+      start: unitRow.aired ?? nowIsoValue,
+      title: buildCalendarEventTitle(mediaRow.titleRomaji, unitRow, mediaRow.mediaKind),
     } satisfies CalendarEvent;
   });
 });
@@ -623,7 +623,7 @@ const listUnitRowsWithMediaKindEffect = Effect.fn("MediaRepository.listUnitRowsW
   function* (db: AppDatabase, mediaId: number) {
     return yield* tryDatabasePromise("Failed to list mediaUnits", () =>
       db
-        .select({ episode: mediaUnits, mediaKind: media.mediaKind })
+        .select({ unit: mediaUnits, mediaKind: media.mediaKind })
         .from(mediaUnits)
         .innerJoin(media, eq(media.id, mediaUnits.mediaId))
         .where(eq(mediaUnits.mediaId, mediaId)),
@@ -781,14 +781,14 @@ function isAllDayAiring(aired?: string | null) {
 
 function buildCalendarEventTitle(
   mediaTitle: string,
-  episodeRow: { number: number; title: string | null },
+  unitRow: { number: number; title: string | null },
   mediaKind: string,
 ) {
-  const unitLabel = mediaKind === "anime" ? "MediaUnit" : "Volume";
+  const unitLabel = mediaKind === "anime" ? "Episode" : "Volume";
 
-  return episodeRow.title
-    ? `${mediaTitle} - ${unitLabel} ${episodeRow.number}: ${episodeRow.title}`
-    : `${mediaTitle} - ${unitLabel} ${episodeRow.number}`;
+  return unitRow.title
+    ? `${mediaTitle} - ${unitLabel} ${unitRow.number}: ${unitRow.title}`
+    : `${mediaTitle} - ${unitLabel} ${unitRow.number}`;
 }
 
 function normalizeRootFolder(rootFolder: string) {

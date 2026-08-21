@@ -18,10 +18,12 @@ import {
   authenticateAniDbEffect,
   logoutAniDbEffect,
   sendAniDbCommandEffect,
+  type AniDbRequestContext,
 } from "@/features/media/metadata/anidb-command-client.ts";
 import {
   closeAniDbSocketEffect,
   openAniDbSocketEffect,
+  resolveAniDbPeerEffect,
 } from "@/features/media/metadata/anidb-socket.ts";
 import { AniDbRuntimeConfigError } from "@/features/media/errors.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
@@ -44,7 +46,6 @@ interface AniDbSessionState {
   readonly sessionToken: string;
   readonly socket: Socket;
 }
-
 interface AniDbRuntimeConfig {
   readonly enabled: boolean;
   readonly username: string | null;
@@ -86,11 +87,17 @@ export function normalizeEpisodeCount(unitCount: number | undefined, episodeLimi
 const makeAniDbClient = Effect.fn("AniDbClient.make")(function* () {
   yield* Scope.Scope;
   const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
+  // Serializes every socket interaction (AUTH, ANIME, EPISODE, LOGOUT) so a
+  // scope-finalizer LOGOUT can never interleave with an in-flight lookup.
   const requestSemaphore = yield* Effect.makeSemaphore(1);
-  const lastPacketAtRef = yield* Ref.make(0);
+  const requestContext: AniDbRequestContext = {
+    lastPacketAtRef: yield* Ref.make(0),
+    nextTagRef: yield* Ref.make(1),
+    peer: yield* resolveAniDbPeerEffect(),
+  };
   const sessionRef = yield* Ref.make(Option.none<AniDbSessionState>());
 
-  const closeSession = Effect.fn("AniDbClient.closeSession")(function* () {
+  const logoutAndCloseSession = Effect.fn("AniDbClient.logoutAndCloseSession")(function* () {
     const current = yield* Ref.getAndSet(sessionRef, Option.none<AniDbSessionState>());
 
     if (Option.isNone(current)) {
@@ -99,7 +106,7 @@ const makeAniDbClient = Effect.fn("AniDbClient.make")(function* () {
 
     const session = current.value;
 
-    yield* logoutAniDbEffect(session.socket, session.sessionToken, lastPacketAtRef).pipe(
+    yield* logoutAniDbEffect(session.socket, session.sessionToken, requestContext).pipe(
       Effect.timeout(ANIDB_CLOSE_SESSION_TIMEOUT),
       Effect.catchTag("ExternalCallError", () => Effect.void),
       Effect.catchTag("TimeoutException", () => Effect.void),
@@ -122,7 +129,7 @@ const makeAniDbClient = Effect.fn("AniDbClient.make")(function* () {
       config.password,
       config.client,
       config.clientVersion,
-      lastPacketAtRef,
+      requestContext,
     ).pipe(
       Effect.catchTag("ExternalCallError", (error) =>
         closeAniDbSocketEffect(socket).pipe(Effect.zipRight(Effect.fail(error))),
@@ -151,7 +158,7 @@ const makeAniDbClient = Effect.fn("AniDbClient.make")(function* () {
     }
 
     if (Option.isSome(current)) {
-      yield* closeSession();
+      yield* logoutAndCloseSession();
     }
 
     const session = yield* createSession(config);
@@ -159,7 +166,9 @@ const makeAniDbClient = Effect.fn("AniDbClient.make")(function* () {
     return session;
   });
 
-  yield* Effect.addFinalizer(closeSession);
+  // Finalizer LOGOUT goes through the same semaphore as lookups so it can
+  // never interleave with an in-flight EPISODE request.
+  yield* Effect.addFinalizer(() => requestSemaphore.withPermits(1)(logoutAndCloseSession()));
 
   const getEpisodeMetadata: AniDbClientShape["getEpisodeMetadata"] = Effect.fn(
     "AniDbClient.getEpisodeMetadata",
@@ -221,13 +230,13 @@ const makeAniDbClient = Effect.fn("AniDbClient.make")(function* () {
 
         return yield* fetchAniDbEpisodesEffect({
           unitCount,
-          lastPacketAtRef,
+          requestContext,
           sessionToken: session.sessionToken,
           socket: session.socket,
           titleCandidates,
         }).pipe(
           Effect.catchTag("ExternalCallError", (error) =>
-            closeSession().pipe(Effect.zipRight(Effect.fail(error))),
+            logoutAndCloseSession().pipe(Effect.zipRight(Effect.fail(error))),
           ),
         );
       }),
@@ -280,13 +289,13 @@ const failRuntimeConfigLoad = (error: DatabaseError | StoredConfigCorruptError, 
 
 const fetchAniDbEpisodesEffect = Effect.fn("AniDbClient.fetchEpisodes")(function* (input: {
   unitCount: number;
-  lastPacketAtRef: Ref.Ref<number>;
+  requestContext: AniDbRequestContext;
   sessionToken: string;
   socket: Socket;
   titleCandidates: ReadonlyArray<AniDbTitleCandidate>;
 }) {
   const aidOption = yield* resolveAnimeIdEffect({
-    lastPacketAtRef: input.lastPacketAtRef,
+    requestContext: input.requestContext,
     sessionToken: input.sessionToken,
     socket: input.socket,
     titleCandidates: input.titleCandidates,
@@ -314,7 +323,7 @@ const fetchAniDbEpisodesEffect = Effect.fn("AniDbClient.fetchEpisodes")(function
         const response = yield* sendAniDbCommandEffect(
           input.socket,
           `EPISODE aid=${aidOption.value}&epno=${unitNumber}&s=${input.sessionToken}`,
-          input.lastPacketAtRef,
+          input.requestContext,
           "episode",
         );
 
@@ -345,7 +354,7 @@ const fetchAniDbEpisodesEffect = Effect.fn("AniDbClient.fetchEpisodes")(function
 });
 
 const resolveAnimeIdEffect = Effect.fn("AniDbClient.resolveAnimeId")(function* (input: {
-  lastPacketAtRef: Ref.Ref<number>;
+  requestContext: AniDbRequestContext;
   sessionToken: string;
   socket: Socket;
   titleCandidates: ReadonlyArray<AniDbTitleCandidate>;
@@ -361,7 +370,7 @@ const resolveAnimeIdEffect = Effect.fn("AniDbClient.resolveAnimeId")(function* (
     const response = yield* sendAniDbCommandEffect(
       input.socket,
       `ANIME aname=${encodeURIComponent(candidate.value)}&s=${input.sessionToken}`,
-      input.lastPacketAtRef,
+      input.requestContext,
       "media",
     );
 

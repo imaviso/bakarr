@@ -116,3 +116,102 @@ it.scoped("upsertUnit does not overwrite unspecified fields on conflict", () =>
     schema,
   }),
 );
+
+it.scoped("upsertUnit remap to a different file clears stale probe metadata", () =>
+  withSqliteTestDbEffect({
+    run: (db) =>
+      Effect.gen(function* () {
+        const units = makeMediaUnitRepository(db);
+        yield* seedAnime(db);
+        yield* units.upsertUnit(1, 5, {
+          downloaded: true,
+          filePath: "/library/Show/Show - 05-old.mkv",
+          audioChannels: "2.0",
+          audioCodec: "AAC",
+          durationSeconds: 1440,
+          fileSize: 1234,
+          groupName: "OldGroup",
+          quality: "BluRay",
+          resolution: "1080p",
+          videoCodec: "HEVC",
+        });
+
+        yield* units.upsertUnit(1, 5, {
+          downloaded: true,
+          filePath: "/library/Show/Show - 05-new.mkv",
+        });
+
+        const rows = yield* tryDatabasePromise("Failed to query mediaUnits for assertion", () =>
+          db.select().from(mediaUnits).where(eq(mediaUnits.id, 1)),
+        );
+        assert.deepStrictEqual(rows[0]?.filePath, "/library/Show/Show - 05-new.mkv");
+        assert.deepStrictEqual(rows[0]?.downloaded, true);
+        assert.deepStrictEqual(rows[0]?.groupName, null);
+        assert.deepStrictEqual(rows[0]?.resolution, null);
+        assert.deepStrictEqual(rows[0]?.quality, null);
+        assert.deepStrictEqual(rows[0]?.videoCodec, null);
+        assert.deepStrictEqual(rows[0]?.audioCodec, null);
+        assert.deepStrictEqual(rows[0]?.audioChannels, null);
+        assert.deepStrictEqual(rows[0]?.durationSeconds, null);
+        assert.deepStrictEqual(rows[0]?.fileSize, null);
+      }),
+    schema,
+  }),
+);
+
+it.scoped("upsertUnit same-path rewrite keeps cached probe metadata", () =>
+  withSqliteTestDbEffect({
+    run: (db) =>
+      Effect.gen(function* () {
+        const units = makeMediaUnitRepository(db);
+        yield* seedAnime(db);
+        const filePath = "/library/Show/Show - 06.mkv";
+        yield* units.upsertUnit(1, 6, {
+          downloaded: true,
+          filePath,
+          groupName: "KeepGroup",
+          resolution: "1080p",
+        });
+
+        yield* units.upsertUnit(1, 6, {
+          downloaded: true,
+          filePath,
+        });
+
+        const rows = yield* tryDatabasePromise("Failed to query mediaUnits for assertion", () =>
+          db.select().from(mediaUnits).where(eq(mediaUnits.id, 1)),
+        );
+        assert.deepStrictEqual(rows[0]?.groupName, "KeepGroup");
+        assert.deepStrictEqual(rows[0]?.resolution, "1080p");
+      }),
+    schema,
+  }),
+);
+
+it.scoped("bulkMapUnitFiles remap to a different file clears stale probe metadata", () =>
+  withSqliteTestDbEffect({
+    run: (db) =>
+      Effect.gen(function* () {
+        const units = makeMediaUnitRepository(db);
+        yield* seedAnime(db);
+        yield* units.upsertUnit(1, 7, {
+          downloaded: true,
+          filePath: "/library/Show/Show - 07-old.mkv",
+          groupName: "OldGroup",
+          resolution: "1080p",
+        });
+
+        yield* units.bulkMapUnitFiles(1, [
+          { unit_number: 7, file_path: "/library/Show/Show - 07-new.mkv", clear: false },
+        ]);
+
+        const rows = yield* tryDatabasePromise("Failed to query mediaUnits for assertion", () =>
+          db.select().from(mediaUnits).where(eq(mediaUnits.id, 1)),
+        );
+        assert.deepStrictEqual(rows[0]?.filePath, "/library/Show/Show - 07-new.mkv");
+        assert.deepStrictEqual(rows[0]?.groupName, null);
+        assert.deepStrictEqual(rows[0]?.resolution, null);
+      }),
+    schema,
+  }),
+);

@@ -4,6 +4,7 @@ import { Effect, Logger } from "effect";
 
 import { assert, it } from "@effect/vitest";
 import { announceBootstrapCredentials } from "@/features/auth/bootstrap-output.ts";
+import { exists, withFileSystemSandboxEffect } from "@/test/filesystem-test.ts";
 
 it.effect("announceBootstrapCredentials logs a fallback message when terminal display fails", () =>
   Effect.gen(function* () {
@@ -13,7 +14,7 @@ it.effect("announceBootstrapCredentials logs a fallback message when terminal di
     });
 
     yield* announceBootstrapCredentials({
-      password: "secret-pass",
+      outputDir: "/unused",
       username: "demo",
     }).pipe(
       Effect.provideService(Terminal.Terminal, {
@@ -35,8 +36,60 @@ it.effect("announceBootstrapCredentials logs a fallback message when terminal di
       messages.some((message) => message.includes("INITIAL SETUP")),
       true,
     );
+  }),
+);
+
+it.scoped("non-TTY fallback writes credentials to a 0600 file and logs only the path", () =>
+  withFileSystemSandboxEffect(({ fs, root }) =>
+    Effect.gen(function* () {
+      const messages: string[] = [];
+      const logger = Logger.make<unknown, void>(({ message }) => {
+        messages.push(String(message));
+      });
+      const credentialsFilePath = `${root}/bootstrap-credentials.txt`;
+
+      yield* announceBootstrapCredentials({
+        outputDir: root,
+        password: "secret-pass",
+        username: "demo",
+      }).pipe(
+        // No Terminal service in context -> non-TTY fallback path.
+        Effect.provide(Logger.replace(Logger.defaultLogger, logger)),
+      );
+
+      assert.deepStrictEqual(yield* exists(fs, credentialsFilePath), true);
+
+      const stats = yield* Effect.promise(() =>
+        import("node:fs").then((module) => module.statSync(credentialsFilePath)),
+      );
+      assert.deepStrictEqual(stats.mode & 0o777, 0o600);
+
+      assert.deepStrictEqual(
+        messages.some((message) => message.includes(credentialsFilePath)),
+        true,
+      );
+      assert.deepStrictEqual(
+        messages.some((message) => message.includes("secret-pass")),
+        false,
+      );
+    }),
+  ),
+);
+
+it.effect("non-TTY fallback without a generated password logs guidance only", () =>
+  Effect.gen(function* () {
+    const messages: string[] = [];
+    const logger = Logger.make<unknown, void>(({ message }) => {
+      messages.push(String(message));
+    });
+
+    yield* announceBootstrapCredentials({
+      outputDir: "/unused",
+      username: "demo",
+    }).pipe(Effect.provide(Logger.replace(Logger.defaultLogger, logger)));
+
     assert.deepStrictEqual(
-      messages.some((message) => message.includes("Password: secret-pass")),
+      messages.some((message) => message.includes("use the configured bootstrap credential")),
       true,
     );
   }),

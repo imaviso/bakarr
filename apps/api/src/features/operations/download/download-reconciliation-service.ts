@@ -21,6 +21,7 @@ import {
   shouldDeleteImportedData,
   shouldRemoveTorrentOnImport,
 } from "@/features/operations/download/download-reconciliation-policy.ts";
+import { buildClaimToken } from "@/features/operations/download/download-claim-token.ts";
 import { OperationsConflictError, OperationsNotFoundError } from "@/features/operations/errors.ts";
 import { MediaRepository } from "@/features/media/shared/media-repository.ts";
 import { MediaUnitRepository } from "@/features/media/units/media-unit-repository.ts";
@@ -91,8 +92,10 @@ export class DownloadReconciliationService extends Effect.Service<DownloadReconc
       });
 
       // Atomic claim: only one concurrent reconcile may import a given download.
-      // The token marks an in-flight claim; finalization overwrites it with a timestamp,
-      // so a leftover token always means the claim must be released for retry.
+      // The token (`claim:<isotimestamp>:<uuid>`) marks an in-flight claim;
+      // finalization overwrites it with a timestamp, so a leftover token always
+      // means the claim must be released for retry. The embedded timestamp lets
+      // the sync pass sweep claims orphaned by a hard crash.
       const reconcileCompletedTorrentEffect = Effect.fn(
         "DownloadReconcile.reconcileCompletedTorrent",
       )(function* (infoHash: string, contentPath: string | undefined) {
@@ -105,7 +108,8 @@ export class DownloadReconciliationService extends Effect.Service<DownloadReconc
           return;
         }
 
-        const claimToken = yield* randomUuid();
+        const claimNow = yield* nowIso();
+        const claimToken = buildClaimToken(claimNow, yield* randomUuid());
         const claimed = yield* repo.claimDownloadReconciliation(infoHash, claimToken);
         if (!claimed) {
           return;

@@ -1,4 +1,4 @@
-import { Duration, Effect, Schema } from "effect";
+import { Config, Duration, Effect, Option, Schema } from "effect";
 
 import type { DatabaseError } from "@/db/database.ts";
 import { currentTimeMillis } from "@/infra/time.ts";
@@ -9,16 +9,22 @@ import { resolveUnitFileEffect } from "@/features/media/files/media-file-read.ts
 import { StreamTokenSigner } from "@/features/media/stream/stream-token-signer.ts";
 import { MediaRepository } from "@/features/media/shared/media-repository.ts";
 
+const DEFAULT_STREAM_EXPIRY_SECONDS = Duration.toSeconds(Duration.hours(6));
+
 const StreamExpirySecondsSchema = Schema.NumberFromString.pipe(
   Schema.int(),
   Schema.between(60, 86400),
 );
 
-export const resolveStreamExpiryMs = Effect.fn("MediaStream.resolveStreamExpiryMs")(function* () {
-  const seconds = yield* Schema.Config(
-    "BAKARR_STREAM_EXPIRY_SECONDS",
-    StreamExpirySecondsSchema,
-  ).pipe(Effect.orElseSucceed(() => Duration.toSeconds(Duration.hours(6))));
+/**
+ * Resolved once during layer construction. A missing env var falls back to
+ * the default; a present-but-invalid value fails startup loudly instead of
+ * silently degrading every stream URL.
+ */
+const resolveStreamExpiryMs = Effect.fn("MediaStream.resolveStreamExpiryMs")(function* () {
+  const seconds = yield* Config.option(
+    Schema.Config("BAKARR_STREAM_EXPIRY_SECONDS", StreamExpirySecondsSchema),
+  ).pipe(Effect.map(Option.getOrElse(() => DEFAULT_STREAM_EXPIRY_SECONDS)));
   return Duration.toMillis(Duration.seconds(seconds));
 });
 
@@ -45,13 +51,13 @@ const makeMediaStreamService = Effect.fn("MediaStreamService.make")(function* ()
   const fs = yield* FileSystem;
   const mediaRepository = yield* MediaRepository;
   const signer = yield* StreamTokenSigner;
+  const expiryMs = yield* resolveStreamExpiryMs();
 
   const createStreamUrl = Effect.fn("MediaStreamService.createStreamUrl")(function* (
     mediaId: number,
     unitNumber: number,
   ) {
     const now = yield* currentTimeMillis;
-    const expiryMs = yield* resolveStreamExpiryMs();
     const expiresAt = now + expiryMs;
     const signature = yield* signer.sign({ mediaId, unitNumber, expiresAt }).pipe(
       Effect.mapError(

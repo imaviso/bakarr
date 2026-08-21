@@ -1,8 +1,10 @@
 import { Effect, Exit, Option } from "effect";
+import { dirname, join, resolve } from "node:path";
 import { brandMediaId } from "@packages/shared/index.ts";
 import type { AsyncOperationAccepted } from "@packages/shared/index.ts";
 
 import type { DatabaseError } from "@/db/database.ts";
+import { AppConfig } from "@/config/schema.ts";
 import { MediaMetadataProviderService } from "@/features/media/metadata/media-metadata-provider-service.ts";
 import { MediaImageCacheService } from "@/features/media/metadata/media-image-cache-service.ts";
 import { syncMediaMetadataEffect } from "@/features/media/metadata/media-metadata-sync.ts";
@@ -10,10 +12,14 @@ import { MediaRepository } from "@/features/media/shared/media-repository.ts";
 import { MediaUnitRepository } from "@/features/media/units/media-unit-repository.ts";
 import { AniDbRuntimeConfigError, MediaNotFoundError } from "@/features/media/errors.ts";
 import { makeMetadataRefreshRunner } from "@/features/media/metadata/metadata-refresh.ts";
+import { pdfCacheDirectory } from "@/features/media/reader/pdf-reader.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
 import { BackgroundJobRepository } from "@/features/system/repository/background-job-repository.ts";
 import { SystemLogRepository } from "@/features/system/repository/log-repository.ts";
 import { nowIso as currentNowIso } from "@/infra/time.ts";
+import { mediaUnits } from "@/db/schema.ts";
+import { FileSystem, type FileSystemShape } from "@/infra/filesystem/filesystem.ts";
+import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 import type { ExternalCallError } from "@/infra/effect/retry.ts";
 import type { InfrastructureError, StoredDataError } from "@/features/errors.ts";
 import { OperationsTaskLauncherService } from "@/features/operations/tasks/operations-task-launcher-service.ts";
@@ -41,6 +47,9 @@ export interface MediaMaintenanceServiceShape {
 
 const makeMediaMaintenanceService = Effect.fn("MediaMaintenanceService.make")(function* () {
   const eventBus = yield* EventBus;
+  const fs = yield* FileSystem;
+  const appConfig = yield* AppConfig;
+  const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
   const metadataProvider = yield* MediaMetadataProviderService;
   const imageCacheService = yield* MediaImageCacheService;
   const mediaRepository = yield* MediaRepository;
@@ -49,24 +58,44 @@ const makeMediaMaintenanceService = Effect.fn("MediaMaintenanceService.make")(fu
   const taskLauncher = yield* OperationsTaskLauncherService;
   const nowIso = currentNowIso;
   const metadataRefreshRunner = yield* makeMetadataRefreshRunner();
+  const readerCacheRoot = join(dirname(resolve(appConfig.databaseFile)), "reader-cache");
 
   const deleteMedia = Effect.fn("MediaMaintenanceService.deleteMedia")(function* (id: number) {
+    // Snapshot mapped file paths before the rows are gone so cached renders
+    // (keyed by path hash) can be pruned afterwards.
+    const mappedUnitRows = yield* mediaRepository.listMappedUnitRows(id);
+
     yield* mediaRepository.deleteMedia(id);
+
+    yield* pruneMediaCacheFiles({
+      fs,
+      id,
+      mappedUnitRows,
+      readerCacheRoot,
+      runtimeConfigSnapshot,
+    }).pipe(
+      Effect.catchAll((cause) =>
+        Effect.logWarning("Failed to prune cached files for deleted media").pipe(
+          Effect.annotateLogs({ mediaId: id, cause: String(cause) }),
+        ),
+      ),
+    );
+
     yield* systemLogRepository.appendLog("media.deleted", "success", `Deleted media ${id}`, nowIso);
   });
 
   const refreshEpisodes = Effect.fn("MediaMaintenanceService.refreshEpisodes")(function* (
     mediaId: number,
   ) {
-    const startAnimeRow = yield* mediaRepository.getMediaRow(mediaId);
+    const startMediaRow = yield* mediaRepository.getMediaRow(mediaId);
 
     yield* eventBus.publish({
       type: "RefreshStarted",
-      payload: { media_id: brandMediaId(mediaId), title: startAnimeRow.titleRomaji },
+      payload: { media_id: brandMediaId(mediaId), title: startMediaRow.titleRomaji },
     });
 
     yield* Effect.gen(function* () {
-      const { animeRow, metadata, nextAnimeRow } = yield* syncMediaMetadataEffect({
+      const { mediaRow, metadata, nextMediaRow } = yield* syncMediaMetadataEffect({
         imageCacheService,
         metadataProvider,
         mediaId,
@@ -78,7 +107,7 @@ const makeMediaMaintenanceService = Effect.fn("MediaMaintenanceService.make")(fu
 
       yield* mediaUnitRepository.syncUnitSchedule(
         mediaId,
-        nextAnimeRow,
+        nextMediaRow,
         metadata?.futureAiringSchedule,
         nowIso,
       );
@@ -86,12 +115,12 @@ const makeMediaMaintenanceService = Effect.fn("MediaMaintenanceService.make")(fu
       yield* systemLogRepository.appendLog(
         "media.mediaUnits.refreshed",
         "success",
-        `Refreshed mediaUnits for ${animeRow.titleRomaji}`,
+        `Refreshed mediaUnits for ${mediaRow.titleRomaji}`,
         nowIso,
       );
       yield* eventBus.publish({
         type: "RefreshFinished",
-        payload: { media_id: brandMediaId(mediaId), title: animeRow.titleRomaji },
+        payload: { media_id: brandMediaId(mediaId), title: mediaRow.titleRomaji },
       });
     }).pipe(
       Effect.onExit((exit) =>
@@ -99,7 +128,7 @@ const makeMediaMaintenanceService = Effect.fn("MediaMaintenanceService.make")(fu
           ? Effect.void
           : eventBus.publish({
               type: "RefreshFinished",
-              payload: { media_id: brandMediaId(mediaId), title: startAnimeRow.titleRomaji },
+              payload: { media_id: brandMediaId(mediaId), title: startMediaRow.titleRomaji },
             }),
       ),
     );
@@ -119,7 +148,7 @@ const makeMediaMaintenanceService = Effect.fn("MediaMaintenanceService.make")(fu
   ) {
     return yield* taskLauncher.launch({
       mediaId,
-      failureMessage: `MediaUnit metadata refresh failed for media ${mediaId}`,
+      failureMessage: `Episode metadata refresh failed for media ${mediaId}`,
       operation: () => refreshEpisodes(mediaId),
       queuedMessage: `Queued episode metadata refresh for media ${mediaId}`,
       runningMessage: `Refreshing episode metadata for media ${mediaId}`,
@@ -154,3 +183,56 @@ export class MediaMaintenanceService extends Effect.Service<MediaMaintenanceServ
 ) {}
 
 export const MediaMaintenanceServiceLive = MediaMaintenanceService.Default;
+
+/**
+ * Best-effort cleanup of on-disk caches for a deleted media entry: the
+ * metadata image directory and the reader render cache directories of every
+ * previously mapped unit file. Seasonal provider cache is shared across
+ * media and is intentionally left alone.
+ */
+const pruneMediaCacheFiles = Effect.fn("MediaMaintenanceService.pruneMediaCacheFiles")(
+  function* (input: {
+    readonly fs: FileSystemShape;
+    readonly id: number;
+    readonly mappedUnitRows: ReadonlyArray<typeof mediaUnits.$inferSelect>;
+    readonly readerCacheRoot: string;
+    readonly runtimeConfigSnapshot: typeof RuntimeConfigSnapshotService.Service;
+  }) {
+    const config = yield* input.runtimeConfigSnapshot.getRuntimeConfig();
+    const imagesRoot = `${config.general.images_path.replace(/\/$/, "")}/media/${input.id}`;
+
+    yield* input.fs.remove(imagesRoot, { recursive: true });
+
+    yield* Effect.forEach(
+      input.mappedUnitRows,
+      (row) => {
+        if (row.filePath === null) {
+          return Effect.void;
+        }
+
+        return prunePdfRenderCache(input.fs, input.readerCacheRoot, row.filePath).pipe(
+          Effect.catchTag("FileSystemError", () => Effect.void),
+        );
+      },
+      { discard: true },
+    );
+  },
+);
+
+/**
+ * The render cache directory is keyed by `sha256(filePath + fileSize)`, so
+ * prune with the size the renderer saw: the live file's stat first, falling
+ * back to the persisted probe value.
+ */
+const prunePdfRenderCache = Effect.fn("MediaMaintenanceService.prunePdfRenderCache")(function* (
+  fs: FileSystemShape,
+  readerCacheRoot: string,
+  filePath: string,
+) {
+  const statResult = yield* Effect.either(fs.stat(filePath));
+  const fileSize = statResult._tag === "Right" ? statResult.right.size : 0;
+
+  yield* fs.remove(pdfCacheDirectory({ cacheRoot: readerCacheRoot, filePath, fileSize }), {
+    recursive: true,
+  });
+});

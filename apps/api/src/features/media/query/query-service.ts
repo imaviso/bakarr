@@ -52,7 +52,7 @@ function toSeasonalMediaCacheKey(input: {
   return `${input.season}:${input.year}:${input.limit}:${input.page}`;
 }
 
-interface EpisodeStats {
+interface UnitStats {
   readonly downloaded: number;
   readonly latestDownloadedUnit?: number;
 }
@@ -74,14 +74,14 @@ export interface MediaQueryServiceShape {
     id: number,
     mediaKind?: MediaKind,
   ) => Effect.Effect<MediaSearchResult, MediaNotFoundError | DatabaseError | ExternalCallError>;
-  readonly listEpisodes: (mediaId: number) => Effect.Effect<MediaUnit[], DatabaseError>;
+  readonly listUnits: (mediaId: number) => Effect.Effect<MediaUnit[], DatabaseError>;
   readonly listSeasonalMedia: (
     params?: SeasonalMediaQueryParams,
   ) => Effect.Effect<SeasonalMediaResponse, DatabaseError | ExternalCallError>;
   readonly listWantedMissing: (limit: number) => Effect.Effect<MissingUnit[], DatabaseError>;
   readonly listCalendarEvents: (
-    start: string,
-    end: string,
+    start?: string,
+    end?: string,
   ) => Effect.Effect<CalendarEvent[], DatabaseError>;
 }
 
@@ -95,9 +95,9 @@ const makeMediaQueryService = Effect.fn("MediaQueryService.make")(function* () {
   const service: MediaQueryServiceShape = {
     getMedia: Effect.fn("MediaQueryService.getMedia")(function* (id: number) {
       const row = yield* mediaRepository.getMediaRow(id);
-      const episodeRows = yield* mediaRepository.listUnitRowsByMediaId(id);
+      const unitRows = yield* mediaRepository.listUnitRowsByMediaId(id);
 
-      return yield* toMediaDto(row, deriveDetailProgress(episodeRows, row.unitCount ?? undefined));
+      return yield* toMediaDto(row, deriveDetailProgress(unitRows, row.unitCount ?? undefined));
     }),
     getMediaByAnilistId: Effect.fn("MediaQueryService.getMediaByAnilistId")(function* (
       id: number,
@@ -153,61 +153,61 @@ const makeMediaQueryService = Effect.fn("MediaQueryService.make")(function* () {
       const monitoredFilter =
         params?.monitored === undefined ? {} : { monitored: params.monitored };
 
-      const [animeRows, total] = yield* Effect.all([
+      const [mediaRows, total] = yield* Effect.all([
         mediaRepository.listMediaRows({ ...monitoredFilter, limit, offset }),
         mediaRepository.countMedia(monitoredFilter),
       ]);
 
-      const animeIds = animeRows.map((row) => row.id);
-      const episodeStatsByAnimeId = new Map<number, EpisodeStats>();
+      const mediaIds = mediaRows.map((row) => row.id);
+      const unitStatsByMediaId = new Map<number, UnitStats>();
 
-      if (animeIds.length > 0) {
-        const episodeStats = yield* mediaRepository.listUnitProgressStats(animeIds);
+      if (mediaIds.length > 0) {
+        const unitStats = yield* mediaRepository.listUnitProgressStats(mediaIds);
 
-        for (const stat of episodeStats) {
+        for (const stat of unitStats) {
           const latestDownloadedUnit =
             stat.latestDownloadedUnit === null ? undefined : stat.latestDownloadedUnit;
 
-          episodeStatsByAnimeId.set(stat.mediaId, {
+          unitStatsByMediaId.set(stat.mediaId, {
             downloaded: stat.downloadedCount ?? 0,
             ...(latestDownloadedUnit === undefined ? {} : { latestDownloadedUnit }),
           });
         }
       }
 
-      const airedEpisodeRows = yield* mediaRepository.listMissingUnitNumbers(animeIds);
+      const missingUnitRows = yield* mediaRepository.listMissingUnitNumbers(mediaIds);
 
-      const missingNumbersByAnimeId = new Map<number, number[]>();
-      for (const row of airedEpisodeRows) {
-        const existing = missingNumbersByAnimeId.get(row.mediaId);
+      const missingNumbersByMediaId = new Map<number, number[]>();
+      for (const row of missingUnitRows) {
+        const existing = missingNumbersByMediaId.get(row.mediaId);
         if (existing) {
           existing.push(row.number);
         } else {
-          missingNumbersByAnimeId.set(row.mediaId, [row.number]);
+          missingNumbersByMediaId.set(row.mediaId, [row.number]);
         }
       }
 
-      const animeProgressRows: Media[] = [];
-      for (let index = 0; index < animeRows.length; index++) {
+      const mediaDtos: Media[] = [];
+      for (let index = 0; index < mediaRows.length; index++) {
         if (index > 0 && index % DTO_PROGRESS_YIELD_INTERVAL === 0) {
           yield* Effect.yieldNow();
         }
 
-        const row = animeRows[index];
+        const row = mediaRows[index];
         if (!row) {
           continue;
         }
 
-        const episodeStats = episodeStatsByAnimeId.get(row.id);
-        animeProgressRows.push(
+        const unitStats = unitStatsByMediaId.get(row.id);
+        mediaDtos.push(
           yield* toMediaDto(
             row,
             deriveListProgress({
-              downloaded: episodeStats?.downloaded ?? 0,
-              ...(episodeStats?.latestDownloadedUnit === undefined
+              downloaded: unitStats?.downloaded ?? 0,
+              ...(unitStats?.latestDownloadedUnit === undefined
                 ? {}
-                : { latestDownloadedUnit: episodeStats.latestDownloadedUnit }),
-              missingNumbers: missingNumbersByAnimeId.get(row.id) ?? [],
+                : { latestDownloadedUnit: unitStats.latestDownloadedUnit }),
+              missingNumbers: missingNumbersByMediaId.get(row.id) ?? [],
               total: row.unitCount ?? undefined,
             }),
             undefined,
@@ -218,39 +218,39 @@ const makeMediaQueryService = Effect.fn("MediaQueryService.make")(function* () {
 
       return {
         has_more: offset + limit < total,
-        items: animeProgressRows,
+        items: mediaDtos,
         limit,
         offset,
         total,
       } satisfies MediaListResponse;
     }),
-    listEpisodes: Effect.fn("MediaQueryService.listEpisodes")(function* (mediaId: number) {
+    listUnits: Effect.fn("MediaQueryService.listUnits")(function* (mediaId: number) {
       const now = yield* DateTime.nowAsDate;
       const rows = yield* mediaRepository.listUnitRowsWithMediaKind(mediaId);
 
       return rows
-        .toSorted((left, right) => left.episode.number - right.episode.number)
+        .toSorted((left, right) => left.unit.number - right.unit.number)
         .map((row): MediaUnit => {
-          const episodeRow = row.episode;
-          const timeline = deriveEpisodeTimelineMetadata(episodeRow.aired ?? undefined, now);
+          const unitRow = row.unit;
+          const timeline = deriveEpisodeTimelineMetadata(unitRow.aired ?? undefined, now);
 
           return {
-            aired: episodeRow.aired ?? undefined,
+            aired: unitRow.aired ?? undefined,
             airing_status: timeline.airing_status,
-            audio_channels: episodeRow.audioChannels ?? undefined,
-            audio_codec: episodeRow.audioCodec ?? undefined,
-            downloaded: episodeRow.downloaded,
-            duration_seconds: episodeRow.durationSeconds ?? undefined,
-            file_path: episodeRow.filePath ?? undefined,
-            file_size: episodeRow.fileSize ?? undefined,
-            group: episodeRow.groupName ?? undefined,
+            audio_channels: unitRow.audioChannels ?? undefined,
+            audio_codec: unitRow.audioCodec ?? undefined,
+            downloaded: unitRow.downloaded,
+            duration_seconds: unitRow.durationSeconds ?? undefined,
+            file_path: unitRow.filePath ?? undefined,
+            file_size: unitRow.fileSize ?? undefined,
+            group: unitRow.groupName ?? undefined,
             is_future: timeline.is_future,
-            number: episodeRow.number,
-            quality: episodeRow.quality ?? undefined,
-            resolution: episodeRow.resolution ?? undefined,
-            title: episodeRow.title ?? undefined,
+            number: unitRow.number,
+            quality: unitRow.quality ?? undefined,
+            resolution: unitRow.resolution ?? undefined,
+            title: unitRow.title ?? undefined,
             unit_kind: row.mediaKind === "anime" ? "episode" : "volume",
-            video_codec: episodeRow.videoCodec ?? undefined,
+            video_codec: unitRow.videoCodec ?? undefined,
           };
         });
     }),
@@ -358,12 +358,20 @@ const makeMediaQueryService = Effect.fn("MediaQueryService.make")(function* () {
       return yield* mediaRepository.listWantedMissing(limit, now);
     }),
     listCalendarEvents: Effect.fn("MediaQueryService.listCalendarEvents")(function* (
-      start: string,
-      end: string,
+      start?: string,
+      end?: string,
     ) {
+      // Query params are optional at the HTTP boundary (CalendarQuerySchema)
+      // for backward compat; missing values default to now so the call
+      // returns an empty window rather than throwing. Callers that need a
+      // real window must pass explicit ISO datetimes.
       const nowIsoValue = yield* nowIso();
       const now = new Date(nowIsoValue);
-      return yield* mediaRepository.listCalendarEvents(start, end, now);
+      return yield* mediaRepository.listCalendarEvents(
+        start ?? nowIsoValue,
+        end ?? nowIsoValue,
+        now,
+      );
     }),
   };
   return service;

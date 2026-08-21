@@ -18,6 +18,12 @@ export interface CachedMediaImages {
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 const IMAGE_DOWNLOAD_TIMEOUT = "30 seconds";
 
+const CachedImageSidecarSchema = Schema.Struct({
+  sourceUrl: Schema.String,
+});
+
+const CachedImageSidecarJsonSchema = Schema.parseJson(CachedImageSidecarSchema);
+
 export class ImageTooLargeError extends Schema.TaggedError<ImageTooLargeError>()(
   "ImageTooLargeError",
   {
@@ -79,7 +85,7 @@ const cacheMediaImage = Effect.fn("MediaImageCache.cacheMediaImage")(function* (
     return undefined;
   }
 
-  const cachedPath = yield* findCachedImagePath(fs, baseDir, mediaId, kind);
+  const cachedPath = yield* findCachedImagePath(fs, baseDir, mediaId, kind, url);
 
   if (cachedPath) {
     return cachedPath;
@@ -88,7 +94,14 @@ const cacheMediaImage = Effect.fn("MediaImageCache.cacheMediaImage")(function* (
   const download = yield* downloadImage(client, url, mediaId);
   const filename = `${kind}.${download.extension}`;
 
+  // Concurrent callers for same media/kind may both miss cache and download
+  // in parallel; last write wins and sidecar ensures the winner's URL is
+  // recorded. Extra bandwidth is acceptable for single-user LAN.
   yield* fs.writeFile(`${baseDir}/${filename}`, download.bytes);
+
+  // Sidecar records the source URL so a changed provider URL triggers a
+  // re-download instead of serving the stale image forever.
+  yield* writeCachedImageSidecar(fs, baseDir, kind, url);
 
   return `/api/images/media/${mediaId}/${filename}`;
 });
@@ -100,6 +113,7 @@ const findCachedImagePath = Effect.fn("MediaService.findCachedImagePath")(functi
   baseDir: string,
   mediaId: number,
   kind: "banner" | "cover",
+  sourceUrl: string,
 ) {
   for (const extension of CACHED_IMAGE_EXTENSIONS) {
     const fileName = `${kind}.${extension}`;
@@ -111,12 +125,56 @@ const findCachedImagePath = Effect.fn("MediaService.findCachedImagePath")(functi
         ),
       );
 
-    if (statResult?.isFile) {
+    if (!statResult?.isFile) {
+      continue;
+    }
+
+    if (yield* cachedImageSidecarMatches(fs, baseDir, kind, sourceUrl)) {
       return `/api/images/media/${mediaId}/${fileName}`;
     }
   }
 
   return undefined;
+});
+
+const cachedImageSidecarMatches = Effect.fn("MediaImageCache.sidecarMatches")(function* (
+  fs: FileSystemShape,
+  baseDir: string,
+  kind: "banner" | "cover",
+  sourceUrl: string,
+) {
+  const bytes = yield* fs
+    .readFile(`${baseDir}/${kind}.json`)
+    .pipe(
+      Effect.catchTag("FileSystemError", (error) =>
+        isNotFoundError(error) ? Effect.succeed(undefined) : Effect.fail(error),
+      ),
+    );
+
+  if (!bytes) {
+    // No sidecar: legacy cache entry — treat as stale so it refreshes once.
+    return false;
+  }
+
+  const sidecar = yield* Schema.decodeUnknown(CachedImageSidecarJsonSchema)(
+    new TextDecoder().decode(bytes),
+  ).pipe(Effect.orElseSucceed(() => undefined));
+
+  return sidecar !== undefined && sidecar.sourceUrl === sourceUrl;
+});
+
+const writeCachedImageSidecar = Effect.fn("MediaImageCache.writeSidecar")(function* (
+  fs: FileSystemShape,
+  baseDir: string,
+  kind: "banner" | "cover",
+  sourceUrl: string,
+) {
+  const json = yield* Schema.encode(CachedImageSidecarJsonSchema)({ sourceUrl });
+
+  yield* fs.writeFile(`${baseDir}/${kind}.json`, new TextEncoder().encode(json)).pipe(
+    // A missing sidecar only costs one extra refresh — never fail the caching.
+    Effect.catchAll(() => Effect.void),
+  );
 });
 
 const downloadImage = Effect.fn("MediaService.downloadImage")(

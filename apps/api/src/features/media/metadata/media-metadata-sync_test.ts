@@ -82,8 +82,8 @@ it.scoped("syncMediaMetadataEffect stores locally cached image paths", () =>
           bannerImage: "https://images.example/banner.jpg",
           coverImage: "https://images.example/cover.jpg",
         });
-        assert.deepStrictEqual(result.nextAnimeRow.bannerImage, "/api/images/media/501/banner.jpg");
-        assert.deepStrictEqual(result.nextAnimeRow.coverImage, "/api/images/media/501/cover.jpg");
+        assert.deepStrictEqual(result.nextMediaRow.bannerImage, "/api/images/media/501/banner.jpg");
+        assert.deepStrictEqual(result.nextMediaRow.coverImage, "/api/images/media/501/cover.jpg");
         assert.deepStrictEqual(row?.bannerImage, "/api/images/media/501/banner.jpg");
         assert.deepStrictEqual(row?.coverImage, "/api/images/media/501/cover.jpg");
       }),
@@ -140,11 +140,11 @@ it.scoped("syncMediaMetadataEffect keeps existing image paths if caching fails",
         );
 
         assert.deepStrictEqual(
-          result.nextAnimeRow.bannerImage,
+          result.nextMediaRow.bannerImage,
           "/api/images/media/502/banner-old.jpg",
         );
         assert.deepStrictEqual(
-          result.nextAnimeRow.coverImage,
+          result.nextMediaRow.coverImage,
           "/api/images/media/502/cover-old.jpg",
         );
         assert.deepStrictEqual(row?.bannerImage, "/api/images/media/502/banner-old.jpg");
@@ -231,14 +231,14 @@ it.scoped("syncMediaMetadataEffect persists enrichment metadata fields from prov
         );
         const persistedSynonyms = yield* decodeStoredSynonymsEffect(row.synonyms);
         const nextRelated = yield* decodeStoredDiscoveryEntriesEffect(
-          result.nextAnimeRow.relatedMedia,
+          result.nextMediaRow.relatedMedia,
           "relatedMedia",
         );
         const nextRecommended = yield* decodeStoredDiscoveryEntriesEffect(
-          result.nextAnimeRow.recommendedMedia,
+          result.nextMediaRow.recommendedMedia,
           "recommendedMedia",
         );
-        const nextSynonyms = yield* decodeStoredSynonymsEffect(result.nextAnimeRow.synonyms);
+        const nextSynonyms = yield* decodeStoredSynonymsEffect(result.nextMediaRow.synonyms);
 
         assert.deepStrictEqual(row.malId, 99003);
         assert.deepStrictEqual(row.background, "background");
@@ -249,7 +249,7 @@ it.scoped("syncMediaMetadataEffect persists enrichment metadata fields from prov
         assert.deepStrictEqual(row.rank, 9);
         assert.deepStrictEqual(row.rating, "PG-13 - Teens 13 or older");
         assert.deepStrictEqual(row.source, "MANGA");
-        assert.deepStrictEqual(result.nextAnimeRow.malId, 99003);
+        assert.deepStrictEqual(result.nextMediaRow.malId, 99003);
         assert.deepStrictEqual(persistedRelated, metadata.relatedMedia);
         assert.deepStrictEqual(persistedRecommended, metadata.recommendedMedia);
         assert.deepStrictEqual(persistedSynonyms, metadata.synonyms);

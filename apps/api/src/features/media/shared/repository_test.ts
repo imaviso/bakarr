@@ -12,7 +12,6 @@ import { media, appConfig, mediaUnits, qualityProfiles, systemLogs } from "@/db/
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 import { encodeConfigCore, toConfigCore } from "@/features/system/config-codec.ts";
 import { makeTestConfig } from "@/test/config-fixture.ts";
-import { qualityProfileExistsEffect } from "@/features/media/shared/profile-support.ts";
 
 import { buildMissingEpisodeRows } from "@/features/media/units/media-schedule-repository.ts";
 import { MAX_INFERRED_EPISODE_NUMBER } from "@/features/media/units/unit-backfill-policy.ts";
@@ -89,7 +88,6 @@ it.scoped("ensureUnits rejects duplicate episode inserts for same media", () =>
           undefined,
           undefined,
           undefined,
-          false,
           () => Effect.succeed("2024-01-01T00:00:00.000Z"),
         );
 
@@ -225,7 +223,6 @@ it("buildMissingEpisodeRows creates rows only for missing mediaUnits", () => {
     startDate: undefined,
     endDate: undefined,
     futureAiringSchedule: undefined,
-    resetMissingOnly: true,
     existingRows: [
       {
         audioChannels: null,
@@ -265,7 +262,6 @@ it("buildMissingEpisodeRows uses future schedule when episode count is unknown",
       { airingAt: "2026-04-11T22:30:00.000Z", episode: 2 },
       { airingAt: "2026-04-18T22:30:00.000Z", episode: 3 },
     ],
-    resetMissingOnly: true,
     existingRows: [],
   });
 
@@ -292,7 +288,6 @@ it("buildMissingEpisodeRows caps inferred rows when schedule episode is too larg
         episode: MAX_INFERRED_EPISODE_NUMBER + 500,
       },
     ],
-    resetMissingOnly: true,
     existingRows: [],
   });
 
@@ -336,15 +331,8 @@ it.scoped("syncUnitMetadata applies AniDB episode titles and dates", () =>
       Effect.gen(function* () {
         const units = makeMediaUnitRepository(db);
         yield* insertMediaEffect(db, 25, 2);
-        yield* units.ensureUnits(
-          25,
-          2,
-          "RELEASING",
-          "2024-01-01",
-          undefined,
-          undefined,
-          false,
-          () => Effect.succeed("2024-01-01T00:00:00.000Z"),
+        yield* units.ensureUnits(25, 2, "RELEASING", "2024-01-01", undefined, undefined, () =>
+          Effect.succeed("2024-01-01T00:00:00.000Z"),
         );
 
         yield* units.syncUnitMetadata(25, [
@@ -477,13 +465,13 @@ it.scoped("media repository helpers use stored config when available", () =>
   }),
 );
 
-it.scoped("qualityProfileExistsEffect checks stored quality profile rows", () =>
+it.scoped("qualityProfileRepository.qualityProfileExists checks stored quality profile rows", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
         const qualityProfileRepository = makeQualityProfileRepository(db);
         assert.deepStrictEqual(
-          yield* qualityProfileExistsEffect(qualityProfileRepository, "Standard"),
+          yield* qualityProfileRepository.qualityProfileExists("Standard"),
           false,
         );
 
@@ -500,7 +488,7 @@ it.scoped("qualityProfileExistsEffect checks stored quality profile rows", () =>
         );
 
         assert.deepStrictEqual(
-          yield* qualityProfileExistsEffect(qualityProfileRepository, "Standard"),
+          yield* qualityProfileRepository.qualityProfileExists("Standard"),
           true,
         );
       }),

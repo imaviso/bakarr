@@ -40,9 +40,9 @@ export const loadMediaRoot = Effect.fn("MediaFilePathPolicy.loadMediaRoot")(func
 
 export const validateUnitFilePath = Effect.fn("MediaFilePathPolicy.validateUnitFilePath")(
   function* (input: {
-    animeRoot: string;
     filePath: string;
     fs: FileSystemShape;
+    mediaRoot: string;
     outOfRootMessage: string;
   }) {
     const resolvedPath = yield* input.fs.realPath(input.filePath).pipe(
@@ -55,7 +55,7 @@ export const validateUnitFilePath = Effect.fn("MediaFilePathPolicy.validateUnitF
       ),
     );
 
-    if (!isWithinPathRoot(resolvedPath, input.animeRoot)) {
+    if (!isWithinPathRoot(resolvedPath, input.mediaRoot)) {
       return yield* new DomainPathError({
         message: input.outOfRootMessage,
       });

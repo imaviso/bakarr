@@ -1,8 +1,9 @@
-import { HttpClient, HttpClientRequest, HttpClientResponse } from "@effect/platform";
+import { HttpClient, HttpClientRequest } from "@effect/platform";
 import { Effect, Option, Schema } from "effect";
 
 import type { MediaSeason, MediaKind } from "@packages/shared/index.ts";
 import { ExternalCall, ExternalCallError, type ExternalCallShape } from "@/infra/effect/retry.ts";
+import { callProviderJson } from "@/infra/effect/provider-http.ts";
 import type {
   AnimeMetadata,
   ProviderMediaSearchResult,
@@ -405,28 +406,15 @@ const callAniList = <A, I>(
         }),
       ),
     );
-    const response = yield* externalCall.tryExternalEffect(
-      `anilist.${operation}`,
-      client.execute(request),
-    );
 
-    if (response.status < 200 || response.status >= 300) {
-      return yield* ExternalCallError.make({
-        cause: new Error(`AniList ${operation} failed with status ${response.status}`),
-        message: `AniList ${operation} failed`,
-        operation: `anilist.${operation}.response`,
-      });
-    }
-
-    return yield* HttpClientResponse.schemaBodyJson(schema)(response).pipe(
-      Effect.mapError((cause) =>
-        ExternalCallError.make({
-          cause,
-          message: `AniList ${operation} response decode failed`,
-          operation: `anilist.${operation}.json`,
-        }),
-      ),
-    );
+    return yield* callProviderJson({
+      client,
+      externalCall,
+      failureMessage: `AniList ${operation}`,
+      operation: `anilist.${operation}`,
+      request,
+      schema,
+    });
   });
 
 const trySearchRemote = Effect.fn("AniListClient.trySearchRemote")(function* (

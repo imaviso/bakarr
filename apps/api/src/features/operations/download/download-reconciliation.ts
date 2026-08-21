@@ -13,16 +13,16 @@ import type {
   UpsertUnitFileError,
 } from "@/features/media/units/media-unit-repository.ts";
 import { classifyMediaArtifact } from "@/infra/media/identity/identity.ts";
-import { probeMediaMetadataOrUndefined, type MediaProbeShape } from "@/infra/media/probe.ts";
+import type { MediaProbeShape } from "@/infra/media/probe.ts";
 import { pathBasename } from "@/infra/path.ts";
 import type { FileSystemError, FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import { buildUnitFilenamePlan } from "@/features/operations/library/naming-canonical-support.ts";
-import {
-  hasMissingLocalMediaNamingFields,
-  selectNamingFormat,
-} from "@/features/operations/library/naming-format-support.ts";
+import { selectNamingFormat } from "@/features/operations/library/naming-format-support.ts";
 import { ImportFileError } from "@/features/operations/download/download-file-import-errors.ts";
-import { importDownloadedFile } from "@/features/operations/download/library-file-write-support.ts";
+import {
+  importDownloadedFile,
+  probeMissingNamingMetadata,
+} from "@/features/operations/download/library-file-write-support.ts";
 import {
   parseCoveredUnitsEffect,
   resolveReconciledBatchUnitNumbers,
@@ -262,9 +262,14 @@ export const reconcileBatchDownloadEffect = Effect.fn("DownloadReconcile.reconci
         .filter((r): r is BatchEpisodeRow => r !== undefined)
         .map((r) => ({ title: r.title, aired: r.aired }));
 
-      const existingEpisode = episodeMap.get(primaryEpisode);
+      // Skip only when EVERY covered unit is already imported; a single
+      // unmapped unit means this file still has work to do.
+      const allEpisodesAlreadyImported = relevantEpisodes.every((ep) => {
+        const existing = episodeMap.get(ep);
+        return Boolean(existing?.downloaded && existing?.filePath);
+      });
 
-      if (existingEpisode?.downloaded && existingEpisode?.filePath) {
+      if (allEpisodesAlreadyImported) {
         alreadyImportedEpisodeCount += relevantEpisodes.length;
         continue;
       }
@@ -280,9 +285,11 @@ export const reconcileBatchDownloadEffect = Effect.fn("DownloadReconcile.reconci
           ? { downloadSourceMetadata: input.storedSourceMetadata }
           : {}),
       });
-      const localMediaMetadata = hasMissingLocalMediaNamingFields(initialNamingPlan.missingFields)
-        ? yield* probeMediaMetadataOrUndefined(input.mediaProbe, path)
-        : undefined;
+      const localMediaMetadata = yield* probeMissingNamingMetadata(
+        input.mediaProbe,
+        path,
+        initialNamingPlan.missingFields,
+      );
 
       const managedPath = yield* importDownloadedFile(
         input.fs,
@@ -448,9 +455,11 @@ export const reconcileSingleDownloadEffect = Effect.fn(
     preferredTitle: input.runtimeConfig.library.preferred_title,
     ...(input.storedSourceMetadata ? { downloadSourceMetadata: input.storedSourceMetadata } : {}),
   });
-  const localMediaMetadata = hasMissingLocalMediaNamingFields(initialNamingPlan.missingFields)
-    ? yield* probeMediaMetadataOrUndefined(input.mediaProbe, resolvedPathValue)
-    : undefined;
+  const localMediaMetadata = yield* probeMissingNamingMetadata(
+    input.mediaProbe,
+    resolvedPathValue,
+    initialNamingPlan.missingFields,
+  );
 
   const managedPath = yield* importDownloadedFile(
     input.fs,

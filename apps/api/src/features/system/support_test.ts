@@ -16,6 +16,10 @@ it("system support derives background job schedule modes", () => {
     toBackgroundJobStatus(config, undefined, "download_sync").schedule_mode,
     "interval",
   );
+  assert.deepStrictEqual(
+    toBackgroundJobStatus(config, undefined, "download_sync").schedule_value,
+    "5s",
+  );
   assert.deepStrictEqual(toBackgroundJobStatus(config, undefined, "rss").schedule_value, "30m");
   assert.deepStrictEqual(
     toBackgroundJobStatus(config, undefined, "library_scan").schedule_value,

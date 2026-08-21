@@ -31,10 +31,8 @@ export function isSqliteUniqueConstraint(cause: unknown): boolean {
       typeof error.code === "string" ? error.code : String(error.code ?? error.errno ?? "");
     const message = error.message ?? "";
     return (
-      code === "SQLITE_CONSTRAINT" ||
       code === "SQLITE_CONSTRAINT_UNIQUE" ||
       code === "2067" ||
-      code === "19" ||
       code.includes("UNIQUE constraint failed") ||
       message.includes("UNIQUE constraint failed")
     );
