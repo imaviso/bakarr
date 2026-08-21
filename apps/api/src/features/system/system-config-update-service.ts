@@ -82,10 +82,15 @@ const makeSystemConfigUpdateService = Effect.fn("SystemConfigUpdateService.make"
         });
 
         yield* persistAndActivateConfig({
+          // Snapshot first, reload second: worker reload is the only step that
+          // can fail, and it must run while snapshot + workers still agree on
+          // the old config — a failure then leaves a consistent old state for
+          // the DB rollback to restore. Reversing the order would strand
+          // readers on the old snapshot while workers act on the new config.
           activateConfig: (value) =>
-            runtimeControl
-              .reload(value)
-              .pipe(Effect.zipRight(runtimeConfigSnapshot.replaceRuntimeConfig(value))),
+            runtimeConfigSnapshot
+              .replaceRuntimeConfig(value)
+              .pipe(Effect.zipRight(runtimeControl.reload(value))),
           nextConfig: normalizedConfig,
           nextState,
           persistState: (state) =>

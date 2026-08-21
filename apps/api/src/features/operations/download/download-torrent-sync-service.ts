@@ -254,10 +254,16 @@ export class DownloadTorrentSyncService extends Effect.Service<DownloadTorrentSy
             const syncNow = yield* currentNowIso();
 
             // Sweep reconciliation claims orphaned by a hard crash: the claim
-            // token embeds its timestamp, so anything past the threshold has no
-            // live fiber and must be released for auto-reconcile to retry.
+            // token embeds its timestamp, so anything past the threshold has
+            // no live fiber and must be released for auto-reconcile to retry.
+            // Claims held by this process are never stale, no matter how long
+            // their import runs (slow storage can exceed any fixed threshold).
             for (const existing of allExistingDownloads) {
               if (!isStaleClaimToken(existing.reconciledAt, syncNow)) {
+                continue;
+              }
+
+              if (yield* reconciliationService.hasLiveReconciliationClaim(existing.id)) {
                 continue;
               }
 

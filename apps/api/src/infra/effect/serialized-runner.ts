@@ -1,4 +1,4 @@
-import { Deferred, Effect, Option, Ref } from "effect";
+import { Deferred, Effect, Exit, Option, Ref } from "effect";
 
 /**
  * Serialized effect runners.
@@ -119,17 +119,18 @@ export const makeSerializedDrainEffectRunner = Effect.fn(
     Effect.gen(function* () {
       const state = yield* Ref.make<DrainState<E>>({ completion: null, pending: false });
 
-      const runCycle = (completion: Deferred.Deferred<void, E>): Effect.Effect<void, E, R> =>
+      const settle = (completion: Deferred.Deferred<void, E>, exit: Exit.Exit<void, E>) =>
+        Ref.set(state, { completion: null, pending: false }).pipe(
+          exit._tag === "Success"
+            ? Effect.zipRight(Deferred.succeed(completion, void 0))
+            : Effect.zipRight(Deferred.failCause(completion, exit.cause)),
+        );
+
+      const runCycle = (): Effect.Effect<void, E, R> =>
         Effect.suspend(() =>
           Effect.gen(function* () {
             while (true) {
-              const exit = yield* Effect.exit(effect);
-
-              if (exit._tag === "Failure") {
-                yield* Ref.set(state, { completion: null, pending: false });
-                yield* Deferred.failCause(completion, exit.cause);
-                return yield* Effect.failCause(exit.cause);
-              }
+              yield* effect;
 
               const shouldDrain = yield* Ref.modify(state, (current): [boolean, DrainState<E>] =>
                 current.pending
@@ -138,35 +139,43 @@ export const makeSerializedDrainEffectRunner = Effect.fn(
               );
 
               if (!shouldDrain) {
-                yield* Deferred.succeed(completion, void 0);
                 return undefined;
               }
             }
           }),
         );
 
-      const trigger: Effect.Effect<void, E, R> = Effect.gen(function* () {
-        const fresh = yield* Deferred.make<void, E>();
-        const claim = yield* Ref.modify(state, (current): [DrainClaim<E>, DrainState<E>] => {
-          if (current.completion === null) {
+      // The lead cycle runs under a mask so the state reset and follower
+      // settlement in `settle` cannot be skipped: an interrupt delivered inside
+      // the restored effect still flows through `onExit`, waking followers and
+      // leaving the runner usable. Without this, a dead completion Deferred
+      // would hang every later trigger forever.
+      const trigger: Effect.Effect<void, E, R> = Effect.uninterruptibleMask((restore) =>
+        Effect.gen(function* () {
+          const fresh = yield* Deferred.make<void, E>();
+          const claim = yield* Ref.modify(state, (current): [DrainClaim<E>, DrainState<E>] => {
+            if (current.completion === null) {
+              return [
+                { _tag: "lead", completion: fresh },
+                { completion: fresh, pending: false },
+              ];
+            }
+
             return [
-              { _tag: "lead", completion: fresh },
-              { completion: fresh, pending: false },
+              { _tag: "follow", completion: current.completion },
+              { ...current, pending: true },
             ];
+          });
+
+          if (claim._tag === "follow") {
+            return yield* restore(Deferred.await(claim.completion));
           }
 
-          return [
-            { _tag: "follow", completion: current.completion },
-            { ...current, pending: true },
-          ];
-        });
-
-        if (claim._tag === "follow") {
-          return yield* Deferred.await(claim.completion);
-        }
-
-        return yield* runCycle(claim.completion);
-      });
+          return yield* Effect.onExit(restore(runCycle()), (exit) =>
+            settle(claim.completion, exit),
+          );
+        }),
+      );
 
       return { trigger } satisfies SerializedDrainEffectRunner<E, R>;
     }),

@@ -38,12 +38,14 @@ export interface SessionIdentity {
 export interface AuthSessionServiceShape {
   readonly login: (
     request: LoginRequest,
+    clientKey: string,
   ) => Effect.Effect<
     SessionIdentity & { response: LoginResponse },
     AuthError | DatabaseError | AuthCryptoError
   >;
   readonly loginWithApiKey: (
     request: ApiKeyLoginRequest,
+    clientKey: string,
   ) => Effect.Effect<
     SessionIdentity & { response: LoginResponse },
     AuthError | DatabaseError | AuthCryptoError
@@ -128,12 +130,14 @@ const makeAuthSessionService = Effect.fn("AuthSessionService.make")(function* ()
     },
   );
 
-  const guardLogin = <A>(attempt: Effect.Effect<A, LoginAttemptError>) =>
-    loginRateLimiter.rejectWhileLocked().pipe(
+  const guardLogin = <A>(clientKey: string, attempt: Effect.Effect<A, LoginAttemptError>) =>
+    loginRateLimiter.rejectWhileLocked(clientKey).pipe(
       Effect.zipRight(
         attempt.pipe(
-          Effect.tapErrorTag("AuthUnauthorizedError", () => loginRateLimiter.recordFailure()),
-          Effect.tap(() => loginRateLimiter.reset()),
+          Effect.tapErrorTag("AuthUnauthorizedError", () =>
+            loginRateLimiter.recordFailure(clientKey),
+          ),
+          Effect.tap(() => loginRateLimiter.reset(clientKey)),
         ),
       ),
     );
@@ -185,8 +189,11 @@ const makeAuthSessionService = Effect.fn("AuthSessionService.make")(function* ()
     },
   );
 
-  const login = Effect.fn("AuthSessionService.login")(function* (request: LoginRequest) {
-    const row = yield* guardLogin(authenticateWithPassword(request));
+  const login = Effect.fn("AuthSessionService.login")(function* (
+    request: LoginRequest,
+    clientKey: string,
+  ) {
+    const row = yield* guardLogin(clientKey, authenticateWithPassword(request));
     const token = yield* createSession(row.id);
 
     yield* usersRepository.writeLog({
@@ -215,8 +222,9 @@ const makeAuthSessionService = Effect.fn("AuthSessionService.make")(function* ()
 
   const loginWithApiKey = Effect.fn("AuthSessionService.loginWithApiKey")(function* (
     request: ApiKeyLoginRequest,
+    clientKey: string,
   ) {
-    const row = yield* guardLogin(authenticateWithApiKey(request));
+    const row = yield* guardLogin(clientKey, authenticateWithApiKey(request));
     const token = yield* createSession(row.id);
 
     yield* usersRepository.writeLog({

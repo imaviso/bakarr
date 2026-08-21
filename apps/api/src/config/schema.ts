@@ -12,6 +12,8 @@ export class AppConfigModel extends Schema.Class<AppConfigModel>("AppConfigModel
   sessionCookieName: Schema.String,
   sessionCookieSecure: Schema.Boolean,
   sessionDurationDays: PositiveIntSchema,
+  /** Extra Host header values accepted by the DNS-rebinding guard (IP-literal and localhost are always allowed). */
+  trustedHosts: Schema.Array(Schema.String),
 }) {}
 
 export type AppConfigShape = Schema.Schema.Type<typeof AppConfigModel>;
@@ -33,6 +35,7 @@ export interface AppConfigOverrides {
   readonly sessionCookieSecure?: boolean;
   readonly sessionDurationDays?: number;
   readonly appVersion?: string;
+  readonly trustedHosts?: ReadonlyArray<string>;
 }
 
 export interface BootstrapConfigOverrides {
@@ -54,6 +57,7 @@ export function makeDefaultAppConfig(): AppConfigShape {
     sessionCookieName: "bakarr_session",
     sessionCookieSecure: true,
     sessionDurationDays: 30,
+    trustedHosts: [],
   });
 }
 
@@ -104,6 +108,17 @@ export class AppConfig extends Context.Tag("@bakarr/api/AppConfig")<AppConfig, A
           (yield* Schema.Config("SESSION_DURATION_DAYS", PositiveIntConfigSchema).pipe(
             Config.withDefault(defaults.sessionDurationDays),
           ));
+        const trustedHosts =
+          overrides.trustedHosts ??
+          (yield* Schema.Config("BAKARR_TRUSTED_HOSTS", Schema.String).pipe(
+            Config.withDefault(""),
+            Effect.map((value) =>
+              value
+                .split(",")
+                .map((host) => host.trim().toLowerCase())
+                .filter((host) => host.length > 0),
+            ),
+          ));
 
         return new AppConfigModel({
           appVersion,
@@ -112,6 +127,7 @@ export class AppConfig extends Context.Tag("@bakarr/api/AppConfig")<AppConfig, A
           sessionCookieName,
           sessionCookieSecure,
           sessionDurationDays,
+          trustedHosts,
         });
       }),
     );

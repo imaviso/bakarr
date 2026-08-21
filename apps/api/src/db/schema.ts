@@ -1,4 +1,5 @@
-import { index, integer, sqliteTable, text, unique } from "drizzle-orm/sqlite-core";
+import { index, integer, sqliteTable, text, unique, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { sql } from "drizzle-orm";
 
 export const media = sqliteTable(
   "media",
@@ -190,7 +191,9 @@ export const downloads = sqliteTable(
     downloadDate: text("download_date"),
     groupName: text("group_name"),
     magnet: text("magnet"),
-    infoHash: text("info_hash").unique(),
+    // Uniqueness is enforced by the partial in-flight index below so terminal
+    // rows (imported/failed) never block re-fetching the same release.
+    infoHash: text("info_hash"),
     externalState: text("external_state"),
     errorMessage: text("error_message"),
     savePath: text("save_path"),
@@ -205,7 +208,12 @@ export const downloads = sqliteTable(
     lastErrorAt: text("last_error_at"),
     reconciledAt: text("reconciled_at"),
   },
-  (table) => [index("downloads_status_id_idx").on(table.status, table.id)],
+  (table) => [
+    index("downloads_status_id_idx").on(table.status, table.id),
+    uniqueIndex("downloads_info_hash_in_flight_unique_idx")
+      .on(table.infoHash)
+      .where(sql`info_hash IS NOT NULL AND status IN ('queued', 'downloading', 'paused')`),
+  ],
 );
 
 export const backgroundJobs = sqliteTable("background_jobs", {

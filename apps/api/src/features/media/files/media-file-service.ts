@@ -432,7 +432,9 @@ const makeMediaFileService = Effect.fn("MediaFileService.make")(function* () {
           ...(mergedMetadata.audio_channels === undefined
             ? {}
             : { audioChannels: mergedMetadata.audio_channels }),
-          title: null,
+          // No `title` here: folder scans cannot know unit titles, and an
+          // explicit null would clobber titles synced from AniDB/AniList until
+          // the next provider sync. Omitting keeps the stored value.
         });
       }
       found += unitNumbers.length;

@@ -51,6 +51,7 @@ function makeMaintenanceLayer(
           sessionCookieName: "bakarr_session",
           sessionCookieSecure: true,
           sessionDurationDays: 30,
+          trustedHosts: [],
         }),
         Layer.succeed(
           RuntimeConfigSnapshotService,

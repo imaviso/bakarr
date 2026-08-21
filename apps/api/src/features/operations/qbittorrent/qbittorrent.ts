@@ -275,6 +275,9 @@ export function mapQBitState(state: string): string {
   if (
     value.includes("uploading") ||
     value.includes("pausedup") ||
+    // qBittorrent 5.x renamed pausedUP/stoppedUP; both mean a completed,
+    // seeding (or finished) torrent.
+    value.includes("stoppedup") ||
     value.includes("queuedup") ||
     value.includes("stalledup") ||
     value.includes("checkingup") ||
@@ -284,7 +287,7 @@ export function mapQBitState(state: string): string {
     return "completed";
   }
 
-  if (value.includes("pauseddl")) {
+  if (value.includes("pauseddl") || value.includes("stoppeddl")) {
     return "paused";
   }
 

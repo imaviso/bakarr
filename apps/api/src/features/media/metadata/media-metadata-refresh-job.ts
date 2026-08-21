@@ -116,7 +116,7 @@ export const refreshMetadataForMonitoredMediaEffect = Effect.fn(
   return yield* Effect.gen(function* () {
     const monitoredMediaIds = yield* input.mediaRepository.listMonitoredMediaIds();
     const refreshedRef = yield* Ref.make(0);
-    const skippedExternalRef = yield* Ref.make(0);
+    const skippedRef = yield* Ref.make(0);
 
     yield* Effect.forEach(
       monitoredMediaIds,
@@ -141,28 +141,33 @@ export const refreshMetadataForMonitoredMediaEffect = Effect.fn(
           yield* input.mediaUnitRepository.syncUnitMetadata(mediaId, metadata?.mediaUnits);
           yield* Ref.update(refreshedRef, (refreshed) => refreshed + 1);
         }).pipe(
-          Effect.catchTag("ExternalCallError", (error) =>
-            Effect.logWarning(
-              "Skipping metadata refresh for media after external call failure",
-            ).pipe(
-              Effect.annotateLogs({
-                mediaId,
-                externalOperation: error.operation,
-              }),
-              Effect.tap(() => Ref.update(skippedExternalRef, (skipped) => skipped + 1)),
-            ),
+          // Isolate every per-media failure (external calls, corrupt cached
+          // rows, unit writes) so one bad media cannot abandon the rest of the
+          // library. Only a failure of the monitored-ids listing above fails
+          // the whole job. Defects and interrupts are not swallowed — they
+          // indicate programmer bugs / shutdown and must propagate.
+          Effect.catchAllCause((cause) =>
+            Cause.isInterruptedOnly(cause) || Cause.defects(cause).length > 0
+              ? Effect.failCause(cause)
+              : Effect.logWarning("Skipping metadata refresh for media after failure").pipe(
+                  Effect.annotateLogs({
+                    mediaId,
+                    run_failure_cause: Cause.pretty(cause),
+                  }),
+                  Effect.tap(() => Ref.update(skippedRef, (skipped) => skipped + 1)),
+                ),
           ),
         ),
       { concurrency: input.refreshConcurrency, discard: true },
     );
 
     const refreshed = yield* Ref.get(refreshedRef);
-    const skippedExternal = yield* Ref.get(skippedExternalRef);
+    const skipped = yield* Ref.get(skippedRef);
 
     const message =
-      skippedExternal === 0
+      skipped === 0
         ? `Refreshed ${refreshed} monitored media`
-        : `Refreshed ${refreshed} monitored media (${skippedExternal} skipped due external failures)`;
+        : `Refreshed ${refreshed} monitored media (${skipped} skipped due to errors)`;
 
     yield* input.backgroundJobRepository.markSucceeded("metadata_refresh", message, nowIso);
     yield* input.systemLogRepository.appendLog(

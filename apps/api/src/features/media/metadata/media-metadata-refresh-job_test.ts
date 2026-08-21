@@ -80,7 +80,7 @@ it.scoped(
           assert.deepStrictEqual(jobRow?.lastStatus, "success");
           assert.deepStrictEqual(
             jobRow?.lastMessage,
-            "Refreshed 1 monitored media (1 skipped due external failures)",
+            "Refreshed 1 monitored media (1 skipped due to errors)",
           );
           assert.deepStrictEqual(
             allLogs.some((entry) => entry.eventType === "system.task.metadata_refresh.failed"),

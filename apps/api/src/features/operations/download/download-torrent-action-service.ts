@@ -107,29 +107,25 @@ export class DownloadTorrentActionService extends Effect.Service<DownloadTorrent
           });
         } else {
           const nextStatus = action === "pause" ? "paused" : row.status;
-          yield* actionRepo.updateDownloadStatusRow({
-            id,
-            externalState: action,
-            status: nextStatus,
-          });
-
           const actionSourceMetadata = yield* decodeDownloadSourceMetadata(row.sourceMetadata);
           const actionNow = yield* currentNowIso();
-          yield* actionRepo.insertDownloadEvent(
-            {
-              mediaId: row.mediaId,
-              downloadId: row.id,
-              eventType: `download.${action}d`,
-              fromStatus: row.status,
-              metadataJson: {
-                covered_units: coveredUnits,
-                ...(actionSourceMetadata ? { source_metadata: actionSourceMetadata } : {}),
-              },
-              message: `${action === "pause" ? "Paused" : "Resumed"} ${row.torrentName}`,
-              toStatus: nextStatus,
+          // Status + event commit together: a synced row never observes a
+          // status without its event (same guarantee as delete/finalize).
+          yield* actionRepo.updateDownloadStatusWithEventTx({
+            createdAt: actionNow,
+            downloadId: row.id,
+            eventType: `download.${action}d`,
+            eventMessage: `${action === "pause" ? "Paused" : "Resumed"} ${row.torrentName}`,
+            eventMetadataJson: {
+              covered_units: coveredUnits,
+              ...(actionSourceMetadata ? { source_metadata: actionSourceMetadata } : {}),
             },
-            actionNow,
-          );
+            externalState: action,
+            fromStatus: row.status,
+            mediaId: row.mediaId,
+            status: nextStatus,
+            toStatus: nextStatus,
+          });
         }
 
         if (action === "pause") {

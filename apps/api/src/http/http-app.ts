@@ -1,10 +1,12 @@
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from "@effect/platform";
 import { Effect } from "effect";
 
+import { AppConfig } from "@/config/schema.ts";
 import { embeddedWebAssets } from "@/generated/embedded-web-assets.ts";
 import { mediaRouter } from "@/http/media/router.ts";
 import { authRouter } from "@/http/auth/router.ts";
 import { createEmbeddedWebResponse, type EmbeddedWebAsset } from "@/http/shared/embedded-web.ts";
+import { isAllowedHostHeader } from "@/http/shared/host-guard.ts";
 import { downloadsRouter } from "@/http/operations/downloads-router.ts";
 import { libraryRouter } from "@/http/operations/library-router.ts";
 import { rssRouter } from "@/http/operations/rss-router.ts";
@@ -31,6 +33,26 @@ export function createHttpApp(
   );
 
   return apiRouter.pipe(
+    HttpRouter.use((route) =>
+      Effect.gen(function* () {
+        // DNS-rebinding guard: reject attacker-chosen domain Host headers
+        // before any route (including unauthenticated ones) runs.
+        const request = yield* HttpServerRequest.HttpServerRequest;
+        const config = yield* AppConfig;
+        // Browsers always send Host on rebinding attempts, so the guard holds
+        // where it matters. Missing Host (HTTP/1.0 or fetch spec hiding it in
+        // `HttpServerRequest.fromWeb` tests) is allowed — rebinding cannot
+        // occur without a Host, and enforcing it would break test conversions.
+        // Empty Host is still rejected via isAllowedHostHeader.
+        const host = request.headers["host"];
+
+        if (host !== undefined && !isAllowedHostHeader(host, config.trustedHosts)) {
+          return HttpServerResponse.empty({ status: 403 });
+        }
+
+        return yield* route;
+      }),
+    ),
     HttpRouter.get(
       "*",
       Effect.gen(function* () {

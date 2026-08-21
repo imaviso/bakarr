@@ -121,8 +121,21 @@ const makeAniDbClient = Effect.fn("AniDbClient.make")(function* () {
     readonly password: string;
     readonly username: string;
   }) {
-    const socket = yield* openAniDbSocketEffect(config.localPort);
+    const socket = yield* openAniDbSocketEffect(config.localPort, {
+      // Adapter edge: dgram error callbacks are plain Node events, so the
+      // warning is logged through a detached fiber. Without this handler a
+      // stray ICMP error on the idle socket would crash the process.
+      onBackgroundError: (cause) =>
+        Effect.runFork(
+          Effect.logWarning("AniDB socket background error").pipe(
+            Effect.annotateLogs({ errorMessage: cause.message }),
+          ),
+        ),
+    });
 
+    // `onError` releases the bound socket on AUTH failure *and* interruption
+    // (scope shutdown mid-AUTH); after success the session owns the socket and
+    // the client finalizer closes it.
     const sessionToken = yield* authenticateAniDbEffect(
       socket,
       config.username,
@@ -130,11 +143,7 @@ const makeAniDbClient = Effect.fn("AniDbClient.make")(function* () {
       config.client,
       config.clientVersion,
       requestContext,
-    ).pipe(
-      Effect.catchTag("ExternalCallError", (error) =>
-        closeAniDbSocketEffect(socket).pipe(Effect.zipRight(Effect.fail(error))),
-      ),
-    );
+    ).pipe(Effect.onError(() => closeAniDbSocketEffect(socket)));
 
     return {
       configKey: toAniDbSessionConfigKey(config),

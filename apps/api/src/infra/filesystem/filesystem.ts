@@ -37,6 +37,11 @@ export interface DirEntry {
 export interface OpenFileOptions {
   readonly read?: boolean;
   readonly write?: boolean;
+  /**
+   * Create-only open (`wx` flag): the open fails when the path already exists,
+   * atomically claiming a fresh destination path.
+   */
+  readonly exclusive?: boolean;
 }
 
 export interface MkdirOptions {
@@ -135,6 +140,10 @@ function toOpenFlag(options: OpenFileOptions): PlatformFileSystem.OpenFlag {
 
   if (!options.write) {
     return "r";
+  }
+
+  if (options.exclusive) {
+    return "wx";
   }
 
   return read ? "w+" : "w";

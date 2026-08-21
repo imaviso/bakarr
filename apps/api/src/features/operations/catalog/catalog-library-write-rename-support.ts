@@ -3,7 +3,7 @@ import { Effect, Either } from "effect";
 import { brandMediaId, type Config } from "@packages/shared/index.ts";
 import type { DatabaseError } from "@/db/database.ts";
 import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
-import { isNotFoundError } from "@/infra/filesystem/fs-errors.ts";
+import { isFileExistsError, isNotFoundError } from "@/infra/filesystem/fs-errors.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
 import { buildRenamePreview } from "@/features/operations/library/library-import.ts";
 import { DomainPathError } from "@/features/errors.ts";
@@ -27,6 +27,33 @@ const fileExists = Effect.fn("Operations.renameFileExists")(function* (
           message: `Failed to inspect destination file: ${path}`,
         }),
     ),
+  );
+});
+
+/**
+ * Atomically reserve an empty destination file (`wx` open fails on any
+ * existing path), then let the rename land on top of our own reservation.
+ * A bare stat-then-rename would silently overwrite a file created between
+ * the check and the rename.
+ */
+const claimDestination = Effect.fn("Operations.claimRenameDestination")(function* (
+  fs: FileSystemShape,
+  path: string,
+) {
+  return yield* fs.openFile(path, { exclusive: true, read: false, write: true }).pipe(
+    Effect.mapError((cause) =>
+      isFileExistsError(cause)
+        ? new DomainPathError({
+            cause,
+            message: `Destination already exists: ${path}`,
+          })
+        : new DomainPathError({
+            cause,
+            message: `Failed to claim destination file: ${path}`,
+          }),
+    ),
+    Effect.scoped,
+    Effect.asVoid,
   );
 });
 
@@ -95,6 +122,13 @@ export const renameLibraryFiles = Effect.fn("Operations.renameLibraryFiles")((
         continue;
       }
 
+      const claimResult = yield* claimDestination(fs, item.new_path).pipe(Effect.either);
+
+      if (Either.isLeft(claimResult)) {
+        failures.push(claimResult.left.message);
+        continue;
+      }
+
       const result = yield* fs.rename(item.current_path, item.new_path).pipe(
         Effect.mapError(
           (cause) =>
@@ -128,6 +162,9 @@ export const renameLibraryFiles = Effect.fn("Operations.renameLibraryFiles")((
       if (Either.isRight(result)) {
         renamed += 1;
       } else {
+        // Claim left an empty file at destination; remove it so future
+        // renames don't see a phantom "already exists" and to avoid junk.
+        yield* fs.remove(item.new_path).pipe(Effect.ignore);
         failures.push(result.left instanceof Error ? result.left.message : String(result.left));
       }
     }

@@ -539,7 +539,9 @@ function normalizeRelations(
   const entries: Array<{ malId: number; relation?: string; title?: string; url?: string }> =
     relations.flatMap((relation) =>
       relation.entry.flatMap((entry: (typeof relation.entry)[number]) => {
-        if (entry.type !== "media") {
+        // Jikan v4 relation entries are typed "anime" | "manga"; only anime
+        // relations are relevant to this library.
+        if (entry.type !== "anime") {
           return [];
         }
 

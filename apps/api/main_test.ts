@@ -4488,6 +4488,7 @@ function makeTestAppLayer(
         ? {}
         : { metricsRequireAuth: options.metricsRequireAuth }),
       port: 9999,
+      trustedHosts: ["bakarr.local"],
     },
     {
       aniListLayer: testAniListLayer,

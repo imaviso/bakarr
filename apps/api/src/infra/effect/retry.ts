@@ -1,5 +1,5 @@
 // oxlint-disable typescript/no-restricted-types -- `unknown` is the honest type at error/cause boundaries (Effect error channels, try/catch causes, Logger messages)
-import { Cause, Context, Duration, Effect, Layer, Schedule, Schema } from "effect";
+import { Cause, Config, Context, Duration, Effect, Layer, Schedule, Schema } from "effect";
 
 import { currentTimeNanos } from "@/infra/time.ts";
 import { PositiveIntFromStringSchema } from "@/domain/domain-schema.ts";
@@ -257,10 +257,19 @@ export const ExternalCallLive = Layer.effect(ExternalCall, makeExternalCall()).p
   Layer.provide(Layer.mergeAll(ExternalCallPolicy.Default, ExternalCallSemaphores.Default)),
 );
 
+// Unset keys fall back to the default; an *invalid* value (non-integer, zero,
+// negative) is an unrecoverable startup failure and dies during layer
+// construction instead of being silently ignored. The defect carries the
+// config key so operator sees which env var is bad without digging.
 const readExternalConcurrency = (key: string, fallback: number) =>
-  Schema.Config(key, PositiveIntFromStringSchema).pipe(
-    Effect.catchAll(() => Effect.succeed(fallback)),
-  );
+  Effect.gen(function* () {
+    return yield* Schema.Config(key, PositiveIntFromStringSchema).pipe(
+      Config.withDefault(fallback),
+      Effect.orDieWith(
+        (cause) => new Error(`Invalid ${key}: ${String(cause)} (expected positive integer)`),
+      ),
+    );
+  });
 
 function toExternalCallError(operation: string, cause: unknown, provider?: ExternalCallProvider) {
   return cause instanceof ExternalCallError

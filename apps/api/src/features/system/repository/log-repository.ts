@@ -34,6 +34,8 @@ export interface SystemLogRepositoryShape {
     nowIso: NowIso<E>,
   ) => Effect.Effect<void, DatabaseError | E>;
   readonly clearLogs: () => Effect.Effect<void, DatabaseError>;
+  /** Retention sweep: deletes rows created before `cutoffIso`; returns deleted count. */
+  readonly deleteLogsOlderThan: (cutoffIso: string) => Effect.Effect<number, DatabaseError>;
   readonly loadExportHeader: (
     plan: SystemLogExportPlan,
     nowIso: NowIso,
@@ -63,6 +65,7 @@ export function makeSystemLogRepositoryShape(db: AppDatabase): SystemLogReposito
     appendLog: (eventType, level, message, nowIso) =>
       appendSystemLog(db, eventType, level, message, nowIso),
     clearLogs: () => clearSystemLogRows(db),
+    deleteLogsOlderThan: (cutoffIso) => deleteSystemLogsOlderThan(db, cutoffIso),
     loadExportHeader: (plan, nowIso) => loadSystemLogExportHeader(db, plan, nowIso),
     loadPage: (input) => loadSystemLogPage(db, input),
     streamExportCsv: (plan) => encodeLogExportCsvStream(streamSystemLogs(db, plan)),
@@ -91,6 +94,18 @@ const appendSystemLog = Effect.fn("SystemLogRepository.appendLog")(function* <E>
 
 const clearSystemLogRows = Effect.fn("SystemLogRepository.clearLogs")(function* (db: AppDatabase) {
   yield* tryDatabasePromise("Failed to clear system logs", () => db.delete(systemLogs));
+});
+
+const deleteSystemLogsOlderThan = Effect.fn("SystemLogRepository.deleteLogsOlderThan")(function* (
+  db: AppDatabase,
+  cutoffIso: string,
+) {
+  return yield* tryDatabasePromise("Failed to prune old system logs", () =>
+    db
+      .delete(systemLogs)
+      .where(lt(systemLogs.createdAt, cutoffIso))
+      .returning({ id: systemLogs.id }),
+  ).pipe(Effect.map((rows) => rows.length));
 });
 
 export const loadSystemLogPage = Effect.fn("SystemLogRepository.loadPage")(function* (

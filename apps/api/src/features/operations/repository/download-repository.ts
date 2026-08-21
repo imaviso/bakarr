@@ -160,6 +160,26 @@ export interface DownloadRepositoryShape {
     input: DownloadEventRecordInput,
     createdAt: string,
   ) => Effect.Effect<void, DatabaseError | StoredDataError>;
+  /**
+   * Atomic status write: status update + lifecycle event in one transaction,
+   * so a synced row never observes a status without its event (same guarantee
+   * as `finalizeQueuedDownloadTx`).
+   */
+  readonly updateDownloadStatusWithEventTx: (input: {
+    readonly createdAt: string;
+    readonly downloadId: number;
+    readonly eventType: string;
+    readonly eventMessage: string;
+    readonly eventMetadataJson: {
+      readonly covered_units?: readonly number[];
+      readonly source_metadata?: DownloadSourceMetadata;
+    };
+    readonly externalState: string;
+    readonly fromStatus: string;
+    readonly mediaId: number;
+    readonly status: string;
+    readonly toStatus: string;
+  }) => Effect.Effect<void, DatabaseError | StoredDataError>;
   readonly insertQueuedDownloadRow: (input: {
     readonly addedAt: string;
     readonly coveredUnits: string | null;
@@ -275,6 +295,7 @@ export function makeDownloadRepositoryShape(db: AppDatabase): DownloadRepository
     finalizeDownloadImport: (input) => finalizeDownloadImport(db, input),
     finalizeQueuedDownloadTx: (input) => finalizeQueuedDownloadTx(db, input),
     insertDownloadEvent: (input, createdAt) => insertDownloadEventRow(db, input, createdAt),
+    updateDownloadStatusWithEventTx: (input) => updateDownloadStatusWithEventTx(db, input),
     insertQueuedDownloadRow: (input) => insertQueuedDownloadRow(db, input),
     countActiveDownloads: () => countActiveDownloads(db),
     listActiveDownloadRows: (limit) => listActiveDownloadRows(db, limit),
@@ -495,6 +516,50 @@ const finalizeQueuedDownloadTx = Effect.fn("DownloadRepository.finalizeQueuedDow
     });
   },
 );
+
+const updateDownloadStatusWithEventTx = Effect.fn(
+  "DownloadRepository.updateDownloadStatusWithEventTx",
+)(function* (
+  db: AppDatabase,
+  input: {
+    readonly createdAt: string;
+    readonly downloadId: number;
+    readonly eventType: string;
+    readonly eventMessage: string;
+    readonly eventMetadataJson: {
+      readonly covered_units?: readonly number[];
+      readonly source_metadata?: DownloadSourceMetadata;
+    };
+    readonly externalState: string;
+    readonly fromStatus: string;
+    readonly mediaId: number;
+    readonly status: string;
+    readonly toStatus: string;
+  },
+) {
+  const eventRow = yield* toDownloadEventInsert(
+    {
+      mediaId: input.mediaId,
+      downloadId: input.downloadId,
+      eventType: input.eventType,
+      fromStatus: input.fromStatus,
+      message: input.eventMessage,
+      metadataJson: input.eventMetadataJson,
+      toStatus: input.toStatus,
+    },
+    input.createdAt,
+  );
+
+  yield* tryDatabasePromise("Failed to update download status", async () => {
+    await db.transaction(async (tx) => {
+      await tx
+        .update(downloads)
+        .set({ externalState: input.externalState, status: input.status })
+        .where(eq(downloads.id, input.downloadId));
+      await tx.insert(downloadEvents).values(eventRow);
+    });
+  });
+});
 
 const deleteDownloadWithEventTx = Effect.fn("DownloadRepository.deleteDownloadWithEventTx")(
   function* (

@@ -246,4 +246,33 @@ describe("serialized runner: drain", () => {
       assert.deepStrictEqual(runs, 2);
     }),
   );
+
+  it.effect("interrupting the lead run fails followers and keeps the runner usable", () =>
+    Effect.gen(function* () {
+      const firstRunStarted = yield* Deferred.make<void>();
+      let runs = 0;
+      const runner = yield* makeSerializedDrainEffectRunner(
+        Effect.gen(function* () {
+          runs += 1;
+          if (runs === 1) {
+            yield* Deferred.succeed(firstRunStarted, void 0);
+            return yield* Effect.never;
+          }
+          return undefined;
+        }),
+      );
+
+      const lead = yield* Effect.fork(runner.trigger);
+      yield* Deferred.await(firstRunStarted);
+      const follower = yield* Effect.fork(runner.trigger);
+
+      yield* Fiber.interrupt(lead);
+
+      const followerExit = yield* Fiber.await(follower);
+      assert.deepStrictEqual(followerExit._tag, "Failure");
+
+      yield* runner.trigger;
+      assert.deepStrictEqual(runs, 2);
+    }),
+  );
 });

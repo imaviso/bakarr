@@ -50,6 +50,7 @@ it.scoped("MediaReaderService exposes cbz archive pages and image bytes", () =>
                 sessionCookieName: "bakarr_session",
                 sessionCookieSecure: true,
                 sessionDurationDays: 30,
+                trustedHosts: [],
               }),
               Layer.succeed(
                 CommandExecutor.CommandExecutor,
@@ -129,6 +130,7 @@ it.scoped("MediaReaderService shares archive loads across concurrent readers", (
                 sessionCookieName: "bakarr_session",
                 sessionCookieSecure: true,
                 sessionDurationDays: 30,
+                trustedHosts: [],
               }),
               Layer.succeed(
                 CommandExecutor.CommandExecutor,

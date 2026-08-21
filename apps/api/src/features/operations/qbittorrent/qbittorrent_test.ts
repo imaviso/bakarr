@@ -11,6 +11,7 @@ import {
 
 it("mapQBitState maps seeding states to completed", () => {
   assert.deepStrictEqual(mapQBitState("pausedUP"), "completed");
+  assert.deepStrictEqual(mapQBitState("stoppedUP"), "completed");
   assert.deepStrictEqual(mapQBitState("queuedUP"), "completed");
   assert.deepStrictEqual(mapQBitState("stalledUP"), "completed");
   assert.deepStrictEqual(mapQBitState("checkingUP"), "completed");
@@ -33,6 +34,7 @@ it("mapQBitState maps error and paused states", () => {
   assert.deepStrictEqual(mapQBitState("error"), "error");
   assert.deepStrictEqual(mapQBitState("missingFiles"), "error");
   assert.deepStrictEqual(mapQBitState("pausedDL"), "paused");
+  assert.deepStrictEqual(mapQBitState("stoppedDL"), "paused");
   assert.deepStrictEqual(mapQBitState("queuedDL"), "queued");
 });
 

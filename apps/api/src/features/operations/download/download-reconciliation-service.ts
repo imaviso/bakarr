@@ -1,4 +1,4 @@
-import { Cause, Effect, Option } from "effect";
+import { Cause, Effect, Option, Ref } from "effect";
 
 import type { Config } from "@packages/shared/index.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
@@ -31,6 +31,13 @@ export interface DownloadReconciliationServiceShape {
     config: Config | null | undefined,
     infoHash: string | null,
   ) => Effect.Effect<void>;
+  /**
+   * Whether this process currently holds a live reconciliation claim for the
+   * download. The sync pass consults it before sweeping stale claims so a
+   * long-running import (slow storage can exceed any fixed threshold) is
+   * never released mid-flight.
+   */
+  readonly hasLiveReconciliationClaim: (downloadId: number) => Effect.Effect<boolean>;
   readonly reconcileCompletedTorrentEffect: (
     infoHash: string,
     contentPath: string | undefined,
@@ -63,6 +70,13 @@ export class DownloadReconciliationService extends Effect.Service<DownloadReconc
       const nowIso = currentNowIso;
       const randomUuid = () => random.randomUuid;
       const getRuntimeConfig = runtimeConfigSnapshotService.getRuntimeConfig;
+      // Process-local registry of downloads with an in-flight reconcile claim.
+      // The claim token's embedded timestamp stays the crash-orphan signal;
+      // this set is what distinguishes "orphaned" from "still importing".
+      const liveClaimIds = yield* Ref.make(new Set<number>());
+
+      const hasLiveReconciliationClaim: DownloadReconciliationServiceShape["hasLiveReconciliationClaim"] =
+        (downloadId) => Effect.map(Ref.get(liveClaimIds), (ids) => ids.has(downloadId));
 
       const maybeCleanupImportedTorrent = Effect.fn(
         "DownloadReconcile.maybeCleanupImportedTorrent",
@@ -110,8 +124,17 @@ export class DownloadReconciliationService extends Effect.Service<DownloadReconc
 
         const claimNow = yield* nowIso();
         const claimToken = buildClaimToken(claimNow, yield* randomUuid());
+        // Mark live before the DB claim to close the window where the sync
+        // sweep could see a stale-token row before this fiber's live set is
+        // populated. If claim loses the race we remove the mark immediately.
+        yield* Ref.update(liveClaimIds, (ids) => new Set(ids).add(row.id));
         const claimed = yield* repo.claimDownloadReconciliation(infoHash, claimToken);
         if (!claimed) {
+          yield* Ref.update(liveClaimIds, (ids) => {
+            const next = new Set(ids);
+            next.delete(row.id);
+            return next;
+          });
           return;
         }
 
@@ -146,9 +169,16 @@ export class DownloadReconciliationService extends Effect.Service<DownloadReconc
           yield* reconcileSingleDownloadEffect(context.value);
         }).pipe(
           Effect.onExit(() =>
-            repo
-              .releaseDownloadReconciliationClaim({ downloadId: row.id, claimToken })
-              .pipe(Effect.ignoreLogged),
+            Ref.update(liveClaimIds, (ids) => {
+              const next = new Set(ids);
+              next.delete(row.id);
+              return next;
+            }).pipe(
+              Effect.zipRight(
+                repo.releaseDownloadReconciliationClaim({ downloadId: row.id, claimToken }),
+              ),
+              Effect.ignoreLogged,
+            ),
           ),
         );
       });
@@ -180,6 +210,7 @@ export class DownloadReconciliationService extends Effect.Service<DownloadReconc
       });
 
       return {
+        hasLiveReconciliationClaim,
         maybeCleanupImportedTorrent,
         reconcileCompletedTorrentEffect,
         reconcileDownloadByIdEffect,

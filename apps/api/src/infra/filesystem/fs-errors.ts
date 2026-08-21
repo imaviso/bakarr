@@ -37,6 +37,18 @@ export function isCrossFilesystemError(error: { cause?: unknown }): boolean {
   return false;
 }
 
+/** Check if an error wraps an "already exists" platform error (EEXIST). */
+export function isFileExistsError(error: { cause?: unknown }): boolean {
+  const { cause } = error;
+  if (cause instanceof Error) {
+    return getErrorCode(cause) === "EEXIST";
+  }
+  if (Predicate.hasProperty(cause, "cause")) {
+    return isFileExistsError({ cause: cause.cause });
+  }
+  return false;
+}
+
 /** Check if a platform SystemError itself is a NotFound branch. */
 export function isSystemNotFoundError(error: unknown): boolean {
   return Predicate.hasProperty(error, "reason") && error.reason === "NotFound";

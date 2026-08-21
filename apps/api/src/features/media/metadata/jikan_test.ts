@@ -703,11 +703,22 @@ function buildDetailPayload(malId: number) {
             {
               mal_id: 121,
               name: "Fullmetal Alchemist: The Sacred Star of Milos",
-              type: "media",
+              type: "anime",
               url: "https://myanimelist.net/anime/121",
             },
           ],
           relation: "Sequel",
+        },
+        {
+          entry: [
+            {
+              mal_id: 25,
+              name: "Fullmetal Alchemist (Manga)",
+              type: "manga",
+              url: "https://myanimelist.net/manga/25",
+            },
+          ],
+          relation: "Adaptation",
         },
       ],
       score: 9.1,

@@ -47,13 +47,17 @@ export const parseCoveredUnitsEffect = Effect.fn("Operations.parseCoveredUnitsEf
 export const hasOverlappingDownload = Effect.fn("Operations.hasOverlappingDownload")(function* (
   downloadRepository: typeof DownloadRepository.Service,
   mediaId: number,
-  infoHash: string,
+  infoHash: string | null,
   coveredUnits: readonly number[],
 ) {
-  const existingByHash = yield* downloadRepository.lookupDownloadByInfoHash(infoHash);
+  // Magnets without a btih `xt` have no hash — covered-units overlap is then
+  // the only dedupe signal, so it must run regardless of the hash.
+  if (infoHash) {
+    const existingByHash = yield* downloadRepository.lookupDownloadByInfoHash(infoHash);
 
-  if (existingByHash && IN_FLIGHT_STATUSES.has(existingByHash.status)) {
-    return true;
+    if (existingByHash && IN_FLIGHT_STATUSES.has(existingByHash.status)) {
+      return true;
+    }
   }
 
   if (coveredUnits.length === 0) {

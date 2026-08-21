@@ -109,22 +109,20 @@ export const queueDownload = Effect.fn("Operations.queueDownload")(function* (in
 }) {
   const coveredEpisodeNumbers = yield* parseCoveredUnitsEffect(input.coveredUnitsJson);
 
-  if (input.infoHash) {
-    const overlapping = yield* hasOverlappingDownload(
-      input.downloadRepository,
-      input.animeRow.id,
-      input.infoHash,
-      coveredEpisodeNumbers,
-    );
+  const overlapping = yield* hasOverlappingDownload(
+    input.downloadRepository,
+    input.animeRow.id,
+    input.infoHash,
+    coveredEpisodeNumbers,
+  );
 
-    if (overlapping) {
-      if (input.conflictPolicy === "fail-with-conflict") {
-        return yield* new OperationsConflictError({
-          message: "An in-flight download already covers these mediaUnits",
-        });
-      }
-      return { _tag: "skipped" } satisfies QueueDownloadOutcome;
+  if (overlapping) {
+    if (input.conflictPolicy === "fail-with-conflict") {
+      return yield* new OperationsConflictError({
+        message: "An in-flight download already covers these mediaUnits",
+      });
     }
+    return { _tag: "skipped" } satisfies QueueDownloadOutcome;
   }
 
   const encodedSourceMetadata = yield* encodeDownloadSourceMetadata(input.sourceMetadata);

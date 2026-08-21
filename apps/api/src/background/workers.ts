@@ -155,6 +155,11 @@ export const withLockEffectOrFail = Effect.fn("Background.withLockEffectOrFail")
 ) {
   // Explicit timeouts (tests) skip the config-backed service entirely.
   const effectiveTimeout = timeoutMs ?? (yield* BackgroundWorkerTimeouts)[workerName];
+  // Caveat: the interrupt is delivered at Effect checkpoints only. Drizzle
+  // transactions run under an uninterruptible mask and single statements are
+  // `Effect.sync`, so a worker stuck inside a long SQLite transaction exceeds
+  // its timeout cap arbitrarily — `WorkerTimeoutError` fires only after the
+  // transaction settles. Keep transactions small in scan/sync paths.
   const taskWithTimeout = task.pipe(
     Effect.timeoutFail({
       duration: `${effectiveTimeout} millis`,

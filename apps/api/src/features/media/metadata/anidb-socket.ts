@@ -45,8 +45,20 @@ export const resolveAniDbPeerEffect = Effect.fn("AniDbClient.resolvePeer")(funct
   } satisfies AniDbPeer;
 });
 
+export interface OpenAniDbSocketOptions {
+  /**
+   * Receives socket errors outside any in-flight packet exchange. Node crashes
+   * the process on an unhandled dgram `'error'` event, so the idle session
+   * socket (between paced commands) must always carry this handler. Errors
+   * during an in-flight packet are additionally reported through that packet's
+   * own failure channel.
+   */
+  readonly onBackgroundError?: (cause: Error) => void;
+}
+
 export const openAniDbSocketEffect = Effect.fn("AniDbClient.openSocket")(function* (
   localPort: number,
+  options: OpenAniDbSocketOptions = {},
 ) {
   return yield* Effect.async<Socket, ExternalCallError>((resume) => {
     const socket = createSocket("udp4");
@@ -80,6 +92,9 @@ export const openAniDbSocketEffect = Effect.fn("AniDbClient.openSocket")(functio
 
     const onListening = () => {
       cleanup();
+      // Permanent crash guard for the idle lifetime of the socket. Kept after
+      // the bind phase so bind failures still flow through `onError` above.
+      socket.on("error", (cause) => options.onBackgroundError?.(cause));
       resume(Effect.succeed(socket));
     };
 

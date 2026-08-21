@@ -1,5 +1,5 @@
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from "@effect/platform";
-import { Effect } from "effect";
+import { Effect, Option } from "effect";
 
 import {
   ApiKeyLoginRequestSchema,
@@ -25,8 +25,13 @@ export const authRouter = HttpRouter.empty.pipe(
     routeResponse(
       Effect.gen(function* () {
         const body = yield* decodeJsonBodyWithLabel(LoginRequestSchema, "login");
+        // Socket remote address only — never a spoofable forwarded header.
+        const clientKey = Option.getOrElse(
+          (yield* HttpServerRequest.HttpServerRequest).remoteAddress,
+          () => "unknown",
+        );
         const auth = yield* AuthSessionService;
-        return yield* auth.login(body);
+        return yield* auth.login(body, clientKey);
       }),
       (value) => persistSessionResponse(value.token, value.response),
     ),
@@ -36,8 +41,12 @@ export const authRouter = HttpRouter.empty.pipe(
     routeResponse(
       Effect.gen(function* () {
         const body = yield* decodeJsonBodyWithLabel(ApiKeyLoginRequestSchema, "API key login");
+        const clientKey = Option.getOrElse(
+          (yield* HttpServerRequest.HttpServerRequest).remoteAddress,
+          () => "unknown",
+        );
         const auth = yield* AuthSessionService;
-        return yield* auth.loginWithApiKey(body);
+        return yield* auth.loginWithApiKey(body, clientKey);
       }),
       (value) => persistSessionResponse(value.token, value.response),
     ),

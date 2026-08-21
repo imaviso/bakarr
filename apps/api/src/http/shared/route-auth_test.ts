@@ -228,6 +228,7 @@ function makeConfig(overrides: Partial<AppConfigShape> = {}): AppConfigShape {
     sessionCookieName: overrides.sessionCookieName ?? defaults.sessionCookieName,
     sessionCookieSecure: overrides.sessionCookieSecure ?? defaults.sessionCookieSecure,
     sessionDurationDays: overrides.sessionDurationDays ?? defaults.sessionDurationDays,
+    trustedHosts: overrides.trustedHosts ?? defaults.trustedHosts,
   });
 }
 

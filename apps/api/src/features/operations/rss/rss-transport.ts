@@ -197,10 +197,12 @@ function buildRssTransportRequestConfig(target: PinnedRequestTarget): RssTranspo
       "User-Agent": "bakarr/1.0",
     },
     hostname: parsedUrl.hostname,
-    // Bun's HTTPS stack can validate cert altname against the pinned IP when a custom
-    // lookup is used, causing ERR_TLS_CERT_ALTNAME_INVALID for valid host certs.
-    // Keep pinning for HTTP only; HTTPS stays hostname-based for TLS/SNI validation.
-    lookup: pinnedTarget && !isHttps ? makePinnedLookup(pinnedTarget) : undefined,
+    // Pin the connection to the address the SSRF guard validated. Without the
+    // pin, Node re-resolves DNS at connect time, so attacker-controlled DNS
+    // could answer a public IP to the guard and a private IP to the connect
+    // (DNS-rebinding TOCTOU). TLS identity is unaffected: SNI and certificate
+    // validation key off `servername` (the hostname), not the lookup result.
+    lookup: pinnedTarget ? makePinnedLookup(pinnedTarget) : undefined,
     method: "GET",
     path: `${parsedUrl.pathname}${parsedUrl.search}`,
     port: parsedUrl.port ? Number(parsedUrl.port) : undefined,
