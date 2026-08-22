@@ -1,10 +1,10 @@
-import { queryOptions, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
+import { queryOptions, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Schema } from "effect";
 import { AsyncOperationAcceptedSchema, DownloadSchema, DownloadStatusSchema } from "@bakarr/shared";
 import { API_BASE } from "~/api/constants";
-import { fetchJson, fetchUnit, runApiEffect } from "~/api/effect/api-client";
+import { apiUrl, fetchJson, fetchUnit, runApiEffect } from "~/api/effect/api-client";
 import { animeKeys } from "./keys";
+import { useTriggerTaskMutation } from "./trigger-task";
 
 export function downloadQueueQueryOptions() {
   return queryOptions({
@@ -20,10 +20,6 @@ export function downloadQueueQueryOptions() {
       ),
     refetchInterval: 5000,
   });
-}
-
-export function useDownloadQueueQuery() {
-  return useQuery(downloadQueueQueryOptions());
 }
 
 export function downloadHistoryQueryOptions() {
@@ -42,10 +38,6 @@ export function downloadHistoryQueryOptions() {
   });
 }
 
-export function useDownloadHistoryQuery() {
-  return useQuery(downloadHistoryQueryOptions());
-}
-
 export function useSearchMissingMutation() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -56,20 +48,16 @@ export function useSearchMissingMutation() {
           body: { media_id: mediaId },
         }),
       ),
-    onSuccess: (accepted) => {
-      toast.info(accepted.message);
+    onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: animeKeys.downloads.all });
       void queryClient.invalidateQueries({ queryKey: animeKeys.system.tasks.all() });
-      void queryClient.invalidateQueries({
-        queryKey: animeKeys.system.tasks.byId(accepted.task_id),
-      });
     },
   });
 }
 
 function invalidateDownloadQueries(queryClient: ReturnType<typeof useQueryClient>) {
-  void queryClient.invalidateQueries({ queryKey: animeKeys.downloads.all });
-  void queryClient.invalidateQueries({ queryKey: animeKeys.system.all });
+  void queryClient.invalidateQueries({ queryKey: animeKeys.downloads.queue() });
+  void queryClient.invalidateQueries({ queryKey: animeKeys.downloads.history() });
 }
 
 export function usePauseDownloadMutation() {
@@ -115,9 +103,7 @@ export function useDeleteDownloadMutation() {
     mutationFn: (input: { downloadId: number; deleteFiles?: boolean }) =>
       runApiEffect(
         fetchUnit(
-          `${API_BASE}/downloads/${input.downloadId}?delete_files=${
-            input.deleteFiles ? "true" : "false"
-          }`,
+          apiUrl(`/downloads/${input.downloadId}`, { delete_files: Boolean(input.deleteFiles) }),
           { method: "DELETE" },
         ),
       ),
@@ -128,20 +114,9 @@ export function useDeleteDownloadMutation() {
 }
 
 export function useSyncDownloadsMutation() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: () =>
-      runApiEffect(
-        fetchJson(AsyncOperationAcceptedSchema, `${API_BASE}/downloads/sync`, { method: "POST" }),
-      ),
-    onSuccess: (accepted) => {
-      toast.info(accepted.message);
-      invalidateDownloadQueries(queryClient);
-      void queryClient.invalidateQueries({ queryKey: animeKeys.system.tasks.all() });
-      void queryClient.invalidateQueries({
-        queryKey: animeKeys.system.tasks.byId(accepted.task_id),
-      });
-    },
+  return useTriggerTaskMutation({
+    endpoint: () => "/downloads/sync",
+    invalidate: () => [animeKeys.downloads.all],
   });
 }
 

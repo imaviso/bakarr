@@ -266,7 +266,10 @@ const readExternalConcurrency = (key: string, fallback: number) =>
     return yield* Schema.Config(key, PositiveIntFromStringSchema).pipe(
       Config.withDefault(fallback),
       Effect.orDieWith(
-        (cause) => new Error(`Invalid ${key}: ${String(cause)} (expected positive integer)`),
+        (cause) =>
+          new Error(
+            `Invalid ${key}: ${cause instanceof Error ? cause.message : JSON.stringify(cause)} (expected positive integer)`,
+          ),
       ),
     );
   });

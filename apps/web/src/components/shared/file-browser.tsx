@@ -8,6 +8,7 @@ import {
   HouseIcon,
   SpinnerIcon,
 } from "@phosphor-icons/react";
+import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
@@ -15,7 +16,7 @@ import { Skeleton } from "~/components/ui/skeleton";
 import { Tooltip, TooltipTrigger } from "~/components/ui/tooltip";
 import type { BrowseEntry } from "~/api/contracts";
 import { errorMessage } from "~/api/effect/errors";
-import { useBrowsePathQuery } from "~/api/system-library";
+import { browsePathQueryOptions } from "~/api/system-library";
 import { EmptyState } from "~/components/shared/empty-state";
 import { cn } from "~/infra/utils";
 import { formatBytes } from "~/domain/format";
@@ -43,10 +44,12 @@ export function FileBrowser(props: FileBrowserProps) {
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
   const [pageOffset, setPageOffset] = useState(0);
 
-  const browserQuery = useBrowsePathQuery(currentPath, {
-    limit: BROWSE_PAGE_SIZE,
-    offset: pageOffset,
-  });
+  const browserQuery = useQuery(
+    browsePathQueryOptions(currentPath, {
+      limit: BROWSE_PAGE_SIZE,
+      offset: pageOffset,
+    }),
+  );
 
   const data = browserQuery.data;
   const pageInfo = data

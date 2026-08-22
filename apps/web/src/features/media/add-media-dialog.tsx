@@ -31,6 +31,7 @@ import {
 } from "~/components/ui/select";
 import { Input } from "~/components/ui/input";
 import type { MediaKind, MediaSearchResult, QualityProfile, ReleaseProfile } from "~/api/contracts";
+import { formatFieldErrors } from "~/api/effect/errors";
 import { useAddMediaMutation } from "~/api/media-mutations";
 import { profilesQueryOptions, releaseProfilesQueryOptions } from "~/api/profiles";
 import { systemConfigQueryOptions } from "~/api/system-config";
@@ -302,9 +303,15 @@ function AddAnimeForm(props: AddAnimeFormProps) {
             <Input
               id="add-anime-root-folder"
               value={field.state.value}
+              onBlur={field.handleBlur}
               onChange={(event) => field.handleChange(event.currentTarget.value)}
               placeholder="/path/to/library"
             />
+            {field.state.meta.errors.length > 0 && (
+              <p className="text-xs text-destructive">
+                {formatFieldErrors(field.state.meta.errors)}
+              </p>
+            )}
           </div>
         )}
       </form.Field>
@@ -321,7 +328,7 @@ function AddAnimeForm(props: AddAnimeFormProps) {
                 }
               }}
             >
-              <SelectTrigger id="quality-profile-select">
+              <SelectTrigger id="quality-profile-select" onBlur={field.handleBlur}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -334,6 +341,11 @@ function AddAnimeForm(props: AddAnimeFormProps) {
                 </SelectGroup>
               </SelectContent>
             </Select>
+            {field.state.meta.errors.length > 0 && (
+              <p className="text-xs text-destructive">
+                {formatFieldErrors(field.state.meta.errors)}
+              </p>
+            )}
           </div>
         )}
       </form.Field>

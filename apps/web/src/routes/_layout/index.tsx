@@ -13,7 +13,7 @@ import { Separator } from "~/components/ui/separator";
 import type { ActivityItem } from "~/api/contracts";
 import { activityQueryOptions, libraryStatsQueryOptions } from "~/api/library";
 import { createDownloadsRouteSearch } from "~/domain/download/events-search";
-import { usePageTitle } from "~/domain/page-title";
+import { usePageTitle } from "~/app/page-title";
 
 export const Route = createFileRoute("/_layout/")({
   loader: async ({ context: { queryClient } }) => {
@@ -64,7 +64,7 @@ function DashboardPage() {
             variant="ghost"
             size="sm"
             className="text-xs"
-            onClick={() => navigate({ to: "/rss" })}
+            onPress={() => navigate({ to: "/rss" })}
           >
             {stats.rss_feeds} RSS feeds
             <ArrowRightIcon className="ml-1 h-3.5 w-3.5" />
@@ -73,7 +73,7 @@ function DashboardPage() {
             variant="ghost"
             size="sm"
             className="text-xs"
-            onClick={() =>
+            onPress={() =>
               navigate({ to: "/downloads", search: createDownloadsRouteSearch({ tab: "queue" }) })
             }
           >
@@ -90,7 +90,7 @@ function DashboardPage() {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() =>
+              onPress={() =>
                 navigate({ to: "/downloads", search: createDownloadsRouteSearch({ tab: "queue" }) })
               }
             >

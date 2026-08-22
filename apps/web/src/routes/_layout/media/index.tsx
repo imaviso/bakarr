@@ -28,7 +28,7 @@ import { useDeleteMediaMutation } from "~/api/media-mutations";
 import { systemConfigQueryOptions } from "~/api/system-config";
 import { filterAnimeLibrary } from "~/domain/media/library-filter";
 import { getAiringDisplayPreferences } from "~/domain/media/metadata";
-import { usePageTitle } from "~/domain/page-title";
+import { usePageTitle } from "~/app/page-title";
 import { cn } from "~/infra/utils";
 
 const AnimeGridViewLazy = lazy(() =>
@@ -215,7 +215,7 @@ function AnimeIndexPage() {
               view === "grid" ? "bg-background " : "hover:bg-background",
             )}
             aria-label="Grid view"
-            onClick={() => updateView("grid")}
+            onPress={() => updateView("grid")}
           >
             <SquaresFourIcon className="h-4 w-4" />
           </Button>
@@ -228,7 +228,7 @@ function AnimeIndexPage() {
               view === "list" ? "bg-background " : "hover:bg-background",
             )}
             aria-label="List view"
-            onClick={() => updateView("list")}
+            onPress={() => updateView("list")}
           >
             <ListIcon className="h-4 w-4" />
           </Button>

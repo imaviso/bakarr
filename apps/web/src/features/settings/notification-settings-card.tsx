@@ -9,7 +9,7 @@ import {
   type NotificationPreferenceKey,
   readNotificationPreferences,
   writeNotificationPreferences,
-} from "~/domain/notification-preferences";
+} from "~/infra/notification-preferences";
 
 export function NotificationSettingsCard() {
   const [preferences, setPreferences] = useState(() => readNotificationPreferences());

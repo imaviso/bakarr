@@ -24,7 +24,7 @@ import { systemConfigQueryOptions } from "~/api/system-config";
 import { wantedQueryOptions } from "~/api/system-wanted";
 import type { MissingUnit } from "~/api/contracts";
 import { mediaUnitLabel } from "~/domain/media-unit";
-import { usePageTitle } from "~/domain/page-title";
+import { usePageTitle } from "~/app/page-title";
 import {
   formatAiringDateWithPreferences,
   formatNextAiringUnit,
@@ -162,23 +162,15 @@ function WantedPage() {
                           item={item}
                           airingPreferences={airingPreferences}
                           onSearch={() => {
-                            const unitTitle = item.unit_title;
-                            setSearchModalState(
-                              unitTitle === undefined
-                                ? {
-                                    open: true,
-                                    mediaId: item.media_id,
-                                    unitNumber: item.unit_number,
-                                    unitKind: item.unit_kind,
-                                  }
-                                : {
-                                    open: true,
-                                    mediaId: item.media_id,
-                                    unitNumber: item.unit_number,
-                                    unitTitle,
-                                    unitKind: item.unit_kind,
-                                  },
-                            );
+                            setSearchModalState({
+                              open: true,
+                              mediaId: item.media_id,
+                              unitNumber: item.unit_number,
+                              unitKind: item.unit_kind,
+                              ...(item.unit_title === undefined
+                                ? {}
+                                : { unitTitle: item.unit_title }),
+                            });
                           }}
                         />
                       )

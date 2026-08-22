@@ -7,24 +7,29 @@ interface ParsedIdentityInput {
 }
 
 export function buildParsedEpisodeIdentity(
-  input: ParsedIdentityInput,
+  input: ParsedIdentityInput & { labelFallback?: boolean | undefined },
 ): ParsedUnitIdentity | undefined {
-  if (!input.parsedEpisodeLabel) {
-    return undefined;
-  }
+  const hasFallback = input.labelFallback === true;
 
   if (input.parsedAirDate) {
+    if (!input.parsedEpisodeLabel && !hasFallback) {
+      return undefined;
+    }
     return {
       air_dates: [input.parsedAirDate],
-      label: input.parsedEpisodeLabel,
+      label: input.parsedEpisodeLabel ?? input.parsedAirDate,
       scheme: "daily",
     };
   }
 
   if (input.parsedEpisodeNumbers?.length) {
+    if (!input.parsedEpisodeLabel && !hasFallback) {
+      return undefined;
+    }
     return {
       unit_numbers: input.parsedEpisodeNumbers,
-      label: input.parsedEpisodeLabel,
+      label:
+        input.parsedEpisodeLabel ?? String(input.parsedEpisodeNumbers[0] ?? "").padStart(2, "0"),
       scheme: "absolute",
     };
   }

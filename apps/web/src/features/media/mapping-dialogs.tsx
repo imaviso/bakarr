@@ -43,6 +43,8 @@ interface ManualMappingDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
+const UNMAP_KEY = "__unmap__";
+
 export function BulkMappingDialog(props: BulkMappingDialogProps) {
   const filesQuery = useListFilesQuery(props.mediaId, { enabled: props.open });
   const bulkMapMutation = useBulkMapUnitsMutation();
@@ -52,11 +54,21 @@ export function BulkMappingDialog(props: BulkMappingDialogProps) {
   const files = filesQuery.data || [];
   const allEpisodes = props.episodes;
 
-  const handleMap = (unitNumber: number, filePath: string) => {
+  const handleOpenChange = (open: boolean) => {
+    if (!open) {
+      setMappings({});
+    }
+    props.onOpenChange(open);
+  };
+
+  const handleMap = (unitNumber: number, filePath: string | undefined) => {
     setMappings((previous) => {
-      const next = { ...previous };
-      next[unitNumber] = filePath;
-      return next;
+      if (filePath === undefined) {
+        const next = { ...previous };
+        delete next[unitNumber];
+        return next;
+      }
+      return { ...previous, [unitNumber]: filePath };
     });
   };
 
@@ -79,7 +91,6 @@ export function BulkMappingDialog(props: BulkMappingDialogProps) {
       {
         onSuccess: () => {
           props.onOpenChange(false);
-          setMappings({});
         },
       },
     );
@@ -88,7 +99,7 @@ export function BulkMappingDialog(props: BulkMappingDialogProps) {
   return (
     <Dialog
       isOpen={props.open}
-      onOpenChange={props.onOpenChange}
+      onOpenChange={handleOpenChange}
       className="sm:max-w-[800px] max-h-[90vh] flex flex-col"
     >
       <DialogHeader>
@@ -117,9 +128,8 @@ export function BulkMappingDialog(props: BulkMappingDialogProps) {
                     <Select
                       selectedKey={mappings[episode.number] ?? episode.file_path ?? null}
                       onSelectionChange={(value) => {
-                        if (value !== null) {
-                          handleMap(episode.number, String(value));
-                        }
+                        const key = value === null ? undefined : String(value);
+                        handleMap(episode.number, key === UNMAP_KEY ? undefined : key);
                       }}
                     >
                       <SelectTrigger className="w-full text-xs h-8">
@@ -127,7 +137,7 @@ export function BulkMappingDialog(props: BulkMappingDialogProps) {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectGroup>
-                          <SelectItem id="" textValue="(Unmap / No File)">
+                          <SelectItem id={UNMAP_KEY} textValue="(Unmap / No File)">
                             (Unmap / No File)
                           </SelectItem>
                           {files.map((file) => {
@@ -159,7 +169,7 @@ export function BulkMappingDialog(props: BulkMappingDialogProps) {
       </div>
 
       <DialogFooter className="mt-4">
-        <Button variant="outline" onPress={() => props.onOpenChange(false)}>
+        <Button variant="outline" onPress={() => handleOpenChange(false)}>
           Cancel
         </Button>
         <Button
@@ -179,6 +189,13 @@ export function ManualMappingDialog(props: ManualMappingDialogProps) {
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const files = filesQuery.data;
 
+  const handleOpenChange = (open: boolean) => {
+    if (!open) {
+      setSelectedFile(null);
+    }
+    props.onOpenChange(open);
+  };
+
   const handleSubmit = () => {
     const file = selectedFile;
     if (!file) {
@@ -194,14 +211,13 @@ export function ManualMappingDialog(props: ManualMappingDialogProps) {
       {
         onSuccess: () => {
           props.onOpenChange(false);
-          setSelectedFile(null);
         },
       },
     );
   };
 
   return (
-    <Dialog isOpen={props.open} onOpenChange={props.onOpenChange} className="sm:max-w-[600px]">
+    <Dialog isOpen={props.open} onOpenChange={handleOpenChange} className="sm:max-w-[600px]">
       <DialogHeader>
         <DialogTitle>Manual Mapping - MediaUnit {props.unitNumber}</DialogTitle>
         <DialogDescription>
@@ -276,7 +292,7 @@ export function ManualMappingDialog(props: ManualMappingDialogProps) {
       </div>
 
       <DialogFooter>
-        <Button variant="outline" onPress={() => props.onOpenChange(false)}>
+        <Button variant="outline" onPress={() => handleOpenChange(false)}>
           Cancel
         </Button>
         <Button onPress={handleSubmit} isDisabled={!selectedFile || mapMutation.isPending}>

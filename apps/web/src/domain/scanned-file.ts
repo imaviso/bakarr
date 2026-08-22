@@ -1,5 +1,5 @@
 import { clampConfidencePercent, formatDurationSeconds } from "~/domain/format";
-import type { RenamePreviewItem } from "~/api/contracts";
+import type { RenamePreviewMetadataSnapshot } from "~/api/contracts";
 
 export { formatDurationSeconds, formatFileSize } from "~/domain/format";
 
@@ -13,27 +13,8 @@ type MediaMetadataInput = {
   video_codec?: string | undefined;
 };
 
-type NamingMetadataSnapshot = {
-  air_date?: string | undefined;
-  audio_channels?: string | undefined;
-  audio_codec?: string | undefined;
+type NamingMetadataSnapshot = Omit<RenamePreviewMetadataSnapshot, "title"> & {
   duration_seconds?: number | undefined;
-  unit_title?: string | undefined;
-  group?: string | undefined;
-  quality?: string | undefined;
-  resolution?: string | undefined;
-  season?: number | undefined;
-  source_identity?: { label: string } | undefined;
-  title_source?:
-    | "preferred_english"
-    | "preferred_native"
-    | "preferred_romaji"
-    | "fallback_english"
-    | "fallback_native"
-    | "fallback_romaji"
-    | undefined;
-  video_codec?: string | undefined;
-  year?: number | undefined;
 };
 
 export function mediaMetadataBadges(input: MediaMetadataInput) {
@@ -140,9 +121,7 @@ export function formatNamingTitleSource(value?: NamingMetadataSnapshot["title_so
   }
 }
 
-export function namingMetadataBadges(
-  snapshot?: NamingMetadataSnapshot | RenamePreviewItem["metadata_snapshot"],
-) {
+export function namingMetadataBadges(snapshot?: NamingMetadataSnapshot) {
   if (!snapshot) {
     return [];
   }

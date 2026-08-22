@@ -127,10 +127,6 @@ export function formatNextAiringUnit(
   return `Unit ${nextAiring.unit_number} airs ${airingLabel}`;
 }
 
-export function hasEpisodeAired(airedDate?: string, now = new Date()) {
-  return isAired(airedDate, now);
-}
-
 export function formatEpisodeStatusTooltip(input: {
   aired?: string;
   downloaded: boolean;
@@ -141,7 +137,7 @@ export function formatEpisodeStatusTooltip(input: {
 }) {
   const status = input.downloaded
     ? "Downloaded"
-    : hasEpisodeAired(input.aired, input.now)
+    : isAired(input.aired, input.now)
       ? "Missing"
       : "Upcoming";
   const prefix = input.unitNumber ? `MediaUnit ${input.unitNumber}: ` : "";
@@ -250,24 +246,33 @@ function getAdjustedDateTimeParts(
   };
 }
 
-function getDateTimeParts(date: Date, timeZone?: string) {
-  const options: Intl.DateTimeFormatOptions = {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hourCycle: "h23",
-    ...(timeZone ? { timeZone } : {}),
-  };
+const dateTimePartsFormatterCache = new Map<string, Intl.DateTimeFormat>();
 
-  const formatter = new Intl.DateTimeFormat(undefined, options);
+function getDateTimePartsFormatter(timeZone?: string): Intl.DateTimeFormat {
+  const cacheKey = timeZone ?? "";
+  let formatter = dateTimePartsFormatterCache.get(cacheKey);
+  if (formatter === undefined) {
+    formatter = new Intl.DateTimeFormat(undefined, {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+      ...(timeZone ? { timeZone } : {}),
+    });
+    dateTimePartsFormatterCache.set(cacheKey, formatter);
+  }
+  return formatter;
+}
+
+function getDateTimeParts(date: Date, timeZone?: string) {
   const parts = Object.fromEntries(
-    formatter
+    getDateTimePartsFormatter(timeZone)
       .formatToParts(date)
       .filter((part) => part.type !== "literal")
       .map((part) => [part.type, part.value]),
-  ) as Record<string, string>;
+  );
 
   const day = Number(parts["day"]);
   const hour = Number(parts["hour"]);

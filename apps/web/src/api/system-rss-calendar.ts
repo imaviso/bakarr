@@ -1,9 +1,15 @@
-import { queryOptions, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { CalendarEvent, RssFeedCreateRequest } from "./contracts";
+import {
+  keepPreviousData,
+  queryOptions,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
+import type { RssFeedCreateRequest } from "./contracts";
 import { Schema } from "effect";
 import { CalendarEventSchema, RssFeedSchema } from "@bakarr/shared";
 import { API_BASE } from "~/api/constants";
-import { fetchJson, fetchUnit, runApiEffect } from "~/api/effect/api-client";
+import { apiUrl, fetchJson, fetchUnit, runApiEffect } from "~/api/effect/api-client";
 import { animeKeys } from "./keys";
 
 export function rssFeedsQueryOptions() {
@@ -99,18 +105,12 @@ export function calendarQueryOptions(start: Date, end: Date) {
       runApiEffect(
         fetchJson(
           Schema.mutable(Schema.Array(CalendarEventSchema)),
-          `${API_BASE}/calendar?start=${start.toISOString()}&end=${end.toISOString()}`,
+          apiUrl("/calendar", { start: start.toISOString(), end: end.toISOString() }),
           undefined,
           signal,
         ),
       ),
+    placeholderData: keepPreviousData,
     staleTime: 1000 * 60 * 10,
-  });
-}
-
-export function useCalendarQuery(start: Date, end: Date) {
-  return useQuery({
-    ...calendarQueryOptions(start, end),
-    placeholderData: (prev: CalendarEvent[] | undefined) => prev,
   });
 }

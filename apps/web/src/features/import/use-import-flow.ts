@@ -357,6 +357,13 @@ export function useImportFlow(options: ImportFlowOptions = {}) {
     setPath,
   });
 
+  const isTogglingCandidate = useCallback(
+    (candidateId: number) =>
+      importSelectionMutation.isPending &&
+      importSelectionMutation.variables?.candidate_id === candidateId,
+    [importSelectionMutation.isPending, importSelectionMutation.variables],
+  );
+
   return {
     activeAddCandidate,
     advanceAddCandidateDialog,
@@ -375,6 +382,7 @@ export function useImportFlow(options: ImportFlowOptions = {}) {
     inputMode: state.inputMode,
     isDragOver: state.isDragOver,
     isSearchOpen: state.isSearchOpen,
+    isTogglingCandidate,
     libraryIds,
     manualCandidates: state.manualCandidates,
     path: state.path,

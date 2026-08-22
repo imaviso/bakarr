@@ -13,6 +13,7 @@ interface CandidateCardProps {
   isSelected: boolean;
   isLocal: boolean;
   isManual: boolean;
+  isToggling?: boolean;
   onToggle: () => void;
   className?: string;
 }
@@ -21,7 +22,7 @@ export function CandidateCard(props: CandidateCardProps) {
   return (
     <div
       className={cn(
-        "relative overflow-hidden border bg-background transition-colors hover:",
+        "relative overflow-hidden border bg-background transition-colors",
         props.isSelected
           ? "border-primary bg-primary/10 ring-1 ring-primary/20"
           : "border-border hover:border-primary/50",
@@ -31,6 +32,7 @@ export function CandidateCard(props: CandidateCardProps) {
       <Toggle
         isSelected={props.isSelected}
         onChange={props.onToggle}
+        {...(props.isToggling === undefined ? {} : { isDisabled: props.isToggling })}
         className="h-auto w-full gap-3 rounded-none p-3 text-left font-normal hover:bg-transparent"
       >
         <div className="relative h-16 w-12 shrink-0 overflow-hidden bg-muted">
@@ -38,6 +40,9 @@ export function CandidateCard(props: CandidateCardProps) {
             <img
               src={props.candidate.cover_image}
               alt={animeDisplayTitle(props.candidate)}
+              loading="lazy"
+              width={48}
+              height={64}
               className="h-full w-full object-cover"
             />
           ) : (
@@ -47,7 +52,7 @@ export function CandidateCard(props: CandidateCardProps) {
           )}
           {props.isSelected && (
             <div className="absolute inset-0 flex items-center justify-center bg-primary/30">
-              <CheckIcon className="h-5 w-5 text-white drop-" />
+              <CheckIcon className="h-5 w-5 text-white" />
             </div>
           )}
         </div>

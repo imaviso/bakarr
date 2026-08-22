@@ -5,7 +5,6 @@ import {
   createDownloadEventsCursorPatch,
   LOGS_DOWNLOAD_EVENTS_SEARCH_KEYS,
 } from "~/domain/download/events-search";
-import type { DownloadEventsExportInput } from "~/api/contracts";
 import { useDownloadEventsExport } from "~/features/downloads/use-download-events-export";
 import type { LogsFilterParams } from "~/features/logs/use-logs-filters";
 
@@ -24,8 +23,6 @@ export function useLogsActions(options: UseLogsActionsOptions) {
   const [selectedDownloadEvent, setSelectedDownloadEvent] = useState<DownloadEvent | null>(null);
   const [selectedLog, setSelectedLog] = useState<SystemLog | null>(null);
 
-  const clearLogsWithToast = () => clearLogs.mutate();
-
   const exportLogs = (formatValue: "json" | "csv") => {
     const logsParams = options.logsParams;
     const url = getExportLogsUrl(
@@ -40,13 +37,6 @@ export function useLogsActions(options: UseLogsActionsOptions) {
     if (exportWindow) {
       exportWindow.opener = null;
     }
-  };
-
-  const exportDownloadEventsWithToast = (input: {
-    format: "json" | "csv";
-    exportInput: DownloadEventsExportInput;
-  }) => {
-    exportDownloadEvents(input.format, input.exportInput);
   };
 
   const goToPreviousDownloadEventsPage = () => {
@@ -71,8 +61,7 @@ export function useLogsActions(options: UseLogsActionsOptions) {
 
   return {
     clearLogs,
-    clearLogsWithToast,
-    exportDownloadEvents: exportDownloadEventsWithToast,
+    exportDownloadEvents,
     exportLogs,
     goToNextDownloadEventsPage,
     goToPreviousDownloadEventsPage,

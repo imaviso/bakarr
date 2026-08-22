@@ -1,8 +1,7 @@
-import { queryOptions, useQuery } from "@tanstack/react-query";
+import { queryOptions } from "@tanstack/react-query";
 import { Schema } from "effect";
 import { MissingUnitSchema } from "@bakarr/shared";
-import { API_BASE } from "~/api/constants";
-import { fetchJson, runApiEffect } from "~/api/effect/api-client";
+import { apiUrl, fetchJson, runApiEffect } from "~/api/effect/api-client";
 import { animeKeys } from "./keys";
 
 export function wantedQueryOptions(limit = 100) {
@@ -12,15 +11,11 @@ export function wantedQueryOptions(limit = 100) {
       runApiEffect(
         fetchJson(
           Schema.mutable(Schema.Array(MissingUnitSchema)),
-          `${API_BASE}/wanted/missing?limit=${limit}`,
+          apiUrl("/wanted/missing", { limit }),
           undefined,
           signal,
         ),
       ),
     staleTime: 1000 * 60 * 5,
   });
-}
-
-export function useWantedQuery(limit: number) {
-  return useQuery(wantedQueryOptions(limit));
 }

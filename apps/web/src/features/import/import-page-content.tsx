@@ -70,7 +70,12 @@ function ImportTopBar(props: { state: ImportPageState }) {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Link to="/media" search={DEFAULT_ANIME_SEARCH}>
-            <Button variant="ghost" size="icon" className="relative after:absolute after:-inset-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Back to media library"
+              className="relative after:absolute after:-inset-2"
+            >
               <ArrowLeftIcon className="h-4 w-4" />
             </Button>
           </Link>
@@ -264,7 +269,12 @@ function ImportScanStep(props: { state: ImportPageState }) {
                 <span className="text-sm font-mono text-muted-foreground truncate max-w-md">
                   {props.state.flow.path}
                 </span>
-                <Button variant="ghost" size="icon" onClick={props.state.clearPath}>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label="Clear path"
+                  onPress={props.state.clearPath}
+                >
                   <XIcon className="h-3 w-3" />
                 </Button>
               </>
@@ -365,6 +375,7 @@ function ImportReviewStep(props: { state: ImportPageState }) {
                   isSelected={props.state.flow.selectedCandidateIds.has(candidate.id)}
                   isLocal={props.state.flow.libraryIds.has(candidate.id)}
                   isManual={props.state.manualCandidateIds.has(candidate.id)}
+                  isToggling={props.state.flow.isTogglingCandidate(candidate.id)}
                   onToggle={() => props.state.flow.toggleCandidate(candidate)}
                   className=""
                 />

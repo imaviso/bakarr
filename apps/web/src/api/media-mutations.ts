@@ -1,10 +1,10 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
 import type { AddAnimeRequest, Media, SearchDownloadRequest } from "./contracts";
-import { MediaSchema, AsyncOperationAcceptedSchema } from "@bakarr/shared";
+import { MediaSchema } from "@bakarr/shared";
 import { API_BASE } from "~/api/constants";
 import { fetchJson, fetchUnit, runApiEffect } from "~/api/effect/api-client";
 import { animeKeys } from "./keys";
+import { useTriggerTaskMutation } from "./trigger-task";
 
 export function useAddMediaMutation() {
   const queryClient = useQueryClient();
@@ -16,7 +16,8 @@ export function useAddMediaMutation() {
           body: data,
         }),
       ),
-    onSuccess: (newAnime) => {
+    onSuccess: async (newAnime) => {
+      await queryClient.cancelQueries({ queryKey: animeKeys.lists() });
       queryClient.setQueryData<Media[]>(animeKeys.lists(), (old) => {
         if (!old) return [newAnime];
         return [...old, newAnime].toSorted((a, b) => a.title.romaji.localeCompare(b.title.romaji));
@@ -31,7 +32,8 @@ export function useDeleteMediaMutation() {
   return useMutation({
     mutationFn: (id: number) =>
       runApiEffect(fetchUnit(`${API_BASE}/media/${id}`, { method: "DELETE" })),
-    onSettled: () => {
+    onSettled: (_data, _error, id) => {
+      queryClient.removeQueries({ queryKey: animeKeys.detail(id) });
       void queryClient.invalidateQueries({ queryKey: animeKeys.lists() });
       void queryClient.invalidateQueries({ queryKey: animeKeys.system.status() });
     },
@@ -167,50 +169,30 @@ export function useUpdateMediaReleaseProfilesMutation() {
 }
 
 export function useRefreshUnitsMutation() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (mediaId: number) =>
-      runApiEffect(
-        fetchJson(AsyncOperationAcceptedSchema, `${API_BASE}/media/${mediaId}/units/refresh`, {
-          method: "POST",
-        }),
-      ),
-    onSuccess: (accepted, mediaId) => {
-      toast.info(accepted.message);
-      void queryClient.invalidateQueries({ queryKey: animeKeys.detail(mediaId) });
-      void queryClient.invalidateQueries({ queryKey: animeKeys.units(mediaId) });
-      void queryClient.invalidateQueries({ queryKey: animeKeys.lists() });
-      void queryClient.invalidateQueries({ queryKey: animeKeys.system.tasks.all() });
-      if (accepted.task_id !== undefined) {
-        void queryClient.invalidateQueries({
-          queryKey: animeKeys.system.tasks.byId(accepted.task_id),
-        });
-      }
-    },
+  return useTriggerTaskMutation<number>({
+    endpoint: (mediaId) => `/media/${mediaId}/units/refresh`,
+    invalidate: (mediaId) => [
+      animeKeys.detail(mediaId),
+      animeKeys.units(mediaId),
+      animeKeys.lists(),
+    ],
   });
 }
 
 export function useScanFolderMutation() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (mediaId: number) =>
-      runApiEffect(
-        fetchJson(AsyncOperationAcceptedSchema, `${API_BASE}/media/${mediaId}/units/scan`, {
-          method: "POST",
-        }),
-      ),
-    onSuccess: (accepted, mediaId) => {
-      toast.info(accepted.message);
-      void queryClient.invalidateQueries({ queryKey: animeKeys.units(mediaId) });
-      void queryClient.invalidateQueries({ queryKey: animeKeys.detail(mediaId) });
-      void queryClient.invalidateQueries({ queryKey: animeKeys.lists() });
-      void queryClient.invalidateQueries({ queryKey: animeKeys.unitScanTasks.all(mediaId) });
-      if (accepted.task_id !== undefined) {
-        void queryClient.invalidateQueries({
-          queryKey: animeKeys.unitScanTasks.byId(mediaId, accepted.task_id),
-        });
-      }
-    },
+  return useTriggerTaskMutation<number>({
+    endpoint: (mediaId) => `/media/${mediaId}/units/scan`,
+    invalidate: (mediaId) => [
+      animeKeys.units(mediaId),
+      animeKeys.detail(mediaId),
+      animeKeys.files(mediaId),
+      animeKeys.unitScanTasks.all(mediaId),
+      animeKeys.renamePreview(mediaId),
+    ],
+    taskKeys: (accepted, mediaId) =>
+      accepted.task_id === undefined
+        ? []
+        : [animeKeys.unitScanTasks.byId(mediaId, accepted.task_id)],
   });
 }
 

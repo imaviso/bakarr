@@ -6,6 +6,7 @@ import { Button } from "~/components/ui/button";
 import { Popover, PopoverTrigger } from "~/components/ui/popover";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
+import { formatFieldErrors } from "~/api/effect/errors";
 
 const EditMappingSchema = Schema.Struct({
   episode: Schema.Number.pipe(Schema.int(), Schema.nonNegative()),
@@ -86,6 +87,11 @@ export function EditMappingPopover(props: EditMappingPopoverProps) {
                     onBlur={field.handleBlur}
                     onChange={(event) => field.handleChange(event.currentTarget.valueAsNumber)}
                   />
+                  {field.state.meta.errors.length > 0 && (
+                    <p className="text-xs text-destructive">
+                      {formatFieldErrors(field.state.meta.errors)}
+                    </p>
+                  )}
                 </div>
               )}
             </form.Field>
@@ -104,14 +110,28 @@ export function EditMappingPopover(props: EditMappingPopoverProps) {
                     onBlur={field.handleBlur}
                     onChange={(event) => field.handleChange(event.currentTarget.valueAsNumber)}
                   />
+                  {field.state.meta.errors.length > 0 && (
+                    <p className="text-xs text-destructive">
+                      {formatFieldErrors(field.state.meta.errors)}
+                    </p>
+                  )}
                 </div>
               )}
             </form.Field>
           </div>
           <div className="flex justify-end pt-2">
-            <Button type="submit" size="sm" className="h-8 text-xs">
-              Save Changes
-            </Button>
+            <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
+              {([canSubmit, isSubmitting]) => (
+                <Button
+                  type="submit"
+                  size="sm"
+                  className="h-8 text-xs"
+                  {...(isSubmitting ? { isDisabled: true } : { isDisabled: !canSubmit })}
+                >
+                  Save Changes
+                </Button>
+              )}
+            </form.Subscribe>
           </div>
         </form>
       </Popover>

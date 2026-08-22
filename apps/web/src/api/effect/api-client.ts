@@ -1,5 +1,6 @@
 import { Cause, Effect, Exit, Option, Schema } from "effect";
 import { getAuthHeaders } from "~/app/auth-state";
+import { API_BASE } from "~/api/constants";
 
 export class ApiClientError extends Schema.TaggedError<ApiClientError>()("ApiClientError", {
   message: Schema.String,
@@ -28,7 +29,30 @@ export async function runApiEffect<A, E>(effect: Effect.Effect<A, E>): Promise<A
   const failure = Cause.failureOption(exit.cause);
   if (Option.isSome(failure)) throw failure.value;
 
-  throw Cause.pretty(exit.cause);
+  throw Cause.squash(exit.cause);
+}
+
+function isAbortError(error: unknown): boolean {
+  return error instanceof DOMException && error.name === "AbortError";
+}
+
+export function apiUrl(
+  path: string,
+  params?: Record<string, string | number | boolean | undefined>,
+): string {
+  if (params === undefined) return `${API_BASE}${path}`;
+
+  const search = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    // Preserve 0/false handling: omit only undefined, null-ish empty string, and
+    // non-positive media_id (callers previously used `if (mediaId)` check).
+    if (value === undefined) continue;
+    if (typeof value === "string" && value.length === 0) continue;
+    if (key === "media_id" && typeof value === "number" && value <= 0) continue;
+    search.set(key, String(value));
+  }
+  const query = search.toString();
+  return query.length > 0 ? `${API_BASE}${path}?${query}` : `${API_BASE}${path}`;
 }
 
 export interface ApiRequestOptions {
@@ -54,6 +78,8 @@ function serializeBody(body: unknown): BodyInit | undefined {
   return JSON.stringify(body);
 }
 
+// Merges request headers with auth headers. authHeadersInit override kept for testability;
+// defaults to module-level getAuthHeaders() singleton.
 export function mergeHeaders(options?: ApiRequestOptions, authHeadersInit?: HeadersInit): Headers {
   const headers = new Headers(options?.headers);
   const authHeaders = new Headers(authHeadersInit ?? getAuthHeaders());
@@ -71,7 +97,7 @@ export const fetchResponse = Effect.fn("ApiClient.fetchResponse")(
   ): Effect.Effect<Response, ApiClientError | ApiUnauthorizedError> =>
     Effect.gen(function* () {
       const body = serializeBody(options?.body);
-      const headers = mergeHeaders(options, getAuthHeaders());
+      const headers = mergeHeaders(options);
 
       if (
         body !== undefined &&
@@ -100,7 +126,12 @@ export const fetchResponse = Effect.fn("ApiClient.fetchResponse")(
           }
           return fetch(endpoint, init);
         },
-        catch: (cause) => new ApiClientError({ message: `Network error: ${String(cause)}` }),
+        catch: (cause) => {
+          if (isAbortError(cause)) {
+            throw cause;
+          }
+          return new ApiClientError({ message: `Network error: ${String(cause)}` });
+        },
       });
 
       if (response.status === 401) {
@@ -108,7 +139,8 @@ export const fetchResponse = Effect.fn("ApiClient.fetchResponse")(
           try: () => response.text(),
           catch: () => new ApiClientError({ message: "Unauthorized" }),
         });
-        return yield* Effect.fail(new ApiUnauthorizedError({ message: text || "Unauthorized" }));
+        const message = text.length > 0 && text.length <= 200 ? text : "Unauthorized";
+        return yield* Effect.fail(new ApiUnauthorizedError({ message }));
       }
 
       if (!response.ok) {
@@ -116,9 +148,11 @@ export const fetchResponse = Effect.fn("ApiClient.fetchResponse")(
           try: () => response.text(),
           catch: (cause) => new ApiClientError({ message: String(cause) }),
         });
+        const message =
+          text.length > 0 && text.length <= 200 ? text : `API error: ${response.status}`;
         return yield* Effect.fail(
           new ApiClientError({
-            message: text || `API error: ${response.status}`,
+            message,
             status: response.status,
           }),
         );
@@ -138,11 +172,15 @@ export const fetchJson = <A, I>(
     const response = yield* fetchResponse(endpoint, options, signal);
     const json = yield* Effect.tryPromise({
       try: () => response.json(),
-      catch: (cause) =>
-        new ApiDecodeError({
+      catch: (cause) => {
+        if (isAbortError(cause)) {
+          throw cause;
+        }
+        return new ApiDecodeError({
           message: `Failed to parse JSON: ${String(cause)}`,
           cause,
-        }),
+        });
+      },
     });
 
     return yield* Schema.decodeUnknown(schema)(json).pipe(

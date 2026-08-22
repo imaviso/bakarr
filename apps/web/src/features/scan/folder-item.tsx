@@ -8,16 +8,9 @@ import {
   MagnifyingGlassIcon,
   TrashIcon,
 } from "@phosphor-icons/react";
+import { memo } from "react";
 import { MediaDiscoveryRow } from "~/features/media/media-discovery";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "~/components/ui/alert-dialog";
+import { ConfirmDialog } from "~/components/shared/confirm-dialog";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import {
@@ -40,7 +33,9 @@ import {
   formatConfidencePercent,
 } from "~/features/scan/folder-item-utils";
 
-export function FolderItem(props: {
+// Memoized to avoid re-render of off-screen folders during virtual scrolling.
+// Parent must keep `folder` object stable (or use key-based identity) for memo to be effective.
+export const FolderItem = memo(function FolderItem(props: {
   folder: UnmappedFolder;
   onOpenManualMatch?: (input: {
     folder: UnmappedFolder;
@@ -75,7 +70,7 @@ export function FolderItem(props: {
                 <span className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
                   Search
                 </span>
-                {(props.folder.search_queries ?? []).slice(0, 3).map((query) => (
+                {props.folder.search_queries.slice(0, 3).map((query) => (
                   <Badge key={query} variant="outline" className="h-5 px-1.5 text-xs">
                     {query}
                   </Badge>
@@ -264,27 +259,18 @@ export function FolderItem(props: {
           </Button>
         </div>
 
-        <AlertDialog isOpen={state.resetConfirmOpen} onOpenChange={state.setResetConfirmOpen}>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Reset match for {props.folder.name}?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This clears the cached error state and suggested matches for this folder, then queues
-              it for a fresh background match.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onPress={() => {
-                state.handleControl("reset");
-                state.setResetConfirmOpen(false);
-              }}
-            >
-              Reset match
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialog>
+        <ConfirmDialog
+          title={`Reset match for ${props.folder.name}?`}
+          description="This clears the cached error state and suggested matches for this folder, then queues it for a fresh background match."
+          confirmLabel="Reset match"
+          destructive
+          isOpen={state.resetConfirmOpen}
+          onOpenChange={state.setResetConfirmOpen}
+          onConfirm={() => {
+            state.handleControl("reset");
+            state.setResetConfirmOpen(false);
+          }}
+        />
 
         <Button
           type="button"
@@ -325,4 +311,4 @@ export function FolderItem(props: {
       </div>
     </div>
   );
-}
+});

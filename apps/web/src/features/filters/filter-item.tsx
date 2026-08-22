@@ -8,7 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "~/components/ui/select";
-import { Input } from "~/components/ui/input";
+import { DebouncedInput } from "~/components/shared/debounced-input";
 import { useFilterContext } from "./filter-context";
 import type { FilterOperator, FilterState } from "./types";
 
@@ -99,12 +99,12 @@ export function FilterItem(props: FilterItemProps) {
       </Select>
 
       {column?.type === "text" || column?.type === "date" ? (
-        <Input
+        <DebouncedInput
           type={column?.type === "date" ? "date" : "text"}
           value={
             Array.isArray(props.filter.value) ? props.filter.value[0] || "" : props.filter.value
           }
-          onChange={(event) => handleValueChange(event.currentTarget.value)}
+          onCommit={handleValueChange}
           placeholder={column?.placeholder || "Enter value"}
           className="h-8 w-[160px] px-2 bg-background focus-visible:ring-0 focus-visible:ring-offset-0 border-muted-foreground/20"
         />

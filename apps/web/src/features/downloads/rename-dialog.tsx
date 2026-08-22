@@ -18,7 +18,7 @@ import {
   TableHeader,
   TableRow,
 } from "~/components/ui/table";
-import { useExecuteRenameMutation, useRenamePreviewQuery } from "~/api/auth";
+import { useExecuteRenameMutation, useRenamePreviewQuery } from "~/api/media";
 import { formatNamingTitleSource, namingMetadataBadges } from "~/domain/scanned-file";
 
 interface RenameDialogProps {

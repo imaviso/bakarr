@@ -12,6 +12,7 @@ import {
 } from "~/components/ui/dialog";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
+import { formatFieldErrors } from "~/api/effect/errors";
 
 const EditPathSchema = Schema.Struct({
   path: Schema.String.pipe(Schema.minLength(1)),
@@ -68,13 +69,20 @@ export function EditPathDialog(props: EditPathDialogProps) {
           <Label htmlFor="edit-path-input">Path</Label>
           <form.Field name="path">
             {(field) => (
-              <Input
-                id="edit-path-input"
-                value={field.state.value}
-                onBlur={field.handleBlur}
-                onChange={(event) => field.handleChange(event.currentTarget.value)}
-                placeholder="/path/to/media"
-              />
+              <>
+                <Input
+                  id="edit-path-input"
+                  value={field.state.value}
+                  onBlur={field.handleBlur}
+                  onChange={(event) => field.handleChange(event.currentTarget.value)}
+                  placeholder="/path/to/media"
+                />
+                {field.state.meta.errors.length > 0 && (
+                  <p className="text-xs text-destructive">
+                    {formatFieldErrors(field.state.meta.errors)}
+                  </p>
+                )}
+              </>
             )}
           </form.Field>
         </div>
@@ -93,9 +101,13 @@ export function EditPathDialog(props: EditPathDialogProps) {
           <Button type="button" variant="outline" onPress={() => props.onOpenChange(false)}>
             Cancel
           </Button>
-          <Button type="submit" isDisabled={props.isPending}>
-            {props.isPending ? "Updating..." : "Save"}
-          </Button>
+          <form.Subscribe selector={(state) => [state.canSubmit]}>
+            {([canSubmit]) => (
+              <Button type="submit" isDisabled={!canSubmit || props.isPending}>
+                {props.isPending ? "Updating..." : "Save"}
+              </Button>
+            )}
+          </form.Subscribe>
         </DialogFooter>
       </form>
     </Dialog>

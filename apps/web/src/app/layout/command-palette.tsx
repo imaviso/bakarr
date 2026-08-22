@@ -11,7 +11,7 @@ import {
   GearIcon,
 } from "@phosphor-icons/react";
 import { useNavigate } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Command,
   CommandDialog,
@@ -144,8 +144,6 @@ export function CommandPalette() {
   const [open, setOpen] = useState(false);
   const [inputValue, setInputValue] = useState("");
   const navigate = useNavigate();
-  const openRef = useRef(open);
-  openRef.current = open;
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {

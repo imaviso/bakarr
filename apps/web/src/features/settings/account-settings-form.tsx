@@ -76,9 +76,6 @@ export function AccountSettingsForm() {
           new_password: value.newPassword,
         },
         {
-          onError: (error) => {
-            toast.error(errorMessage(error, "Failed to change password"));
-          },
           onSuccess: () => {
             formApi.reset();
             clearAuthState();
@@ -98,9 +95,6 @@ export function AccountSettingsForm() {
 
   const handleRegenerateApiKey = () => {
     regenerateApiKey.mutate(undefined, {
-      onError: (error) => {
-        toast.error(errorMessage(error, "Failed to regenerate API key"));
-      },
       onSuccess: (response) => {
         replaceApiKey(response.api_key);
         toast.success("API key regenerated. Copy it now and store it safely.");
@@ -202,7 +196,7 @@ export function AccountSettingsForm() {
                         variant="ghost"
                         size="icon"
                         className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
-                        onClick={() =>
+                        onPress={() =>
                           setVisibility((prev) => ({ ...prev, newPassword: !prev.newPassword }))
                         }
                         aria-label={visibility.newPassword ? "Hide password" : "Show password"}

@@ -121,6 +121,9 @@ function parseExportCountHeader(
   name: string,
   value: string | null,
 ): Effect.Effect<number, DownloadEventsExportError> {
+  if (value === null) {
+    return Effect.fail(new DownloadEventsExportError({ message: `Missing ${name} header` }));
+  }
   const parsed = Number(value);
   if (!Number.isFinite(parsed) || parsed < 0) {
     return Effect.fail(new DownloadEventsExportError({ message: `Invalid ${name} export header` }));
@@ -165,7 +168,24 @@ function exportDownloadEvents(
   ApiClientError | ApiUnauthorizedError | DownloadEventsExportError
 > {
   return Effect.gen(function* () {
-    const response = yield* requestDownloadEventsExport(input, format);
+    const response = yield* fetchResponse(getDownloadEventsExportUrl(input, format), {
+      method: "GET",
+    });
+
+    const generatedAt = response.headers.get("x-bakarr-generated-at") ?? undefined;
+    const exported = yield* parseExportCountHeader(
+      "x-bakarr-exported-events",
+      response.headers.get("x-bakarr-exported-events"),
+    );
+    const limit = yield* parseExportCountHeader(
+      "x-bakarr-export-limit",
+      response.headers.get("x-bakarr-export-limit"),
+    );
+    const total = yield* parseExportCountHeader(
+      "x-bakarr-total-events",
+      response.headers.get("x-bakarr-total-events"),
+    );
+
     const payload = yield* Effect.tryPromise({
       try: () => response.blob(),
       catch: (cause) =>
@@ -191,20 +211,6 @@ function exportDownloadEvents(
         }),
     });
 
-    const generatedAt = response.headers.get("x-bakarr-generated-at") ?? undefined;
-    const exported = yield* parseExportCountHeader(
-      "x-bakarr-exported-events",
-      response.headers.get("x-bakarr-exported-events"),
-    );
-    const limit = yield* parseExportCountHeader(
-      "x-bakarr-export-limit",
-      response.headers.get("x-bakarr-export-limit"),
-    );
-    const total = yield* parseExportCountHeader(
-      "x-bakarr-total-events",
-      response.headers.get("x-bakarr-total-events"),
-    );
-
     return {
       exported,
       format,
@@ -213,14 +219,5 @@ function exportDownloadEvents(
       total,
       truncated: parseExportTruncatedHeader(response.headers.get("x-bakarr-export-truncated")),
     };
-  });
-}
-
-function requestDownloadEventsExport(
-  input: DownloadEventsExportInput,
-  format: "json" | "csv",
-): Effect.Effect<Response, ApiClientError | ApiUnauthorizedError> {
-  return fetchResponse(getDownloadEventsExportUrl(input, format), {
-    method: "GET",
   });
 }

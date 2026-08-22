@@ -64,6 +64,10 @@ interface SearchDialogContentProps {
   setFilter: (value: string | null) => void;
   setOpen: (open: boolean) => void;
   setQuery: (value: string) => void;
+  sortCol: keyof NyaaSearchResult;
+  sortAsc: boolean;
+  setSortCol: (column: keyof NyaaSearchResult) => void;
+  setSortAsc: (ascending: boolean) => void;
 }
 
 export function SearchDialogContent(props: SearchDialogContentProps) {
@@ -139,6 +143,10 @@ export function SearchDialogContent(props: SearchDialogContentProps) {
             filter={props.filter}
             unitLabel={unitLabel}
             onGrab={handleGrab}
+            sortAsc={props.sortAsc}
+            sortCol={props.sortCol}
+            setSortAsc={props.setSortAsc}
+            setSortCol={props.setSortCol}
           />
         )}
       </div>
@@ -169,12 +177,20 @@ function SearchResults(props: {
   filter: string;
   unitLabel: string;
   onGrab: () => void;
+  sortCol: keyof NyaaSearchResult;
+  sortAsc: boolean;
+  setSortCol: (column: keyof NyaaSearchResult) => void;
+  setSortAsc: (ascending: boolean) => void;
 }) {
   const state = useSearchDialogResultsState({
     mediaId: props.mediaId,
     category: props.category,
     filter: props.filter,
     query: props.query,
+    sortCol: props.sortCol,
+    sortAsc: props.sortAsc,
+    setSortCol: props.setSortCol,
+    setSortAsc: props.setSortAsc,
   });
 
   if (state.searchQuery.isLoading) {

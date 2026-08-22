@@ -1,9 +1,8 @@
 import { queryOptions, skipToken, useQuery } from "@tanstack/react-query";
-import type { OperationTask, OperationTaskKey } from "./contracts";
+import type { OperationTask } from "./contracts";
 import { OperationTaskSchema } from "@bakarr/shared";
 import { API_BASE } from "~/api/constants";
 import { fetchJson, runApiEffect } from "~/api/effect/api-client";
-import { Schema } from "effect";
 import { animeKeys } from "./keys";
 
 const ACTIVE_TASK_STATUSES = new Set(["queued", "running"]);
@@ -20,68 +19,8 @@ export function operationTaskPollInterval(task: OperationTask | undefined) {
   return isTaskActive(task) ? 1000 : false;
 }
 
-function buildTaskQueryParams(input?: {
-  readonly mediaId?: number;
-  readonly taskKey?: OperationTaskKey;
-}) {
-  const params = new URLSearchParams();
-
-  if (input?.mediaId !== undefined) {
-    params.set("media_id", String(input.mediaId));
-  }
-
-  if (input?.taskKey !== undefined) {
-    params.set("task_key", input.taskKey);
-  }
-
-  const query = params.toString();
-  return query.length > 0 ? `?${query}` : "";
-}
-
-export function systemTasksQueryOptions(input?: {
-  readonly mediaId?: number;
-  readonly taskKey?: OperationTaskKey;
-}) {
+export function systemTaskQueryOptions(taskId: number | undefined) {
   return queryOptions({
-    queryKey: [...animeKeys.system.tasks.all(), input ?? {}] as const,
-    queryFn: ({ signal }) =>
-      runApiEffect(
-        fetchJson(
-          Schema.Array(OperationTaskSchema),
-          `${API_BASE}/system/tasks${buildTaskQueryParams({
-            ...(input?.mediaId === undefined ? {} : { mediaId: input.mediaId }),
-            ...(input?.taskKey === undefined ? {} : { taskKey: input.taskKey }),
-          })}`,
-          undefined,
-          signal,
-        ),
-      ),
-    refetchInterval: (query) => {
-      const data = query.state.data;
-      return data?.some((task) => isTaskActive(task)) ? 1000 : false;
-    },
-  });
-}
-
-export function useSystemTasksQuery(
-  input: { readonly mediaId?: number; readonly taskKey?: OperationTaskKey } = {},
-) {
-  return useQuery(systemTasksQueryOptions(input));
-}
-
-export function systemTaskQueryOptions(taskId: number) {
-  return queryOptions({
-    queryKey: animeKeys.system.tasks.byId(taskId),
-    queryFn: ({ signal }) =>
-      runApiEffect(
-        fetchJson(OperationTaskSchema, `${API_BASE}/system/tasks/${taskId}`, undefined, signal),
-      ),
-    refetchInterval: (query) => operationTaskPollInterval(query.state.data),
-  });
-}
-
-export function useSystemTaskQuery(taskId: number | undefined) {
-  return useQuery({
     queryKey:
       taskId === undefined ? animeKeys.system.tasks.pending : animeKeys.system.tasks.byId(taskId),
     queryFn:
@@ -96,54 +35,16 @@ export function useSystemTaskQuery(taskId: number | undefined) {
                 signal,
               ),
             ),
-    enabled: taskId !== undefined,
     refetchInterval: (query) => operationTaskPollInterval(query.state.data),
   });
 }
 
-export function libraryImportTasksQueryOptions(input?: { readonly mediaId?: number }) {
+export function useSystemTaskQuery(taskId: number | undefined) {
+  return useQuery(systemTaskQueryOptions(taskId));
+}
+
+export function libraryImportTaskQueryOptions(taskId: number | undefined) {
   return queryOptions({
-    queryKey: [...animeKeys.library.importTasks.all(), input ?? {}] as const,
-    queryFn: ({ signal }) =>
-      runApiEffect(
-        fetchJson(
-          Schema.Array(OperationTaskSchema),
-          `${API_BASE}/library/import/tasks${buildTaskQueryParams(
-            input?.mediaId === undefined ? undefined : { mediaId: input.mediaId },
-          )}`,
-          undefined,
-          signal,
-        ),
-      ),
-    refetchInterval: (query) => {
-      const data = query.state.data;
-      return data?.some((task) => isTaskActive(task)) ? 1000 : false;
-    },
-  });
-}
-
-export function useLibraryImportTasksQuery(input: { readonly mediaId?: number } = {}) {
-  return useQuery(libraryImportTasksQueryOptions(input));
-}
-
-export function libraryImportTaskQueryOptions(taskId: number) {
-  return queryOptions({
-    queryKey: animeKeys.library.importTasks.byId(taskId),
-    queryFn: ({ signal }) =>
-      runApiEffect(
-        fetchJson(
-          OperationTaskSchema,
-          `${API_BASE}/library/import/tasks/${taskId}`,
-          undefined,
-          signal,
-        ),
-      ),
-    refetchInterval: (query) => operationTaskPollInterval(query.state.data),
-  });
-}
-
-export function useLibraryImportTaskQuery(taskId: number | undefined) {
-  return useQuery({
     queryKey:
       taskId === undefined
         ? animeKeys.library.importTasks.pending
@@ -160,71 +61,37 @@ export function useLibraryImportTaskQuery(taskId: number | undefined) {
                 signal,
               ),
             ),
-    enabled: taskId !== undefined,
     refetchInterval: (query) => operationTaskPollInterval(query.state.data),
   });
 }
 
-export function animeScanTasksQueryOptions(mediaId: number) {
-  return queryOptions({
-    queryKey: animeKeys.unitScanTasks.all(mediaId),
-    queryFn: ({ signal }) =>
-      runApiEffect(
-        fetchJson(
-          Schema.Array(OperationTaskSchema),
-          `${API_BASE}/media/${mediaId}/units/scan/tasks`,
-          undefined,
-          signal,
-        ),
-      ),
-    refetchInterval: (query) => {
-      const data = query.state.data;
-      return data?.some((task) => isTaskActive(task)) ? 1000 : false;
-    },
-  });
-}
-
-export function useAnimeScanTasksQuery(mediaId: number | undefined) {
-  return useQuery({
-    queryKey:
-      mediaId === undefined
-        ? animeKeys.unitScanTasks.pending
-        : animeKeys.unitScanTasks.all(mediaId),
-    queryFn:
-      mediaId === undefined
-        ? skipToken
-        : ({ signal }) =>
-            runApiEffect(
-              fetchJson(
-                Schema.Array(OperationTaskSchema),
-                `${API_BASE}/media/${mediaId}/units/scan/tasks`,
-                undefined,
-                signal,
-              ),
-            ),
-    enabled: mediaId !== undefined,
-    refetchInterval: (query) => {
-      const data = query.state.data;
-      return data?.some((task) => isTaskActive(task)) ? 1000 : false;
-    },
-  });
+export function useLibraryImportTaskQuery(taskId: number | undefined) {
+  return useQuery(libraryImportTaskQueryOptions(taskId));
 }
 
 export function animeScanTaskQueryOptions(input: {
-  readonly mediaId: number;
-  readonly taskId: number;
+  readonly mediaId?: number;
+  readonly taskId?: number;
 }) {
+  const ready = input.mediaId !== undefined && input.taskId !== undefined;
+  const mediaId = input.mediaId ?? 0;
+  const taskId = input.taskId ?? 0;
+
   return queryOptions({
-    queryKey: animeKeys.unitScanTasks.byId(input.mediaId, input.taskId),
-    queryFn: ({ signal }) =>
-      runApiEffect(
-        fetchJson(
-          OperationTaskSchema,
-          `${API_BASE}/media/${input.mediaId}/units/scan/tasks/${input.taskId}`,
-          undefined,
-          signal,
-        ),
-      ),
+    queryKey: ready
+      ? animeKeys.unitScanTasks.byId(mediaId, taskId)
+      : animeKeys.unitScanTasks.pending,
+    queryFn: ready
+      ? ({ signal }) =>
+          runApiEffect(
+            fetchJson(
+              OperationTaskSchema,
+              `${API_BASE}/media/${mediaId}/units/scan/tasks/${taskId}`,
+              undefined,
+              signal,
+            ),
+          )
+      : skipToken,
     refetchInterval: (query) => operationTaskPollInterval(query.state.data),
   });
 }
@@ -233,24 +100,5 @@ export function useAnimeScanTaskQuery(input: {
   readonly mediaId?: number;
   readonly taskId?: number;
 }) {
-  return useQuery({
-    queryKey:
-      input.mediaId === undefined || input.taskId === undefined
-        ? animeKeys.unitScanTasks.pending
-        : animeKeys.unitScanTasks.byId(input.mediaId, input.taskId),
-    queryFn:
-      input.mediaId === undefined || input.taskId === undefined
-        ? skipToken
-        : ({ signal }) =>
-            runApiEffect(
-              fetchJson(
-                OperationTaskSchema,
-                `${API_BASE}/media/${input.mediaId}/units/scan/tasks/${input.taskId}`,
-                undefined,
-                signal,
-              ),
-            ),
-    enabled: input.mediaId !== undefined && input.taskId !== undefined,
-    refetchInterval: (query) => operationTaskPollInterval(query.state.data),
-  });
+  return useQuery(animeScanTaskQueryOptions(input));
 }

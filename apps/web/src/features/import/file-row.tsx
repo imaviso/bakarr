@@ -53,12 +53,9 @@ export function FileRow(props: FileRowProps) {
           isSelected={props.isSelected}
           isDisabled={!hasMatch}
           aria-label={`Select ${props.file.filename}`}
-          onChange={(checked) => {
-            const id = matchedAnimeId;
-            if (checked && id) {
-              props.onToggle(id);
-            } else if (!checked && id) {
-              props.onToggle(id);
+          onChange={() => {
+            if (matchedAnimeId) {
+              props.onToggle(matchedAnimeId);
             }
           }}
           className="shrink-0"

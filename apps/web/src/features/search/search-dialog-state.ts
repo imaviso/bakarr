@@ -26,6 +26,8 @@ export function useSearchDialogState(defaultQuery: string, mediaKind: MediaKind)
     mediaKind === "anime" ? "all_anime" : "all_literature",
   );
   const [filter, setFilter] = useState<string>("no_filter");
+  const [sortCol, setSortCol] = useState<keyof NyaaSearchResult>("pub_date");
+  const [sortAsc, setSortAsc] = useState(false);
 
   return {
     category,
@@ -37,6 +39,10 @@ export function useSearchDialogState(defaultQuery: string, mediaKind: MediaKind)
     setFilter,
     setOpen,
     setQuery,
+    setSortAsc,
+    setSortCol,
+    sortAsc,
+    sortCol,
   };
 }
 
@@ -45,9 +51,12 @@ export function useSearchDialogResultsState(input: {
   category: string;
   filter: string;
   query: string;
+  sortCol: keyof NyaaSearchResult;
+  sortAsc: boolean;
+  setSortCol: (column: keyof NyaaSearchResult) => void;
+  setSortAsc: (ascending: boolean) => void;
 }) {
-  const [sortCol, setSortCol] = useState<keyof NyaaSearchResult>("pub_date");
-  const [sortAsc, setSortAsc] = useState(false);
+  const { sortCol, sortAsc } = input;
 
   const searchQuery = useNyaaSearchQuery(input.query, {
     mediaId: input.mediaId,
@@ -88,12 +97,12 @@ export function useSearchDialogResultsState(input: {
 
   const toggleSort = (column: keyof NyaaSearchResult) => {
     if (sortCol === column) {
-      setSortAsc(!sortAsc);
+      input.setSortAsc(!sortAsc);
       return;
     }
 
-    setSortCol(column);
-    setSortAsc(false);
+    input.setSortCol(column);
+    input.setSortAsc(false);
   };
 
   return {

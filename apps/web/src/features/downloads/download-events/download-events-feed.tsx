@@ -133,7 +133,7 @@ function DownloadEventsFeedRow(props: DownloadEventsFeedRowProps) {
       <DownloadEventCard event={props.event} formatTimestamp={props.formatTimestamp} />
       {onSelectEvent && (
         <div className="flex justify-end">
-          <Button variant="outline" size="sm" onClick={() => onSelectEvent(props.event)}>
+          <Button variant="outline" size="sm" onPress={() => onSelectEvent(props.event)}>
             Details
           </Button>
         </div>

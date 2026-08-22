@@ -7,6 +7,7 @@ import type {
 } from "~/api/contracts";
 import { brandMediaId } from "@bakarr/shared";
 import { formatReleaseSearchDecisionReason, inferBatchKind } from "~/domain/batch-kind";
+import { buildParsedEpisodeIdentity } from "~/domain/release/download";
 
 export interface NyaaSelectionMetadata {
   chosen_from_seadex?: boolean | undefined;
@@ -82,21 +83,12 @@ export function decisionReasonFromEpisodeResult(result: UnitSearchResult) {
       isBatch:
         (result.parsed_unit_numbers?.length ?? 0) > 1 ||
         (result.parsed_unit_label !== undefined && result.parsed_unit_numbers === undefined),
-      sourceIdentity: result.parsed_air_date
-        ? {
-            air_dates: [result.parsed_air_date],
-            label: result.parsed_unit_label ?? result.parsed_air_date,
-            scheme: "daily",
-          }
-        : result.parsed_unit_numbers
-          ? {
-              unit_numbers: result.parsed_unit_numbers,
-              label:
-                result.parsed_unit_label ??
-                String(result.parsed_unit_numbers[0] ?? "").padStart(2, "0"),
-              scheme: "absolute",
-            }
-          : undefined,
+      sourceIdentity: buildParsedEpisodeIdentity({
+        parsedAirDate: result.parsed_air_date,
+        parsedEpisodeLabel: result.parsed_unit_label,
+        parsedEpisodeNumbers: result.parsed_unit_numbers,
+        labelFallback: true,
+      }),
     }),
     isSeaDex: result.is_seadex,
     isSeaDexBest: result.is_seadex_best,

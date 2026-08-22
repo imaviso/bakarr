@@ -93,7 +93,7 @@ export function releaseFlagBadgeClass(kind: ReleaseFlagKind) {
       return "border-primary/20 text-primary bg-primary/10";
     case "remake":
       return "border-warning/20 text-warning bg-warning/5";
+    default:
+      return "border-border text-muted-foreground bg-muted";
   }
-
-  return "border-border text-muted-foreground bg-muted";
 }

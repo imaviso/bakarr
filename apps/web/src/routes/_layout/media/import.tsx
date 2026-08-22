@@ -8,7 +8,7 @@ import { mediaListQueryOptions } from "~/api/media";
 import { isTaskActive } from "~/api/operations-tasks";
 import { profilesQueryOptions } from "~/api/profiles";
 import { systemConfigQueryOptions } from "~/api/system-config";
-import { usePageTitle } from "~/domain/page-title";
+import { usePageTitle } from "~/app/page-title";
 import { parseImportSearch } from "./-import-search";
 
 export const Route = createFileRoute("/_layout/media/import")({

@@ -3,7 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { useRef } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useContainerWidth } from "~/hooks/use-container-width";
-import { DeleteAnimeDialog } from "~/features/media/delete-media-dialog";
+import { ConfirmDialog } from "~/components/shared/confirm-dialog";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { Card } from "~/components/ui/card";
@@ -159,9 +159,16 @@ export function AnimeGridView(props: AnimeLibraryViewProps) {
                       <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                     </Link>
                     <div className="absolute right-2 top-2 opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100 has-[:focus-visible]:opacity-100">
-                      <DeleteAnimeDialog
-                        mediaLabel={mediaKindLabel(media.media_kind)}
-                        title={media.title.english || media.title.romaji}
+                      <ConfirmDialog
+                        title={`Delete ${mediaKindLabel(media.media_kind)}`}
+                        description={`Are you sure you want to delete "${
+                          media.title.english || media.title.romaji
+                        }"? This action cannot be undone.`}
+                        confirmLabel="Delete"
+                        destructive
+                        isPending={
+                          props.deleteMedia.isPending && props.deleteMedia.variables === media.id
+                        }
                         onConfirm={() => props.deleteMedia.mutate(media.id)}
                         trigger={
                           <Button
@@ -391,9 +398,16 @@ export function AnimeListView(props: AnimeLibraryViewProps) {
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex items-center justify-end gap-1">
-                    <DeleteAnimeDialog
-                      mediaLabel={mediaKindLabel(media.media_kind)}
-                      title={media.title.english || media.title.romaji}
+                    <ConfirmDialog
+                      title={`Delete ${mediaKindLabel(media.media_kind)}`}
+                      description={`Are you sure you want to delete "${
+                        media.title.english || media.title.romaji
+                      }"? This action cannot be undone.`}
+                      confirmLabel="Delete"
+                      destructive
+                      isPending={
+                        props.deleteMedia.isPending && props.deleteMedia.variables === media.id
+                      }
                       onConfirm={() => props.deleteMedia.mutate(media.id)}
                       trigger={
                         <Button

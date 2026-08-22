@@ -1,4 +1,4 @@
-import type { MediaSeason } from "./contracts";
+import type { DownloadEventsFilterInput, MediaSeason } from "./contracts";
 
 export const animeKeys = {
   all: ["media"] as const,
@@ -13,27 +13,13 @@ export const animeKeys = {
   units: (id: number) => ["media", "detail", id, "units"] as const,
   files: (id: number) => ["media", "detail", id, "files"] as const,
   search: {
-    query: (q: string) => ["media", "search", q] as const,
+    query: (query: string, mediaKind: string) => ["media", "search", { query, mediaKind }] as const,
     units: (mediaId: number, unitNumber: number) =>
       ["search", "units", mediaId, unitNumber] as const,
     releases: (query: string, options?: { mediaId?: number; category?: string; filter?: string }) =>
       ["search", "releases", { query, ...options }] as const,
   },
   anilist: (id: number, mediaKind = "anime") => ["media", "anilist", mediaKind, id] as const,
-  seasonal: (input?: {
-    season?: MediaSeason | undefined;
-    year?: number | undefined;
-    limit?: number | undefined;
-    page?: number | undefined;
-  }) =>
-    [
-      "media",
-      "seasonal",
-      input?.season ?? null,
-      input?.year ?? null,
-      input?.limit ?? null,
-      input?.page ?? null,
-    ] as const,
   seasonalInfinite: (input?: {
     season?: MediaSeason | undefined;
     year?: number | undefined;
@@ -66,17 +52,7 @@ export const animeKeys = {
       all: () => ["downloads", "tasks"] as const,
       byId: (taskId: number) => ["downloads", "tasks", taskId] as const,
     },
-    events: (input?: {
-      mediaId?: number;
-      cursor?: string;
-      downloadId?: number;
-      direction?: "next" | "prev";
-      endDate?: string;
-      eventType?: string;
-      limit?: number;
-      startDate?: string;
-      status?: string;
-    }) => ["downloads", "events", input ?? {}] as const,
+    events: (input?: DownloadEventsFilterInput) => ["downloads", "events", input ?? {}] as const,
     queue: () => ["downloads", "queue"] as const,
     history: () => ["downloads", "history"] as const,
   },
@@ -110,13 +86,6 @@ export const animeKeys = {
     },
     jobs: () => ["system", "jobs"] as const,
     status: () => ["system", "status"] as const,
-    logs: (
-      page: number,
-      level?: string,
-      eventType?: string,
-      startDate?: string,
-      endDate?: string,
-    ) => ["system", "logs", { page, level, eventType, startDate, endDate }] as const,
     logsInfinite: (input?: {
       level?: string | undefined;
       eventType?: string | undefined;

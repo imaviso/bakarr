@@ -7,7 +7,7 @@ export function FilterActions() {
   return (
     <>
       {ctx.filters.length > 0 && (
-        <Button variant="ghost" size="sm" onClick={ctx.clearAllFilters}>
+        <Button variant="ghost" size="sm" onPress={ctx.clearAllFilters}>
           Clear all
         </Button>
       )}

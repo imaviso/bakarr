@@ -12,12 +12,12 @@ import {
   startOfWeek,
   subMonths,
 } from "date-fns";
-import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "~/components/ui/button";
 import { Card } from "~/components/ui/card";
 import { PageShell } from "~/app/layout/page-shell";
 import { SectionLabel } from "~/components/shared/section-label";
-import { useCalendarQuery } from "~/api/system-rss-calendar";
+import { calendarQueryOptions } from "~/api/system-rss-calendar";
 import { useSystemConfigQuery } from "~/api/system-config";
 import {
   formatAiringTimeWithPreferences,
@@ -26,13 +26,25 @@ import {
 } from "~/domain/media/metadata";
 import { cn } from "~/infra/utils";
 
-export function AnimeCalendar() {
-  const [currentDate, setCurrentDate] = useState(new Date());
+const toMonthKey = (date: Date) => format(date, "yyyy-MM");
+
+function parseMonthKey(month: string): Date {
+  const parsed = new Date(`${month}-15T00:00:00`);
+  return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+}
+
+interface AnimeCalendarProps {
+  readonly month?: string | undefined;
+  readonly onMonthChange: (month: string | undefined) => void;
+}
+
+export function AnimeCalendar(props: AnimeCalendarProps) {
+  const currentDate = props.month ? parseMonthKey(props.month) : new Date();
 
   const fetchStart = subMonths(startOfWeek(startOfMonth(currentDate)), 1);
   const fetchEnd = addMonths(endOfWeek(endOfMonth(currentDate)), 1);
 
-  const calendarQuery = useCalendarQuery(fetchStart, fetchEnd);
+  const calendarQuery = useQuery(calendarQueryOptions(fetchStart, fetchEnd));
   const configQuery = useSystemConfigQuery();
   const isLoading =
     calendarQuery.isPending || calendarQuery.isPlaceholderData || configQuery.isPending;
@@ -69,25 +81,27 @@ export function AnimeCalendar() {
     return eventsByDay[dateKey] || [];
   };
 
-  const handlePrevMonth = () => setCurrentDate((d) => subMonths(d, 1));
-  const handleNextMonth = () => setCurrentDate((d) => addMonths(d, 1));
-  const handleToday = () => setCurrentDate(new Date());
+  const handlePrevMonth = () =>
+    props.onMonthChange(toMonthKey(subMonths(startOfMonth(currentDate), 1)));
+  const handleNextMonth = () =>
+    props.onMonthChange(toMonthKey(addMonths(startOfMonth(currentDate), 1)));
+  const handleToday = () => props.onMonthChange(undefined);
 
   return (
     <PageShell scroll="inner">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" onClick={handlePrevMonth} aria-label="Previous month">
+          <Button variant="ghost" size="icon" onPress={handlePrevMonth} aria-label="Previous month">
             <CaretLeftIcon className="h-4 w-4" />
           </Button>
           <h2 className="w-40 text-center font-mono text-base font-medium tracking-tight">
             {format(currentDate, "MMMM yyyy")}
           </h2>
-          <Button variant="ghost" size="icon" onClick={handleNextMonth} aria-label="Next month">
+          <Button variant="ghost" size="icon" onPress={handleNextMonth} aria-label="Next month">
             <CaretRightIcon className="h-4 w-4" />
           </Button>
         </div>
-        <Button variant="outline" size="sm" onClick={handleToday}>
+        <Button variant="outline" size="sm" onPress={handleToday}>
           Today
         </Button>
       </div>

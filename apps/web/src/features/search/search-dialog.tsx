@@ -57,6 +57,10 @@ export function SearchDialog(props: SearchDialogProps) {
               state.setFilter(value);
             }
           }}
+          sortAsc={state.sortAsc}
+          sortCol={state.sortCol}
+          setSortAsc={state.setSortAsc}
+          setSortCol={state.setSortCol}
         />
       </Dialog>
     </DialogTrigger>

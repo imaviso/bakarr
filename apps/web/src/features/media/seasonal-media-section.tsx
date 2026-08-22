@@ -1,11 +1,12 @@
 import { CaretLeftIcon, CaretRightIcon, InfoIcon } from "@phosphor-icons/react";
 import { useSuspenseInfiniteQuery } from "@tanstack/react-query";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { MediaSearchResultCard } from "~/features/media/media-search-result-card";
 import { Alert, AlertDescription } from "~/components/ui/alert";
 import { Button } from "~/components/ui/button";
 import { useContainerWidth } from "~/hooks/use-container-width";
+import { useInfiniteNearEnd } from "~/hooks/use-infinite-near-end";
 import type { MediaSearchResult } from "~/api/contracts";
 import { seasonalMediaInfiniteQueryOptions } from "~/api/media";
 import { formatSeasonWindowLabel } from "~/domain/seasonal-navigation";
@@ -76,32 +77,14 @@ export function SeasonalAnimeSection(props: SeasonalAnimeSectionProps) {
     return allResults.slice(startIdx, startIdx + cols);
   };
 
-  const lastRequestedLength = useRef(-1);
-  const lastVirtualIndex = virtualRows.at(-1)?.index ?? -1;
-
-  useEffect(() => {
-    if (!hasNextPage) {
-      lastRequestedLength.current = -1;
-      return;
-    }
-    if (lastVirtualIndex < 0) return;
-
-    if (
-      lastVirtualIndex >= rowCount - 2 &&
-      lastRequestedLength.current !== allResults.length &&
-      !isFetchingNextPage
-    ) {
-      lastRequestedLength.current = allResults.length;
-      void fetchNextPage();
-    }
-  }, [
+  useInfiniteNearEnd({
     hasNextPage,
-    lastVirtualIndex,
-    rowCount,
-    allResults.length,
     isFetchingNextPage,
-    fetchNextPage,
-  ]);
+    total: allResults.length,
+    threshold: 2,
+    lastIndex: virtualRows.at(-1)?.index ?? -1,
+    fetchNextPage: () => void fetchNextPage(),
+  });
 
   return (
     <section className="flex flex-col flex-1 min-h-0 overflow-hidden gap-4">
@@ -118,7 +101,7 @@ export function SeasonalAnimeSection(props: SeasonalAnimeSectionProps) {
             variant="outline"
             size="icon"
             className="h-9 w-9"
-            onClick={props.onPrevious}
+            onPress={props.onPrevious}
             aria-label="Previous season"
           >
             <CaretLeftIcon className="h-4 w-4" />
@@ -130,7 +113,7 @@ export function SeasonalAnimeSection(props: SeasonalAnimeSectionProps) {
             variant="outline"
             size="icon"
             className="h-9 w-9"
-            onClick={props.onNext}
+            onPress={props.onNext}
             aria-label="Next season"
           >
             <CaretRightIcon className="h-4 w-4" />

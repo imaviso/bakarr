@@ -5,11 +5,9 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { toast } from "sonner";
-import type { Config } from "./contracts";
+import type { BackgroundJobStatus, Config } from "./contracts";
 import { Schema } from "effect";
 import {
-  AsyncOperationAcceptedSchema,
   BackgroundJobStatusSchema,
   ConfigSchema,
   ObservabilityStatusSchema,
@@ -19,6 +17,7 @@ import {
 import { API_BASE } from "~/api/constants";
 import { fetchJson, fetchUnit, runApiEffect } from "~/api/effect/api-client";
 import { animeKeys } from "./keys";
+import { useTriggerTaskMutation } from "./trigger-task";
 
 export function systemConfigQueryOptions() {
   return queryOptions({
@@ -67,64 +66,28 @@ export function useSystemStatusQuery() {
 }
 
 export function useTriggerScanMutation() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: () =>
-      runApiEffect(
-        fetchJson(AsyncOperationAcceptedSchema, `${API_BASE}/system/tasks/scan`, {
-          method: "POST",
-        }),
-      ),
-    onSuccess: (accepted) => {
-      toast.info(accepted.message);
-      void queryClient.invalidateQueries({ queryKey: animeKeys.system.tasks.all() });
-      if (accepted.task_id !== undefined) {
-        void queryClient.invalidateQueries({
-          queryKey: animeKeys.system.tasks.byId(accepted.task_id),
-        });
-      }
-    },
-  });
+  return useTriggerTaskMutation({ endpoint: () => "/system/tasks/scan" });
 }
 
 export function useTriggerRssCheckMutation() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: () =>
-      runApiEffect(
-        fetchJson(AsyncOperationAcceptedSchema, `${API_BASE}/system/tasks/rss`, { method: "POST" }),
-      ),
-    onSuccess: (accepted) => {
-      toast.info(accepted.message);
-      void queryClient.invalidateQueries({ queryKey: animeKeys.system.tasks.all() });
-      if (accepted.task_id !== undefined) {
-        void queryClient.invalidateQueries({
-          queryKey: animeKeys.system.tasks.byId(accepted.task_id),
-        });
-      }
-    },
-  });
+  return useTriggerTaskMutation({ endpoint: () => "/system/tasks/rss" });
 }
 
 export function useTriggerMetadataRefreshMutation() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: () =>
-      runApiEffect(
-        fetchJson(AsyncOperationAcceptedSchema, `${API_BASE}/system/tasks/metadata-refresh`, {
-          method: "POST",
-        }),
-      ),
-    onSuccess: (accepted) => {
-      toast.info(accepted.message);
-      void queryClient.invalidateQueries({ queryKey: animeKeys.system.tasks.all() });
-      if (accepted.task_id !== undefined) {
-        void queryClient.invalidateQueries({
-          queryKey: animeKeys.system.tasks.byId(accepted.task_id),
-        });
-      }
-    },
-  });
+  return useTriggerTaskMutation({ endpoint: () => "/system/tasks/metadata-refresh" });
+}
+
+function jobsRefetchInterval(query: {
+  readonly state: { readonly data: readonly BackgroundJobStatus[] | undefined };
+}): number | false {
+  const unmappedScan = query.state.data?.find((job) => job.name === "unmapped_scan");
+  return unmappedScan?.is_running ? 1000 : false;
+}
+
+function composePollIntervals(a: number | false | undefined, b: number | false): number | false {
+  if (a === false || b === false) return false;
+  if (a === undefined) return b;
+  return Math.min(a, b);
 }
 
 export function systemJobsQueryOptions() {
@@ -140,11 +103,7 @@ export function systemJobsQueryOptions() {
         ),
       ),
     staleTime: 1000 * 10,
-    refetchInterval: (query) => {
-      const unmappedScan = query.state.data?.find((job) => job.name === "unmapped_scan");
-
-      return unmappedScan?.is_running ? 1000 : false;
-    },
+    refetchInterval: jobsRefetchInterval,
   });
 }
 
@@ -153,7 +112,10 @@ export function useSystemJobsQuery(options?: { refetchInterval?: number | false 
 
   return useQuery({
     ...query,
-    ...(options?.refetchInterval === undefined ? {} : { refetchInterval: options.refetchInterval }),
+    refetchInterval:
+      options?.refetchInterval === undefined
+        ? jobsRefetchInterval
+        : (q) => composePollIntervals(options?.refetchInterval, jobsRefetchInterval(q)),
   });
 }
 

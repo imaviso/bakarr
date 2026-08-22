@@ -75,11 +75,12 @@ export function SizeInput(props: {
             setDraftUnit(parsed.unit);
           }}
           onInput={(event) => {
-            const nextAmount = event.currentTarget.value;
-            setDraftAmount(nextAmount);
-            commit(nextAmount, draftUnit);
+            setDraftAmount(event.currentTarget.value);
           }}
-          onBlur={() => setIsFocused(false)}
+          onBlur={() => {
+            commit(draftAmount, draftUnit);
+            setIsFocused(false);
+          }}
           placeholder="0"
           className="flex-1"
         />

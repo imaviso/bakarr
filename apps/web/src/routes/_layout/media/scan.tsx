@@ -7,7 +7,7 @@ import {
 } from "@phosphor-icons/react";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { GeneralError } from "~/components/shared/general-error";
 import { PageShell } from "~/app/layout/page-shell";
 import { BackgroundMatchingCard } from "~/features/scan/background-matching-card";
@@ -17,15 +17,7 @@ import { EmptyScanState } from "~/features/scan/empty-scan-state";
 import { FolderItem } from "~/features/scan/folder-item";
 import { ManualMatchSearch } from "~/features/scan/manual-match-search";
 import { StatChip } from "~/features/scan/stat-chip";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "~/components/ui/alert-dialog";
+import { ConfirmDialog } from "~/components/shared/confirm-dialog";
 import { Button } from "~/components/ui/button";
 import { Dialog, DialogDescription, DialogHeader, DialogTitle } from "~/components/ui/dialog";
 import {
@@ -40,7 +32,7 @@ import type {
   ScannerMatchStatus,
   UnmappedFolder,
 } from "~/api/contracts";
-import { usePageTitle } from "~/domain/page-title";
+import { usePageTitle } from "~/app/page-title";
 import { cn } from "~/infra/utils";
 
 export const Route = createFileRoute("/_layout/media/scan")({
@@ -71,7 +63,11 @@ function LibraryScanPage() {
 
   const folders = scanState.folders;
   const folderList = folders;
-  const foldersByPath = new Map(folderList.map((folder) => [folder.path, folder]));
+  const foldersByPath = useMemo(
+    () => new Map(folderList.map((folder) => [folder.path, folder])),
+    [folderList],
+  );
+  const folderPaths = useMemo(() => [...foldersByPath.keys()], [foldersByPath]);
 
   const isScanning = scanState.is_scanning;
   const hasOutstandingMatches = scanState.has_outstanding_matches;
@@ -174,7 +170,7 @@ function LibraryScanPage() {
         isWorkerRunning={isWorkerRunning}
         isScanning={isScanning}
         matchStatus={matchStatus}
-        folderPaths={[...foldersByPath.keys()]}
+        folderPaths={folderPaths}
         foldersByPath={foldersByPath}
         onOpenManualMatch={(dialogState) => setManualMatchDialog(dialogState)}
       />
@@ -308,34 +304,19 @@ interface ScanDialogsProps {
 function ScanDialogs(props: ScanDialogsProps) {
   return (
     <>
-      <AlertDialog
+      <ConfirmDialog
+        title={props.confirmBulkMeta?.title ?? ""}
+        description={props.confirmBulkMeta?.description ?? ""}
+        confirmLabel={props.confirmBulkMeta?.actionLabel ?? "Confirm"}
+        destructive={props.confirmBulkAction === "reset_failed"}
         isOpen={props.confirmBulkAction !== null}
         onOpenChange={(open) => {
           if (!open) {
             props.onCancelBulkAction();
           }
         }}
-      >
-        <AlertDialogHeader>
-          <AlertDialogTitle>{props.confirmBulkMeta?.title ?? ""}</AlertDialogTitle>
-          <AlertDialogDescription>
-            {props.confirmBulkMeta?.description ?? ""}
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction
-            {...(props.confirmBulkAction === "reset_failed"
-              ? {
-                  className: "bg-destructive text-destructive-foreground hover:bg-destructive/90",
-                }
-              : {})}
-            onPress={props.onConfirmBulkAction}
-          >
-            {props.confirmBulkMeta?.actionLabel ?? "Confirm"}
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialog>
+        onConfirm={props.onConfirmBulkAction}
+      />
 
       <Dialog
         isOpen={props.manualMatchDialog !== null}

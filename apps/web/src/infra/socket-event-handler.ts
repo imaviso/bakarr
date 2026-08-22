@@ -7,7 +7,7 @@ import { getNotificationToastCopy } from "~/domain/notification-metadata";
 import {
   getNotificationPreferenceKeyForEvent,
   readNotificationPreferences,
-} from "~/domain/notification-preferences";
+} from "~/infra/notification-preferences";
 
 export { decodeNotificationEventWire };
 

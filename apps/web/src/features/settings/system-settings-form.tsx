@@ -1,4 +1,5 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { SystemSettingsAutomationSections } from "~/features/settings/system-settings-automation-sections";
 import { useSystemSettingsForm } from "~/features/settings/system-settings-form-hook";
 import { SystemSettingsGeneralSections } from "~/features/settings/system-settings-general-sections";
@@ -15,16 +16,20 @@ import {
 } from "~/api/system-config";
 import type { Config } from "~/api/contracts";
 
-export function GeneralSettingsForm(props: { mode: ConfigSettingsMode }) {
+export function GeneralSettingsForm(props: { activeMode: ConfigSettingsMode }) {
   const { data: config } = useSuspenseQuery(systemConfigQueryOptions());
   const updateConfig = useUpdateSystemConfigMutation();
 
   return (
     <SystemForm
-      mode={props.mode}
+      activeMode={props.activeMode}
       defaultValues={config}
       onSubmit={(values) => {
-        updateConfig.mutate(values);
+        updateConfig.mutate(values, {
+          onSuccess: () => {
+            toast.success("Settings saved");
+          },
+        });
       }}
       isSaving={updateConfig.isPending}
     />
@@ -34,7 +39,7 @@ export function GeneralSettingsForm(props: { mode: ConfigSettingsMode }) {
 function SystemForm(props: {
   defaultValues: Config;
   isSaving?: boolean;
-  mode: ConfigSettingsMode;
+  activeMode: ConfigSettingsMode;
   onSubmit: (values: Config) => void;
 }) {
   const form = useSystemSettingsForm({
@@ -51,8 +56,10 @@ function SystemForm(props: {
   const latestSystemTask = useSystemTaskQuery(latestSystemTaskId);
   const isSystemTaskRunning =
     latestSystemTask.data !== undefined && isTaskActive(latestSystemTask.data);
-  const showsGeneral = props.mode === "general";
-  const showsAutomation = props.mode === "automation";
+
+  // Both mode sections stay mounted so unsaved edits survive tab switches.
+  const showsGeneral = props.activeMode === "general";
+  const showsAutomation = props.activeMode === "automation";
 
   const handleTriggerScan = () => {
     triggerScan.mutate(undefined);
@@ -76,9 +83,11 @@ function SystemForm(props: {
       onSubmit={submitSystemSettingsForm}
       className="space-y-8 pb-24 max-w-3xl"
     >
-      {showsGeneral && <SystemSettingsGeneralSections form={form} />}
+      <div className={showsGeneral ? undefined : "hidden"}>
+        <SystemSettingsGeneralSections form={form} />
+      </div>
 
-      {showsAutomation && (
+      <div className={showsAutomation ? undefined : "hidden"}>
         <SystemSettingsAutomationSections
           form={form}
           systemStatus={systemStatus.data}
@@ -89,7 +98,7 @@ function SystemForm(props: {
           triggerRssPending={triggerRss.isPending || isSystemTaskRunning}
           triggerMetadataRefreshPending={triggerMetadataRefresh.isPending || isSystemTaskRunning}
         />
-      )}
+      </div>
 
       <div className="border-t border-border pt-4 pb-2">
         <form.Subscribe selector={(state) => [state.canSubmit]}>

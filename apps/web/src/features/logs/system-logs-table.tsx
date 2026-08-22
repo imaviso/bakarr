@@ -6,8 +6,9 @@ import {
   InfoIcon,
   SpinnerIcon,
 } from "@phosphor-icons/react";
-import { useEffect, useRef, type ReactNode } from "react";
+import { useRef, type ReactNode } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
+import { useInfiniteNearEnd } from "~/hooks/use-infinite-near-end";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { Skeleton } from "~/components/ui/skeleton";
@@ -46,7 +47,6 @@ export function SystemLogsTable(props: SystemLogsTableProps) {
   } = props;
 
   const logsScrollRef = useRef<HTMLDivElement>(null);
-  const lastRequestedLength = useRef(-1);
 
   const rowVirtualizer = useVirtualizer({
     count: logs.length,
@@ -61,27 +61,14 @@ export function SystemLogsTable(props: SystemLogsTableProps) {
   const logsPaddingTop = firstVirtualRow ? firstVirtualRow.start : 0;
   const logsPaddingBottom = lastVirtualRow ? rowVirtualizer.getTotalSize() - lastVirtualRow.end : 0;
 
-  const lastVirtualRowIndex = lastVirtualRow?.index ?? -1;
-
-  useEffect(() => {
-    if (!hasNextPage) {
-      lastRequestedLength.current = -1;
-      return;
-    }
-
-    if (lastVirtualRowIndex < 0) {
-      return;
-    }
-
-    if (
-      lastVirtualRowIndex >= logs.length - 20 &&
-      lastRequestedLength.current !== logs.length &&
-      !isFetchingNextPage
-    ) {
-      lastRequestedLength.current = logs.length;
-      onFetchNextPage();
-    }
-  }, [hasNextPage, logs.length, isFetchingNextPage, onFetchNextPage, lastVirtualRowIndex]);
+  useInfiniteNearEnd({
+    hasNextPage,
+    isFetchingNextPage,
+    total: logs.length,
+    threshold: 20,
+    lastIndex: lastVirtualRow?.index ?? -1,
+    fetchNextPage: onFetchNextPage,
+  });
 
   return (
     <CardShell

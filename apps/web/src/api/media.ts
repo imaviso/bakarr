@@ -2,24 +2,27 @@ import {
   infiniteQueryOptions,
   keepPreviousData,
   queryOptions,
-  useInfiniteQuery,
+  useMutation,
   useQuery,
+  useQueryClient,
 } from "@tanstack/react-query";
-import type { Media, MediaSeason, MediaKind } from "./contracts";
+import type { Media, MediaKind, MediaSeason } from "./contracts";
 import {
   MediaListResponseSchema,
   MediaSchema,
   MediaSearchResponseSchema,
   MediaSearchResultSchema,
+  RenamePreviewItemSchema,
+  RenameResultSchema,
   MediaUnitSchema,
   UnitSearchResultSchema,
-  SeasonalMediaResponseSchema,
   SearchResultsSchema,
+  SeasonalMediaResponseSchema,
   VideoFileSchema,
 } from "@bakarr/shared";
 import { Schema } from "effect";
 import { API_BASE } from "~/api/constants";
-import { fetchJson, runApiEffect } from "~/api/effect/api-client";
+import { apiUrl, fetchJson, runApiEffect } from "~/api/effect/api-client";
 import { animeKeys } from "./keys";
 
 export function mediaListQueryOptions() {
@@ -34,7 +37,7 @@ export function mediaListQueryOptions() {
         const page = await runApiEffect(
           fetchJson(
             MediaListResponseSchema,
-            `${API_BASE}/media?limit=${pageLimit}&offset=${offset}`,
+            apiUrl("/media", { limit: pageLimit, offset }),
             undefined,
             signal,
           ),
@@ -58,7 +61,7 @@ export function mediaListQueryOptions() {
 export function useMediaListQuery(options?: { enabled?: boolean }) {
   return useQuery({
     ...mediaListQueryOptions(),
-    ...(options?.enabled === undefined ? {} : { enabled: options.enabled }),
+    enabled: options?.enabled ?? true,
   });
 }
 
@@ -68,36 +71,6 @@ export function mediaDetailsQueryOptions(id: number) {
     queryFn: ({ signal }) =>
       runApiEffect(fetchJson(MediaSchema, `${API_BASE}/media/${id}`, undefined, signal)),
     staleTime: 1000 * 60 * 5, // 5 minutes
-  });
-}
-
-export function useMediaDetailsQuery(id: number) {
-  return useQuery({
-    ...mediaDetailsQueryOptions(id),
-    enabled: !!id,
-  });
-}
-
-export function unitsQueryOptions(mediaId: number) {
-  return queryOptions({
-    queryKey: animeKeys.units(mediaId),
-    queryFn: ({ signal }) =>
-      runApiEffect(
-        fetchJson(
-          Schema.Array(MediaUnitSchema),
-          `${API_BASE}/media/${mediaId}/units`,
-          undefined,
-          signal,
-        ),
-      ),
-    staleTime: 1000 * 60 * 5,
-  });
-}
-
-export function useUnitsQuery(mediaId: number) {
-  return useQuery({
-    ...unitsQueryOptions(mediaId),
-    enabled: !!mediaId,
   });
 }
 
@@ -124,14 +97,30 @@ export function useListFilesQuery(mediaId: number, options?: { enabled?: boolean
   });
 }
 
+export function unitsQueryOptions(mediaId: number) {
+  return queryOptions({
+    queryKey: animeKeys.units(mediaId),
+    queryFn: ({ signal }) =>
+      runApiEffect(
+        fetchJson(
+          Schema.Array(MediaUnitSchema),
+          `${API_BASE}/media/${mediaId}/units`,
+          undefined,
+          signal,
+        ),
+      ),
+    staleTime: 1000 * 60 * 5,
+  });
+}
+
 export function mediaSearchQueryOptions(query: string, mediaKind: MediaKind = "anime") {
   return queryOptions({
-    queryKey: animeKeys.search.query(`${mediaKind}:${query}`),
+    queryKey: animeKeys.search.query(query, mediaKind),
     queryFn: ({ signal }) =>
       runApiEffect(
         fetchJson(
           MediaSearchResponseSchema,
-          `${API_BASE}/media/search?q=${encodeURIComponent(query)}&media_kind=${mediaKind}`,
+          apiUrl("/media/search", { q: query, media_kind: mediaKind }),
           undefined,
           signal,
         ),
@@ -187,23 +176,20 @@ export function nyaaSearchQueryOptions(
 
   return queryOptions({
     queryKey: animeKeys.search.releases(query, queryKeyOptions),
-    queryFn: ({ signal }) => {
-      const params = new URLSearchParams();
-      params.append("query", query);
-      if (options.mediaId) {
-        params.append("media_id", options.mediaId.toString());
-      }
-      if (options.category) params.append("category", options.category);
-      if (options.filter) params.append("filter", options.filter);
-      return runApiEffect(
+    queryFn: ({ signal }) =>
+      runApiEffect(
         fetchJson(
           SearchResultsSchema,
-          `${API_BASE}/search/releases?${params.toString()}`,
+          apiUrl("/search/releases", {
+            query,
+            media_id: options.mediaId,
+            category: options.category,
+            filter: options.filter,
+          }),
           undefined,
           signal,
         ),
-      );
-    },
+      ),
     staleTime: 60 * 1000,
   });
 }
@@ -236,62 +222,12 @@ export function mediaByAnilistIdQueryOptions(id: number, mediaKind: MediaKind = 
       runApiEffect(
         fetchJson(
           MediaSearchResultSchema,
-          `${API_BASE}/media/anilist/${id}?media_kind=${mediaKind}`,
+          apiUrl(`/media/anilist/${id}`, { media_kind: mediaKind }),
           undefined,
           signal,
         ),
       ),
     staleTime: 1000 * 60 * 60,
-  });
-}
-
-export function useMediaByAnilistIdQuery(id: number | null, mediaKind: MediaKind = "anime") {
-  return useQuery({
-    ...mediaByAnilistIdQueryOptions(id ?? 0, mediaKind),
-    enabled: id !== null && id > 0,
-  });
-}
-
-export function seasonalMediaQueryOptions(input?: {
-  season?: MediaSeason;
-  year?: number;
-  limit?: number;
-  page?: number;
-}) {
-  const season = input?.season;
-  const year = input?.year;
-  const limit = input?.limit ?? 12;
-  const page = input?.page ?? 1;
-
-  const params = new URLSearchParams();
-  if (season !== undefined) params.append("season", season);
-  if (year !== undefined) params.append("year", String(year));
-  params.append("limit", String(limit));
-  params.append("page", String(page));
-
-  return queryOptions({
-    queryKey: animeKeys.seasonal({ season, year, limit, page }),
-    queryFn: ({ signal }) =>
-      runApiEffect(
-        fetchJson(
-          SeasonalMediaResponseSchema,
-          `${API_BASE}/media/seasonal?${params.toString()}`,
-          undefined,
-          signal,
-        ),
-      ),
-    staleTime: 1000 * 60 * 5, // 5 minutes
-  });
-}
-
-export function useSeasonalMediaQuery(input?: {
-  season?: MediaSeason;
-  year?: number;
-  limit?: number;
-  page?: number;
-}) {
-  return useQuery({
-    ...seasonalMediaQueryOptions(input),
   });
 }
 
@@ -328,14 +264,56 @@ export function seasonalMediaInfiniteQueryOptions(input?: {
   });
 }
 
-export function useSeasonalMediaInfiniteQuery(input?: {
-  season?: MediaSeason;
-  year?: number;
-  limit?: number;
-  enabled?: boolean;
-}) {
-  return useInfiniteQuery({
-    ...seasonalMediaInfiniteQueryOptions(input),
-    enabled: input?.enabled ?? true,
+export function renamePreviewQueryOptions(id: number) {
+  return queryOptions({
+    queryKey: animeKeys.renamePreview(id),
+    queryFn: ({ signal }) =>
+      runApiEffect(
+        fetchJson(
+          Schema.Array(RenamePreviewItemSchema),
+          `${API_BASE}/media/${id}/rename-preview`,
+          undefined,
+          signal,
+        ),
+      ),
+  });
+}
+
+export function useRenamePreviewQuery(id: number, options?: { enabled?: boolean }) {
+  return useQuery({
+    ...renamePreviewQueryOptions(id),
+    enabled: options?.enabled ?? true,
+  });
+}
+
+const AnimeEpisodeStreamUrlSchema = Schema.Struct({ url: Schema.String });
+
+export function useAnimeEpisodeStreamUrlMutation() {
+  return useMutation({
+    mutationFn: (input: { mediaId: number; unitNumber: number }) =>
+      runApiEffect(
+        fetchJson(
+          AnimeEpisodeStreamUrlSchema,
+          apiUrl(`/media/${input.mediaId}/stream-url`, { unitNumber: input.unitNumber }),
+        ),
+      ),
+  });
+}
+
+export function useExecuteRenameMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) =>
+      runApiEffect(
+        fetchJson(RenameResultSchema, `${API_BASE}/media/${id}/rename`, {
+          method: "POST",
+        }),
+      ),
+    onSuccess: (_, id) => {
+      void queryClient.invalidateQueries({ queryKey: animeKeys.units(id) });
+      void queryClient.invalidateQueries({ queryKey: animeKeys.detail(id) });
+      void queryClient.invalidateQueries({ queryKey: animeKeys.files(id) });
+      void queryClient.invalidateQueries({ queryKey: animeKeys.renamePreview(id) });
+    },
   });
 }

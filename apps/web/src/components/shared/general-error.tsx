@@ -33,7 +33,7 @@ export function GeneralError(props: GeneralErrorProps) {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => setShowDetails(!showDetails)}
+              onPress={() => setShowDetails(!showDetails)}
               className="font-mono text-xs text-muted-foreground"
             >
               {showDetails ? "[-] hide trace" : "[+] show trace"}
@@ -48,10 +48,10 @@ export function GeneralError(props: GeneralErrorProps) {
         )}
 
         <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={() => globalThis.location.reload()}>
+          <Button variant="outline" onPress={() => globalThis.location.reload()}>
             Refresh
           </Button>
-          <Button variant="ghost" className="group" onClick={() => navigate({ to: "/" })}>
+          <Button variant="ghost" className="group" onPress={() => navigate({ to: "/" })}>
             <ArrowLeftIcon className="mr-1.5 h-4 w-4 transition-transform group-hover:-translate-x-1" />
             cd ~
           </Button>

@@ -110,10 +110,12 @@ export function ReleasePeersCell(props: ReleasePeersCellProps) {
         )}
       >
         {props.seeders}
+        <span className="sr-only"> seeders</span>
       </span>
       <span className="text-muted-foreground">/</span>
       <span className={props.emphasizePresence ? "text-error" : "text-muted-foreground"}>
         {props.leechers}
+        <span className="sr-only"> leechers</span>
       </span>
     </div>
   );

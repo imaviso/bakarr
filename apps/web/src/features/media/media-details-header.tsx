@@ -19,16 +19,7 @@ import {
 import { Link } from "@tanstack/react-router";
 import { Button, buttonVariants } from "~/components/ui/button";
 import { Tooltip, TooltipTrigger } from "~/components/ui/tooltip";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "~/components/ui/alert-dialog";
+import { ConfirmDialog } from "~/components/shared/confirm-dialog";
 import { Badge } from "~/components/ui/badge";
 import { SearchDialog } from "~/features/search/search-dialog";
 import type { Media } from "~/api/contracts";
@@ -139,6 +130,7 @@ export function MediaDetailsHeader(props: MediaDetailsHeaderProps) {
               size="sm"
               onPress={props.onToggleMonitor}
               isDisabled={props.isToggleMonitorPending}
+              aria-label={props.isMonitored ? `Unmonitor ${mediaLabel}` : `Monitor ${mediaLabel}`}
               className={cn("shrink-0", !props.isMonitored && "text-muted-foreground bg-muted")}
             >
               <BookmarkIcon className={cn("h-4 w-4", props.isMonitored && "fill-current")} />
@@ -248,37 +240,28 @@ export function MediaDetailsHeader(props: MediaDetailsHeaderProps) {
             </Button>
           </Link>
 
-          <AlertDialogTrigger>
-            <TooltipTrigger>
-              <Button
-                variant="ghost"
-                size="icon"
-                aria-label={`Delete ${mediaLabel}`}
-                className="text-muted-foreground hover:text-destructive shrink-0"
-              >
-                <TrashIcon className="h-4 w-4" />
-              </Button>
-              <Tooltip>Delete {mediaLabel}</Tooltip>
-            </TooltipTrigger>
-            <AlertDialog>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Delete {mediaLabel}?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  This will remove &quot;{props.media.title.english || props.media.title.romaji}
-                  &quot; from your library. This action cannot be undone.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction
-                  onPress={props.onDeleteMedia}
-                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+          <ConfirmDialog
+            title={`Delete ${mediaLabel}?`}
+            description={`This will remove "${
+              props.media.title.english || props.media.title.romaji
+            }" from your library. This action cannot be undone.`}
+            confirmLabel="Delete"
+            destructive
+            onConfirm={props.onDeleteMedia}
+            trigger={
+              <TooltipTrigger>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label={`Delete ${mediaLabel}`}
+                  className="text-muted-foreground hover:text-destructive shrink-0"
                 >
-                  Delete
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialog>
-          </AlertDialogTrigger>
+                  <TrashIcon className="h-4 w-4" />
+                </Button>
+                <Tooltip>Delete {mediaLabel}</Tooltip>
+              </TooltipTrigger>
+            }
+          />
         </div>
       </div>
     </>

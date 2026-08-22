@@ -17,7 +17,7 @@ import { PageShell } from "~/app/layout/page-shell";
 import { mediaDetailsQueryOptions, mediaListQueryOptions, unitsQueryOptions } from "~/api/media";
 import { useAnimeScanTaskQuery, isTaskActive } from "~/api/operations-tasks";
 import { profilesQueryOptions, releaseProfilesQueryOptions } from "~/api/profiles";
-import { usePageTitle } from "~/domain/page-title";
+import { usePageTitle } from "~/app/page-title";
 import { isAired } from "~/domain/date-time";
 
 const AnimeDetailsDialogsLazy = lazy(() =>
@@ -190,8 +190,13 @@ function AnimeDetailsPage() {
     ],
   );
 
+  const dialogsContext = useMemo(
+    () => ({ ...dialogsState, ...dialogsDispatch }),
+    [dialogsState, dialogsDispatch],
+  );
+
   return (
-    <AnimeDetailsDialogsProvider value={{ ...dialogsState, ...dialogsDispatch }}>
+    <AnimeDetailsDialogsProvider value={dialogsContext}>
       <PageShell>
         <MediaDetailsHeader
           media={media}

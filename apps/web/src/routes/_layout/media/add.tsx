@@ -29,7 +29,7 @@ import {
   useMediaSearchQuery,
 } from "~/api/media";
 import { errorMessage } from "~/api/effect/errors";
-import { usePageTitle } from "~/domain/page-title";
+import { usePageTitle } from "~/app/page-title";
 import { mediaKindLabel } from "~/domain/media-unit";
 import { shiftSeasonWindow } from "~/domain/seasonal-navigation";
 import { DEFAULT_SEASON_WINDOW, parseAddMediaSearch, type AddMediaSearch } from "./-add-search";

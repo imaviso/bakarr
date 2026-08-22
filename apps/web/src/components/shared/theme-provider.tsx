@@ -150,22 +150,19 @@ export function ThemeProvider({
   const themeRef = useRef(theme);
   themeRef.current = theme;
 
-  // If the initial theme is "system", the inline bootstrap script can't know the
-  // user's preference yet (matchMedia is async-ready at parse time but the script
-  // resolves it synchronously). Re-apply once the system theme is known to keep
-  // the DOM in sync with the resolved value.
-  useEffect(() => {
-    if (theme !== "system") {
-      return;
-    }
-    applyTheme(systemTheme);
-  }, [theme, systemTheme, applyTheme]);
-
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.repeat) return;
-      if (event.metaKey || event.ctrlKey || event.altKey) return;
+      if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
       if (isEditableTarget(event.target)) return;
+      // Skip when focus sits on any interactive control so "d" never fires
+      // right after clicking a button.
+      if (
+        event.target instanceof HTMLElement &&
+        event.target.closest("button, a, [role='button'], [role='menuitem'], [role='option']")
+      ) {
+        return;
+      }
       if (event.key.toLowerCase() !== "d") return;
 
       const current = themeRef.current;

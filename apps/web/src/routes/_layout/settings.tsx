@@ -33,7 +33,7 @@ import {
   releaseProfilesQueryOptions,
 } from "~/api/profiles";
 import { observabilityStatusQueryOptions, systemConfigQueryOptions } from "~/api/system-config";
-import { usePageTitle } from "~/domain/page-title";
+import { usePageTitle } from "~/app/page-title";
 import { cn } from "~/infra/utils";
 
 const SettingsTabSchema = Schema.transform(
@@ -253,37 +253,31 @@ function SettingsPage() {
 
         <div className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto">
           <div className="max-w-3xl pb-12">
-            {activeTab === "general" && (
+            {(activeTab === "general" || activeTab === "automation") && (
               <div
                 role="tabpanel"
                 id="panel-general"
-                aria-labelledby="tab-general"
+                aria-labelledby={`tab-${activeTab}`}
                 className="space-y-6"
               >
-                <div className="flex flex-col gap-0.5">
-                  <h2 className="font-mono text-sm font-medium tracking-tight">General Settings</h2>
-                  <p className="text-xs text-muted-foreground">
-                    Core application, library, and naming settings
-                  </p>
-                </div>
-                <GeneralSettingsForm mode="general" />
-              </div>
-            )}
-
-            {activeTab === "automation" && (
-              <div
-                role="tabpanel"
-                id="panel-automation"
-                aria-labelledby="tab-automation"
-                className="space-y-6"
-              >
-                <div className="flex flex-col gap-0.5">
-                  <h2 className="font-mono text-sm font-medium tracking-tight">Automation</h2>
-                  <p className="text-xs text-muted-foreground">
-                    Search, qBittorrent, scheduling, and app-wide release defaults
-                  </p>
-                </div>
-                <GeneralSettingsForm mode="automation" />
+                {activeTab === "general" ? (
+                  <div className="flex flex-col gap-0.5">
+                    <h2 className="font-mono text-sm font-medium tracking-tight">
+                      General Settings
+                    </h2>
+                    <p className="text-xs text-muted-foreground">
+                      Core application, library, and naming settings
+                    </p>
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-0.5">
+                    <h2 className="font-mono text-sm font-medium tracking-tight">Automation</h2>
+                    <p className="text-xs text-muted-foreground">
+                      Search, qBittorrent, scheduling, and app-wide release defaults
+                    </p>
+                  </div>
+                )}
+                <GeneralSettingsForm activeMode={activeTab} />
               </div>
             )}
 

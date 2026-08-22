@@ -44,7 +44,7 @@ export function AnimeDetailsMeta(props: AnimeDetailsMetaProps) {
         <Separator orientation="vertical" className="h-6 hidden sm:block" />
         <Button
           variant="ghost"
-          onClick={props.onEditProfile}
+          onPress={props.onEditProfile}
           className="h-auto py-1 px-2 text-base font-bold gap-2 hover:bg-muted"
         >
           <span className="truncate">{props.profileName}</span>
@@ -69,7 +69,7 @@ export function AnimeDetailsMeta(props: AnimeDetailsMetaProps) {
                   variant="ghost"
                   size="icon"
                   className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
-                  onClick={props.onEditPath}
+                  onPress={props.onEditPath}
                   aria-label="Edit path"
                 >
                   <PencilSimpleIcon className="h-3.5 w-3.5" />

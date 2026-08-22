@@ -8,17 +8,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { EmptyState } from "~/components/shared/empty-state";
 import { ProfileForm } from "~/features/settings/quality-profile-form";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "~/components/ui/alert-dialog";
+import { ConfirmDialog } from "~/components/shared/confirm-dialog";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
@@ -65,13 +55,18 @@ function QualityProfileCard(props: QualityProfileCardProps) {
               size="icon"
               variant="ghost"
               className="relative after:absolute after:-inset-2 h-8 w-8"
-              onClick={() => props.onEdit(props.profile)}
+              onPress={() => props.onEdit(props.profile)}
               aria-label="Edit profile"
             >
               <PencilSimpleIcon className="h-4 w-4" />
             </Button>
-            <AlertDialog>
-              <AlertDialogTrigger>
+            <ConfirmDialog
+              title="Delete Profile"
+              description={`Are you sure you want to delete profile "${props.profile.name}"? This action cannot be undone.`}
+              confirmLabel="Delete"
+              destructive
+              onConfirm={() => props.onDelete(props.profile.name)}
+              trigger={
                 <Button
                   variant="ghost"
                   size="icon"
@@ -80,26 +75,8 @@ function QualityProfileCard(props: QualityProfileCardProps) {
                 >
                   <TrashIcon className="h-4 w-4" />
                 </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Delete Profile</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Are you sure you want to delete profile "{props.profile.name}"? This action
-                    cannot be undone.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction
-                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                    onPress={() => props.onDelete(props.profile.name)}
-                  >
-                    Delete
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+              }
+            />
           </div>
         </div>
       </CardHeader>

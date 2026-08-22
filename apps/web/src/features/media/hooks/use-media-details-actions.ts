@@ -9,7 +9,7 @@ import {
   useUpdateMediaReleaseProfilesMutation,
 } from "~/api/media-mutations";
 import { useSearchMissingMutation } from "~/api/system-downloads";
-import { useAnimeEpisodeStreamUrlMutation } from "~/api/auth";
+import { useAnimeEpisodeStreamUrlMutation } from "~/api/media";
 import { Effect } from "effect";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -37,9 +37,6 @@ export function useAnimeDetailsActions(options: UseAnimeDetailsActionsOptions) {
     streamUrl.mutate(
       { mediaId: options.mediaId, unitNumber },
       {
-        onError: (err) => {
-          toast.error(errorMessage(err, "Failed to get stream URL"));
-        },
         onSuccess: ({ url }) => {
           const origin = globalThis.location.origin;
           globalThis.open(`mpv://${origin}${url}`, "_self");
@@ -52,9 +49,6 @@ export function useAnimeDetailsActions(options: UseAnimeDetailsActionsOptions) {
     streamUrl.mutate(
       { mediaId: options.mediaId, unitNumber },
       {
-        onError: (err) => {
-          toast.error(errorMessage(err, "Failed to copy link"));
-        },
         onSuccess: ({ url }) => {
           const origin = globalThis.location.origin;
           void Effect.runPromise(

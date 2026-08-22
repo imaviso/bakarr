@@ -8,7 +8,7 @@ import {
 import { useDownloadsRouteState } from "~/features/downloads/downloads-route-state";
 import { DownloadsView } from "~/features/downloads/downloads-view";
 import { downloadHistoryQueryOptions } from "~/api/system-downloads";
-import { usePageTitle } from "~/domain/page-title";
+import { usePageTitle } from "~/app/page-title";
 
 export const Route = createFileRoute("/_layout/downloads")({
   validateSearch: parseDownloadsSearch,

@@ -160,7 +160,7 @@ function pruneClients(states: Map<string, LoginRateLimitState>, nowMs: number) {
 
   const candidates = [...states.entries()]
     .filter(([key]) => key !== GLOBAL_KEY)
-    .sort((left, right) => left[1].lastFailureAtMs - right[1].lastFailureAtMs);
+    .toSorted((left, right) => left[1].lastFailureAtMs - right[1].lastFailureAtMs);
 
   for (const [key] of candidates) {
     if (states.size <= MAX_TRACKED_CLIENTS) {

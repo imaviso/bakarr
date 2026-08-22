@@ -4,7 +4,7 @@ import { useLogsRouteState } from "~/features/logs/logs-route-state";
 import { parseLogsSearch } from "~/features/logs/logs-search";
 import { LogsView } from "~/features/logs/logs-view";
 import { infiniteLogsQueryOptions } from "~/api/system-logs";
-import { usePageTitle } from "~/domain/page-title";
+import { usePageTitle } from "~/app/page-title";
 
 export const Route = createFileRoute("/_layout/logs")({
   validateSearch: parseLogsSearch,

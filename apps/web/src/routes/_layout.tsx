@@ -1,6 +1,5 @@
 import { useIsFetching } from "@tanstack/react-query";
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
-import { Effect, Either } from "effect";
 import { Suspense, lazy } from "react";
 import { AppSidebar } from "~/app/layout/app-sidebar";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "~/components/ui/sidebar";
@@ -16,37 +15,28 @@ const SocketToastListenerLazy = lazy(() =>
 
 export const Route = createFileRoute("/_layout")({
   beforeLoad: async ({ context, location }) => {
-    const result = await Effect.runPromise(
-      Effect.either(
-        Effect.tryPromise({
-          try: () => context.queryClient.fetchQuery(authMeQueryOptions()),
-          catch: (error) => error,
-        }),
-      ),
-    );
-
-    if (Either.isRight(result)) {
-      const user = result.right;
-      syncAuthenticatedUser(user.username, user.must_change_password);
-      if (user.must_change_password) {
-        const url = new URL(location.href, globalThis.location.origin);
-        if (url.pathname !== "/settings" || url.searchParams.get("tab") !== "account") {
-          throw redirect({ to: "/settings", search: { tab: "account" } });
-        }
+    let user;
+    try {
+      user = await context.queryClient.fetchQuery(authMeQueryOptions());
+    } catch (error) {
+      if (isApiUnauthorizedError(error)) {
+        throw redirect({
+          to: "/login",
+          search: {
+            redirect: location.href,
+          },
+        });
       }
-      return;
+      throw error;
     }
 
-    if (isApiUnauthorizedError(result.left)) {
-      throw redirect({
-        to: "/login",
-        search: {
-          redirect: location.href,
-        },
-      });
+    syncAuthenticatedUser(user.username, user.must_change_password);
+    if (user.must_change_password) {
+      const url = new URL(location.href, globalThis.location.origin);
+      if (url.pathname !== "/settings" || url.searchParams.get("tab") !== "account") {
+        throw redirect({ to: "/settings", search: { tab: "account" } });
+      }
     }
-
-    throw result.left;
   },
   component: LayoutComponent,
 });

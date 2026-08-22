@@ -9,6 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "~/components/ui/select";
+import { DebouncedInput } from "~/components/shared/debounced-input";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
 import { DOWNLOAD_EVENT_TYPE_FILTER_OPTIONS } from "~/api/contracts";
@@ -44,21 +45,21 @@ export function DownloadEventsFilters(props: DownloadEventsFiltersProps) {
       <div className="grid gap-3 md:grid-cols-[1fr_1fr_240px_auto]">
         <div className="space-y-1">
           <Label htmlFor="download-events-anime-id">Media ID</Label>
-          <Input
+          <DebouncedInput
             id="download-events-anime-id"
             type="number"
             value={props.value.mediaId}
-            onChange={(event) => props.onFieldChange("mediaId", event.currentTarget.value)}
+            onCommit={(value) => props.onFieldChange("mediaId", value)}
             placeholder="Any anime"
           />
         </div>
         <div className="space-y-1">
           <Label htmlFor="download-events-download-id">Download ID</Label>
-          <Input
+          <DebouncedInput
             id="download-events-download-id"
             type="number"
             value={props.value.downloadId}
-            onChange={(event) => props.onFieldChange("downloadId", event.currentTarget.value)}
+            onCommit={(value) => props.onFieldChange("downloadId", value)}
             placeholder="Any download"
           />
         </div>
@@ -109,10 +110,10 @@ export function DownloadEventsFilters(props: DownloadEventsFiltersProps) {
       <div className="grid gap-3 md:grid-cols-[220px_220px_220px_auto]">
         <div className="space-y-1">
           <Label htmlFor="download-events-status">Status</Label>
-          <Input
+          <DebouncedInput
             id="download-events-status"
             value={props.value.status}
-            onChange={(event) => props.onFieldChange("status", event.currentTarget.value)}
+            onCommit={(value) => props.onFieldChange("status", value)}
             placeholder="Any status"
           />
         </div>
@@ -133,7 +134,7 @@ export function DownloadEventsFilters(props: DownloadEventsFiltersProps) {
             value={props.value.endDate}
             onChange={(event) => props.onFieldChange("endDate", event.currentTarget.value)}
           />
-        </div>
+        </div>{" "}
         <div className="flex items-end justify-end gap-2 flex-wrap">
           <Button
             variant={props.activePreset === 24 ? "default" : "outline"}

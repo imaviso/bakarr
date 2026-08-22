@@ -1,11 +1,6 @@
 import { useLogsActions } from "~/features/logs/use-logs-actions";
 import { useLogsFilters } from "~/features/logs/use-logs-filters";
 import { useLogsQueries } from "~/features/logs/use-logs-queries";
-import { formatUiTimestamp } from "~/domain/date-time";
-
-export function formatLogTimestamp(createdAt: string): string {
-  return formatUiTimestamp(createdAt);
-}
 
 interface UseLogsRouteStateOptions {
   search: Record<string, string | undefined>;
@@ -39,15 +34,11 @@ export function useLogsRouteState(options: UseLogsRouteStateOptions) {
     canGoToNextDownloadEventsPage: queries.canGoToNextDownloadEventsPage,
     canGoToPreviousDownloadEventsPage: queries.canGoToPreviousDownloadEventsPage,
     clearLogs: actions.clearLogs,
-    clearLogsWithToast: actions.clearLogsWithToast,
     dashboardQuery: queries.dashboardQuery,
     downloadEventsQuery: queries.downloadEventsQuery,
     downloadEventsSearchState: queries.downloadEventsSearchState,
     exportDownloadEvents: (formatValue: "json" | "csv") =>
-      actions.exportDownloadEvents({
-        format: formatValue,
-        exportInput: queries.downloadEventsSearchState.exportInput,
-      }),
+      actions.exportDownloadEvents(formatValue, queries.downloadEventsSearchState.exportInput),
     exportLogs: actions.exportLogs,
     filterStates: filters.filterStates,
     goToNextDownloadEventsPage: actions.goToNextDownloadEventsPage,

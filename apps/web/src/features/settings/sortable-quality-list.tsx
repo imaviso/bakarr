@@ -1,4 +1,4 @@
-import { DotsSixVerticalIcon, XIcon } from "@phosphor-icons/react";
+import { ArrowDownIcon, ArrowUpIcon, DotsSixVerticalIcon, XIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 import { Button } from "~/components/ui/button";
 import {
@@ -17,6 +17,17 @@ interface SortableQualityListProps {
 
 export function SortableQualityList(props: SortableQualityListProps) {
   const [draggedItem, setDraggedItem] = useState<string | null>(null);
+
+  const moveQuality = (quality: string, direction: -1 | 1) => {
+    const currentList = [...props.value];
+    const fromIndex = currentList.indexOf(quality);
+    const toIndex = fromIndex + direction;
+    if (fromIndex === -1 || toIndex < 0 || toIndex >= currentList.length) return;
+
+    currentList.splice(fromIndex, 1);
+    currentList.splice(toIndex, 0, quality);
+    props.onChange(currentList);
+  };
 
   const handleDragStart = (event: React.DragEvent<HTMLLIElement>, item: string) => {
     setDraggedItem(item);
@@ -60,21 +71,43 @@ export function SortableQualityList(props: SortableQualityListProps) {
     <div className="space-y-3">
       <div className="space-y-1">
         <div className="text-sm font-medium leading-none">Allowed Qualities</div>
-        <p className="text-xs text-muted-foreground">Drag to reorder. Top items are preferred.</p>
+        <p className="text-xs text-muted-foreground">
+          Drag to reorder, or use the arrow buttons. Top items are preferred.
+        </p>
       </div>
 
       <ul className="border rounded-none divide-y bg-card overflow-hidden">
-        {props.value.map((quality) => (
+        {props.value.map((quality, index) => (
           <li
             key={quality}
-            draggable="true"
+            draggable={true}
             onDragStart={(event) => handleDragStart(event, quality)}
             onDragOver={(event) => handleDragOver(event, quality)}
             onDragEnd={handleDragEnd}
-            className={`flex items-center gap-3 p-2.5 text-sm group bg-card hover:bg-accent transition-colors cursor-default ${draggedItem === quality ? "opacity-50" : ""}`}
+            className={`flex items-center gap-1 p-2.5 text-sm group bg-card hover:bg-accent transition-colors cursor-default ${draggedItem === quality ? "opacity-50" : ""}`}
           >
-            <DotsSixVerticalIcon className="h-4 w-4 text-muted-foreground cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity" />
+            <DotsSixVerticalIcon className="h-4 w-4 ml-2 mr-1 text-muted-foreground cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity" />
             <span className="flex-1 font-medium">{quality}</span>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 text-muted-foreground hover:text-foreground"
+              onPress={() => moveQuality(quality, -1)}
+              isDisabled={index === 0}
+              aria-label={`Move ${quality} up`}
+            >
+              <ArrowUpIcon className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 text-muted-foreground hover:text-foreground"
+              onPress={() => moveQuality(quality, 1)}
+              isDisabled={index === props.value.length - 1}
+              aria-label={`Move ${quality} down`}
+            >
+              <ArrowDownIcon className="h-3.5 w-3.5" />
+            </Button>
             <Button
               variant="ghost"
               size="icon"

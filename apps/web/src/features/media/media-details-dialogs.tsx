@@ -3,15 +3,7 @@ import { RenameDialog } from "~/features/downloads/rename-dialog";
 import { BulkMappingDialog, ManualMappingDialog } from "~/features/media/mapping-dialogs";
 import { EditPathDialog } from "~/features/media/edit-path-dialog";
 import { EditProfileDialog } from "~/features/media/edit-profile-dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "~/components/ui/alert-dialog";
+import { ConfirmDialog } from "~/components/shared/confirm-dialog";
 import { useAnimeDetailsDialogs } from "~/features/media/media-details-dialogs-context";
 import { mediaUnitLabel } from "~/domain/media-unit";
 
@@ -51,29 +43,17 @@ export function AnimeDetailsDialogs() {
         onOpenChange={ctx.onBulkMappingOpenChange}
       />
 
-      <AlertDialog
+      <ConfirmDialog
+        title={`Delete ${mediaUnitLabel(ctx.deleteEpisodeState.unitKind)} ${
+          ctx.deleteEpisodeState.unitNumber
+        }?`}
+        description="This will delete the file from disk. This action cannot be undone."
+        confirmLabel="Delete"
+        destructive
         isOpen={ctx.deleteEpisodeState.open}
         onOpenChange={ctx.onDeleteEpisodeDialogOpenChange}
-      >
-        <AlertDialogHeader>
-          <AlertDialogTitle>
-            Delete {mediaUnitLabel(ctx.deleteEpisodeState.unitKind)}{" "}
-            {ctx.deleteEpisodeState.unitNumber}?
-          </AlertDialogTitle>
-          <AlertDialogDescription>
-            This will delete the file from disk. This action cannot be undone.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction
-            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            onPress={ctx.onConfirmDeleteEpisode}
-          >
-            Delete
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialog>
+        onConfirm={ctx.onConfirmDeleteEpisode}
+      />
 
       <EditPathDialog
         open={ctx.editPathOpen}

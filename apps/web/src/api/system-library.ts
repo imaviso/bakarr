@@ -1,11 +1,4 @@
-import {
-  keepPreviousData,
-  queryOptions,
-  useMutation,
-  useQuery,
-  useQueryClient,
-} from "@tanstack/react-query";
-import { toast } from "sonner";
+import { keepPreviousData, queryOptions, useMutation, useQueryClient } from "@tanstack/react-query";
 import type {
   BulkUnmappedFolderControlRequest,
   ImportCandidateSelectionRequest,
@@ -14,7 +7,6 @@ import type {
   UnmappedFolderImportRequest,
 } from "./contracts";
 import {
-  AsyncOperationAcceptedSchema,
   BrowseResultSchema,
   ImportCandidateSelectionResultSchema,
   ScanResultSchema,
@@ -23,6 +15,7 @@ import {
 import { API_BASE } from "~/api/constants";
 import { fetchJson, fetchUnit, runApiEffect } from "~/api/effect/api-client";
 import { animeKeys } from "./keys";
+import { useTriggerTaskMutation } from "./trigger-task";
 
 export function unmappedFoldersQueryOptions() {
   return queryOptions({
@@ -36,30 +29,10 @@ export function unmappedFoldersQueryOptions() {
   });
 }
 
-export function useUnmappedFoldersQuery() {
-  return useQuery(unmappedFoldersQueryOptions());
-}
-
 export function useScanLibraryMutation() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: () =>
-      runApiEffect(
-        fetchJson(AsyncOperationAcceptedSchema, `${API_BASE}/library/unmapped/scan`, {
-          method: "POST",
-        }),
-      ),
-    onSuccess: (accepted) => {
-      toast.info(accepted.message);
-      void queryClient.invalidateQueries({ queryKey: animeKeys.library.unmapped() });
-      void queryClient.invalidateQueries({ queryKey: animeKeys.system.jobs() });
-      void queryClient.invalidateQueries({ queryKey: animeKeys.system.tasks.all() });
-      if (accepted.task_id !== undefined) {
-        void queryClient.invalidateQueries({
-          queryKey: animeKeys.system.tasks.byId(accepted.task_id),
-        });
-      }
-    },
+  return useTriggerTaskMutation({
+    endpoint: () => "/library/unmapped/scan",
+    invalidate: () => [animeKeys.library.unmapped(), animeKeys.system.jobs()],
   });
 }
 
@@ -134,27 +107,17 @@ export function useScanImportPathMutation() {
 }
 
 export function useImportFilesMutation() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (files: ImportFileRequest[]) =>
-      runApiEffect(
-        fetchJson(AsyncOperationAcceptedSchema, `${API_BASE}/library/import`, {
-          method: "POST",
-          body: { files },
-        }),
-      ),
-    onSuccess: (accepted) => {
-      toast.info(accepted.message);
-      void queryClient.invalidateQueries({ queryKey: animeKeys.lists() });
-      void queryClient.invalidateQueries({ queryKey: animeKeys.library.all });
-      void queryClient.invalidateQueries({ queryKey: animeKeys.system.status() });
-      void queryClient.invalidateQueries({ queryKey: animeKeys.library.importTasks.all() });
-      if (accepted.task_id !== undefined) {
-        void queryClient.invalidateQueries({
-          queryKey: animeKeys.library.importTasks.byId(accepted.task_id),
-        });
-      }
-    },
+  return useTriggerTaskMutation<ImportFileRequest[]>({
+    endpoint: () => "/library/import",
+    body: (files) => ({ files }),
+    invalidate: () => [
+      animeKeys.lists(),
+      animeKeys.library.all,
+      animeKeys.system.status(),
+      animeKeys.library.importTasks.all(),
+    ],
+    taskKeys: (accepted) =>
+      accepted.task_id === undefined ? [] : [animeKeys.library.importTasks.byId(accepted.task_id)],
   });
 }
 
@@ -192,11 +155,5 @@ export function browsePathQueryOptions(
       ),
     placeholderData: keepPreviousData,
     staleTime: 1000 * 60 * 60,
-  });
-}
-
-export function useBrowsePathQuery(path: string, pagination?: { limit: number; offset: number }) {
-  return useQuery({
-    ...browsePathQueryOptions(path, pagination),
   });
 }

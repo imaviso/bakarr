@@ -25,10 +25,6 @@ export type {
   SeasonalMediaProvider,
 } from "@bakarr/shared";
 
-export interface ScanFolderResult {
-  found: number;
-  total: number;
-}
 export type ImportFileRequest = Pick<ImportedFile, "media_id" | "unit_number" | "source_path"> & {
   season?: number | undefined;
   unit_numbers?: number[] | undefined;
@@ -68,10 +64,6 @@ export interface AddAnimeRequest {
   monitored: boolean;
   release_profile_ids: number[];
   use_existing_root?: boolean;
-}
-
-export interface AnimeEpisodeStreamUrl {
-  url: string;
 }
 
 export interface DownloadEventsFilterInput {

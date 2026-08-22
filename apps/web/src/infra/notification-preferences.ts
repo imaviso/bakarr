@@ -188,13 +188,7 @@ export function getNotificationPreferenceKeyForEvent(
       return "error";
     case "Info":
       return "info";
-    case "ScanProgress":
-    case "LibraryScanProgress":
-    case "RssCheckProgress":
-    case "DownloadProgress":
-    case "SystemStatus":
+    default:
       return null;
   }
-
-  return null;
 }

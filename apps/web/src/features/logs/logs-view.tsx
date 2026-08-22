@@ -17,7 +17,8 @@ import { PageHeader } from "~/app/layout/page-header";
 import { PageShell } from "~/app/layout/page-shell";
 import { DownloadEventDetailsDialog } from "~/features/downloads/download-event-details-dialog";
 import { logsFilterColumns } from "~/features/logs/logs-filter-config";
-import { formatLogTimestamp, type useLogsRouteState } from "~/features/logs/logs-route-state";
+import { formatUiTimestamp } from "~/domain/date-time";
+import { type useLogsRouteState } from "~/features/logs/logs-route-state";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -101,7 +102,7 @@ export function LogsView(props: LogsViewProps) {
                 <AlertDialogCancel>Cancel</AlertDialogCancel>
                 <AlertDialogAction
                   className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  onPress={props.state.clearLogsWithToast}
+                  onPress={() => props.state.clearLogs.mutate()}
                 >
                   Clear Logs
                 </AlertDialogAction>
@@ -185,11 +186,7 @@ export function LogsView(props: LogsViewProps) {
             {!props.state.jobsQuery.isLoading ? (
               (props.state.jobsQuery.data?.length ?? 0) > 0 ? (
                 props.state.jobsQuery.data?.map((job) => (
-                  <BackgroundJobCard
-                    key={job.name}
-                    job={job}
-                    formatTimestamp={formatLogTimestamp}
-                  />
+                  <BackgroundJobCard key={job.name} job={job} formatTimestamp={formatUiTimestamp} />
                 ))
               ) : (
                 <EmptyState compact title="No background job data yet" />
@@ -247,7 +244,7 @@ export function LogsView(props: LogsViewProps) {
               </div>
               <DownloadEventsList
                 events={props.state.downloadEventsQuery.data.events}
-                formatTimestamp={formatLogTimestamp}
+                formatTimestamp={formatUiTimestamp}
                 onSelectEvent={props.state.setSelectedDownloadEvent}
                 hideCount
               />
@@ -264,7 +261,7 @@ export function LogsView(props: LogsViewProps) {
             isError={props.state.logsQuery.isError}
             hasNextPage={props.state.logsQuery.hasNextPage}
             isFetchingNextPage={props.state.logsQuery.isFetchingNextPage}
-            formatTimestamp={formatLogTimestamp}
+            formatTimestamp={formatUiTimestamp}
             onFetchNextPage={props.state.logsQuery.fetchNextPage}
             onSelectLog={props.state.setSelectedLog}
           />
@@ -273,7 +270,7 @@ export function LogsView(props: LogsViewProps) {
 
       <LogDetailsDialog
         log={props.state.selectedLog}
-        formatTimestamp={formatLogTimestamp}
+        formatTimestamp={formatUiTimestamp}
         onOpenChange={(open) => {
           if (!open) {
             props.state.setSelectedLog(null);
@@ -283,7 +280,7 @@ export function LogsView(props: LogsViewProps) {
 
       <DownloadEventDetailsDialog
         event={props.state.selectedDownloadEvent}
-        formatTimestamp={formatLogTimestamp}
+        formatTimestamp={formatUiTimestamp}
         onOpenChange={(open) => !open && props.state.setSelectedDownloadEvent(null)}
       />
     </PageShell>

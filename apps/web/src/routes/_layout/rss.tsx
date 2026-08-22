@@ -18,16 +18,7 @@ import { GeneralError } from "~/components/shared/general-error";
 import { PageHeader } from "~/app/layout/page-header";
 import { PageShell } from "~/app/layout/page-shell";
 import { formatDateTime } from "~/domain/date-time";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "~/components/ui/alert-dialog";
+import { ConfirmDialog } from "~/components/shared/confirm-dialog";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
@@ -48,7 +39,7 @@ import {
   rssFeedsQueryOptions,
 } from "~/api/system-rss-calendar";
 import type { RssFeed } from "~/api/contracts";
-import { usePageTitle } from "~/domain/page-title";
+import { usePageTitle } from "~/app/page-title";
 
 export const Route = createFileRoute("/_layout/rss")({
   loader: async ({ context: { queryClient } }) => {
@@ -88,7 +79,7 @@ function RssPage() {
           description="Add RSS feeds to automatically detect new episodes"
           className="border-dashed"
         >
-          <Button onClick={() => setIsAdding(true)}>
+          <Button onPress={() => setIsAdding(true)}>
             <PlusIcon className="h-4 w-4" />
             Add Feed
           </Button>
@@ -120,7 +111,7 @@ function FeedCard(props: {
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => props.onToggle(!props.feed.enabled)}
+          onPress={() => props.onToggle(!props.feed.enabled)}
           aria-label={props.feed.enabled ? "Disable feed" : "Enable feed"}
         >
           {props.feed.enabled ? (
@@ -149,34 +140,25 @@ function FeedCard(props: {
             )}
           </div>
         </div>
-        <AlertDialogTrigger>
-          <Button
-            size="icon"
-            variant="ghost"
-            className="relative after:absolute after:-inset-2 w-8 h-8 text-muted-foreground hover:text-destructive"
-            aria-label="Delete feed"
-          >
-            <TrashIcon className="h-4 w-4" />
-          </Button>
-          <AlertDialog>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Delete RSS Feed</AlertDialogTitle>
-              <AlertDialogDescription>
-                Are you sure you want to delete &quot;{props.feed.name || "this feed"}
-                &quot;? This action cannot be undone.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction
-                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                onPress={props.onDelete}
-              >
-                Delete
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialog>
-        </AlertDialogTrigger>
+        <ConfirmDialog
+          title="Delete RSS Feed"
+          description={`Are you sure you want to delete "${
+            props.feed.name || "this feed"
+          }"? This action cannot be undone.`}
+          confirmLabel="Delete"
+          destructive
+          onConfirm={props.onDelete}
+          trigger={
+            <Button
+              size="icon"
+              variant="ghost"
+              className="relative after:absolute after:-inset-2 w-8 h-8 text-muted-foreground hover:text-destructive"
+              aria-label="Delete feed"
+            >
+              <TrashIcon className="h-4 w-4" />
+            </Button>
+          }
+        />
       </CardContent>
     </Card>
   );
