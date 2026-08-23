@@ -39,8 +39,8 @@ interface SearchModalContentProps {
 export function SearchModalContent(props: SearchModalContentProps) {
   const unitLabel = mediaUnitLabel(props.unitKind);
   return (
-    <div className="flex flex-col gap-4 sm:max-w-7xl w-full max-h-[85vh]">
-      <DialogHeader>
+    <>
+      <DialogHeader className="p-4 pb-3 shrink-0 border-b border-border">
         <DialogTitle>Manual Search</DialogTitle>
         <DialogDescription>
           Searching for {unitLabel} {props.unitNumber}
@@ -48,7 +48,7 @@ export function SearchModalContent(props: SearchModalContentProps) {
         </DialogDescription>
       </DialogHeader>
 
-      <div className="flex-1 overflow-hidden min-h-[200px] flex flex-col">
+      <div className="min-h-0 min-w-0 w-full overflow-hidden flex flex-col p-4 pt-3">
         {!props.state.searchQuery.isLoading ? (
           <>
             {!props.state.searchQuery.error ? (
@@ -122,7 +122,7 @@ export function SearchModalContent(props: SearchModalContentProps) {
           </div>
         )}
       </div>
-    </div>
+    </>
   );
 }
 

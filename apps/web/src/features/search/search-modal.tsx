@@ -21,7 +21,11 @@ export function SearchModal(props: SearchModalProps) {
   });
 
   return (
-    <Dialog isOpen={props.open} onOpenChange={props.onOpenChange}>
+    <Dialog
+      isOpen={props.open}
+      onOpenChange={props.onOpenChange}
+      className="sm:max-w-7xl max-h-[85vh] w-[calc(100vw-2rem)] sm:w-full p-0 gap-0 overflow-hidden grid grid-rows-[auto_minmax(0,1fr)]"
+    >
       <SearchModalContent
         unitNumber={props.unitNumber}
         unitTitle={props.unitTitle}
