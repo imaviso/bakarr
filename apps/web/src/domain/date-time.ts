@@ -34,13 +34,21 @@ export function formatTime(value: string): string {
   return isValid(date) ? format(date, "h:mm a") : value;
 }
 
+function parseFlexibleDate(value: string): Date {
+  const iso = parseISO(value);
+  if (isValid(iso)) return iso;
+  const fallback = new Date(value);
+  return fallback;
+}
+
 export function formatSearchResultAge(dateStr: string): string {
-  const date = parseISO(dateStr);
+  const date = parseFlexibleDate(dateStr);
+  if (!isValid(date)) return dateStr;
   const now = new Date();
   const diffDays = differenceInDays(now, date);
 
   if (diffDays === 0) return "Today";
   if (diffDays === 1) return "Yesterday";
   if (diffDays < 30) return `${diffDays}d ago`;
-  return isValid(date) ? format(date, "MMM d, yy") : dateStr;
+  return format(date, "MMM d, yy");
 }

@@ -100,67 +100,71 @@ export function BulkMappingDialog(props: BulkMappingDialogProps) {
     <Dialog
       isOpen={props.open}
       onOpenChange={handleOpenChange}
-      className="sm:max-w-[800px] max-h-[90vh] flex flex-col"
+      className="sm:max-w-[800px] max-h-[90vh] w-[calc(100vw-2rem)] sm:w-full flex flex-col p-0 gap-0 overflow-hidden"
     >
-      <DialogHeader>
+      <DialogHeader className="p-4 pb-3 shrink-0 border-b border-border">
         <DialogTitle>Bulk Manual Mapping</DialogTitle>
         <DialogDescription>
           Map files to episodes manually. Showing all episodes and files.
         </DialogDescription>
       </DialogHeader>
 
-      <div className="flex-1 overflow-y-auto py-4">
+      <div className="flex-1 overflow-auto min-h-0 min-w-0 w-full">
         {filesQuery.data ? (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead scope="col" className="w-[80px]">
-                  MediaUnit
-                </TableHead>
-                <TableHead scope="col">File to Map</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {allEpisodes.map((episode) => (
-                <TableRow key={episode.number}>
-                  <TableCell className="font-medium">Ep {episode.number}</TableCell>
-                  <TableCell>
-                    <Select
-                      selectedKey={mappings[episode.number] ?? episode.file_path ?? null}
-                      onSelectionChange={(value) => {
-                        const key = value === null ? undefined : String(value);
-                        handleMap(episode.number, key === UNMAP_KEY ? undefined : key);
-                      }}
-                    >
-                      <SelectTrigger className="w-full text-xs h-8">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectGroup>
-                          <SelectItem id={UNMAP_KEY} textValue="(Unmap / No File)">
-                            (Unmap / No File)
-                          </SelectItem>
-                          {files.map((file) => {
-                            const itemSize = (file.size / 1024 / 1024).toFixed(1);
-                            return (
-                              <SelectItem
-                                key={file.path}
-                                id={file.path}
-                                textValue={`${file.name} (${itemSize} MB)${file.unit_number !== null ? ` [Ep ${file.unit_number}]` : ""}`}
-                              >
-                                {file.name} ({itemSize} MB)
-                                {file.unit_number !== null ? ` [Ep ${file.unit_number}]` : ""}
-                              </SelectItem>
-                            );
-                          })}
-                        </SelectGroup>
-                      </SelectContent>
-                    </Select>
-                  </TableCell>
+          <div className="w-full overflow-auto">
+            <Table className="w-full">
+              <TableHeader className="sticky top-0 z-10 bg-background">
+                <TableRow>
+                  <TableHead scope="col" className="w-[90px] whitespace-nowrap">
+                    MediaUnit
+                  </TableHead>
+                  <TableHead scope="col">File to Map</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {allEpisodes.map((episode) => (
+                  <TableRow key={episode.number}>
+                    <TableCell className="font-medium whitespace-nowrap align-middle">
+                      Ep {episode.number}
+                    </TableCell>
+                    <TableCell className="min-w-0 align-middle">
+                      <Select
+                        selectedKey={mappings[episode.number] ?? episode.file_path ?? null}
+                        onSelectionChange={(value) => {
+                          const key = value === null ? undefined : String(value);
+                          handleMap(episode.number, key === UNMAP_KEY ? undefined : key);
+                        }}
+                      >
+                        <SelectTrigger className="w-full min-w-0 text-xs h-8 [&_[data-slot=select-value]]:truncate">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectGroup>
+                            <SelectItem id={UNMAP_KEY} textValue="(Unmap / No File)">
+                              (Unmap / No File)
+                            </SelectItem>
+                            {files.map((file) => {
+                              const itemSize = (file.size / 1024 / 1024).toFixed(1);
+                              return (
+                                <SelectItem
+                                  key={file.path}
+                                  id={file.path}
+                                  textValue={`${file.name} (${itemSize} MB)${file.unit_number !== null ? ` [Ep ${file.unit_number}]` : ""}`}
+                                >
+                                  {file.name} ({itemSize} MB)
+                                  {file.unit_number !== null ? ` [Ep ${file.unit_number}]` : ""}
+                                </SelectItem>
+                              );
+                            })}
+                          </SelectGroup>
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         ) : (
           <div className="flex justify-center py-8">
             <ArrowClockwiseIcon className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -168,7 +172,7 @@ export function BulkMappingDialog(props: BulkMappingDialogProps) {
         )}
       </div>
 
-      <DialogFooter className="mt-4">
+      <DialogFooter className="p-4 pt-3 shrink-0 border-t border-border">
         <Button variant="outline" onPress={() => handleOpenChange(false)}>
           Cancel
         </Button>
@@ -217,17 +221,21 @@ export function ManualMappingDialog(props: ManualMappingDialogProps) {
   };
 
   return (
-    <Dialog isOpen={props.open} onOpenChange={handleOpenChange} className="sm:max-w-[600px]">
-      <DialogHeader>
+    <Dialog
+      isOpen={props.open}
+      onOpenChange={handleOpenChange}
+      className="sm:max-w-[600px] max-h-[85vh] w-[calc(100vw-2rem)] sm:w-full flex flex-col p-0 gap-0 overflow-hidden"
+    >
+      <DialogHeader className="p-4 pb-3 shrink-0 border-b border-border">
         <DialogTitle>Manual Mapping - MediaUnit {props.unitNumber}</DialogTitle>
         <DialogDescription>
           Select a file from the media directory to map to this media unit.
         </DialogDescription>
       </DialogHeader>
 
-      <div className="py-4">
+      <div className="flex-1 overflow-auto min-h-0 min-w-0 w-full p-4">
         {files ? (
-          <div className="border rounded-none max-h-[300px] overflow-y-auto">
+          <div className="border rounded-none max-h-[400px] overflow-auto w-full">
             {files.length === 0 && (
               <div className="p-4 text-center text-sm text-muted-foreground">
                 No video files found in the media directory.
@@ -268,7 +276,7 @@ export function ManualMappingDialog(props: ManualMappingDialogProps) {
                         )}
                       />
                     </TableCell>
-                    <TableCell className="font-mono text-xs break-all">
+                    <TableCell className="font-mono text-xs break-all whitespace-normal max-w-[320px]">
                       {file.name}
                       {file.unit_number && (
                         <span className="ml-2 text-muted-foreground italic">
@@ -276,7 +284,7 @@ export function ManualMappingDialog(props: ManualMappingDialogProps) {
                         </span>
                       )}
                     </TableCell>
-                    <TableCell className="text-right text-xs">
+                    <TableCell className="text-right text-xs whitespace-nowrap">
                       {(file.size / 1024 / 1024).toFixed(1)} MB
                     </TableCell>
                   </TableRow>
@@ -291,7 +299,7 @@ export function ManualMappingDialog(props: ManualMappingDialogProps) {
         )}
       </div>
 
-      <DialogFooter>
+      <DialogFooter className="p-4 pt-3 shrink-0 border-t border-border">
         <Button variant="outline" onPress={() => handleOpenChange(false)}>
           Cancel
         </Button>

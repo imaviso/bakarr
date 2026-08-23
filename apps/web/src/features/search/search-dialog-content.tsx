@@ -380,11 +380,12 @@ function ReleaseRow(props: {
 
   return (
     <TableRow className="group border-b border-border transition-colors hover:bg-muted data-[state=selected]:bg-muted">
-      <TableCell className="pl-6 py-2.5 max-w-[200px] sm:max-w-[300px] md:max-w-[400px]">
+      <TableCell className="pl-6 py-2.5 max-w-[260px] sm:max-w-[420px] md:max-w-[520px]">
         <ReleasePrimaryCell
           title={props.result.title}
           sourceUrl={props.result.view_url}
           useTooltip
+          titleClass="line-clamp-2 text-sm font-medium leading-tight break-all hover:text-primary transition-colors"
           flags={state.releaseFlags}
           parsedSummary={state.releaseParsedSummary}
           sourceSummary={state.releaseSourceSummary}

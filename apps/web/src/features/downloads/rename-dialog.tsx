@@ -50,9 +50,9 @@ export function RenameDialog(props: RenameDialogProps) {
     <Dialog
       isOpen={props.open}
       onOpenChange={handleOpenChange}
-      className="sm:max-w-7xl max-h-[80vh] flex flex-col"
+      className="sm:max-w-7xl max-h-[85vh] w-[calc(100vw-2rem)] sm:w-full flex flex-col p-0 gap-0 overflow-hidden"
     >
-      <DialogHeader>
+      <DialogHeader className="p-4 pb-3 shrink-0 border-b border-border">
         <DialogTitle>Rename Episodes</DialogTitle>
         <DialogDescription>
           Preview changes before applying renames. This will move/rename files according to your
@@ -60,7 +60,7 @@ export function RenameDialog(props: RenameDialogProps) {
         </DialogDescription>
       </DialogHeader>
 
-      <div className="flex-1 overflow-auto min-h-[300px]">
+      <div className="flex-1 overflow-auto min-h-0 min-w-0 w-full px-0">
         {previewQuery.isLoading ? (
           <div
             className="flex items-center justify-center h-full"
@@ -118,20 +118,20 @@ export function RenameDialog(props: RenameDialogProps) {
             ) : (
               <>
                 {!previewQuery.isError && previewQuery.data && previewQuery.data.length > 0 ? (
-                  <div className="overflow-x-auto">
-                    <Table aria-label="Rename preview" className="min-w-[900px]">
-                      <TableHeader>
+                  <div className="w-full overflow-auto">
+                    <Table aria-label="Rename preview" className="w-full">
+                      <TableHeader className="sticky top-0 z-10 bg-background">
                         <TableRow>
-                          <TableHead scope="col" className="w-[80px]">
+                          <TableHead scope="col" className="w-[80px] whitespace-nowrap">
                             MediaUnit
                           </TableHead>
-                          <TableHead scope="col" className="w-[30%]">
+                          <TableHead scope="col" className="min-w-[200px] w-[30%]">
                             Current Filename
                           </TableHead>
-                          <TableHead scope="col" className="w-[30%]">
+                          <TableHead scope="col" className="min-w-[200px] w-[30%]">
                             New Filename
                           </TableHead>
-                          <TableHead scope="col" className="min-w-[280px]">
+                          <TableHead scope="col" className="min-w-[220px]">
                             Notes
                           </TableHead>
                         </TableRow>
@@ -139,11 +139,11 @@ export function RenameDialog(props: RenameDialogProps) {
                       <TableBody>
                         {previewQuery.data.map((item) => (
                           <TableRow key={`${item.current_path}-${item.new_filename}`}>
-                            <TableCell>{item.unit_number}</TableCell>
-                            <TableCell className="font-mono text-sm break-all text-muted-foreground">
+                            <TableCell className="align-top">{item.unit_number}</TableCell>
+                            <TableCell className="font-mono text-xs break-all whitespace-normal align-top text-muted-foreground max-w-[280px]">
                               {item.current_path.split("/").pop()}
                             </TableCell>
-                            <TableCell className="font-mono text-sm break-all text-success dark:text-success">
+                            <TableCell className="font-mono text-xs break-all whitespace-normal align-top text-success dark:text-success max-w-[280px]">
                               {item.new_filename}
                             </TableCell>
                             <TableCell>
@@ -244,7 +244,7 @@ export function RenameDialog(props: RenameDialogProps) {
         )}
       </div>
 
-      <DialogFooter>
+      <DialogFooter className="p-4 pt-3 shrink-0 border-t border-border">
         {executeRename.data ? (
           <Button onPress={() => props.onOpenChange(false)}>Close</Button>
         ) : (

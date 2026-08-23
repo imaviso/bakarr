@@ -41,21 +41,19 @@ export function ReleasePrimaryCell(props: ReleasePrimaryCellProps) {
   return (
     <div className="flex flex-col gap-1.5">
       {props.useTooltip ? (
-        <Tooltip>
-          <TooltipTrigger>
-            <a
-              href={props.sourceUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={titleClass}
-            >
-              {props.title}
-            </a>
-          </TooltipTrigger>
+        <TooltipTrigger>
+          <a
+            href={props.sourceUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={titleClass}
+          >
+            {props.title}
+          </a>
           <Tooltip className="max-w-[400px]">
             <p className="break-words font-normal">{props.title}</p>
           </Tooltip>
-        </Tooltip>
+        </TooltipTrigger>
       ) : (
         <a href={props.sourceUrl} target="_blank" rel="noopener noreferrer" className={titleClass}>
           {props.title}
