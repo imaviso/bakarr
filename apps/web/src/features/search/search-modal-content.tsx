@@ -48,7 +48,7 @@ export function SearchModalContent(props: SearchModalContentProps) {
         </DialogDescription>
       </DialogHeader>
 
-      <div className="min-h-0 min-w-0 w-full overflow-hidden flex flex-col p-4 pt-3">
+      <div className="flex-1 min-h-0 min-w-0 w-full overflow-hidden flex flex-col p-4 pt-3 max-h-[60vh]">
         {!props.state.searchQuery.isLoading ? (
           <>
             {!props.state.searchQuery.error ? (

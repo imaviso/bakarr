@@ -100,7 +100,7 @@ export function BulkMappingDialog(props: BulkMappingDialogProps) {
     <Dialog
       isOpen={props.open}
       onOpenChange={handleOpenChange}
-      className="sm:max-w-[800px] max-h-[90vh] w-[calc(100vw-2rem)] sm:w-full p-0 gap-0 overflow-hidden grid grid-rows-[auto_minmax(0,1fr)_auto]"
+      className="sm:max-w-[800px] max-h-[90vh] w-[calc(100vw-2rem)] sm:w-full p-0 gap-0 overflow-hidden [display:flex] flex-col"
     >
       <DialogHeader className="p-4 pb-3 shrink-0 border-b border-border">
         <DialogTitle>Bulk Manual Mapping</DialogTitle>
@@ -109,7 +109,7 @@ export function BulkMappingDialog(props: BulkMappingDialogProps) {
         </DialogDescription>
       </DialogHeader>
 
-      <div className="min-h-0 min-w-0 w-full overflow-auto">
+      <div className="flex-1 min-h-0 min-w-0 w-full overflow-auto max-h-[60vh]">
         {filesQuery.data ? (
           <Table className="w-full">
             <TableHeader className="sticky top-0 z-10 bg-background">
@@ -222,7 +222,7 @@ export function ManualMappingDialog(props: ManualMappingDialogProps) {
     <Dialog
       isOpen={props.open}
       onOpenChange={handleOpenChange}
-      className="sm:max-w-[600px] max-h-[85vh] w-[calc(100vw-2rem)] sm:w-full p-0 gap-0 overflow-hidden grid grid-rows-[auto_minmax(0,1fr)_auto]"
+      className="sm:max-w-[600px] max-h-[85vh] w-[calc(100vw-2rem)] sm:w-full p-0 gap-0 overflow-hidden [display:flex] flex-col"
     >
       <DialogHeader className="p-4 pb-3 shrink-0 border-b border-border">
         <DialogTitle>Manual Mapping - MediaUnit {props.unitNumber}</DialogTitle>
@@ -231,7 +231,7 @@ export function ManualMappingDialog(props: ManualMappingDialogProps) {
         </DialogDescription>
       </DialogHeader>
 
-      <div className="min-h-0 min-w-0 w-full overflow-auto p-4">
+      <div className="flex-1 min-h-0 min-w-0 w-full overflow-auto p-4 max-h-[60vh]">
         {files ? (
           <div className="border rounded-none max-h-[400px] overflow-auto w-full">
             {files.length === 0 && (
