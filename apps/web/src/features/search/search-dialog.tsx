@@ -36,7 +36,7 @@ export function SearchDialog(props: SearchDialogProps) {
           props.trigger
         ))}
 
-      <Dialog>
+      <Dialog className="h-[85vh] max-w-[calc(100%-2rem)] sm:max-w-7xl p-0 gap-0">
         <SearchDialogContent
           mediaId={props.mediaId}
           mediaKind={props.mediaKind}

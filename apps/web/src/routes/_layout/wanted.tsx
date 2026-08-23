@@ -161,6 +161,8 @@ function WantedPage() {
                           key={`${item.media_id}-${item.unit_number}`}
                           item={item}
                           airingPreferences={airingPreferences}
+                          ref={(node) => rowVirtualizer.measureElement(node)}
+                          data-index={vRow.index}
                           onSearch={() => {
                             setSearchModalState({
                               open: true,
@@ -217,6 +219,8 @@ function WantedRow(props: {
   item: MissingUnit;
   airingPreferences: ReturnType<typeof getAiringDisplayPreferences>;
   onSearch: () => void;
+  ref?: (node: Element | null) => void;
+  "data-index"?: number;
 }) {
   const statusLabel =
     props.item.airing_status === "future"
@@ -227,7 +231,7 @@ function WantedRow(props: {
   const unitLabel = mediaUnitLabel(props.item.unit_kind);
 
   return (
-    <TableRow>
+    <TableRow ref={props.ref} data-index={props["data-index"]}>
       <TableCell>
         <div className="h-10 w-7 rounded-none overflow-hidden bg-muted">
           {props.item.media_image && (
@@ -240,7 +244,7 @@ function WantedRow(props: {
           )}
         </div>
       </TableCell>
-      <TableCell className="font-medium">
+      <TableCell className="font-medium whitespace-normal break-words">
         <Link
           to="/media/$id"
           params={{ id: props.item.media_id.toString() }}
