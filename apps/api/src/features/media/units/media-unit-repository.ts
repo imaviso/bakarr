@@ -502,6 +502,20 @@ const ensureUnits = Effect.fn("MediaUnitRepository.ensureUnits")(function* <E>(
       : yield* tryDatabasePromise("Failed to ensure mediaUnits", () =>
           db.select().from(mediaUnits).where(eq(mediaUnits.mediaId, mediaId)),
         );
+
+  if (unitCount !== undefined && unitCount > 0 && existingRows.length > 0) {
+    const extraNumbers = existingRows
+      .filter((row) => row.number > unitCount)
+      .map((row) => row.number);
+    if (extraNumbers.length > 0) {
+      yield* tryDatabasePromise("Failed to prune extra mediaUnits", () =>
+        db
+          .delete(mediaUnits)
+          .where(and(eq(mediaUnits.mediaId, mediaId), inArray(mediaUnits.number, extraNumbers))),
+      );
+    }
+  }
+
   const missingRows = buildMissingEpisodeRows({
     mediaId,
     unitCount,

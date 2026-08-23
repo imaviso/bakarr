@@ -422,6 +422,14 @@ type JikanAnimeInput =
   | Schema.Schema.Type<typeof JikanAnimeDetailSchema>
   | Schema.Schema.Type<typeof JikanAnimeDetailFullSchema>;
 
+function normalizeUnitCountForFormat(
+  format: string | null | undefined,
+  episodes: number | null | undefined,
+): number | undefined {
+  if (format === "Movie") return 1;
+  return episodes ?? undefined;
+}
+
 function normalizeJikanAnime(data: JikanAnimeInput): JikanNormalizedAnime {
   const relations = Schema.is(JikanAnimeDetailFullSchema)(data) ? data.relations : undefined;
   const genreNames = normalizeEntryNames(data.genres);
@@ -443,7 +451,7 @@ function normalizeJikanAnime(data: JikanAnimeInput): JikanNormalizedAnime {
     duration: data.duration ?? undefined,
     endDate: toIsoDate(data.aired?.to),
     endYear: toIsoYear(data.aired?.to),
-    unitCount: data.episodes ?? undefined,
+    unitCount: normalizeUnitCountForFormat(data.type, data.episodes),
     explicitGenres,
     favorites: data.favorites ?? undefined,
     format: data.type ?? undefined,
@@ -702,7 +710,7 @@ function normalizeJikanSeasonalEntry(
 ): JikanNormalizedSeasonalEntry {
   return {
     coverImage: data.images?.jpg?.image_url ?? data.images?.webp?.image_url ?? undefined,
-    unitCount: data.episodes ?? undefined,
+    unitCount: normalizeUnitCountForFormat(data.type, data.episodes),
     format: data.type ?? undefined,
     genres: normalizeEntryNames(data.genres),
     malId: data.mal_id,

@@ -114,6 +114,8 @@ const makeMediaEnrollmentService = Effect.fn("MediaEnrollmentService.make")(func
 
     const createdAt = yield* currentNowIso();
 
+    const normalizedUnitCount =
+      validMetadata.format === "MOVIE" ? 1 : (validMetadata.unitCount ?? null);
     const mediaRow = {
       addedAt: createdAt,
       background: validMetadata.background ?? null,
@@ -123,7 +125,7 @@ const makeMediaEnrollmentService = Effect.fn("MediaEnrollmentService.make")(func
       duration: validMetadata.duration ?? null,
       endDate: validMetadata.endDate ?? null,
       endYear: validMetadata.endYear ?? null,
-      unitCount: validMetadata.unitCount ?? null,
+      unitCount: normalizedUnitCount,
       favorites: validMetadata.favorites ?? null,
       format: validMetadata.format,
       genres: yield* encodeStringList(validMetadata.genres ?? []).pipe(
@@ -180,10 +182,11 @@ const makeMediaEnrollmentService = Effect.fn("MediaEnrollmentService.make")(func
 
     const unitRows = buildMissingEpisodeRows({
       mediaId: mediaRow.id,
-      unitCount: validMetadata.unitCount,
+      unitCount: normalizedUnitCount ?? undefined,
       endDate: validMetadata.endDate ?? undefined,
       existingRows: [],
-      futureAiringSchedule: validMetadata.futureAiringSchedule,
+      futureAiringSchedule:
+        normalizedUnitCount === 1 ? undefined : validMetadata.futureAiringSchedule,
       nowIso: createdAt,
       startDate: validMetadata.startDate ?? undefined,
       status: validMetadata.status,

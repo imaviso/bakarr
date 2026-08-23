@@ -195,6 +195,15 @@ export const AniListDetailPayloadSchema = Schema.Struct({
   data: AniListDetailDataSchema,
 });
 
+function normalizeUnitCountForFormat(
+  format: string | null | undefined,
+  episodes: number | null | undefined,
+  volumes: number | null | undefined,
+): number | undefined {
+  if (format === "MOVIE") return 1;
+  return episodes ?? volumes ?? undefined;
+}
+
 export const AnimeSearchResultFromAniListSchema = Schema.transform(
   AniListSearchMediaSchema,
   ProviderMediaSearchResultSchema,
@@ -207,7 +216,7 @@ export const AnimeSearchResultFromAniListSchema = Schema.transform(
       duration: normalizeDuration(entry.duration),
       end_date: toIsoDate(entry.endDate),
       end_year: entry.endDate?.year ?? undefined,
-      unit_count: entry.episodes ?? undefined,
+      unit_count: normalizeUnitCountForFormat(entry.format, entry.episodes, undefined),
       favorites: entry.favourites ?? undefined,
       format: entry.format ?? undefined,
       genres: entry.genres ? [...entry.genres] : undefined,
@@ -276,7 +285,7 @@ export const AnimeMetadataFromAniListSchema = Schema.transform(
       duration: normalizeDuration(media.duration),
       endDate: toIsoDate(media.endDate),
       endYear: media.endDate?.year ?? undefined,
-      unitCount: media.episodes ?? media.volumes ?? undefined,
+      unitCount: normalizeUnitCountForFormat(media.format, media.episodes, media.volumes),
       favorites: media.favourites ?? undefined,
       format: media.format ?? "TV",
       futureAiringSchedule: normalizeFutureAiringSchedule(
