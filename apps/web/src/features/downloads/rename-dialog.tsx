@@ -50,7 +50,7 @@ export function RenameDialog(props: RenameDialogProps) {
     <Dialog
       isOpen={props.open}
       onOpenChange={handleOpenChange}
-      className="sm:max-w-7xl max-h-[85vh] w-[calc(100vw-2rem)] sm:w-full p-0 gap-0 overflow-hidden grid grid-rows-[auto_1fr_auto]"
+      className="sm:max-w-7xl max-h-[85vh] w-[calc(100vw-2rem)] sm:w-full p-0 gap-0 overflow-hidden grid grid-rows-[auto_minmax(0,1fr)_auto]"
     >
       <DialogHeader className="p-4 pb-3 shrink-0 border-b border-border">
         <DialogTitle>Rename Episodes</DialogTitle>
