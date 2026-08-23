@@ -50,7 +50,7 @@ export function RenameDialog(props: RenameDialogProps) {
     <Dialog
       isOpen={props.open}
       onOpenChange={handleOpenChange}
-      className="sm:max-w-7xl max-h-[85vh] w-[calc(100vw-2rem)] sm:w-full flex flex-col p-0 gap-0 overflow-hidden"
+      className="sm:max-w-7xl max-h-[85vh] w-[calc(100vw-2rem)] sm:w-full p-0 gap-0 overflow-hidden grid grid-rows-[auto_1fr_auto]"
     >
       <DialogHeader className="p-4 pb-3 shrink-0 border-b border-border">
         <DialogTitle>Rename Episodes</DialogTitle>
@@ -60,7 +60,7 @@ export function RenameDialog(props: RenameDialogProps) {
         </DialogDescription>
       </DialogHeader>
 
-      <div className="flex-1 overflow-auto min-h-0 min-w-0 w-full px-0">
+      <div className="min-h-0 min-w-0 w-full overflow-auto">
         {previewQuery.isLoading ? (
           <div
             className="flex items-center justify-center h-full"
@@ -118,119 +118,117 @@ export function RenameDialog(props: RenameDialogProps) {
             ) : (
               <>
                 {!previewQuery.isError && previewQuery.data && previewQuery.data.length > 0 ? (
-                  <div className="w-full overflow-auto">
-                    <Table aria-label="Rename preview" className="w-full">
-                      <TableHeader className="sticky top-0 z-10 bg-background">
-                        <TableRow>
-                          <TableHead scope="col" className="w-[80px] whitespace-nowrap">
-                            MediaUnit
-                          </TableHead>
-                          <TableHead scope="col" className="min-w-[200px] w-[30%]">
-                            Current Filename
-                          </TableHead>
-                          <TableHead scope="col" className="min-w-[200px] w-[30%]">
-                            New Filename
-                          </TableHead>
-                          <TableHead scope="col" className="min-w-[220px]">
-                            Notes
-                          </TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {previewQuery.data.map((item) => (
-                          <TableRow key={`${item.current_path}-${item.new_filename}`}>
-                            <TableCell className="align-top">{item.unit_number}</TableCell>
-                            <TableCell className="font-mono text-xs break-all whitespace-normal align-top text-muted-foreground max-w-[280px]">
-                              {item.current_path.split("/").pop()}
-                            </TableCell>
-                            <TableCell className="font-mono text-xs break-all whitespace-normal align-top text-success dark:text-success max-w-[280px]">
-                              {item.new_filename}
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex flex-col gap-1.5">
-                                <div className="flex flex-wrap gap-1">
-                                  {item.fallback_used && (
-                                    <Badge variant="outline" className="h-5 rounded-none text-xs">
-                                      Fallback
-                                    </Badge>
-                                  )}
-                                  {item.format_used && (
-                                    <Badge
-                                      variant="secondary"
-                                      className="h-5 rounded-none text-xs font-mono"
-                                    >
-                                      {item.format_used}
-                                    </Badge>
-                                  )}
-                                </div>
-                                {(item.warnings?.length ||
-                                  item.missing_fields?.length ||
-                                  item.metadata_snapshot) && (
-                                  <div className="space-y-1 text-xs text-muted-foreground">
-                                    {item.metadata_snapshot && (
-                                      <div className="space-y-1">
-                                        <div className="flex flex-wrap gap-1">
-                                          {formatNamingTitleSource(
-                                            item.metadata_snapshot.title_source,
-                                          ) && (
-                                            <Badge
-                                              variant="secondary"
-                                              className="h-5 rounded-none text-xs"
-                                            >
-                                              {formatNamingTitleSource(
-                                                item.metadata_snapshot.title_source,
-                                              )}
-                                            </Badge>
-                                          )}
-                                          {namingMetadataBadges(item.metadata_snapshot).map(
-                                            (value) => (
-                                              <Badge
-                                                key={value}
-                                                variant="outline"
-                                                className="h-5 rounded-none text-xs"
-                                              >
-                                                {value}
-                                              </Badge>
-                                            ),
-                                          )}
-                                        </div>
-                                        {item.metadata_snapshot.unit_title && (
-                                          <div className="flex items-start gap-1">
-                                            <InfoIcon className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                                            <span>
-                                              MediaUnit title: {item.metadata_snapshot.unit_title}
-                                            </span>
-                                          </div>
-                                        )}
-                                        {item.metadata_snapshot.air_date && (
-                                          <div className="flex items-start gap-1">
-                                            <InfoIcon className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                                            <span>Air date: {item.metadata_snapshot.air_date}</span>
-                                          </div>
-                                        )}
-                                      </div>
-                                    )}
-                                    {(item.warnings || []).map((warning) => (
-                                      <div key={warning} className="flex items-start gap-1">
-                                        <WarningIcon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" />
-                                        <span>{warning}</span>
-                                      </div>
-                                    ))}
-                                    {(item.missing_fields || []).map((field) => (
-                                      <div key={field} className="flex items-start gap-1">
-                                        <InfoIcon className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                                        <span>Missing `{field}`</span>
-                                      </div>
-                                    ))}
-                                  </div>
+                  <Table aria-label="Rename preview" className="w-full">
+                    <TableHeader className="sticky top-0 z-10 bg-background">
+                      <TableRow>
+                        <TableHead scope="col" className="w-[70px] whitespace-nowrap">
+                          MediaUnit
+                        </TableHead>
+                        <TableHead scope="col" className="min-w-[220px]">
+                          Current Filename
+                        </TableHead>
+                        <TableHead scope="col" className="min-w-[220px]">
+                          New Filename
+                        </TableHead>
+                        <TableHead scope="col" className="min-w-[200px]">
+                          Notes
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {previewQuery.data.map((item) => (
+                        <TableRow key={`${item.current_path}-${item.new_filename}`}>
+                          <TableCell className="align-top">{item.unit_number}</TableCell>
+                          <TableCell className="font-mono text-xs break-all whitespace-normal align-top text-muted-foreground max-w-[280px]">
+                            {item.current_path.split("/").pop()}
+                          </TableCell>
+                          <TableCell className="font-mono text-xs break-all whitespace-normal align-top text-success dark:text-success max-w-[280px]">
+                            {item.new_filename}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex flex-col gap-1.5">
+                              <div className="flex flex-wrap gap-1">
+                                {item.fallback_used && (
+                                  <Badge variant="outline" className="h-5 rounded-none text-xs">
+                                    Fallback
+                                  </Badge>
+                                )}
+                                {item.format_used && (
+                                  <Badge
+                                    variant="secondary"
+                                    className="h-5 rounded-none text-xs font-mono"
+                                  >
+                                    {item.format_used}
+                                  </Badge>
                                 )}
                               </div>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
+                              {(item.warnings?.length ||
+                                item.missing_fields?.length ||
+                                item.metadata_snapshot) && (
+                                <div className="space-y-1 text-xs text-muted-foreground">
+                                  {item.metadata_snapshot && (
+                                    <div className="space-y-1">
+                                      <div className="flex flex-wrap gap-1">
+                                        {formatNamingTitleSource(
+                                          item.metadata_snapshot.title_source,
+                                        ) && (
+                                          <Badge
+                                            variant="secondary"
+                                            className="h-5 rounded-none text-xs"
+                                          >
+                                            {formatNamingTitleSource(
+                                              item.metadata_snapshot.title_source,
+                                            )}
+                                          </Badge>
+                                        )}
+                                        {namingMetadataBadges(item.metadata_snapshot).map(
+                                          (value) => (
+                                            <Badge
+                                              key={value}
+                                              variant="outline"
+                                              className="h-5 rounded-none text-xs"
+                                            >
+                                              {value}
+                                            </Badge>
+                                          ),
+                                        )}
+                                      </div>
+                                      {item.metadata_snapshot.unit_title && (
+                                        <div className="flex items-start gap-1">
+                                          <InfoIcon className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                                          <span>
+                                            MediaUnit title: {item.metadata_snapshot.unit_title}
+                                          </span>
+                                        </div>
+                                      )}
+                                      {item.metadata_snapshot.air_date && (
+                                        <div className="flex items-start gap-1">
+                                          <InfoIcon className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                                          <span>Air date: {item.metadata_snapshot.air_date}</span>
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                  {(item.warnings || []).map((warning) => (
+                                    <div key={warning} className="flex items-start gap-1">
+                                      <WarningIcon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" />
+                                      <span>{warning}</span>
+                                    </div>
+                                  ))}
+                                  {(item.missing_fields || []).map((field) => (
+                                    <div key={field} className="flex items-start gap-1">
+                                      <InfoIcon className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                                      <span>Missing `{field}`</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
                 ) : (
                   !previewQuery.isError && (
                     <div className="flex items-center justify-center h-full text-muted-foreground">
