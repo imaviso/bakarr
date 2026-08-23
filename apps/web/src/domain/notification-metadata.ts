@@ -2,11 +2,11 @@ import type { DownloadSourceMetadata, NotificationEvent } from "@bakarr/shared";
 import {
   formatDownloadDecisionSummary,
   formatDownloadParsedMeta,
-} from "~/domain/download/metadata";
+} from "@/domain/download/metadata";
 import {
   buildReleaseSourceSummaryInput,
   formatReleaseSourceSummary,
-} from "~/domain/release/metadata";
+} from "@/domain/release/metadata";
 
 export function formatDownloadNotificationDescription(input: {
   imported_path?: string | undefined;

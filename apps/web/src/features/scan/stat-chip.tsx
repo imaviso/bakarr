@@ -1,4 +1,4 @@
-import { cn } from "~/infra/utils";
+import { cn } from "@/infra/utils";
 
 export function StatChip(props: { label: string; value: string; tone?: "default" | "info" }) {
   return (

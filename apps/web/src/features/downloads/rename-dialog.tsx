@@ -1,15 +1,15 @@
 import { WarningIcon, CheckIcon, InfoIcon, SpinnerIcon } from "@phosphor-icons/react";
 
-import { Alert, AlertDescription, AlertTitle } from "~/components/ui/alert";
-import { Badge } from "~/components/ui/badge";
-import { Button } from "~/components/ui/button";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "~/components/ui/dialog";
+} from "@/components/ui/dialog";
 import {
   Table,
   TableBody,
@@ -17,9 +17,9 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "~/components/ui/table";
-import { useExecuteRenameMutation, useRenamePreviewQuery } from "~/api/media";
-import { formatNamingTitleSource, namingMetadataBadges } from "~/domain/scanned-file";
+} from "@/components/ui/table";
+import { useExecuteRenameMutation, useRenamePreviewQuery } from "@/api/media";
+import { formatNamingTitleSource, namingMetadataBadges } from "@/domain/scanned-file";
 
 interface RenameDialogProps {
   mediaId: number;

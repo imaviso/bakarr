@@ -3,13 +3,13 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Suspense, lazy, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { EmptyState } from "~/components/shared/empty-state";
-import { GeneralError } from "~/components/shared/general-error";
-import { PageHeader } from "~/app/layout/page-header";
-import { PageShell } from "~/app/layout/page-shell";
-import { Badge } from "~/components/ui/badge";
-import { Button } from "~/components/ui/button";
-import { DropdownMenu, DropdownMenuItem, DropdownMenuTrigger } from "~/components/ui/dropdown-menu";
+import { EmptyState } from "@/components/shared/empty-state";
+import { GeneralError } from "@/components/shared/general-error";
+import { PageHeader } from "@/app/layout/page-header";
+import { PageShell } from "@/app/layout/page-shell";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import {
   Table,
   TableBody,
@@ -17,24 +17,24 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "~/components/ui/table";
-import { useSystemTaskQuery, isTaskActive } from "~/api/operations-tasks";
-import { useSearchMissingMutation } from "~/api/system-downloads";
-import { systemConfigQueryOptions } from "~/api/system-config";
-import { wantedQueryOptions } from "~/api/system-wanted";
-import type { MissingUnit } from "~/api/contracts";
-import { mediaUnitLabel } from "~/domain/media-unit";
-import { usePageTitle } from "~/app/page-title";
+} from "@/components/ui/table";
+import { useSystemTaskQuery, isTaskActive } from "@/api/operations-tasks";
+import { useSearchMissingMutation } from "@/api/system-downloads";
+import { systemConfigQueryOptions } from "@/api/system-config";
+import { wantedQueryOptions } from "@/api/system-wanted";
+import type { MissingUnit } from "@/api/contracts";
+import { mediaUnitLabel } from "@/domain/media-unit";
+import { usePageTitle } from "@/app/page-title";
 import {
   formatAiringDateWithPreferences,
   formatNextAiringUnit,
   getAiringDisplayPreferences,
-} from "~/domain/media/metadata";
+} from "@/domain/media/metadata";
 
 const WANTED_LIMIT = 100;
 
 const SearchModalLazy = lazy(() =>
-  import("~/features/search/search-modal").then((module) => ({
+  import("@/features/search/search-modal").then((module) => ({
     default: module.SearchModal,
   })),
 );
@@ -253,7 +253,7 @@ function WantedRow(props: {
           {props.item.media_title}
         </Link>
         {props.item.next_airing_unit && (
-          <div className="mt-1 text-[11px] text-muted-foreground">
+          <div className="mt-1 text-xs text-muted-foreground">
             {formatNextAiringUnit(props.item.next_airing_unit, props.airingPreferences) ||
               "Next airing scheduled"}
           </div>

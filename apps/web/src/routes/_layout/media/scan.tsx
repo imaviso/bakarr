@@ -8,32 +8,32 @@ import {
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { GeneralError } from "~/components/shared/general-error";
-import { PageShell } from "~/app/layout/page-shell";
-import { BackgroundMatchingCard } from "~/features/scan/background-matching-card";
-import { runBulkBackgroundMatchAction } from "~/features/scan/background-matching-actions";
-import { isBackgroundMatchingRunning } from "~/features/scan/background-matching-state";
-import { EmptyScanState } from "~/features/scan/empty-scan-state";
-import { FolderItem } from "~/features/scan/folder-item";
-import { ManualMatchSearch } from "~/features/scan/manual-match-search";
-import { StatChip } from "~/features/scan/stat-chip";
-import { ConfirmDialog } from "~/components/shared/confirm-dialog";
-import { Button } from "~/components/ui/button";
-import { Dialog, DialogDescription, DialogHeader, DialogTitle } from "~/components/ui/dialog";
+import { GeneralError } from "@/components/shared/general-error";
+import { PageShell } from "@/app/layout/page-shell";
+import { BackgroundMatchingCard } from "@/features/scan/background-matching-card";
+import { runBulkBackgroundMatchAction } from "@/features/scan/background-matching-actions";
+import { isBackgroundMatchingRunning } from "@/features/scan/background-matching-state";
+import { EmptyScanState } from "@/features/scan/empty-scan-state";
+import { FolderItem } from "@/features/scan/folder-item";
+import { ManualMatchSearch } from "@/features/scan/manual-match-search";
+import { StatChip } from "@/features/scan/stat-chip";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   useBulkControlUnmappedFoldersMutation,
   useScanLibraryMutation,
   unmappedFoldersQueryOptions,
-} from "~/api/system-library";
-import { systemJobsQueryOptions } from "~/api/system-config";
+} from "@/api/system-library";
+import { systemJobsQueryOptions } from "@/api/system-config";
 import type {
   MediaSearchResult,
   BackgroundJobStatus,
   ScannerMatchStatus,
   UnmappedFolder,
-} from "~/api/contracts";
-import { usePageTitle } from "~/app/page-title";
-import { cn } from "~/infra/utils";
+} from "@/api/contracts";
+import { usePageTitle } from "@/app/page-title";
+import { cn } from "@/infra/utils";
 
 export const Route = createFileRoute("/_layout/media/scan")({
   loader: async ({ context: { queryClient } }) => {
@@ -204,7 +204,7 @@ function ScanPageHeader(props: ScanPageHeaderProps) {
       <div className="px-6 py-5">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div className="space-y-3">
-            <div className="inline-flex items-center gap-2 border border-border bg-background/80 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.24em] text-muted-foreground">
+            <div className="inline-flex items-center gap-2 border border-border bg-background/80 px-3 py-1 text-xs font-medium uppercase tracking-[0.24em] text-muted-foreground">
               <SparkleIcon className="h-3.5 w-3.5 text-info" />
               Library Scan
             </div>

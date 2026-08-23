@@ -1,11 +1,11 @@
 import { CheckIcon, FileIcon } from "@phosphor-icons/react";
-import { MediaDiscoveryRow } from "~/features/media/media-discovery";
-import { Badge } from "~/components/ui/badge";
-import { Toggle } from "~/components/ui/toggle";
-import { Tooltip, TooltipTrigger } from "~/components/ui/tooltip";
-import type { MediaSearchResult } from "~/api/contracts";
-import { animeDisplayTitle, animeSearchSubtitle } from "~/domain/media/metadata";
-import { cn } from "~/infra/utils";
+import { MediaDiscoveryRow } from "@/features/media/media-discovery";
+import { Badge } from "@/components/ui/badge";
+import { Toggle } from "@/components/ui/toggle";
+import { Tooltip, TooltipTrigger } from "@/components/ui/tooltip";
+import type { MediaSearchResult } from "@/api/contracts";
+import { animeDisplayTitle, animeSearchSubtitle } from "@/domain/media/metadata";
+import { cn } from "@/infra/utils";
 
 interface CandidateCardProps {
   candidate: MediaSearchResult;

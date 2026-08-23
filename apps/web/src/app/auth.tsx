@@ -9,9 +9,9 @@ import {
   replaceApiKey,
   subscribeAuth,
   syncAuthenticatedUser,
-} from "~/app/auth-state";
+} from "@/app/auth-state";
 
-export type { AuthState } from "~/app/auth-state";
+export type { AuthState } from "@/app/auth-state";
 
 export {
   getAuthState,

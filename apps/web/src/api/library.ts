@@ -1,7 +1,7 @@
 import { queryOptions } from "@tanstack/react-query";
 import { ActivityItemSchema, LibraryStatsSchema } from "@bakarr/shared";
-import { API_BASE } from "~/api/constants";
-import { fetchJson, runApiEffect } from "~/api/effect/api-client";
+import { API_BASE } from "@/api/constants";
+import { fetchJson, runApiEffect } from "@/api/effect/api-client";
 import { Schema } from "effect";
 import { animeKeys } from "./keys";
 

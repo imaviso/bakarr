@@ -1,5 +1,5 @@
 import { XIcon } from "@phosphor-icons/react";
-import { Button } from "~/components/ui/button";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -7,8 +7,8 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "~/components/ui/select";
-import { DebouncedInput } from "~/components/shared/debounced-input";
+} from "@/components/ui/select";
+import { DebouncedInput } from "@/components/shared/debounced-input";
 import { useFilterContext } from "./filter-context";
 import type { FilterOperator, FilterState } from "./types";
 

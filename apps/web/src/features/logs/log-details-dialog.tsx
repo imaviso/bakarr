@@ -1,5 +1,5 @@
-import { Dialog, DialogDescription, DialogHeader, DialogTitle } from "~/components/ui/dialog";
-import type { SystemLog } from "~/api/contracts";
+import { Dialog, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import type { SystemLog } from "@/api/contracts";
 
 interface LogDetailsDialogProps {
   log: SystemLog | null;

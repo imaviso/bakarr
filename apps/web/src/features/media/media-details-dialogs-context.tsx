@@ -2,8 +2,8 @@ import { createContext, useContext, type ReactNode } from "react";
 import type {
   AnimeEpisodeDialogState,
   AnimeSearchModalState,
-} from "~/features/media/media-details-types";
-import type { MediaUnit, QualityProfile, ReleaseProfile } from "~/api/contracts";
+} from "@/features/media/media-details-types";
+import type { MediaUnit, QualityProfile, ReleaseProfile } from "@/api/contracts";
 
 interface AnimeDetailsDialogsContextValue {
   mediaId: number;

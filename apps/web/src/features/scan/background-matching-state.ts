@@ -1,4 +1,4 @@
-import type { BackgroundJobStatus, ScannerMatchStatus } from "~/api/contracts";
+import type { BackgroundJobStatus, ScannerMatchStatus } from "@/api/contracts";
 
 export interface BackgroundMatchingStateInput {
   failedCount: number;

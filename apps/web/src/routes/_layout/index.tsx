@@ -2,18 +2,18 @@ import { ArrowRightIcon, CheckIcon, ClockIcon } from "@phosphor-icons/react";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { formatDistanceToNow } from "date-fns";
-import { EmptyState } from "~/components/shared/empty-state";
-import { GeneralError } from "~/components/shared/general-error";
-import { PageHeader } from "~/app/layout/page-header";
-import { PageShell } from "~/app/layout/page-shell";
-import { SectionLabel } from "~/components/shared/section-label";
-import { Badge } from "~/components/ui/badge";
-import { Button } from "~/components/ui/button";
-import { Separator } from "~/components/ui/separator";
-import type { ActivityItem } from "~/api/contracts";
-import { activityQueryOptions, libraryStatsQueryOptions } from "~/api/library";
-import { createDownloadsRouteSearch } from "~/domain/download/events-search";
-import { usePageTitle } from "~/app/page-title";
+import { EmptyState } from "@/components/shared/empty-state";
+import { GeneralError } from "@/components/shared/general-error";
+import { PageHeader } from "@/app/layout/page-header";
+import { PageShell } from "@/app/layout/page-shell";
+import { SectionLabel } from "@/components/shared/section-label";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
+import type { ActivityItem } from "@/api/contracts";
+import { activityQueryOptions, libraryStatsQueryOptions } from "@/api/library";
+import { createDownloadsRouteSearch } from "@/domain/download/events-search";
+import { usePageTitle } from "@/app/page-title";
 
 export const Route = createFileRoute("/_layout/")({
   loader: async ({ context: { queryClient } }) => {
@@ -129,7 +129,7 @@ function StatItem(props: {
       </span>
       <span className="text-xs text-muted-foreground">{props.label}</span>
       {props.sub && (
-        <Badge variant="secondary" className="h-4 px-1.5 py-0 text-[10px]">
+        <Badge variant="secondary" className="h-4 px-1.5 py-0 text-xs">
           {props.sub}
         </Badge>
       )}

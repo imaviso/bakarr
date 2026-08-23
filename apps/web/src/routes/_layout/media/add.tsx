@@ -5,14 +5,14 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { useDebouncedValue } from "@tanstack/react-pacer";
 import { Suspense, lazy, useEffect, useRef } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { useContainerWidth } from "~/hooks/use-container-width";
-import { GeneralError } from "~/components/shared/general-error";
-import { PageHeader } from "~/app/layout/page-header";
-import { PageShell } from "~/app/layout/page-shell";
-import { Alert, AlertDescription } from "~/components/ui/alert";
-import { Skeleton } from "~/components/ui/skeleton";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
-import { Input } from "~/components/ui/input";
+import { useContainerWidth } from "@/hooks/use-container-width";
+import { GeneralError } from "@/components/shared/general-error";
+import { PageHeader } from "@/app/layout/page-header";
+import { PageShell } from "@/app/layout/page-shell";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -20,18 +20,18 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "~/components/ui/select";
-import type { MediaSearchResult } from "~/api/contracts";
+} from "@/components/ui/select";
+import type { MediaSearchResult } from "@/api/contracts";
 import {
   mediaByAnilistIdQueryOptions,
   mediaListQueryOptions,
   useMediaListQuery,
   useMediaSearchQuery,
-} from "~/api/media";
-import { errorMessage } from "~/api/effect/errors";
-import { usePageTitle } from "~/app/page-title";
-import { mediaKindLabel } from "~/domain/media-unit";
-import { shiftSeasonWindow } from "~/domain/seasonal-navigation";
+} from "@/api/media";
+import { errorMessage } from "@/api/effect/errors";
+import { usePageTitle } from "@/app/page-title";
+import { mediaKindLabel } from "@/domain/media-unit";
+import { shiftSeasonWindow } from "@/domain/seasonal-navigation";
 import { DEFAULT_SEASON_WINDOW, parseAddMediaSearch, type AddMediaSearch } from "./-add-search";
 
 const SEARCH_DEBOUNCE_MS = 250;
@@ -43,17 +43,17 @@ const mediaKindItems = [
 ];
 
 const MediaSearchResultCardLazy = lazy(() =>
-  import("~/features/media/media-search-result-card").then((module) => ({
+  import("@/features/media/media-search-result-card").then((module) => ({
     default: module.MediaSearchResultCard,
   })),
 );
 const SeasonalAnimeSectionLazy = lazy(() =>
-  import("~/features/media/seasonal-media-section").then((module) => ({
+  import("@/features/media/seasonal-media-section").then((module) => ({
     default: module.SeasonalAnimeSection,
   })),
 );
 const AddAnimeDialogLazy = lazy(() =>
-  import("~/features/media/add-media-dialog").then((module) => ({
+  import("@/features/media/add-media-dialog").then((module) => ({
     default: module.AddAnimeDialog,
   })),
 );

@@ -1,5 +1,5 @@
-import { API_BASE } from "~/api/constants";
-import { fetchUnit, runApiEffect } from "~/api/effect/api-client";
+import { API_BASE } from "@/api/constants";
+import { fetchUnit, runApiEffect } from "@/api/effect/api-client";
 
 export interface AuthState {
   readonly username?: string | undefined;

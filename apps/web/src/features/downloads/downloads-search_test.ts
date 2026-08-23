@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DOWNLOADS_EVENTS_SEARCH_KEYS } from "~/domain/download/events-search";
+import { DOWNLOADS_EVENTS_SEARCH_KEYS } from "@/domain/download/events-search";
 import { normalizeDownloadsSearch, parseDownloadsSearch, toDownloadsTab } from "./downloads-search";
 
 describe("downloads search", () => {

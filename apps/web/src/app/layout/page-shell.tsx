@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { cn } from "~/infra/utils";
+import { cn } from "@/infra/utils";
 
 type Scroll = "page" | "inner";
 

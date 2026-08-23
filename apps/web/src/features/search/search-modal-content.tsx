@@ -4,11 +4,11 @@ import { formatDistanceToNow } from "date-fns";
 import {
   ReleasePeersCell,
   ReleasePrimaryCell,
-} from "~/features/downloads/release-search/release-result-cells";
-import { Badge } from "~/components/ui/badge";
-import { Button } from "~/components/ui/button";
-import { errorMessage } from "~/api/effect/errors";
-import { DialogDescription, DialogHeader, DialogTitle } from "~/components/ui/dialog";
+} from "@/features/downloads/release-search/release-result-cells";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { errorMessage } from "@/api/effect/errors";
+import { DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   Table,
   TableBody,
@@ -16,18 +16,18 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "~/components/ui/table";
+} from "@/components/ui/table";
 import {
   buildReleaseDisplay,
   buildSelectionDisplayFromDownloadAction,
-} from "~/domain/release/display";
-import type { UnitSearchResult, MediaUnitKind } from "~/api/contracts";
-import { mediaUnitLabel } from "~/domain/media-unit";
-import { getReleaseConfidence } from "~/domain/release/selection";
-import { actionReasonFromDownloadAction } from "~/domain/release/grab";
-import { cn } from "~/infra/utils";
-import { formatBytes } from "~/domain/format";
-import type { SearchModalState } from "~/features/search/search-modal-state";
+} from "@/domain/release/display";
+import type { UnitSearchResult, MediaUnitKind } from "@/api/contracts";
+import { mediaUnitLabel } from "@/domain/media-unit";
+import { getReleaseConfidence } from "@/domain/release/selection";
+import { actionReasonFromDownloadAction } from "@/domain/release/grab";
+import { cn } from "@/infra/utils";
+import { formatBytes } from "@/domain/format";
+import type { SearchModalState } from "@/features/search/search-modal-state";
 
 interface SearchModalContentProps {
   unitNumber: number;

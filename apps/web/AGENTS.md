@@ -39,6 +39,16 @@ validators: {
 validateSearch: (search) => Schema.decodeUnknownSync(MySearchSchema)(search);
 ```
 
+## Styling
+
+- **Tokens:** single source in `src/styles/tokens.css` (`:root`/`.dark` + `@theme inline`). Semantic vars (`--background`, `--foreground`, etc.) map to `gs-*` base scale. No hard-coded colors outside tokens.
+- **Layers:** `src/index.css` is a barrel (`@import tokens/base/components`). `base.css` holds `@layer base` resets; `components.css` holds `@layer components` + keyframes.
+- **Alias:** single `@` → `./src` (no `~`). `cn` lives in `src/infra/utils.ts` — import `from "@/infra/utils"`.
+- **No arbitrary values:** use Tailwind scale (`text-xs`, `w-40`, `min-h-40`) or `cva` variants. `bg-[Canvas]` and virtualizer `style={{ height, transform }}` are allowlisted.
+- **Shared atoms:** `src/components/shared/{field-error,stat-dot,meta-text}.tsx` for repeated micro-patterns — prefer an explicit prop over a magic class string.
+- **Component decomposition:** `sidebar` split into `sidebar/constants.ts` + `sidebar/context.tsx` + `sidebar.tsx`; media library split into `media-grid-helpers.ts` + `media-progress-bar.tsx` + `media-grid-card.tsx` + `media-details-toolbar.tsx`.
+- **UI pruning:** unused `components/ui/*` (accordion, carousel, chart, etc.) deleted — re-add via `shadcn add` if needed.
+
 ## Commands
 
 - `pnpm check` — tsc --noEmit

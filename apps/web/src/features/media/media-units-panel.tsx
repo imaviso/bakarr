@@ -1,18 +1,18 @@
 import { SquaresFourIcon, ListIcon } from "@phosphor-icons/react";
-import { Button } from "~/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
-import { Table, TableBody, TableHead, TableHeader, TableRow } from "~/components/ui/table";
-import { EmptyState } from "~/components/shared/empty-state";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
-import { EpisodeTableRow } from "~/features/media/unit-table-row";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { EmptyState } from "@/components/shared/empty-state";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { EpisodeTableRow } from "@/features/media/unit-table-row";
 import type {
   AnimeEpisodeDialogState,
   AnimeSearchModalState,
-} from "~/features/media/media-details-types";
-import type { MediaUnit } from "~/api/contracts";
-import { isAired } from "~/domain/date-time";
-import { mediaUnitLabel } from "~/domain/media-unit";
-import { cn } from "~/infra/utils";
+} from "@/features/media/media-details-types";
+import type { MediaUnit } from "@/api/contracts";
+import { isAired } from "@/domain/date-time";
+import { mediaUnitLabel } from "@/domain/media-unit";
+import { cn } from "@/infra/utils";
 
 interface AnimeEpisodesPanelProps {
   episodes: readonly MediaUnit[];

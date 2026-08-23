@@ -11,8 +11,7 @@
     "types": ["vite/client"],
     "paths": {
       "@bakarr/shared": ["../../packages/shared/src/index.ts"],
-      "@/*": ["./src/*"],
-      "~/*": ["./src/*"]
+      "@/*": ["./src/*"]
     },
     "plugins": [
       {

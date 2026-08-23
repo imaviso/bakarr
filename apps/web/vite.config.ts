@@ -32,7 +32,6 @@ export default defineConfig(({ mode }) => {
     resolve: {
       alias: {
         "@": path.resolve(rootDir, "./src"),
-        "~": path.resolve(rootDir, "./src"),
       },
     },
     server: {

@@ -1,8 +1,8 @@
 import { queryOptions, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { ApiKeyLoginRequest, ChangePasswordRequest, LoginRequest } from "./contracts";
 import { AuthUserSchema, ApiKeyResponseSchema, LoginResponseSchema } from "@bakarr/shared";
-import { API_BASE } from "~/api/constants";
-import { fetchJson, fetchUnit, runApiEffect } from "~/api/effect/api-client";
+import { API_BASE } from "@/api/constants";
+import { fetchJson, fetchUnit, runApiEffect } from "@/api/effect/api-client";
 import { animeKeys } from "./keys";
 
 export function authMeQueryOptions() {

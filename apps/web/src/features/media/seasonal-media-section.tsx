@@ -2,15 +2,15 @@ import { CaretLeftIcon, CaretRightIcon, InfoIcon } from "@phosphor-icons/react";
 import { useSuspenseInfiniteQuery } from "@tanstack/react-query";
 import { useCallback, useEffect } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { MediaSearchResultCard } from "~/features/media/media-search-result-card";
-import { Alert, AlertDescription } from "~/components/ui/alert";
-import { Button } from "~/components/ui/button";
-import { useContainerWidth } from "~/hooks/use-container-width";
-import { useInfiniteNearEnd } from "~/hooks/use-infinite-near-end";
-import type { MediaSearchResult } from "~/api/contracts";
-import { seasonalMediaInfiniteQueryOptions } from "~/api/media";
-import { formatSeasonWindowLabel } from "~/domain/seasonal-navigation";
-import type { SeasonWindow } from "~/domain/seasonal-navigation";
+import { MediaSearchResultCard } from "@/features/media/media-search-result-card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { useContainerWidth } from "@/hooks/use-container-width";
+import { useInfiniteNearEnd } from "@/hooks/use-infinite-near-end";
+import type { MediaSearchResult } from "@/api/contracts";
+import { seasonalMediaInfiniteQueryOptions } from "@/api/media";
+import { formatSeasonWindowLabel } from "@/domain/seasonal-navigation";
+import type { SeasonWindow } from "@/domain/seasonal-navigation";
 
 interface SeasonalAnimeSectionProps {
   active: boolean;

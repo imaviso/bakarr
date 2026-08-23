@@ -1,7 +1,7 @@
 import { useForm } from "@tanstack/react-form";
 import { ConfigSchema } from "@bakarr/shared";
 import { Schema } from "effect";
-import type { Config } from "~/api/contracts";
+import type { Config } from "@/api/contracts";
 
 interface UseSystemSettingsFormOptions {
   defaultValues: Config;

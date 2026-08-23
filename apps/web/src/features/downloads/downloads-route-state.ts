@@ -1,9 +1,9 @@
-import { useDownloadsActions } from "~/features/downloads/use-downloads-actions";
-import { useDownloadsQueries } from "~/features/downloads/use-downloads-queries";
+import { useDownloadsActions } from "@/features/downloads/use-downloads-actions";
+import { useDownloadsQueries } from "@/features/downloads/use-downloads-queries";
 import type {
   DownloadsSearchPatch,
   DownloadsSearchState,
-} from "~/features/downloads/downloads-search";
+} from "@/features/downloads/downloads-search";
 
 interface UseDownloadsRouteStateOptions {
   search: DownloadsSearchState;

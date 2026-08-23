@@ -1,7 +1,7 @@
-import type { DownloadEvent } from "~/api/contracts";
-import { Dialog, DialogDescription, DialogHeader, DialogTitle } from "~/components/ui/dialog";
-import { Badge } from "~/components/ui/badge";
-import { getDownloadEventMetadataSummary } from "~/domain/download/event-metadata";
+import type { DownloadEvent } from "@/api/contracts";
+import { Dialog, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
+import { getDownloadEventMetadataSummary } from "@/domain/download/event-metadata";
 
 interface DownloadEventDetailsDialogProps {
   event: DownloadEvent | null;

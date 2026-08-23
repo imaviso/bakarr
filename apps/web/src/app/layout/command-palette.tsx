@@ -21,13 +21,13 @@ import {
   CommandItem,
   CommandList,
   CommandSeparator,
-} from "~/components/ui/command";
+} from "@/components/ui/command";
 
-import { Kbd } from "~/components/ui/kbd";
-import { Button } from "~/components/ui/button";
-import { useMediaListQuery } from "~/api/media";
-import { animeSearchSubtitle } from "~/domain/media/metadata";
-import { cn } from "~/infra/utils";
+import { Kbd } from "@/components/ui/kbd";
+import { Button } from "@/components/ui/button";
+import { useMediaListQuery } from "@/api/media";
+import { animeSearchSubtitle } from "@/domain/media/metadata";
+import { cn } from "@/infra/utils";
 
 const navigationRoutes = [
   { title: "Dashboard", url: "/", icon: HouseIcon },

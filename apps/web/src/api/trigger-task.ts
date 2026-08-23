@@ -1,8 +1,8 @@
 import { useMutation, useQueryClient, type QueryKey } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { AsyncOperationAcceptedSchema } from "@bakarr/shared";
-import { API_BASE } from "~/api/constants";
-import { fetchJson, runApiEffect } from "~/api/effect/api-client";
+import { API_BASE } from "@/api/constants";
+import { fetchJson, runApiEffect } from "@/api/effect/api-client";
 import { animeKeys } from "./keys";
 
 /**

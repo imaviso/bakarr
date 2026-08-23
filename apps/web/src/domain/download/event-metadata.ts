@@ -2,12 +2,12 @@ import type { DownloadEvent } from "@bakarr/shared";
 import {
   formatDownloadDecisionSummary,
   formatDownloadParsedMeta,
-} from "~/domain/download/metadata";
+} from "@/domain/download/metadata";
 import {
   buildReleaseSourceSummaryInput,
   formatReleaseSourceSummary,
-} from "~/domain/release/metadata";
-import { inferBatchKind } from "~/domain/batch-kind";
+} from "@/domain/release/metadata";
+import { inferBatchKind } from "@/domain/batch-kind";
 
 type DownloadEventLike = Pick<DownloadEvent, "metadata_json">;
 

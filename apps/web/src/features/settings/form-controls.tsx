@@ -1,16 +1,16 @@
 import { useState, type ReactNode } from "react";
-import { Input } from "~/components/ui/input";
-import { Label } from "~/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "~/components/ui/select";
-import { Textarea } from "~/components/ui/textarea";
-import { SectionLabel } from "~/components/shared/section-label";
-import { cn } from "~/infra/utils";
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { SectionLabel } from "@/components/shared/section-label";
+import { cn } from "@/infra/utils";
 
 function parseSizeUnit(value: string | null | undefined): "MB" | "GB" | undefined {
   if (value === "MB" || value === "mb") {
@@ -111,7 +111,7 @@ export function SizeInput(props: {
           </SelectContent>
         </Select>
       </div>
-      {props.error && <div className="text-[0.8rem] text-destructive">{props.error}</div>}
+      {props.error && <div className="text-xs text-destructive">{props.error}</div>}
     </div>
   );
 }

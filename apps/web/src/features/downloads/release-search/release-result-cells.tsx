@@ -3,12 +3,12 @@ import type { ReactNode } from "react";
 import {
   ReleaseSeaDexMeta,
   ReleaseSelectionMeta,
-} from "~/features/downloads/release-search/release-meta";
-import { ReleaseMetadataSummary } from "~/features/downloads/release-metadata-summary";
-import type { ReleaseFlag } from "~/domain/release/metadata";
-import type { ReleaseConfidenceMetadata } from "~/domain/release/selection";
-import { Tooltip, TooltipTrigger } from "~/components/ui/tooltip";
-import { cn } from "~/infra/utils";
+} from "@/features/downloads/release-search/release-meta";
+import { ReleaseMetadataSummary } from "@/features/downloads/release-metadata-summary";
+import type { ReleaseFlag } from "@/domain/release/metadata";
+import type { ReleaseConfidenceMetadata } from "@/domain/release/selection";
+import { Tooltip, TooltipTrigger } from "@/components/ui/tooltip";
+import { cn } from "@/infra/utils";
 
 interface ReleasePrimaryCellProps {
   confidence?: ReleaseConfidenceMetadata | undefined;

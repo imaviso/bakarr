@@ -1,4 +1,4 @@
-import type { MediaUnitKind } from "~/api/contracts";
+import type { MediaUnitKind } from "@/api/contracts";
 
 export interface AnimeEpisodeDialogState {
   open: boolean;

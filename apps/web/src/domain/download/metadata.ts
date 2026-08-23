@@ -1,7 +1,7 @@
 import type { Download, DownloadStatus } from "@bakarr/shared";
-import { formatManualReleaseSearchDecisionReason, inferBatchKind } from "~/domain/batch-kind";
-import { formatReleaseParsedSummary, formatReleaseSourceSummary } from "~/domain/release/metadata";
-import { formatSelectionSummary, getReleaseConfidence } from "~/domain/release/selection";
+import { formatManualReleaseSearchDecisionReason, inferBatchKind } from "@/domain/batch-kind";
+import { formatReleaseParsedSummary, formatReleaseSourceSummary } from "@/domain/release/metadata";
+import { formatSelectionSummary, getReleaseConfidence } from "@/domain/release/selection";
 
 type DownloadLike = Partial<
   Pick<

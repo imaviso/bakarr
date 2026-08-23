@@ -13,18 +13,18 @@ import {
   subMonths,
 } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
-import { Button } from "~/components/ui/button";
-import { Card } from "~/components/ui/card";
-import { PageShell } from "~/app/layout/page-shell";
-import { SectionLabel } from "~/components/shared/section-label";
-import { calendarQueryOptions } from "~/api/system-rss-calendar";
-import { useSystemConfigQuery } from "~/api/system-config";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { PageShell } from "@/app/layout/page-shell";
+import { SectionLabel } from "@/components/shared/section-label";
+import { calendarQueryOptions } from "@/api/system-rss-calendar";
+import { useSystemConfigQuery } from "@/api/system-config";
 import {
   formatAiringTimeWithPreferences,
   getAiringDisplayDateKey,
   getAiringDisplayPreferences,
-} from "~/domain/media/metadata";
-import { cn } from "~/infra/utils";
+} from "@/domain/media/metadata";
+import { cn } from "@/infra/utils";
 
 const toMonthKey = (date: Date) => format(date, "yyyy-MM");
 

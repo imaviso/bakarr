@@ -4,10 +4,10 @@ import type {
   NyaaSearchResult,
   SearchDownloadReleaseContext,
   SearchDownloadRequest,
-} from "~/api/contracts";
+} from "@/api/contracts";
 import { brandMediaId } from "@bakarr/shared";
-import { formatReleaseSearchDecisionReason, inferBatchKind } from "~/domain/batch-kind";
-import { buildParsedEpisodeIdentity } from "~/domain/release/download";
+import { formatReleaseSearchDecisionReason, inferBatchKind } from "@/domain/batch-kind";
+import { buildParsedEpisodeIdentity } from "@/domain/release/download";
 
 export interface NyaaSelectionMetadata {
   chosen_from_seadex?: boolean | undefined;

@@ -21,7 +21,7 @@ import {
   type SeparatorProps,
 } from "react-aria-components";
 
-import { cn } from "@/lib/utils";
+import { cn } from "@/infra/utils";
 import { Dialog, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { InputGroup, InputGroupAddon } from "@/components/ui/input-group";
 import { CheckIcon, MagnifyingGlassIcon } from "@phosphor-icons/react";

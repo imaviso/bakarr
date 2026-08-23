@@ -1,7 +1,7 @@
-import { useUnitSearchQuery } from "~/api/media";
-import { useGrabReleaseMutation } from "~/api/media-mutations";
-import type { UnitSearchResult } from "~/api/contracts";
-import { buildGrabInputFromEpisodeResult } from "~/domain/release/grab";
+import { useUnitSearchQuery } from "@/api/media";
+import { useGrabReleaseMutation } from "@/api/media-mutations";
+import type { UnitSearchResult } from "@/api/contracts";
+import { buildGrabInputFromEpisodeResult } from "@/domain/release/grab";
 
 interface SearchModalStateOptions {
   mediaId: number;

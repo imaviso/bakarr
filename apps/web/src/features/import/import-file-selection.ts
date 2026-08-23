@@ -1,5 +1,5 @@
-import type { MediaId, ImportFileRequest, ScannedFile } from "~/api/contracts";
-import { buildImportFileRequest } from "~/features/import/import-flow";
+import type { MediaId, ImportFileRequest, ScannedFile } from "@/api/contracts";
+import { buildImportFileRequest } from "@/features/import/import-flow";
 
 export function toggleSelectedImportFile(
   selectedFiles: Map<string, ImportFileRequest>,

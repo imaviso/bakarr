@@ -1,4 +1,4 @@
-import type { MediaKind, MediaUnitKind } from "~/api/contracts";
+import type { MediaKind, MediaUnitKind } from "@/api/contracts";
 
 export function mediaUnitKindFromMediaKind(mediaKind: MediaKind): MediaUnitKind {
   return mediaKind === "anime" ? "episode" : "volume";

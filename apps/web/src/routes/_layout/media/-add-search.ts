@@ -1,5 +1,5 @@
 import { Schema } from "effect";
-import { getCurrentSeasonWindow } from "~/domain/seasonal-navigation";
+import { getCurrentSeasonWindow } from "@/domain/seasonal-navigation";
 
 export const DEFAULT_SEASON_WINDOW = getCurrentSeasonWindow();
 

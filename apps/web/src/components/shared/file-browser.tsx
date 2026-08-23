@@ -10,16 +10,16 @@ import {
 } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { Button } from "~/components/ui/button";
-import { Input } from "~/components/ui/input";
-import { Skeleton } from "~/components/ui/skeleton";
-import { Tooltip, TooltipTrigger } from "~/components/ui/tooltip";
-import type { BrowseEntry } from "~/api/contracts";
-import { errorMessage } from "~/api/effect/errors";
-import { browsePathQueryOptions } from "~/api/system-library";
-import { EmptyState } from "~/components/shared/empty-state";
-import { cn } from "~/infra/utils";
-import { formatBytes } from "~/domain/format";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip, TooltipTrigger } from "@/components/ui/tooltip";
+import type { BrowseEntry } from "@/api/contracts";
+import { errorMessage } from "@/api/effect/errors";
+import { browsePathQueryOptions } from "@/api/system-library";
+import { EmptyState } from "@/components/shared/empty-state";
+import { cn } from "@/infra/utils";
+import { formatBytes } from "@/domain/format";
 
 const BROWSE_PAGE_SIZE = 100;
 

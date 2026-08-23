@@ -8,8 +8,8 @@ import {
 import type { RssFeedCreateRequest } from "./contracts";
 import { Schema } from "effect";
 import { CalendarEventSchema, RssFeedSchema } from "@bakarr/shared";
-import { API_BASE } from "~/api/constants";
-import { apiUrl, fetchJson, fetchUnit, runApiEffect } from "~/api/effect/api-client";
+import { API_BASE } from "@/api/constants";
+import { apiUrl, fetchJson, fetchUnit, runApiEffect } from "@/api/effect/api-client";
 import { animeKeys } from "./keys";
 
 export function rssFeedsQueryOptions() {

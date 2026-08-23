@@ -1,12 +1,12 @@
 import { useState } from "react";
-import type { DownloadEvent, SystemLog } from "~/api/contracts";
-import { useClearLogsMutation, getExportLogsUrl } from "~/api/system-logs";
+import type { DownloadEvent, SystemLog } from "@/api/contracts";
+import { useClearLogsMutation, getExportLogsUrl } from "@/api/system-logs";
 import {
   createDownloadEventsCursorPatch,
   LOGS_DOWNLOAD_EVENTS_SEARCH_KEYS,
-} from "~/domain/download/events-search";
-import { useDownloadEventsExport } from "~/features/downloads/use-download-events-export";
-import type { LogsFilterParams } from "~/features/logs/use-logs-filters";
+} from "@/domain/download/events-search";
+import { useDownloadEventsExport } from "@/features/downloads/use-download-events-export";
+import type { LogsFilterParams } from "@/features/logs/use-logs-filters";
 
 interface UseLogsActionsOptions {
   logsParams: LogsFilterParams;

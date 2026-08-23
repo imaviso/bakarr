@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import { brandMediaId } from "@bakarr/shared";
-import type { MediaSearchResult } from "~/api/contracts";
-import { buildAddMediaRequestFromFolderMatch } from "~/features/scan/folder-item-controller";
+import type { MediaSearchResult } from "@/api/contracts";
+import { buildAddMediaRequestFromFolderMatch } from "@/features/scan/folder-item-controller";
 
 describe("buildAddMediaRequestFromFolderMatch", () => {
   it("preserves light novel media kind when adding a folder match", () => {

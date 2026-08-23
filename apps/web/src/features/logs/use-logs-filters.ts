@@ -1,5 +1,5 @@
-import type { FilterState } from "~/features/filters";
-import { parseLogsSearch, type LogsSearchState } from "~/features/logs/logs-search";
+import type { FilterState } from "@/features/filters";
+import { parseLogsSearch, type LogsSearchState } from "@/features/logs/logs-search";
 
 interface UseLogsFiltersOptions {
   search: Record<string, string | undefined>;

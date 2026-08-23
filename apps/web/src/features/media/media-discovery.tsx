@@ -1,9 +1,9 @@
 import { Link } from "@tanstack/react-router";
-import { buttonVariants } from "~/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
-import type { Media } from "~/api/contracts";
-import { animeDiscoverySubtitle, animeDisplayTitle } from "~/domain/media/metadata";
-import { cn } from "~/infra/utils";
+import { buttonVariants } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import type { Media } from "@/api/contracts";
+import { animeDiscoverySubtitle, animeDisplayTitle } from "@/domain/media/metadata";
+import { cn } from "@/infra/utils";
 
 type DiscoveryEntry = NonNullable<Media["related_media"]>[number];
 
@@ -100,7 +100,7 @@ export function AnimeDiscoverySection(props: AnimeDiscoverySectionProps) {
       <CardContent className="space-y-4">
         {related.length > 0 && (
           <section className="space-y-2">
-            <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+            <div className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
               Franchise
             </div>
             <div className="space-y-2">
@@ -113,7 +113,7 @@ export function AnimeDiscoverySection(props: AnimeDiscoverySectionProps) {
 
         {recommended.length > 0 && (
           <section className="space-y-2">
-            <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+            <div className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
               Recommended
             </div>
             <div className="space-y-2">

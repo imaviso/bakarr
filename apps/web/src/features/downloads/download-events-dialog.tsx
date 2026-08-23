@@ -1,17 +1,17 @@
 import { useState } from "react";
 import { WarningIcon, EyeIcon, TableIcon, BracketsCurlyIcon } from "@phosphor-icons/react";
-import { Alert, AlertDescription } from "~/components/ui/alert";
-import { Button } from "~/components/ui/button";
-import { Dialog, DialogDescription, DialogHeader, DialogTitle } from "~/components/ui/dialog";
-import { DownloadEventDetailsDialog } from "~/features/downloads/download-event-details-dialog";
-import { useDownloadEventsQuery } from "~/api/system-download-events";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { DownloadEventDetailsDialog } from "@/features/downloads/download-event-details-dialog";
+import { useDownloadEventsQuery } from "@/api/system-download-events";
 import type {
   DownloadEvent,
   DownloadEventsExportInput,
   DownloadEventsFilterInput,
-} from "~/api/contracts";
-import { useDownloadEventsExport } from "~/features/downloads/use-download-events-export";
-import { DownloadEventsFeed } from "~/features/downloads/download-events/download-events-feed";
+} from "@/api/contracts";
+import { useDownloadEventsExport } from "@/features/downloads/use-download-events-export";
+import { DownloadEventsFeed } from "@/features/downloads/download-events/download-events-feed";
 
 interface DownloadEventsDialogProps {
   mediaId?: number | undefined;

@@ -1,8 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Schema } from "effect";
-import { AnimeCalendar } from "~/features/media/media-calendar";
-import { GeneralError } from "~/components/shared/general-error";
-import { usePageTitle } from "~/app/page-title";
+import { AnimeCalendar } from "@/features/media/media-calendar";
+import { GeneralError } from "@/components/shared/general-error";
+import { usePageTitle } from "@/app/page-title";
 
 const CalendarSearchSchema = Schema.Struct({
   month: Schema.optional(Schema.String),

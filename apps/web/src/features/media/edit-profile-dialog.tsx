@@ -1,14 +1,14 @@
 import { useForm } from "@tanstack/react-form";
-import { Badge } from "~/components/ui/badge";
-import { Button } from "~/components/ui/button";
-import { Checkbox } from "~/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "~/components/ui/dialog";
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -16,9 +16,9 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "~/components/ui/select";
-import { Label } from "~/components/ui/label";
-import type { QualityProfile, ReleaseProfile } from "~/api/contracts";
+} from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import type { QualityProfile, ReleaseProfile } from "@/api/contracts";
 
 interface EditProfileDialogProps {
   open: boolean;

@@ -1,5 +1,5 @@
 import { queryOptions, useMutation, useQuery } from "@tanstack/react-query";
-import { triggerBlobDownload } from "~/infra/blob-download";
+import { triggerBlobDownload } from "@/infra/blob-download";
 import type {
   DownloadEventsExportInput,
   DownloadEventsExportResult,
@@ -7,15 +7,15 @@ import type {
 } from "./contracts";
 import { Effect } from "effect";
 import { DownloadEventsPageSchema } from "@bakarr/shared";
-import { API_BASE } from "~/api/constants";
-import { DownloadEventsExportError } from "~/api/effect/errors";
+import { API_BASE } from "@/api/constants";
+import { DownloadEventsExportError } from "@/api/effect/errors";
 import {
   fetchJson,
   fetchResponse,
   runApiEffect,
   type ApiClientError,
   type ApiUnauthorizedError,
-} from "~/api/effect/api-client";
+} from "@/api/effect/api-client";
 import { animeKeys } from "./keys";
 
 function buildDownloadEventsSearchParams(input: DownloadEventsFilterInput) {

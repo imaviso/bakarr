@@ -1,5 +1,5 @@
-import type { MediaKind, MediaSearchResult } from "~/api/contracts";
-import { ManualSearchCore } from "~/features/import/manual-search-core";
+import type { MediaKind, MediaSearchResult } from "@/api/contracts";
+import { ManualSearchCore } from "@/features/import/manual-search-core";
 
 export function ManualMatchSearch(props: {
   initialMediaKind?: MediaKind | undefined;

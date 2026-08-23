@@ -2,7 +2,7 @@ import {
   createDownloadEventsSearchDefaults,
   createDownloadEventsSearchSchema,
   DOWNLOADS_EVENTS_SEARCH_KEYS,
-} from "~/domain/download/events-search";
+} from "@/domain/download/events-search";
 import { Schema } from "effect";
 
 export type DownloadsTab = "events" | "history" | "queue";

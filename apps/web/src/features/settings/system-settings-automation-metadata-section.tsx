@@ -1,9 +1,9 @@
-import { FiniteNumberInput, SettingRow, SettingSection } from "~/features/settings/form-controls";
-import type { SettingsFormApi } from "~/features/settings/system-settings-form-hook";
-import { Badge } from "~/components/ui/badge";
-import { Input } from "~/components/ui/input";
-import { Switch } from "~/components/ui/switch";
-import type { SystemStatus } from "~/api/contracts";
+import { FiniteNumberInput, SettingRow, SettingSection } from "@/features/settings/form-controls";
+import type { SettingsFormApi } from "@/features/settings/system-settings-form-hook";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
+import type { SystemStatus } from "@/api/contracts";
 
 interface SystemSettingsAutomationMetadataSectionProps {
   form: SettingsFormApi;

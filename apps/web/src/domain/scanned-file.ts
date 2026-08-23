@@ -1,7 +1,7 @@
-import { clampConfidencePercent, formatDurationSeconds } from "~/domain/format";
-import type { RenamePreviewMetadataSnapshot } from "~/api/contracts";
+import { clampConfidencePercent, formatDurationSeconds } from "@/domain/format";
+import type { RenamePreviewMetadataSnapshot } from "@/api/contracts";
 
-export { formatDurationSeconds, formatFileSize } from "~/domain/format";
+export { formatDurationSeconds, formatFileSize } from "@/domain/format";
 
 type MediaMetadataInput = {
   audio_channels?: string | undefined;

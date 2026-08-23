@@ -1,8 +1,8 @@
 import { queryOptions, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Schema } from "effect";
 import { AsyncOperationAcceptedSchema, DownloadSchema, DownloadStatusSchema } from "@bakarr/shared";
-import { API_BASE } from "~/api/constants";
-import { apiUrl, fetchJson, fetchUnit, runApiEffect } from "~/api/effect/api-client";
+import { API_BASE } from "@/api/constants";
+import { apiUrl, fetchJson, fetchUnit, runApiEffect } from "@/api/effect/api-client";
 import { animeKeys } from "./keys";
 import { useTriggerTaskMutation } from "./trigger-task";
 

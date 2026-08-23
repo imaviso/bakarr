@@ -1,7 +1,7 @@
-import { Dialog } from "~/components/ui/dialog";
-import { SearchModalContent } from "~/features/search/search-modal-content";
-import { useSearchModalState } from "~/features/search/search-modal-state";
-import type { MediaUnitKind } from "~/api/contracts";
+import { Dialog } from "@/components/ui/dialog";
+import { SearchModalContent } from "@/features/search/search-modal-content";
+import { useSearchModalState } from "@/features/search/search-modal-state";
+import type { MediaUnitKind } from "@/api/contracts";
 
 interface SearchModalProps {
   mediaId: number;

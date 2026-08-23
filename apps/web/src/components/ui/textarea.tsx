@@ -3,7 +3,7 @@
 import * as React from "react";
 import { composeRenderProps, TextArea as TextareaPrimitive } from "react-aria-components";
 
-import { cn } from "@/lib/utils";
+import { cn } from "@/infra/utils";
 
 function Textarea({ className, ...props }: React.ComponentProps<typeof TextareaPrimitive>) {
   return (

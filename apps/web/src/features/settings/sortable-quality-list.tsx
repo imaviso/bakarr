@@ -1,13 +1,13 @@
 import { ArrowDownIcon, ArrowUpIcon, DotsSixVerticalIcon, XIcon } from "@phosphor-icons/react";
 import { useState } from "react";
-import { Button } from "~/components/ui/button";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "~/components/ui/select";
+} from "@/components/ui/select";
 
 interface SortableQualityListProps {
   value: string[];

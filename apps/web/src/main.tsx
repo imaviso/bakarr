@@ -3,14 +3,14 @@ import { MutationCache, QueryClient, QueryClientProvider } from "@tanstack/react
 import { toast } from "sonner";
 import { createRouter, RouterProvider } from "@tanstack/react-router";
 import { routeTree } from "./routeTree.gen";
-import { logout } from "~/app/auth";
+import { logout } from "@/app/auth";
 import {
   ApiClientError,
   ApiDecodeError,
   ApiUnauthorizedError,
   isApiUnauthorizedError,
-} from "~/api/effect/api-client";
-import { errorMessage } from "~/api/effect/errors";
+} from "@/api/effect/api-client";
+import { errorMessage } from "@/api/effect/errors";
 // oxlint-disable-next-line import/no-unassigned-import
 import "./index.css";
 

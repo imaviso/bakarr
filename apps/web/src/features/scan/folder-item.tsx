@@ -9,29 +9,29 @@ import {
   TrashIcon,
 } from "@phosphor-icons/react";
 import { memo } from "react";
-import { MediaDiscoveryRow } from "~/features/media/media-discovery";
-import { ConfirmDialog } from "~/components/shared/confirm-dialog";
-import { Badge } from "~/components/ui/badge";
-import { Button } from "~/components/ui/button";
+import { MediaDiscoveryRow } from "@/features/media/media-discovery";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "~/components/ui/select";
-import type { MediaSearchResult, UnmappedFolder } from "~/api/contracts";
-import { animeDisplayTitle, animeSearchSubtitle } from "~/domain/media/metadata";
-import { mediaKindLabel, mediaUnitShortLabel } from "~/domain/media-unit";
-import { formatFileSize } from "~/domain/scanned-file";
-import { cn } from "~/infra/utils";
-import { useFolderItemController } from "~/features/scan/folder-item-controller";
+} from "@/components/ui/select";
+import type { MediaSearchResult, UnmappedFolder } from "@/api/contracts";
+import { animeDisplayTitle, animeSearchSubtitle } from "@/domain/media/metadata";
+import { mediaKindLabel, mediaUnitShortLabel } from "@/domain/media-unit";
+import { formatFileSize } from "@/domain/scanned-file";
+import { cn } from "@/infra/utils";
+import { useFolderItemController } from "@/features/scan/folder-item-controller";
 import {
   emptyMatchMessage,
   folderMatchHint,
   folderStatusLabel,
   formatConfidencePercent,
-} from "~/features/scan/folder-item-utils";
+} from "@/features/scan/folder-item-utils";
 
 // Memoized to avoid re-render of off-screen folders during virtual scrolling.
 // Parent must keep `folder` object stable (or use key-based identity) for memo to be effective.
@@ -78,7 +78,7 @@ export const FolderItem = memo(function FolderItem(props: {
               </div>
             ) : null}
             {formatFileSize(props.folder.size) && (
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 {formatFileSize(props.folder.size)} on disk
               </p>
             )}
@@ -138,12 +138,12 @@ export const FolderItem = memo(function FolderItem(props: {
                 )}
               </div>
               {state.selectedAnime.match_reason && !state.manualMatch && (
-                <p className="text-[11px] text-muted-foreground line-clamp-2">
+                <p className="text-xs text-muted-foreground line-clamp-2">
                   {state.selectedAnime.match_reason}
                 </p>
               )}
               {state.selectedAnime.description && (
-                <p className="text-[11px] text-muted-foreground line-clamp-2">
+                <p className="text-xs text-muted-foreground line-clamp-2">
                   {state.selectedAnime.description}
                 </p>
               )}
@@ -173,7 +173,7 @@ export const FolderItem = memo(function FolderItem(props: {
               ) : null}
               {!state.selectedAnime.already_in_library && (
                 <div className="space-y-2 pt-1">
-                  <span className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+                  <span className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
                     Quality profile for the new media
                   </span>
                   <Select

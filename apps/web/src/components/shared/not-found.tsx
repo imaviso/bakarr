@@ -1,6 +1,6 @@
 import { ArrowLeftIcon } from "@phosphor-icons/react";
 import { Link, useLocation } from "@tanstack/react-router";
-import { Button } from "~/components/ui/button";
+import { Button } from "@/components/ui/button";
 
 export function NotFound() {
   const location = useLocation();

@@ -8,7 +8,7 @@ import {
   WarningIcon,
   XCircleIcon,
 } from "@phosphor-icons/react";
-import { useTheme } from "~/components/shared/theme-provider";
+import { useTheme } from "@/components/shared/theme-provider";
 
 function toSonnerTheme(theme: string | undefined): "light" | "dark" | "system" {
   return theme === "light" || theme === "dark" || theme === "system" ? theme : "system";

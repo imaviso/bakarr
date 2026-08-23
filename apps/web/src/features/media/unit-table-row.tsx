@@ -9,24 +9,24 @@ import {
   TrashIcon,
   XIcon,
 } from "@phosphor-icons/react";
-import { Button } from "~/components/ui/button";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "~/components/ui/dropdown-menu";
-import { TableCell, TableRow } from "~/components/ui/table";
-import { Tooltip, TooltipTrigger } from "~/components/ui/tooltip";
+} from "@/components/ui/dropdown-menu";
+import { TableCell, TableRow } from "@/components/ui/table";
+import { Tooltip, TooltipTrigger } from "@/components/ui/tooltip";
 import type {
   AnimeEpisodeDialogState,
   AnimeSearchModalState,
-} from "~/features/media/media-details-types";
-import type { MediaUnit } from "~/api/contracts";
-import { formatDate, isAired } from "~/domain/date-time";
-import { mediaUnitLabel } from "~/domain/media-unit";
-import { formatDurationSeconds } from "~/domain/scanned-file";
-import { cn } from "~/infra/utils";
+} from "@/features/media/media-details-types";
+import type { MediaUnit } from "@/api/contracts";
+import { formatDate, isAired } from "@/domain/date-time";
+import { mediaUnitLabel } from "@/domain/media-unit";
+import { formatDurationSeconds } from "@/domain/scanned-file";
+import { cn } from "@/infra/utils";
 
 interface EpisodeTableRowProps {
   episode: MediaUnit;

@@ -1,11 +1,11 @@
 import { ArrowSquareOutIcon, ChartLineUpIcon, LockIcon, PulseIcon } from "@phosphor-icons/react";
 import type { ObservabilityStatus } from "@bakarr/shared";
 
-import { useObservabilityStatusQuery } from "~/api/system-config";
-import { Badge } from "~/components/ui/badge";
-import { LinkButton } from "~/components/ui/button";
-import { Skeleton } from "~/components/ui/skeleton";
-import { SettingRow, SettingSection } from "~/features/settings/form-controls";
+import { useObservabilityStatusQuery } from "@/api/system-config";
+import { Badge } from "@/components/ui/badge";
+import { LinkButton } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { SettingRow, SettingSection } from "@/features/settings/form-controls";
 
 const LINK_LABELS: Record<keyof ObservabilityStatus["links"], string> = {
   grafana: "Grafana",

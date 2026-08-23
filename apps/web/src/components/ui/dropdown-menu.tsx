@@ -16,7 +16,7 @@ import {
   type MenuSectionProps as MenuSectionPrimitiveProps,
 } from "react-aria-components";
 
-import { cn } from "@/lib/utils";
+import { cn } from "@/infra/utils";
 import { CaretRightIcon, CheckIcon } from "@phosphor-icons/react";
 
 function DropdownMenuTrigger({ ...props }: React.ComponentProps<typeof MenuTriggerPrimitive>) {

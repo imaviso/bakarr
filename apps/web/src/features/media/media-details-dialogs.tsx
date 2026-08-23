@@ -1,11 +1,11 @@
-import { SearchModal } from "~/features/search/search-modal";
-import { RenameDialog } from "~/features/downloads/rename-dialog";
-import { BulkMappingDialog, ManualMappingDialog } from "~/features/media/mapping-dialogs";
-import { EditPathDialog } from "~/features/media/edit-path-dialog";
-import { EditProfileDialog } from "~/features/media/edit-profile-dialog";
-import { ConfirmDialog } from "~/components/shared/confirm-dialog";
-import { useAnimeDetailsDialogs } from "~/features/media/media-details-dialogs-context";
-import { mediaUnitLabel } from "~/domain/media-unit";
+import { SearchModal } from "@/features/search/search-modal";
+import { RenameDialog } from "@/features/downloads/rename-dialog";
+import { BulkMappingDialog, ManualMappingDialog } from "@/features/media/mapping-dialogs";
+import { EditPathDialog } from "@/features/media/edit-path-dialog";
+import { EditProfileDialog } from "@/features/media/edit-profile-dialog";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { useAnimeDetailsDialogs } from "@/features/media/media-details-dialogs-context";
+import { mediaUnitLabel } from "@/domain/media-unit";
 
 export function AnimeDetailsDialogs() {
   const ctx = useAnimeDetailsDialogs();

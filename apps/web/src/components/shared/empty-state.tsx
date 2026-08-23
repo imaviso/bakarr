@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
-import { TableCell, TableRow } from "~/components/ui/table";
-import { cn } from "~/infra/utils";
+import { TableCell, TableRow } from "@/components/ui/table";
+import { cn } from "@/infra/utils";
 
 interface EmptyStateProps {
   icon?: ReactNode;
@@ -37,14 +37,7 @@ export function EmptyState(props: EmptyStateProps) {
         props.className,
       )}
     >
-      {/* Architectural Hash Pattern */}
-      <div
-        className="absolute inset-0 opacity-[0.03] pointer-events-none"
-        style={{
-          backgroundImage: `repeating-linear-gradient(45deg, var(--foreground) 0, var(--foreground) 1px, transparent 0, transparent 50%)`,
-          backgroundSize: "8px 8px",
-        }}
-      />
+      <div className="empty-state-pattern absolute inset-0 opacity-[0.03] pointer-events-none" />
 
       <div className="relative z-10 flex flex-col items-center gap-4 max-w-sm">
         {props.icon ? (

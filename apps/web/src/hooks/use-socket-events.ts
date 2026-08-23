@@ -2,8 +2,8 @@ import { useEffect, useReducer, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Either } from "effect";
 import { decodeNotificationEventWire } from "@bakarr/shared";
-import { useAuth } from "~/app/auth";
-import { handleSocketEvent } from "~/infra/socket-event-handler";
+import { useAuth } from "@/app/auth";
+import { handleSocketEvent } from "@/infra/socket-event-handler";
 
 const RECONNECT_DELAY_MS = 5000;
 

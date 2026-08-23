@@ -1,9 +1,9 @@
 import { Schema } from "effect";
-import { PathMappingsEditor, SettingRow, SettingSection } from "~/features/settings/form-controls";
-import type { SettingsFormApi } from "~/features/settings/system-settings-form-hook";
-import { Input } from "~/components/ui/input";
-import { Switch } from "~/components/ui/switch";
-import { SectionLabel } from "~/components/shared/section-label";
+import { PathMappingsEditor, SettingRow, SettingSection } from "@/features/settings/form-controls";
+import type { SettingsFormApi } from "@/features/settings/system-settings-form-hook";
+import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
+import { SectionLabel } from "@/components/shared/section-label";
 
 interface SystemSettingsDownloadsSectionProps {
   form: SettingsFormApi;

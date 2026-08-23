@@ -11,9 +11,9 @@ import {
 } from "@phosphor-icons/react";
 import { useLocation, useRouter } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { CommandPalette } from "~/app/layout/command-palette";
-import { ModeToggle } from "~/components/shared/mode-toggle";
-import { SectionLabel } from "~/components/shared/section-label";
+import { CommandPalette } from "@/app/layout/command-palette";
+import { ModeToggle } from "@/components/shared/mode-toggle";
+import { SectionLabel } from "@/components/shared/section-label";
 import {
   Sidebar,
   SidebarContent,
@@ -27,8 +27,8 @@ import {
   SidebarRail,
   SidebarSeparator,
   useSidebar,
-} from "~/components/ui/sidebar";
-import { useAuth } from "~/app/auth";
+} from "@/components/ui/sidebar";
+import { useAuth } from "@/app/auth";
 
 const mainItems = [
   {

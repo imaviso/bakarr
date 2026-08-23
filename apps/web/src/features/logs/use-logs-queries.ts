@@ -1,10 +1,10 @@
 import { useCallback, useMemo, useState } from "react";
-import { useDownloadEventsQuery } from "~/api/system-download-events";
-import { useInfiniteLogsQuery } from "~/api/system-logs";
-import { useSystemDashboardQuery, useSystemJobsQuery } from "~/api/system-config";
-import { LOGS_DOWNLOAD_EVENTS_SEARCH_KEYS } from "~/domain/download/events-search";
-import { useDownloadEventsSearchState } from "~/features/downloads/use-download-events-search-state";
-import type { LogsFilterParams } from "~/features/logs/use-logs-filters";
+import { useDownloadEventsQuery } from "@/api/system-download-events";
+import { useInfiniteLogsQuery } from "@/api/system-logs";
+import { useSystemDashboardQuery, useSystemJobsQuery } from "@/api/system-config";
+import { LOGS_DOWNLOAD_EVENTS_SEARCH_KEYS } from "@/domain/download/events-search";
+import { useDownloadEventsSearchState } from "@/features/downloads/use-download-events-search-state";
+import type { LogsFilterParams } from "@/features/logs/use-logs-filters";
 
 const AUTO_REFRESH_STORAGE_KEY = "bakarr.logs.auto-refresh";
 

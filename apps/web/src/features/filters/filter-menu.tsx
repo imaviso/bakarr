@@ -1,6 +1,6 @@
 import { PlusIcon } from "@phosphor-icons/react";
-import { Button } from "~/components/ui/button";
-import { DropdownMenu, DropdownMenuItem, DropdownMenuTrigger } from "~/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useFilterContext } from "./filter-context";
 
 export function FilterMenu() {

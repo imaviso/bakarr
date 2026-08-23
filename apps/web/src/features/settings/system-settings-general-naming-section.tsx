@@ -1,6 +1,6 @@
-import { SettingSection } from "~/features/settings/form-controls";
-import type { SettingsFormApi } from "~/features/settings/system-settings-form-hook";
-import { Input } from "~/components/ui/input";
+import { SettingSection } from "@/features/settings/form-controls";
+import type { SettingsFormApi } from "@/features/settings/system-settings-form-hook";
+import { Input } from "@/components/ui/input";
 
 interface SystemSettingsGeneralNamingSectionProps {
   form: SettingsFormApi;

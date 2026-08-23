@@ -1,6 +1,6 @@
 import type { DownloadEvent } from "@bakarr/shared";
-import { Badge } from "~/components/ui/badge";
-import { getDownloadEventMetadataSummary } from "~/domain/download/event-metadata";
+import { Badge } from "@/components/ui/badge";
+import { getDownloadEventMetadataSummary } from "@/domain/download/event-metadata";
 
 interface DownloadEventCardProps {
   event: DownloadEvent;
@@ -25,9 +25,7 @@ export function DownloadEventCard(props: DownloadEventCardProps) {
             <div className="text-sm font-medium truncate">
               {props.event.media_title ?? props.event.torrent_name ?? props.event.event_type}
             </div>
-            <div className="text-[11px] text-muted-foreground truncate">
-              {props.event.event_type}
-            </div>
+            <div className="text-xs text-muted-foreground truncate">{props.event.event_type}</div>
           </div>
         </div>
         <div className="text-xs text-muted-foreground">
@@ -55,7 +53,7 @@ export function DownloadEventCard(props: DownloadEventCardProps) {
         metadataSummary.parsed ||
         metadataSummary.decision ||
         metadataSummary.importedPath) && (
-        <div className="space-y-1 text-[11px] text-muted-foreground">
+        <div className="space-y-1 text-xs text-muted-foreground">
           {metadataSummary.source && <div>{metadataSummary.source}</div>}
           {metadataSummary.parsed && <div>{metadataSummary.parsed}</div>}
           {metadataSummary.decision && <div>{metadataSummary.decision}</div>}

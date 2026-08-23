@@ -1,10 +1,10 @@
-import { SystemSettingsDownloadsSection } from "~/features/settings/system-settings-downloads-section";
-import { SystemSettingsAutomationIndexerSection } from "~/features/settings/system-settings-automation-indexer-section";
-import { SystemSettingsAutomationMetadataSection } from "~/features/settings/system-settings-automation-metadata-section";
-import { SystemSettingsAutomationSchedulerSection } from "~/features/settings/system-settings-automation-scheduler-section";
-import { SystemSettingsAutomationTasksSection } from "~/features/settings/system-settings-automation-tasks-section";
-import type { SettingsFormApi } from "~/features/settings/system-settings-form-hook";
-import type { SystemStatus } from "~/api/contracts";
+import { SystemSettingsDownloadsSection } from "@/features/settings/system-settings-downloads-section";
+import { SystemSettingsAutomationIndexerSection } from "@/features/settings/system-settings-automation-indexer-section";
+import { SystemSettingsAutomationMetadataSection } from "@/features/settings/system-settings-automation-metadata-section";
+import { SystemSettingsAutomationSchedulerSection } from "@/features/settings/system-settings-automation-scheduler-section";
+import { SystemSettingsAutomationTasksSection } from "@/features/settings/system-settings-automation-tasks-section";
+import type { SettingsFormApi } from "@/features/settings/system-settings-form-hook";
+import type { SystemStatus } from "@/api/contracts";
 
 interface SystemSettingsAutomationSectionsProps {
   form: SettingsFormApi;

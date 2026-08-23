@@ -1,16 +1,16 @@
 import { useMemo, useState } from "react";
 import { useDebouncedValue } from "@tanstack/react-pacer";
-import { useGrabReleaseMutation } from "~/api/media-mutations";
-import { useNyaaSearchQuery } from "~/api/media";
+import { useGrabReleaseMutation } from "@/api/media-mutations";
+import { useNyaaSearchQuery } from "@/api/media";
 import {
   SEARCH_RELEASE_CATEGORY_LABELS,
   SEARCH_RELEASE_FILTER_LABELS,
   type MediaKind,
   type NyaaSearchResult,
-} from "~/api/contracts";
-import { buildReleaseDisplay, buildSelectionDisplayFromNyaaResult } from "~/domain/release/display";
-import { getReleaseConfidence } from "~/domain/release/selection";
-import { buildGrabInputFromNyaaResult } from "~/domain/release/grab";
+} from "@/api/contracts";
+import { buildReleaseDisplay, buildSelectionDisplayFromNyaaResult } from "@/domain/release/display";
+import { getReleaseConfidence } from "@/domain/release/selection";
+import { buildGrabInputFromNyaaResult } from "@/domain/release/grab";
 
 export const CATEGORY_LABELS: Record<string, string> = SEARCH_RELEASE_CATEGORY_LABELS;
 

@@ -1,7 +1,7 @@
-import { FiniteNumberInput, SettingRow, SettingSection } from "~/features/settings/form-controls";
-import type { SettingsFormApi } from "~/features/settings/system-settings-form-hook";
-import { Input } from "~/components/ui/input";
-import { Switch } from "~/components/ui/switch";
+import { FiniteNumberInput, SettingRow, SettingSection } from "@/features/settings/form-controls";
+import type { SettingsFormApi } from "@/features/settings/system-settings-form-hook";
+import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 
 interface SystemSettingsAutomationIndexerSectionProps {
   form: SettingsFormApi;

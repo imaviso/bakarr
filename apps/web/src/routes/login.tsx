@@ -4,14 +4,14 @@ import { useId } from "react";
 import type { FormEvent } from "react";
 import { toast } from "sonner";
 import { Schema } from "effect";
-import { Button } from "~/components/ui/button";
-import { errorMessage, formatFieldErrors } from "~/api/effect/errors";
-import { Card, CardContent, CardDescription, CardHeader } from "~/components/ui/card";
-import { Input } from "~/components/ui/input";
-import { Label } from "~/components/ui/label";
-import { Separator } from "~/components/ui/separator";
-import { useApiKeyLoginMutation, useLoginMutation } from "~/api/auth";
-import { useAuth } from "~/app/auth";
+import { Button } from "@/components/ui/button";
+import { errorMessage, formatFieldErrors } from "@/api/effect/errors";
+import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
+import { useApiKeyLoginMutation, useLoginMutation } from "@/api/auth";
+import { useAuth } from "@/app/auth";
 
 const LoginSearchSchema = Schema.Struct({
   redirect: Schema.optionalWith(Schema.String, { default: () => "" }),
@@ -224,7 +224,7 @@ function LoginPage() {
           </form>
           <div className="relative mx-6" role="separator" aria-orientation="horizontal">
             <Separator className="bg-border" />
-            <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-card px-2 font-mono text-[0.65rem] uppercase tracking-widest text-muted-foreground">
+            <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-card px-2 font-mono text-xs uppercase tracking-widest text-muted-foreground">
               or
             </span>
           </div>

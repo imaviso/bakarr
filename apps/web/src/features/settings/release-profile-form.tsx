@@ -2,20 +2,20 @@ import { PlusIcon, TrashIcon } from "@phosphor-icons/react";
 import { useForm } from "@tanstack/react-form";
 import { Schema } from "effect";
 import { useRef } from "react";
-import { Button } from "~/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
-import { Input } from "~/components/ui/input";
-import { Label } from "~/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "~/components/ui/select";
-import { Switch } from "~/components/ui/switch";
-import { useCreateReleaseProfileMutation, useUpdateReleaseProfileMutation } from "~/api/profiles";
-import type { ReleaseProfile } from "~/api/contracts";
+} from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { useCreateReleaseProfileMutation, useUpdateReleaseProfileMutation } from "@/api/profiles";
+import type { ReleaseProfile } from "@/api/contracts";
 
 const ReleaseProfileSchema = Schema.Struct({
   name: Schema.String.pipe(Schema.minLength(1, { message: () => "Name is required" })),
@@ -107,7 +107,7 @@ export function ReleaseProfileForm(props: {
                     placeholder="e.g., Preferred Groups"
                   />
                   {field.state.meta.errors[0]?.message && (
-                    <div className="text-[0.8rem] text-destructive">
+                    <div className="text-xs text-destructive">
                       {field.state.meta.errors[0]?.message}
                     </div>
                   )}

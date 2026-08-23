@@ -1,6 +1,6 @@
 import { WarningIcon, ArrowLeftIcon } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
-import { Button } from "~/components/ui/button";
+import { Button } from "@/components/ui/button";
 
 export function AnimeError() {
   return (

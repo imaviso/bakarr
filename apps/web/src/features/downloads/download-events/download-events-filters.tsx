@@ -1,6 +1,6 @@
 import { DownloadIcon, TableIcon, BracketsCurlyIcon } from "@phosphor-icons/react";
-import { DropdownMenu, DropdownMenuItem, DropdownMenuTrigger } from "~/components/ui/dropdown-menu";
-import { Button } from "~/components/ui/button";
+import { DropdownMenu, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -8,11 +8,11 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "~/components/ui/select";
-import { DebouncedInput } from "~/components/shared/debounced-input";
-import { Input } from "~/components/ui/input";
-import { Label } from "~/components/ui/label";
-import { DOWNLOAD_EVENT_TYPE_FILTER_OPTIONS } from "~/api/contracts";
+} from "@/components/ui/select";
+import { DebouncedInput } from "@/components/shared/debounced-input";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { DOWNLOAD_EVENT_TYPE_FILTER_OPTIONS } from "@/api/contracts";
 
 export interface DownloadEventsFilterValue {
   mediaId: string;

@@ -6,8 +6,8 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import { SystemLogsResponseSchema } from "@bakarr/shared";
-import { API_BASE } from "~/api/constants";
-import { fetchJson, fetchUnit, runApiEffect } from "~/api/effect/api-client";
+import { API_BASE } from "@/api/constants";
+import { fetchJson, fetchUnit, runApiEffect } from "@/api/effect/api-client";
 import { animeKeys } from "./keys";
 
 export function infiniteLogsQueryOptions(

@@ -2,15 +2,15 @@ import { ArrowSquareOutIcon, SparkleIcon } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
 import type { DownloadSelectionKind } from "@bakarr/shared";
 import type { ReactNode } from "react";
-import { Avatar, AvatarFallback, AvatarImage } from "~/components/ui/avatar";
-import { Badge } from "~/components/ui/badge";
-import type { ReleaseConfidenceMetadata } from "~/domain/release/selection";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import type { ReleaseConfidenceMetadata } from "@/domain/release/selection";
 import {
   releaseConfidenceBadgeClass,
   selectionKindBadgeClass,
   selectionKindLabel,
-} from "~/domain/release/selection";
-import { safeExternalUrl } from "~/infra/utils";
+} from "@/domain/release/selection";
+import { safeExternalUrl } from "@/infra/utils";
 
 function animeInitials(title: string) {
   return title
@@ -85,16 +85,14 @@ export function DownloadRowMeta(props: DownloadRowMetaProps) {
           <span className="text-xs text-muted-foreground line-clamp-1">{props.releaseSummary}</span>
         )}
         {props.decisionSummary && (
-          <span className="text-[11px] text-muted-foreground line-clamp-1">
+          <span className="text-xs text-muted-foreground line-clamp-1">
             {props.decisionSummary}
           </span>
         )}
         {props.parsedSummary && (
-          <span className="text-[11px] text-muted-foreground line-clamp-1">
-            {props.parsedSummary}
-          </span>
+          <span className="text-xs text-muted-foreground line-clamp-1">{props.parsedSummary}</span>
         )}
-        <div className="flex flex-wrap items-center gap-1.5 text-[11px] leading-tight">
+        <div className="flex flex-wrap items-center gap-1.5 text-xs leading-tight">
           {props.trusted && (
             <Badge
               variant="outline"
@@ -123,7 +121,7 @@ export function DownloadRowMeta(props: DownloadRowMetaProps) {
           )}
         </div>
         {(props.selectionKind || props.selectionDetail) && (
-          <div className="flex flex-wrap items-center gap-1.5 text-[11px] leading-tight">
+          <div className="flex flex-wrap items-center gap-1.5 text-xs leading-tight">
             {selectionKindLabel(props.selectionKind) && (
               <Badge
                 variant="secondary"
@@ -138,7 +136,7 @@ export function DownloadRowMeta(props: DownloadRowMetaProps) {
           </div>
         )}
         {props.confidence && (
-          <div className="flex flex-wrap items-center gap-1.5 text-[11px] leading-tight">
+          <div className="flex flex-wrap items-center gap-1.5 text-xs leading-tight">
             <Badge
               variant="secondary"
               className={`h-4 px-1.5 ${releaseConfidenceBadgeClass(props.confidence.tone)}`}
@@ -150,7 +148,7 @@ export function DownloadRowMeta(props: DownloadRowMetaProps) {
         )}
         {props.children}
         {props.importedPath && (
-          <span className="text-[11px] text-muted-foreground line-clamp-1">
+          <span className="text-xs text-muted-foreground line-clamp-1">
             Imported to {props.importedPath}
           </span>
         )}

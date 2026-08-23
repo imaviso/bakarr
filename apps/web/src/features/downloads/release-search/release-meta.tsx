@@ -1,12 +1,12 @@
 import { ArrowSquareOutIcon } from "@phosphor-icons/react";
 import type { DownloadSelectionKind } from "@bakarr/shared";
-import { Badge } from "~/components/ui/badge";
+import { Badge } from "@/components/ui/badge";
 import {
   releaseConfidenceBadgeClass,
   selectionKindBadgeClass,
   type ReleaseConfidenceMetadata,
-} from "~/domain/release/selection";
-import { cn } from "~/infra/utils";
+} from "@/domain/release/selection";
+import { cn } from "@/infra/utils";
 
 interface ReleaseSeaDexMetaProps {
   notes?: string | undefined;

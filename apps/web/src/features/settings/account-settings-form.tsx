@@ -21,17 +21,17 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "~/components/ui/alert-dialog";
-import { Button } from "~/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
-import { Input } from "~/components/ui/input";
-import { Label } from "~/components/ui/label";
-import { NotificationSettingsCard } from "~/features/settings/notification-settings-card";
-import { SectionLabel } from "~/components/shared/section-label";
-import { useChangePasswordMutation, useRegenerateApiKeyMutation } from "~/api/auth";
-import { useAuth } from "~/app/auth";
-import { errorMessage, firstFieldErrorMessage } from "~/api/effect/errors";
-import { copyToClipboard } from "~/infra/utils";
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { NotificationSettingsCard } from "@/features/settings/notification-settings-card";
+import { SectionLabel } from "@/components/shared/section-label";
+import { useChangePasswordMutation, useRegenerateApiKeyMutation } from "@/api/auth";
+import { useAuth } from "@/app/auth";
+import { errorMessage, firstFieldErrorMessage } from "@/api/effect/errors";
+import { copyToClipboard } from "@/infra/utils";
 
 const ChangePasswordSchema = Schema.Struct({
   currentPassword: Schema.String.pipe(
@@ -170,7 +170,7 @@ export function AccountSettingsForm() {
                       </Button>
                     </div>
                     {firstFieldErrorMessage(field.state.meta.errors) && (
-                      <div className="text-[0.8rem] text-destructive">
+                      <div className="text-xs text-destructive">
                         {firstFieldErrorMessage(field.state.meta.errors)}
                       </div>
                     )}
@@ -209,7 +209,7 @@ export function AccountSettingsForm() {
                       </Button>
                     </div>
                     {firstFieldErrorMessage(field.state.meta.errors) && (
-                      <div className="text-[0.8rem] text-destructive">
+                      <div className="text-xs text-destructive">
                         {firstFieldErrorMessage(field.state.meta.errors)}
                       </div>
                     )}
@@ -242,7 +242,7 @@ export function AccountSettingsForm() {
                       autoComplete="new-password"
                     />
                     {firstFieldErrorMessage(field.state.meta.errors) && (
-                      <div className="text-[0.8rem] text-destructive">
+                      <div className="text-xs text-destructive">
                         {firstFieldErrorMessage(field.state.meta.errors)}
                       </div>
                     )}

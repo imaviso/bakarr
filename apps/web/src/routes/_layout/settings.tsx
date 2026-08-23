@@ -9,15 +9,15 @@ import {
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Schema } from "effect";
 import type { ComponentType } from "react";
-import { AccountSettingsForm } from "~/features/settings/account-settings-form";
-import { ObservabilitySettingsPanel } from "~/features/settings/observability-settings-panel";
-import { QualityProfilesTab } from "~/features/settings/quality-profiles-tab";
-import { ReleaseProfilesTab } from "~/features/settings/release-profiles-tab";
-import { GeneralSettingsForm } from "~/features/settings/system-settings-form";
-import { GeneralError } from "~/components/shared/general-error";
-import { PageHeader } from "~/app/layout/page-header";
-import { PageShell } from "~/app/layout/page-shell";
-import { SectionLabel } from "~/components/shared/section-label";
+import { AccountSettingsForm } from "@/features/settings/account-settings-form";
+import { ObservabilitySettingsPanel } from "@/features/settings/observability-settings-panel";
+import { QualityProfilesTab } from "@/features/settings/quality-profiles-tab";
+import { ReleaseProfilesTab } from "@/features/settings/release-profiles-tab";
+import { GeneralSettingsForm } from "@/features/settings/system-settings-form";
+import { GeneralError } from "@/components/shared/general-error";
+import { PageHeader } from "@/app/layout/page-header";
+import { PageShell } from "@/app/layout/page-shell";
+import { SectionLabel } from "@/components/shared/section-label";
 import {
   Select,
   SelectContent,
@@ -26,15 +26,15 @@ import {
   SelectLabel,
   SelectTrigger,
   SelectValue,
-} from "~/components/ui/select";
+} from "@/components/ui/select";
 import {
   profilesQueryOptions,
   qualitiesQueryOptions,
   releaseProfilesQueryOptions,
-} from "~/api/profiles";
-import { observabilityStatusQueryOptions, systemConfigQueryOptions } from "~/api/system-config";
-import { usePageTitle } from "~/app/page-title";
-import { cn } from "~/infra/utils";
+} from "@/api/profiles";
+import { observabilityStatusQueryOptions, systemConfigQueryOptions } from "@/api/system-config";
+import { usePageTitle } from "@/app/page-title";
+import { cn } from "@/infra/utils";
 
 const SettingsTabSchema = Schema.transform(
   Schema.String,

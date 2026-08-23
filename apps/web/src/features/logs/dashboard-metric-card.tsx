@@ -1,4 +1,4 @@
-import { cn } from "~/infra/utils";
+import { cn } from "@/infra/utils";
 
 interface DashboardMetricCardProps {
   label: string;

@@ -1,11 +1,11 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { SystemSettingsAutomationSections } from "~/features/settings/system-settings-automation-sections";
-import { useSystemSettingsForm } from "~/features/settings/system-settings-form-hook";
-import { SystemSettingsGeneralSections } from "~/features/settings/system-settings-general-sections";
-import { type ConfigSettingsMode } from "~/features/settings/system-settings-schema";
-import { Button } from "~/components/ui/button";
-import { useSystemTaskQuery, isTaskActive } from "~/api/operations-tasks";
+import { SystemSettingsAutomationSections } from "@/features/settings/system-settings-automation-sections";
+import { useSystemSettingsForm } from "@/features/settings/system-settings-form-hook";
+import { SystemSettingsGeneralSections } from "@/features/settings/system-settings-general-sections";
+import { type ConfigSettingsMode } from "@/features/settings/system-settings-schema";
+import { Button } from "@/components/ui/button";
+import { useSystemTaskQuery, isTaskActive } from "@/api/operations-tasks";
 import {
   systemConfigQueryOptions,
   useSystemStatusQuery,
@@ -13,8 +13,8 @@ import {
   useTriggerRssCheckMutation,
   useTriggerScanMutation,
   useUpdateSystemConfigMutation,
-} from "~/api/system-config";
-import type { Config } from "~/api/contracts";
+} from "@/api/system-config";
+import type { Config } from "@/api/contracts";
 
 export function GeneralSettingsForm(props: { activeMode: ConfigSettingsMode }) {
   const { data: config } = useSuspenseQuery(systemConfigQueryOptions());

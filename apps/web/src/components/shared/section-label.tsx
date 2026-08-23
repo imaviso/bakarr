@@ -1,5 +1,5 @@
 import { createElement, type ReactNode } from "react";
-import { cn } from "~/infra/utils";
+import { cn } from "@/infra/utils";
 
 type Tag = "span" | "h2" | "h3" | "h4" | "div";
 
@@ -14,7 +14,7 @@ export function SectionLabel(props: SectionLabelProps) {
     props.as ?? "span",
     {
       className: cn(
-        "font-mono text-[0.65rem] font-medium uppercase tracking-widest text-muted-foreground",
+        "font-mono text-xs font-medium uppercase tracking-widest text-muted-foreground",
         props.className,
       ),
     },

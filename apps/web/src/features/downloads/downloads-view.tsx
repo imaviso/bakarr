@@ -1,15 +1,15 @@
 import { ArrowClockwiseIcon, MagnifyingGlassIcon } from "@phosphor-icons/react";
-import { DownloadEventsDialog } from "~/features/downloads/download-events-dialog";
-import { PageHeader } from "~/app/layout/page-header";
-import { PageShell } from "~/app/layout/page-shell";
-import { Badge } from "~/components/ui/badge";
-import { Button } from "~/components/ui/button";
-import { Tabs, TabsList, TabsTrigger } from "~/components/ui/tabs";
-import { DownloadsEventsTab } from "~/features/downloads/downloads-events-tab";
-import { DownloadsHistoryTab } from "~/features/downloads/downloads-history-tab";
-import { DownloadsQueueTab } from "~/features/downloads/downloads-queue-tab";
-import type { DownloadsViewState } from "~/features/downloads/downloads-view-types";
-import { formatUiTimestamp } from "~/domain/date-time";
+import { DownloadEventsDialog } from "@/features/downloads/download-events-dialog";
+import { PageHeader } from "@/app/layout/page-header";
+import { PageShell } from "@/app/layout/page-shell";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { DownloadsEventsTab } from "@/features/downloads/downloads-events-tab";
+import { DownloadsHistoryTab } from "@/features/downloads/downloads-history-tab";
+import { DownloadsQueueTab } from "@/features/downloads/downloads-queue-tab";
+import type { DownloadsViewState } from "@/features/downloads/downloads-view-types";
+import { formatUiTimestamp } from "@/domain/date-time";
 
 interface DownloadsViewProps {
   searchTab: string;

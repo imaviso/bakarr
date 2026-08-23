@@ -1,9 +1,9 @@
-import { Badge } from "~/components/ui/badge";
+import { Badge } from "@/components/ui/badge";
 import {
   MAX_UNMAPPED_FOLDER_MATCH_ATTEMPTS,
   type BackgroundJobStatus,
   type ScannerMatchStatus,
-} from "~/api/contracts";
+} from "@/api/contracts";
 import {
   backgroundMatchingStatusLabel,
   backgroundMatchingStatusVariant,

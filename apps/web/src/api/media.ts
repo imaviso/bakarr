@@ -21,8 +21,8 @@ import {
   VideoFileSchema,
 } from "@bakarr/shared";
 import { Schema } from "effect";
-import { API_BASE } from "~/api/constants";
-import { apiUrl, fetchJson, runApiEffect } from "~/api/effect/api-client";
+import { API_BASE } from "@/api/constants";
+import { apiUrl, fetchJson, runApiEffect } from "@/api/effect/api-client";
 import { animeKeys } from "./keys";
 
 export function mediaListQueryOptions() {

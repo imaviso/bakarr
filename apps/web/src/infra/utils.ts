@@ -1,7 +1,7 @@
 import { type ClassValue, clsx } from "clsx";
 import { Effect } from "effect";
 import { twMerge } from "tailwind-merge";
-import { ClipboardWriteError } from "~/api/effect/errors";
+import { ClipboardWriteError } from "@/api/effect/errors";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));

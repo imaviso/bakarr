@@ -7,11 +7,11 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
-} from "~/components/ui/command";
-import { Button } from "~/components/ui/button";
-import { Popover, PopoverTrigger } from "~/components/ui/popover";
-import { formatTimeZoneLabel, getTimeZoneOptions } from "~/domain/timezones";
-import { cn } from "~/infra/utils";
+} from "@/components/ui/command";
+import { Button } from "@/components/ui/button";
+import { Popover, PopoverTrigger } from "@/components/ui/popover";
+import { formatTimeZoneLabel, getTimeZoneOptions } from "@/domain/timezones";
+import { cn } from "@/infra/utils";
 
 interface TimezonePickerProps {
   className?: string;

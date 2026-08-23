@@ -1,8 +1,8 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { AddAnimeRequest, Media, SearchDownloadRequest } from "./contracts";
 import { MediaSchema } from "@bakarr/shared";
-import { API_BASE } from "~/api/constants";
-import { fetchJson, fetchUnit, runApiEffect } from "~/api/effect/api-client";
+import { API_BASE } from "@/api/constants";
+import { fetchJson, fetchUnit, runApiEffect } from "@/api/effect/api-client";
 import { animeKeys } from "./keys";
 import { useTriggerTaskMutation } from "./trigger-task";
 

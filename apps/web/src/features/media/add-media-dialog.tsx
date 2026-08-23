@@ -9,18 +9,18 @@ import {
 import { useForm } from "@tanstack/react-form";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Schema } from "effect";
-import { Alert, AlertDescription } from "~/components/ui/alert";
-import { Badge } from "~/components/ui/badge";
-import { Button } from "~/components/ui/button";
-import { Checkbox } from "~/components/ui/checkbox";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "~/components/ui/dialog";
-import { Label } from "~/components/ui/label";
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -28,22 +28,22 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "~/components/ui/select";
-import { Input } from "~/components/ui/input";
-import type { MediaKind, MediaSearchResult, QualityProfile, ReleaseProfile } from "~/api/contracts";
-import { formatFieldErrors } from "~/api/effect/errors";
-import { useAddMediaMutation } from "~/api/media-mutations";
-import { profilesQueryOptions, releaseProfilesQueryOptions } from "~/api/profiles";
-import { systemConfigQueryOptions } from "~/api/system-config";
+} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import type { MediaKind, MediaSearchResult, QualityProfile, ReleaseProfile } from "@/api/contracts";
+import { formatFieldErrors } from "@/api/effect/errors";
+import { useAddMediaMutation } from "@/api/media-mutations";
+import { profilesQueryOptions, releaseProfilesQueryOptions } from "@/api/profiles";
+import { systemConfigQueryOptions } from "@/api/system-config";
 import {
   animeDiscoverySubtitle,
   animeDisplayTitle,
   animeSearchSubtitle,
-} from "~/domain/media/metadata";
-import { cleanSynopsis } from "~/domain/media/metadata";
-import { mediaKindLabel, mediaUnitLabel, mediaUnitShortLabel } from "~/domain/media-unit";
-import { formatMatchConfidence } from "~/domain/scanned-file";
-import { cn } from "~/infra/utils";
+} from "@/domain/media/metadata";
+import { cleanSynopsis } from "@/domain/media/metadata";
+import { mediaKindLabel, mediaUnitLabel, mediaUnitShortLabel } from "@/domain/media-unit";
+import { formatMatchConfidence } from "@/domain/scanned-file";
+import { cn } from "@/infra/utils";
 
 const AddAnimeSchema = Schema.Struct({
   root_folder: Schema.String.pipe(
@@ -139,7 +139,7 @@ export function AddAnimeDialog(props: AddAnimeDialogProps) {
               </div>
             )}
             {props.media.synonyms && props.media.synonyms.length > 0 && (
-              <div className="mt-2 text-[11px] text-muted-foreground line-clamp-2">
+              <div className="mt-2 text-xs text-muted-foreground line-clamp-2">
                 Also known as {props.media.synonyms.slice(0, 3).join(" • ")}
               </div>
             )}
@@ -198,7 +198,7 @@ export function AddAnimeDialog(props: AddAnimeDialogProps) {
               </div>
             )}
             {props.media.match_reason && (
-              <div className="mt-2 text-[11px] text-muted-foreground line-clamp-2">
+              <div className="mt-2 text-xs text-muted-foreground line-clamp-2">
                 {props.media.match_reason}
               </div>
             )}

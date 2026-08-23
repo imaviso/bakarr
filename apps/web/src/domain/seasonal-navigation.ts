@@ -1,4 +1,4 @@
-import type { MediaSeason } from "~/api/contracts";
+import type { MediaSeason } from "@/api/contracts";
 import { resolveSeasonWindowFromDate, type MediaSeasonWindow } from "@bakarr/shared";
 
 export type SeasonWindow = MediaSeasonWindow;

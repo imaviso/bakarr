@@ -1,7 +1,7 @@
 import { ArrowLeftIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { Button } from "~/components/ui/button";
+import { Button } from "@/components/ui/button";
 
 interface GeneralErrorProps {
   error?: Error;

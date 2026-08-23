@@ -19,7 +19,7 @@ import {
   type RangeCalendarProps,
 } from "react-aria-components";
 
-import { cn } from "@/lib/utils";
+import { cn } from "@/infra/utils";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Select,
@@ -184,7 +184,7 @@ function CalendarInner({
           <CalendarGrid className="w-full border-collapse" offset={{ months: i }}>
             <AriaCalendarGridHeader>
               {(day) => (
-                <CalendarHeaderCell className="rounded-(--cell-radius) text-[0.8rem] font-normal text-muted-foreground select-none">
+                <CalendarHeaderCell className="rounded-(--cell-radius) text-xs font-normal text-muted-foreground select-none">
                   {day}
                 </CalendarHeaderCell>
               )}

@@ -1,8 +1,8 @@
 import { queryOptions, skipToken, useQuery } from "@tanstack/react-query";
 import type { OperationTask } from "./contracts";
 import { OperationTaskSchema } from "@bakarr/shared";
-import { API_BASE } from "~/api/constants";
-import { fetchJson, runApiEffect } from "~/api/effect/api-client";
+import { API_BASE } from "@/api/constants";
+import { fetchJson, runApiEffect } from "@/api/effect/api-client";
 import { animeKeys } from "./keys";
 
 const ACTIVE_TASK_STATUSES = new Set(["queued", "running"]);

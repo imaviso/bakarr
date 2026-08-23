@@ -1,7 +1,7 @@
-import { SystemSettingsGeneralApplicationSection } from "~/features/settings/system-settings-general-application-section";
-import type { SettingsFormApi } from "~/features/settings/system-settings-form-hook";
-import { SystemSettingsGeneralLibrarySection } from "~/features/settings/system-settings-general-library-section";
-import { SystemSettingsGeneralNamingSection } from "~/features/settings/system-settings-general-naming-section";
+import { SystemSettingsGeneralApplicationSection } from "@/features/settings/system-settings-general-application-section";
+import type { SettingsFormApi } from "@/features/settings/system-settings-form-hook";
+import { SystemSettingsGeneralLibrarySection } from "@/features/settings/system-settings-general-library-section";
+import { SystemSettingsGeneralNamingSection } from "@/features/settings/system-settings-general-naming-section";
 
 interface SystemSettingsGeneralSectionsProps {
   form: SettingsFormApi;

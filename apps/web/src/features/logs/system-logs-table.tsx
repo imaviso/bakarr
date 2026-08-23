@@ -8,10 +8,10 @@ import {
 } from "@phosphor-icons/react";
 import { useRef, type ReactNode } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { useInfiniteNearEnd } from "~/hooks/use-infinite-near-end";
-import { Badge } from "~/components/ui/badge";
-import { Button } from "~/components/ui/button";
-import { Skeleton } from "~/components/ui/skeleton";
+import { useInfiniteNearEnd } from "@/hooks/use-infinite-near-end";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
   TableBody,
@@ -19,9 +19,9 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "~/components/ui/table";
-import type { SystemLog } from "~/api/contracts";
-import { cn } from "~/infra/utils";
+} from "@/components/ui/table";
+import type { SystemLog } from "@/api/contracts";
+import { cn } from "@/infra/utils";
 
 interface SystemLogsTableProps {
   logs: SystemLog[];

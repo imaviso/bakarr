@@ -1,6 +1,6 @@
 import * as React from "react";
 
-import { cn } from "@/lib/utils";
+import { cn } from "@/infra/utils";
 import { CaretDownIcon } from "@phosphor-icons/react";
 
 type NativeSelectProps = Omit<React.ComponentProps<"select">, "size"> & {

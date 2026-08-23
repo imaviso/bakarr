@@ -1,6 +1,6 @@
 import { format, isValid, parseISO } from "date-fns";
-import type { Media, MediaSearchResult, Config } from "~/api/contracts";
-import { isAired } from "~/domain/date-time";
+import type { Media, MediaSearchResult, Config } from "@/api/contracts";
+import { isAired } from "@/domain/date-time";
 
 type AnimeDateContext = {
   season?: Media["season"];

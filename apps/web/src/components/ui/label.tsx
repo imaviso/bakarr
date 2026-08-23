@@ -2,7 +2,7 @@
 
 import { LabelContext, Label as LabelPrimitive, type LabelProps } from "react-aria-components";
 
-import { cn } from "@/lib/utils";
+import { cn } from "@/infra/utils";
 
 function Label({ className, htmlFor, slot, ...props }: LabelProps) {
   const label = (

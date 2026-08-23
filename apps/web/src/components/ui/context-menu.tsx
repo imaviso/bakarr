@@ -20,7 +20,7 @@ import {
 } from "react-aria-components";
 import { createPortal } from "react-dom";
 
-import { cn } from "@/lib/utils";
+import { cn } from "@/infra/utils";
 import { CaretRightIcon, CheckIcon } from "@phosphor-icons/react";
 
 function ContextMenu({

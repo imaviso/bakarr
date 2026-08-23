@@ -1,8 +1,8 @@
 import { Laptop, Moon, Sun } from "@phosphor-icons/react";
-import { useTheme } from "~/components/shared/theme-provider";
-import { Button } from "~/components/ui/button";
+import { useTheme } from "@/components/shared/theme-provider";
+import { Button } from "@/components/ui/button";
 
-import { DropdownMenu, DropdownMenuItem, DropdownMenuTrigger } from "~/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 export function ModeToggle() {
   const { theme, setTheme } = useTheme();

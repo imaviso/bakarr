@@ -1,5 +1,5 @@
 import { brandMediaId, type MediaSearchResult } from "@bakarr/shared";
-import type { ImportFileRequest } from "~/api/contracts";
+import type { ImportFileRequest } from "@/api/contracts";
 import { it } from "vitest";
 import {
   buildImportFileRequest,

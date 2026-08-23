@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { brandMediaId } from "@bakarr/shared";
-import type { ImportFileRequest, ScannedFile } from "~/api/contracts";
+import type { ImportFileRequest, ScannedFile } from "@/api/contracts";
 import {
   toggleSelectedImportFile,
   updateSelectedImportFileAnime,

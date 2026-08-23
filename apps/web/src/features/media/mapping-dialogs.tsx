@@ -1,13 +1,13 @@
 import { useState } from "react";
 import { ArrowClockwiseIcon } from "@phosphor-icons/react";
-import { Button } from "~/components/ui/button";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "~/components/ui/dialog";
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -15,7 +15,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "~/components/ui/select";
+} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -23,11 +23,11 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "~/components/ui/table";
-import { useBulkMapUnitsMutation, useMapUnitMutation } from "~/api/media-mutations";
-import { useListFilesQuery } from "~/api/media";
-import type { MediaUnit } from "~/api/contracts";
-import { cn } from "~/infra/utils";
+} from "@/components/ui/table";
+import { useBulkMapUnitsMutation, useMapUnitMutation } from "@/api/media-mutations";
+import { useListFilesQuery } from "@/api/media";
+import type { MediaUnit } from "@/api/contracts";
+import { cn } from "@/infra/utils";
 
 interface BulkMappingDialogProps {
   mediaId: number;

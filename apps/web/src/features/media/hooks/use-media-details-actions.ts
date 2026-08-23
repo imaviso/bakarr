@@ -7,14 +7,14 @@ import {
   useUpdateMediaPathMutation,
   useUpdateMediaProfileMutation,
   useUpdateMediaReleaseProfilesMutation,
-} from "~/api/media-mutations";
-import { useSearchMissingMutation } from "~/api/system-downloads";
-import { useAnimeEpisodeStreamUrlMutation } from "~/api/media";
+} from "@/api/media-mutations";
+import { useSearchMissingMutation } from "@/api/system-downloads";
+import { useAnimeEpisodeStreamUrlMutation } from "@/api/media";
 import { Effect } from "effect";
 import { useState } from "react";
 import { toast } from "sonner";
-import { errorMessage } from "~/api/effect/errors";
-import { copyToClipboard } from "~/infra/utils";
+import { errorMessage } from "@/api/effect/errors";
+import { copyToClipboard } from "@/infra/utils";
 
 interface UseAnimeDetailsActionsOptions {
   mediaId: number;

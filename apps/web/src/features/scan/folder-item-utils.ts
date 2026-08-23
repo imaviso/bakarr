@@ -1,5 +1,5 @@
-import { MAX_UNMAPPED_FOLDER_MATCH_ATTEMPTS, type UnmappedFolder } from "~/api/contracts";
-import { clampConfidencePercent } from "~/domain/format";
+import { MAX_UNMAPPED_FOLDER_MATCH_ATTEMPTS, type UnmappedFolder } from "@/api/contracts";
+import { clampConfidencePercent } from "@/domain/format";
 import { Schema } from "effect";
 
 type MatchStatus = NonNullable<UnmappedFolder["match_status"]>;

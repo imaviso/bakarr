@@ -3,8 +3,8 @@ import type {
   DownloadEvent,
   DownloadEventsExportResult,
   DownloadStatus,
-} from "~/api/contracts";
-import type { DownloadEventsFilterValue } from "~/features/downloads/download-events/download-events-filters";
+} from "@/api/contracts";
+import type { DownloadEventsFilterValue } from "@/features/downloads/download-events/download-events-filters";
 
 export interface DownloadsEventsSearchState {
   activePreset: number | null | undefined;

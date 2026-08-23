@@ -1,17 +1,17 @@
-import type { DownloadAction, NyaaSearchResult } from "~/api/contracts";
+import type { DownloadAction, NyaaSearchResult } from "@/api/contracts";
 import {
   formatReleaseParsedSummary,
   formatReleaseSourceSummary,
   getReleaseFlags,
-} from "~/domain/release/metadata";
+} from "@/domain/release/metadata";
 import {
   formatSelectionDetail,
   formatSelectionSummary,
   selectionKindLabel,
   selectionMetadataFromDownloadAction,
   type CompactSelectionMetadata,
-} from "~/domain/release/selection";
-import { selectionMetadataFromNyaaResult } from "~/domain/release/grab";
+} from "@/domain/release/selection";
+import { selectionMetadataFromNyaaResult } from "@/domain/release/grab";
 
 interface ReleaseDisplayInput {
   group?: string | undefined;

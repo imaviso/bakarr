@@ -1,5 +1,5 @@
 import { Predicate, Schema } from "effect";
-import { ApiClientError, ApiDecodeError, ApiUnauthorizedError } from "~/api/effect/api-client";
+import { ApiClientError, ApiDecodeError, ApiUnauthorizedError } from "@/api/effect/api-client";
 
 export class ClipboardWriteError extends Schema.TaggedError<ClipboardWriteError>()(
   "ClipboardWriteError",

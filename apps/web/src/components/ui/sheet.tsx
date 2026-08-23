@@ -12,7 +12,7 @@ import {
   type DialogTriggerProps as SheetTriggerPrimitiveProps,
 } from "react-aria-components";
 
-import { cn } from "@/lib/utils";
+import { cn } from "@/infra/utils";
 import { Button } from "@/components/ui/button";
 import { XIcon } from "@phosphor-icons/react";
 

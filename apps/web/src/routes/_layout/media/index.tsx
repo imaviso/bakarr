@@ -13,31 +13,31 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useDebouncedValue } from "@tanstack/react-pacer";
 import { Suspense, lazy } from "react";
 import { Schema } from "effect";
-import { AnimeListSkeleton } from "~/features/media/media-list-skeleton";
-import { EmptyState } from "~/components/shared/empty-state";
-import { GeneralError } from "~/components/shared/general-error";
-import { PageHeader } from "~/app/layout/page-header";
-import { PageShell } from "~/app/layout/page-shell";
-import { Button, buttonVariants } from "~/components/ui/button";
-import { DropdownMenu, DropdownMenuItem, DropdownMenuTrigger } from "~/components/ui/dropdown-menu";
-import { Input } from "~/components/ui/input";
-import { Separator } from "~/components/ui/separator";
+import { AnimeListSkeleton } from "@/features/media/media-list-skeleton";
+import { EmptyState } from "@/components/shared/empty-state";
+import { GeneralError } from "@/components/shared/general-error";
+import { PageHeader } from "@/app/layout/page-header";
+import { PageShell } from "@/app/layout/page-shell";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
+import { Separator } from "@/components/ui/separator";
 
-import { mediaListQueryOptions } from "~/api/media";
-import { useDeleteMediaMutation } from "~/api/media-mutations";
-import { systemConfigQueryOptions } from "~/api/system-config";
-import { filterAnimeLibrary } from "~/domain/media/library-filter";
-import { getAiringDisplayPreferences } from "~/domain/media/metadata";
-import { usePageTitle } from "~/app/page-title";
-import { cn } from "~/infra/utils";
+import { mediaListQueryOptions } from "@/api/media";
+import { useDeleteMediaMutation } from "@/api/media-mutations";
+import { systemConfigQueryOptions } from "@/api/system-config";
+import { filterAnimeLibrary } from "@/domain/media/library-filter";
+import { getAiringDisplayPreferences } from "@/domain/media/metadata";
+import { usePageTitle } from "@/app/page-title";
+import { cn } from "@/infra/utils";
 
 const AnimeGridViewLazy = lazy(() =>
-  import("~/features/media/media-library-views").then((module) => ({
+  import("@/features/media/media-library-views").then((module) => ({
     default: module.AnimeGridView,
   })),
 );
 const AnimeListViewLazy = lazy(() =>
-  import("~/features/media/media-library-views").then((module) => ({
+  import("@/features/media/media-library-views").then((module) => ({
     default: module.AnimeListView,
   })),
 );

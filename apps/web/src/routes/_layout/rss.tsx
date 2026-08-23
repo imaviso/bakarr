@@ -13,33 +13,33 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { Schema } from "effect";
 import { brandMediaId } from "@bakarr/shared";
-import { EmptyState } from "~/components/shared/empty-state";
-import { GeneralError } from "~/components/shared/general-error";
-import { PageHeader } from "~/app/layout/page-header";
-import { PageShell } from "~/app/layout/page-shell";
-import { formatDateTime } from "~/domain/date-time";
-import { ConfirmDialog } from "~/components/shared/confirm-dialog";
-import { Badge } from "~/components/ui/badge";
-import { Button } from "~/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
-import { Input } from "~/components/ui/input";
-import { Label } from "~/components/ui/label";
+import { EmptyState } from "@/components/shared/empty-state";
+import { GeneralError } from "@/components/shared/general-error";
+import { PageHeader } from "@/app/layout/page-header";
+import { PageShell } from "@/app/layout/page-shell";
+import { formatDateTime } from "@/domain/date-time";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "~/components/ui/select";
-import { mediaListQueryOptions } from "~/api/media";
+} from "@/components/ui/select";
+import { mediaListQueryOptions } from "@/api/media";
 import {
   useAddRssFeedMutation,
   useDeleteRssFeedMutation,
   useToggleRssFeedMutation,
   rssFeedsQueryOptions,
-} from "~/api/system-rss-calendar";
-import type { RssFeed } from "~/api/contracts";
-import { usePageTitle } from "~/app/page-title";
+} from "@/api/system-rss-calendar";
+import type { RssFeed } from "@/api/contracts";
+import { usePageTitle } from "@/app/page-title";
 
 export const Route = createFileRoute("/_layout/rss")({
   loader: async ({ context: { queryClient } }) => {
@@ -221,7 +221,7 @@ function AddFeedForm(props: { onCancel: () => void; onSuccess: () => void }) {
                   </SelectContent>
                 </Select>
                 {field.state.meta.errors.length > 0 && (
-                  <div className="text-[0.8rem] text-destructive">
+                  <div className="text-xs text-destructive">
                     {field.state.meta.errors[0]?.message}
                   </div>
                 )}
@@ -240,7 +240,7 @@ function AddFeedForm(props: { onCancel: () => void; onSuccess: () => void }) {
                   placeholder="https://nyaa.si/?page=rss&..."
                 />
                 {field.state.meta.errors[0]?.message && (
-                  <div className="text-[0.8rem] text-destructive">
+                  <div className="text-xs text-destructive">
                     {field.state.meta.errors[0]?.message}
                   </div>
                 )}

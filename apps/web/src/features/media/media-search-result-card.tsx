@@ -1,17 +1,17 @@
 import { CalendarIcon, CheckIcon, TelevisionIcon, PlusIcon } from "@phosphor-icons/react";
-import { Badge } from "~/components/ui/badge";
-import { Button } from "~/components/ui/button";
-import { Card, CardContent } from "~/components/ui/card";
-import type { MediaSearchResult } from "~/api/contracts";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import type { MediaSearchResult } from "@/api/contracts";
 import {
   animeAltTitles,
   animeDisplayTitle,
   animeSearchSubtitle,
   cleanSynopsis,
-} from "~/domain/media/metadata";
-import { mediaUnitShortLabel } from "~/domain/media-unit";
-import { formatMatchConfidence } from "~/domain/scanned-file";
-import { cn } from "~/infra/utils";
+} from "@/domain/media/metadata";
+import { mediaUnitShortLabel } from "@/domain/media-unit";
+import { formatMatchConfidence } from "@/domain/scanned-file";
+import { cn } from "@/infra/utils";
 
 function AltTitlesSubtitle({ anime }: { anime: MediaSearchResult }) {
   const titles = animeAltTitles(anime).slice(1).join(" \u2022 ");

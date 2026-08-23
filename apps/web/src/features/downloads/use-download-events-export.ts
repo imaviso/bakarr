@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { toast } from "sonner";
-import { useDownloadEventsExportMutation } from "~/api/system-download-events";
-import type { DownloadEventsExportInput, DownloadEventsExportResult } from "~/api/contracts";
-import { errorMessage } from "~/api/effect/errors";
+import { useDownloadEventsExportMutation } from "@/api/system-download-events";
+import type { DownloadEventsExportInput, DownloadEventsExportResult } from "@/api/contracts";
+import { errorMessage } from "@/api/effect/errors";
 
 /**
  * Download-events export with toast + last-result tracking.

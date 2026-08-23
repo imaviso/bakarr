@@ -1,4 +1,4 @@
-import { cn } from "@/lib/utils";
+import { cn } from "@/infra/utils";
 import { SpinnerIcon, type IconProps } from "@phosphor-icons/react";
 
 function Spinner({ className, ...props }: IconProps) {

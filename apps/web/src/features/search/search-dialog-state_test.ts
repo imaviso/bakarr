@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { formatSearchResultAge } from "~/domain/date-time";
+import { formatSearchResultAge } from "@/domain/date-time";
 
 describe("search dialog state helpers", () => {
   beforeEach(() => {

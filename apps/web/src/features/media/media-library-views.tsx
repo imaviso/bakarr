@@ -2,11 +2,10 @@ import { TelevisionIcon, TrashIcon } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
 import { useRef } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { useContainerWidth } from "~/hooks/use-container-width";
-import { ConfirmDialog } from "~/components/shared/confirm-dialog";
-import { Badge } from "~/components/ui/badge";
-import { Button } from "~/components/ui/button";
-import { Card } from "~/components/ui/card";
+import { useContainerWidth } from "@/hooks/use-container-width";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -14,81 +13,27 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "~/components/ui/table";
-import { Tooltip, TooltipTrigger } from "~/components/ui/tooltip";
-import type { Media } from "~/api/contracts";
-import { useDeleteMediaMutation } from "~/api/media-mutations";
+} from "@/components/ui/table";
+import type { Media } from "@/api/contracts";
+import { useDeleteMediaMutation } from "@/api/media-mutations";
 import {
   animeDateSubtitle,
   formatNextAiringUnit,
   type getAiringDisplayPreferences,
-} from "~/domain/media/metadata";
+} from "@/domain/media/metadata";
+import { mediaKindLabel } from "@/domain/media-unit";
 import {
-  mediaKindLabel,
-  mediaUnitKindFromMediaKind,
-  mediaUnitShortLabel,
-  mediaUnitLabel,
-} from "~/domain/media-unit";
-import { cn } from "~/infra/utils";
+  getColCount,
+  GRID_GAP_PX,
+  nextProgressLabel,
+  progressSummary,
+} from "@/features/media/media-grid-helpers";
+import { MediaGridCard } from "@/features/media/media-grid-card";
 
 interface AnimeLibraryViewProps {
   media: Media[];
   airingPreferences: ReturnType<typeof getAiringDisplayPreferences>;
   deleteMedia: ReturnType<typeof useDeleteMediaMutation>;
-}
-
-const GRID_GAP_PX = 16;
-const MIN_CARD_WIDTH_PX = 220;
-const MAX_GRID_COLUMNS = 6;
-
-function getColCount(w: number) {
-  const safeWidth = Math.max(0, w);
-  const cols = Math.floor((safeWidth + GRID_GAP_PX) / (MIN_CARD_WIDTH_PX + GRID_GAP_PX));
-  return Math.min(MAX_GRID_COLUMNS, Math.max(1, cols));
-}
-
-function progressPercent(media: Media) {
-  return media.progress.downloaded_percent ?? null;
-}
-
-function progressSummary(media: Media) {
-  const total = media.progress.total;
-  const percent = media.progress.downloaded_percent;
-
-  if (total) {
-    return percent !== undefined
-      ? `${media.progress.downloaded}/${total} downloaded • ${percent}%`
-      : `${media.progress.downloaded}/${total} downloaded`;
-  }
-
-  return `${media.progress.downloaded} downloaded`;
-}
-
-function nextProgressLabel(media: Media) {
-  const unitKind = mediaUnitKindFromMediaKind(media.media_kind);
-
-  if (media.progress.is_up_to_date) {
-    return "Up to date";
-  }
-
-  if (media.progress.next_missing_unit) {
-    return `Next missing: ${mediaUnitShortLabel(unitKind, media.progress.next_missing_unit)}`;
-  }
-
-  if (media.progress.latest_downloaded_unit) {
-    return `Latest: ${mediaUnitShortLabel(unitKind, media.progress.latest_downloaded_unit)}`;
-  }
-
-  return media.progress.downloaded > 0
-    ? `${mediaUnitLabel(unitKind, 2)} available`
-    : "No downloads yet";
-}
-
-function statusTone(media: Media) {
-  if (media.next_airing_unit) return "default" as const;
-  if (media.progress.is_up_to_date) return "secondary" as const;
-  if (media.progress.next_missing_unit) return "destructive" as const;
-  return media.monitored ? ("outline" as const) : ("secondary" as const);
 }
 
 export function AnimeGridView(props: AnimeLibraryViewProps) {
@@ -134,136 +79,12 @@ export function AnimeGridView(props: AnimeLibraryViewProps) {
               style={{ gridTemplateColumns: `repeat(${colCount}, minmax(0, 1fr))` }}
             >
               {rowItems(vRow.index).map((media) => (
-                <Card
+                <MediaGridCard
                   key={media.id}
-                  className="group relative flex flex-col overflow-hidden bg-card card-hover transition-colors"
-                >
-                  <div className="relative aspect-[2/3] w-full overflow-hidden bg-muted border-b border-border">
-                    <Link
-                      to="/media/$id"
-                      params={{ id: media.id.toString() }}
-                      className="block h-full w-full"
-                    >
-                      {media.cover_image ? (
-                        <img
-                          src={media.cover_image}
-                          alt={media.title.english || media.title.romaji}
-                          loading="lazy"
-                          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                        />
-                      ) : (
-                        <div className="flex h-full items-center justify-center text-muted-foreground">
-                          <TelevisionIcon className="h-12 w-12 opacity-20" />
-                        </div>
-                      )}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                    </Link>
-                    <div className="absolute right-2 top-2 opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100 has-[:focus-visible]:opacity-100">
-                      <ConfirmDialog
-                        title={`Delete ${mediaKindLabel(media.media_kind)}`}
-                        description={`Are you sure you want to delete "${
-                          media.title.english || media.title.romaji
-                        }"? This action cannot be undone.`}
-                        confirmLabel="Delete"
-                        destructive
-                        isPending={
-                          props.deleteMedia.isPending && props.deleteMedia.variables === media.id
-                        }
-                        onConfirm={() => props.deleteMedia.mutate(media.id)}
-                        trigger={
-                          <Button
-                            size="icon"
-                            variant="secondary"
-                            aria-label={`Delete ${media.title.english || media.title.romaji}`}
-                            className="relative after:absolute after:-inset-3 h-8 w-8 bg-background/90 hover:bg-destructive hover:text-destructive-foreground"
-                          >
-                            <TrashIcon className="h-3.5 w-3.5" />
-                          </Button>
-                        }
-                      />
-                    </div>
-                  </div>
-                  <div className="flex flex-1 flex-col gap-2 p-3">
-                    <Link
-                      to="/media/$id"
-                      params={{ id: media.id.toString() }}
-                      className="line-clamp-1 text-sm font-medium leading-tight text-foreground transition-colors hover:text-primary"
-                      title={media.title.english || media.title.romaji}
-                    >
-                      {media.title.english || media.title.romaji}
-                    </Link>
-                    <div className="space-y-2">
-                      <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
-                        <Badge
-                          variant={statusTone(media)}
-                          className="h-5 rounded-none px-1.5 font-normal"
-                        >
-                          {media.next_airing_unit
-                            ? "Airing"
-                            : media.monitored
-                              ? "Monitored"
-                              : "Unmonitored"}
-                        </Badge>
-                        {animeDateSubtitle(media) && <span>{animeDateSubtitle(media)}</span>}
-                      </div>
-                      <div className="space-y-1">
-                        <div className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
-                          <span>{progressSummary(media)}</span>
-                          {progressPercent(media) !== null && (
-                            <span>{progressPercent(media)}%</span>
-                          )}
-                        </div>
-                        <div className="h-1.5 overflow-hidden bg-muted">
-                          <div
-                            className={cn(
-                              "h-full origin-left transition-transform duration-300 ease-out",
-                              media.progress.next_missing_unit
-                                ? "bg-warning"
-                                : media.monitored
-                                  ? "bg-primary"
-                                  : "bg-muted-foreground/40",
-                            )}
-                            style={{
-                              transform: `scaleX(${(progressPercent(media) ?? 0) / 100})`,
-                            }}
-                          />
-                        </div>
-                      </div>
-                      <div className="line-clamp-1 text-[11px] text-muted-foreground">
-                        {formatNextAiringUnit(media.next_airing_unit, props.airingPreferences) ||
-                          nextProgressLabel(media)}
-                      </div>
-                    </div>
-                    <div className="mt-auto flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-1.5">
-                        <Badge
-                          variant="outline"
-                          className="h-5 rounded-none border-border px-1.5 text-xs font-normal text-muted-foreground hover:bg-muted hover:text-foreground"
-                        >
-                          {media.profile_name}
-                        </Badge>
-                      </div>
-                      <TooltipTrigger>
-                        <Button
-                          variant="ghost"
-                          className="p-1 -mr-1 h-auto hover:bg-muted transition-colors rounded-full"
-                        >
-                          <div className="flex items-center gap-1.5">
-                            <div
-                              className={cn(
-                                "h-1.5 w-1.5 rounded-full",
-                                media.monitored
-                                  ? "bg-success ring-1 ring-success/40"
-                                  : "bg-muted-foreground/40",
-                              )}
-                            />
-                          </div>
-                        </Button>
-                        <Tooltip>{media.monitored ? "Monitored" : "Unmonitored"}</Tooltip>
-                      </TooltipTrigger>
-                    </div>
-                  </div>
-                </Card>
+                  media={media}
+                  airingPreferences={props.airingPreferences}
+                  deleteMedia={props.deleteMedia}
+                />
               ))}
             </div>
           </div>
@@ -298,7 +119,7 @@ export function AnimeListView(props: AnimeLibraryViewProps) {
       <Table className="table-fixed w-full min-w-0">
         <TableHeader className="sticky top-0 bg-card z-10 border-b">
           <TableRow className="hover:bg-transparent border-none">
-            <TableHead scope="col" className="w-[80px]">
+            <TableHead scope="col" className="w-20">
               Cover
             </TableHead>
             <TableHead scope="col">Title</TableHead>
@@ -316,20 +137,11 @@ export function AnimeListView(props: AnimeLibraryViewProps) {
         </TableHeader>
         <TableBody>
           <tr aria-hidden="true">
-            <td
-              colSpan={6}
-              style={{
-                height: `${paddingTop}px`,
-                padding: "0",
-                border: "none",
-              }}
-            />
+            <td colSpan={6} style={{ height: `${paddingTop}px`, padding: "0", border: "none" }} />
           </tr>
           {virtualItems.map((vRow) => {
             const media = props.media[vRow.index];
-            if (!media) {
-              return null;
-            }
+            if (!media) return null;
             return (
               <TableRow key={media.id}>
                 <TableCell>
@@ -400,9 +212,7 @@ export function AnimeListView(props: AnimeLibraryViewProps) {
                   <div className="flex items-center justify-end gap-1">
                     <ConfirmDialog
                       title={`Delete ${mediaKindLabel(media.media_kind)}`}
-                      description={`Are you sure you want to delete "${
-                        media.title.english || media.title.romaji
-                      }"? This action cannot be undone.`}
+                      description={`Are you sure you want to delete "${media.title.english || media.title.romaji}"? This action cannot be undone.`}
                       confirmLabel="Delete"
                       destructive
                       isPending={
@@ -429,11 +239,7 @@ export function AnimeListView(props: AnimeLibraryViewProps) {
           <tr aria-hidden="true">
             <td
               colSpan={6}
-              style={{
-                height: `${paddingBottom}px`,
-                padding: "0",
-                border: "none",
-              }}
+              style={{ height: `${paddingBottom}px`, padding: "0", border: "none" }}
             />
           </tr>
         </TableBody>

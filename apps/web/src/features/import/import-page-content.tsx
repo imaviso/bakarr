@@ -14,17 +14,17 @@ import {
 } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
 import { Suspense } from "react";
-import { AddAnimeDialog } from "~/features/media/add-media-dialog";
-import { FileBrowser } from "~/components/shared/file-browser";
-import { CandidateCard, FileRow, ManualSearch } from "~/features/import";
-import { importSteps, type ImportPageState } from "~/features/import/import-page-state";
-import { Badge } from "~/components/ui/badge";
-import { Button } from "~/components/ui/button";
-import { Dialog, DialogDescription, DialogHeader, DialogTitle } from "~/components/ui/dialog";
-import { Input } from "~/components/ui/input";
-import { Label } from "~/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
-import { cn } from "~/infra/utils";
+import { AddAnimeDialog } from "@/features/media/add-media-dialog";
+import { FileBrowser } from "@/components/shared/file-browser";
+import { CandidateCard, FileRow, ManualSearch } from "@/features/import";
+import { importSteps, type ImportPageState } from "@/features/import/import-page-state";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { cn } from "@/infra/utils";
 
 const DEFAULT_ANIME_SEARCH = {
   filter: "all",

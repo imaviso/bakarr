@@ -1,20 +1,20 @@
-import { FiniteNumberInput, SettingRow, SettingSection } from "~/features/settings/form-controls";
-import type { SettingsFormApi } from "~/features/settings/system-settings-form-hook";
+import { FiniteNumberInput, SettingRow, SettingSection } from "@/features/settings/form-controls";
+import type { SettingsFormApi } from "@/features/settings/system-settings-form-hook";
 import {
   IMPORT_MODE_OPTIONS,
   importModeLabel,
   PREFERRED_TITLE_OPTIONS,
   preferredTitleLabel,
-} from "~/features/settings/system-settings-schema";
-import { TimezonePicker } from "~/components/shared/timezone-picker";
-import { Input } from "~/components/ui/input";
+} from "@/features/settings/system-settings-schema";
+import { TimezonePicker } from "@/components/shared/timezone-picker";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "~/components/ui/select";
+} from "@/components/ui/select";
 
 interface SystemSettingsGeneralLibrarySectionProps {
   form: SettingsFormApi;

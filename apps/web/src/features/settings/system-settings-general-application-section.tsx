@@ -1,14 +1,14 @@
-import { FiniteNumberInput, SettingRow, SettingSection } from "~/features/settings/form-controls";
-import type { SettingsFormApi } from "~/features/settings/system-settings-form-hook";
-import { Input } from "~/components/ui/input";
+import { FiniteNumberInput, SettingRow, SettingSection } from "@/features/settings/form-controls";
+import type { SettingsFormApi } from "@/features/settings/system-settings-form-hook";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "~/components/ui/select";
-import { Switch } from "~/components/ui/switch";
+} from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 
 interface SystemSettingsGeneralApplicationSectionProps {
   form: SettingsFormApi;

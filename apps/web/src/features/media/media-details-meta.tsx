@@ -1,8 +1,8 @@
 import { PencilSimpleIcon } from "@phosphor-icons/react";
-import { Button } from "~/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
-import { Separator } from "~/components/ui/separator";
-import { formatDate } from "~/domain/date-time";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import { formatDate } from "@/domain/date-time";
 
 interface AnimeDetailsMetaProps {
   totalUnits: number;

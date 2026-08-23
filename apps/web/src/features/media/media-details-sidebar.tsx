@@ -1,9 +1,9 @@
 import { PlayIcon } from "@phosphor-icons/react";
-import { Badge } from "~/components/ui/badge";
-import { Card, CardContent } from "~/components/ui/card";
-import { SectionLabel } from "~/components/shared/section-label";
-import { formatMediaSource } from "~/domain/media/metadata";
-import type { Media } from "~/api/contracts";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
+import { SectionLabel } from "@/components/shared/section-label";
+import { formatMediaSource } from "@/domain/media/metadata";
+import type { Media } from "@/api/contracts";
 
 const COMPACT_NUMBER = new Intl.NumberFormat(undefined, { notation: "compact" });
 

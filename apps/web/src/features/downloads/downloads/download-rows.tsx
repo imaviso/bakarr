@@ -1,13 +1,13 @@
 import { WarningIcon, ArrowDownIcon, CheckIcon, ClockIcon, PauseIcon } from "@phosphor-icons/react";
-import { DownloadRowMeta } from "~/features/downloads/downloads/download-row-meta";
+import { DownloadRowMeta } from "@/features/downloads/downloads/download-row-meta";
 import {
   ActiveDownloadActions,
   HistoryDownloadActions,
-} from "~/features/downloads/downloads/download-row-actions";
-import { Badge } from "~/components/ui/badge";
-import { Progress } from "~/components/ui/progress";
-import { TableCell, TableRow } from "~/components/ui/table";
-import type { Download, DownloadStatus } from "~/api/contracts";
+} from "@/features/downloads/downloads/download-row-actions";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { TableCell, TableRow } from "@/components/ui/table";
+import type { Download, DownloadStatus } from "@/api/contracts";
 import {
   formatCoverageMeta,
   formatDownloadDecisionBadge,
@@ -17,11 +17,11 @@ import {
   formatDownloadReleaseMeta,
   formatEpisodeCoverage,
   getDownloadReleaseConfidence,
-} from "~/domain/download/metadata";
-import { getDownloadStatusPresentation } from "~/domain/download/status";
-import { formatSelectionDetail } from "~/domain/release/selection";
-import { formatDateTime } from "~/domain/date-time";
-import { formatEta, formatSpeed } from "~/domain/format";
+} from "@/domain/download/metadata";
+import { getDownloadStatusPresentation } from "@/domain/download/status";
+import { formatSelectionDetail } from "@/domain/release/selection";
+import { formatDateTime } from "@/domain/date-time";
+import { formatEta, formatSpeed } from "@/domain/format";
 
 function DownloadStatusIcon(props: { status?: string | undefined }) {
   const presentation = getDownloadStatusPresentation(props.status);
@@ -167,7 +167,7 @@ export function DownloadRow(props: { item: Download; isHistory?: boolean }) {
           )}
         </Badge>
         {formatCoverageMeta(props.item.covered_units, props.item.coverage_pending) && (
-          <div className="mt-1 text-[11px] text-muted-foreground">
+          <div className="mt-1 text-xs text-muted-foreground">
             {formatCoverageMeta(props.item.covered_units, props.item.coverage_pending)}
           </div>
         )}

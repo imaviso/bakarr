@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { systemConfigQueryOptions } from "~/api/system-config";
-import { toImportInputMode, useImportFlow } from "~/features/import/use-import-flow";
-import type { FileRowAnimeOption, Step } from "~/features/import/types";
-import { animeDisplayTitle } from "~/domain/media/metadata";
+import { systemConfigQueryOptions } from "@/api/system-config";
+import { toImportInputMode, useImportFlow } from "@/features/import/use-import-flow";
+import type { FileRowAnimeOption, Step } from "@/features/import/types";
+import { animeDisplayTitle } from "@/domain/media/metadata";
 
 export type BrowseRootKey = "library" | "manga" | "light-novels" | "recycle" | "downloads";
 

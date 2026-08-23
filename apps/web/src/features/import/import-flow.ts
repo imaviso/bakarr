@@ -4,7 +4,7 @@ import type {
   DownloadSourceMetadata,
   ImportFileRequest,
   ScannedFile,
-} from "~/api/contracts";
+} from "@/api/contracts";
 
 export function buildImportSourceMetadata(
   file: Pick<

@@ -1,4 +1,4 @@
-import type { MediaId, MediaSearchResult, ScannedFile } from "~/api/contracts";
+import type { MediaId, MediaSearchResult, ScannedFile } from "@/api/contracts";
 
 export type Step = "scan" | "review";
 

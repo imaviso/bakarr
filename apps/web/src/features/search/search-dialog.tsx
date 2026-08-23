@@ -1,9 +1,9 @@
 import type { ReactNode } from "react";
-import type { MediaKind } from "~/api/contracts";
-import { SearchDialogContent } from "~/features/search/search-dialog-content";
-import { useSearchDialogState } from "~/features/search/search-dialog-state";
-import { Dialog } from "~/components/ui/dialog";
-import { Tooltip, TooltipTrigger } from "~/components/ui/tooltip";
+import type { MediaKind } from "@/api/contracts";
+import { SearchDialogContent } from "@/features/search/search-dialog-content";
+import { useSearchDialogState } from "@/features/search/search-dialog-state";
+import { Dialog } from "@/components/ui/dialog";
+import { Tooltip, TooltipTrigger } from "@/components/ui/tooltip";
 import { DialogTrigger } from "react-aria-components";
 
 interface SearchDialogProps {

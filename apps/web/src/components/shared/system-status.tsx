@@ -5,15 +5,15 @@ import {
   DownloadIcon,
   ArrowClockwiseIcon,
 } from "@phosphor-icons/react";
-import { Button } from "~/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
-import { useSystemTaskQuery, isTaskActive } from "~/api/operations-tasks";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useSystemTaskQuery, isTaskActive } from "@/api/operations-tasks";
 import {
   useSystemStatusQuery,
   useTriggerRssCheckMutation,
   useTriggerScanMutation,
-} from "~/api/system-config";
-import { formatBytes, formatDurationCompact, formatRelativeTime } from "~/domain/format";
+} from "@/api/system-config";
+import { formatBytes, formatDurationCompact, formatRelativeTime } from "@/domain/format";
 
 function formatProviderStatus(
   name: string,

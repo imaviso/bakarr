@@ -1,12 +1,12 @@
-import type { DownloadEventsFilterValue } from "~/features/downloads/download-events/download-events-filters";
-import { formatDateTimeLocalInput, getDateRangePresetHours } from "~/domain/date-presets";
+import type { DownloadEventsFilterValue } from "@/features/downloads/download-events/download-events-filters";
+import { formatDateTimeLocalInput, getDateRangePresetHours } from "@/domain/date-presets";
 import { subHours } from "date-fns";
-import type { DownloadEventsSearchKeys } from "~/domain/download/events-search";
-import { createDownloadEventsSearchDefaults } from "~/domain/download/events-search";
+import type { DownloadEventsSearchKeys } from "@/domain/download/events-search";
+import { createDownloadEventsSearchDefaults } from "@/domain/download/events-search";
 import {
   buildDownloadEventsExportInput,
   buildDownloadEventsFilterInput,
-} from "~/domain/download/events-query-model";
+} from "@/domain/download/events-query-model";
 
 interface UseDownloadEventsSearchStateOptions {
   keys: DownloadEventsSearchKeys;

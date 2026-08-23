@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { LOGS_DOWNLOAD_EVENTS_SEARCH_KEYS } from "~/domain/download/events-search";
+import { LOGS_DOWNLOAD_EVENTS_SEARCH_KEYS } from "@/domain/download/events-search";
 import { logsSearchDefaults, parseLogsSearch } from "./logs-search";
 
 describe("logs search", () => {

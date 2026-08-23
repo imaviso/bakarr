@@ -1,6 +1,6 @@
 import { Cause, Effect, Exit, Option, Schema } from "effect";
-import { getAuthHeaders } from "~/app/auth-state";
-import { API_BASE } from "~/api/constants";
+import { getAuthHeaders } from "@/app/auth-state";
+import { API_BASE } from "@/api/constants";
 
 export class ApiClientError extends Schema.TaggedError<ApiClientError>()("ApiClientError", {
   message: Schema.String,

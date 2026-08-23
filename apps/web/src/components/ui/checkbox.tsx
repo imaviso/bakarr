@@ -6,7 +6,7 @@ import {
   type CheckboxProps,
 } from "react-aria-components";
 
-import { cn } from "@/lib/utils";
+import { cn } from "@/infra/utils";
 import { CheckIcon } from "@phosphor-icons/react";
 
 function Checkbox({ className, children, ...props }: CheckboxProps) {

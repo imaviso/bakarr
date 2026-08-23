@@ -8,23 +8,23 @@ import {
 } from "@phosphor-icons/react";
 import { useMemo, useRef, useState } from "react";
 import { useDebouncedValue } from "@tanstack/react-pacer";
-import { MediaDiscoveryRow } from "~/features/media/media-discovery";
-import { Badge } from "~/components/ui/badge";
-import { Button } from "~/components/ui/button";
-import { Input } from "~/components/ui/input";
+import { MediaDiscoveryRow } from "@/features/media/media-discovery";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "~/components/ui/select";
-import type { MediaSearchResult, MediaKind } from "~/api/contracts";
-import { useMediaSearchQuery } from "~/api/media";
-import { animeDisplayTitle, animeSearchSubtitle } from "~/domain/media/metadata";
-import { mediaKindLabel, mediaUnitShortLabel } from "~/domain/media-unit";
-import { formatMatchConfidence } from "~/domain/scanned-file";
-import { cn } from "~/infra/utils";
+} from "@/components/ui/select";
+import type { MediaSearchResult, MediaKind } from "@/api/contracts";
+import { useMediaSearchQuery } from "@/api/media";
+import { animeDisplayTitle, animeSearchSubtitle } from "@/domain/media/metadata";
+import { mediaKindLabel, mediaUnitShortLabel } from "@/domain/media-unit";
+import { formatMatchConfidence } from "@/domain/scanned-file";
+import { cn } from "@/infra/utils";
 
 const SEARCH_DEBOUNCE_MS = 250;
 
@@ -100,7 +100,7 @@ export function ManualSearchCore(props: ManualSearchCoreProps) {
       </div>
 
       {searchDegraded && (
-        <div className="rounded-none border border-border bg-muted px-2.5 py-2 text-[11px] text-muted-foreground">
+        <div className="rounded-none border border-border bg-muted px-2.5 py-2 text-xs text-muted-foreground">
           <div className="flex items-start gap-2">
             <InfoIcon className="mt-0.5 h-4 w-4 shrink-0" />
             <span>

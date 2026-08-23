@@ -2,26 +2,26 @@ import { useCallback, useMemo, Suspense, lazy } from "react";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Schema } from "effect";
-import { MediaDetailsHeader } from "~/features/media/media-details-header";
-import { AnimeDetailsMeta } from "~/features/media/media-details-meta";
-import { AnimeDetailsSidebar } from "~/features/media/media-details-sidebar";
-import { cleanSynopsis } from "~/domain/media/metadata";
-import { AnimeEpisodesPanel } from "~/features/media/media-units-panel";
-import { AnimeDiscoverySection } from "~/features/media/media-discovery";
-import { AnimeError } from "~/features/media/media-error";
-import { AnimeDetailsDialogsProvider } from "~/features/media/media-details-dialogs-context";
-import { useAnimeDetailsActions } from "~/features/media/hooks/use-media-details-actions";
-import { useAnimeDetailsDialogState } from "~/features/media/hooks/use-media-details-dialog-state";
-import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
-import { PageShell } from "~/app/layout/page-shell";
-import { mediaDetailsQueryOptions, mediaListQueryOptions, unitsQueryOptions } from "~/api/media";
-import { useAnimeScanTaskQuery, isTaskActive } from "~/api/operations-tasks";
-import { profilesQueryOptions, releaseProfilesQueryOptions } from "~/api/profiles";
-import { usePageTitle } from "~/app/page-title";
-import { isAired } from "~/domain/date-time";
+import { MediaDetailsHeader } from "@/features/media/media-details-header";
+import { AnimeDetailsMeta } from "@/features/media/media-details-meta";
+import { AnimeDetailsSidebar } from "@/features/media/media-details-sidebar";
+import { cleanSynopsis } from "@/domain/media/metadata";
+import { AnimeEpisodesPanel } from "@/features/media/media-units-panel";
+import { AnimeDiscoverySection } from "@/features/media/media-discovery";
+import { AnimeError } from "@/features/media/media-error";
+import { AnimeDetailsDialogsProvider } from "@/features/media/media-details-dialogs-context";
+import { useAnimeDetailsActions } from "@/features/media/hooks/use-media-details-actions";
+import { useAnimeDetailsDialogState } from "@/features/media/hooks/use-media-details-dialog-state";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PageShell } from "@/app/layout/page-shell";
+import { mediaDetailsQueryOptions, mediaListQueryOptions, unitsQueryOptions } from "@/api/media";
+import { useAnimeScanTaskQuery, isTaskActive } from "@/api/operations-tasks";
+import { profilesQueryOptions, releaseProfilesQueryOptions } from "@/api/profiles";
+import { usePageTitle } from "@/app/page-title";
+import { isAired } from "@/domain/date-time";
 
 const AnimeDetailsDialogsLazy = lazy(() =>
-  import("~/features/media/media-details-dialogs").then((module) => ({
+  import("@/features/media/media-details-dialogs").then((module) => ({
     default: module.AnimeDetailsDialogs,
   })),
 );

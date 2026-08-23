@@ -1,7 +1,7 @@
 import { ArrowSquareOutIcon } from "@phosphor-icons/react";
-import { Badge } from "~/components/ui/badge";
-import type { ReleaseFlag } from "~/domain/release/metadata";
-import { releaseFlagBadgeClass } from "~/domain/release/metadata";
+import { Badge } from "@/components/ui/badge";
+import type { ReleaseFlag } from "@/domain/release/metadata";
+import { releaseFlagBadgeClass } from "@/domain/release/metadata";
 
 interface ReleaseMetadataSummaryProps {
   flags?: readonly ReleaseFlag[] | undefined;

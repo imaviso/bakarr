@@ -1,14 +1,14 @@
 import { PencilSimpleIcon, ListChecksIcon, PlusIcon, TrashIcon } from "@phosphor-icons/react";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { EmptyState } from "~/components/shared/empty-state";
-import { ReleaseProfileForm } from "~/features/settings/release-profile-form";
-import { ConfirmDialog } from "~/components/shared/confirm-dialog";
-import { Badge } from "~/components/ui/badge";
-import { Button } from "~/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
-import { useDeleteReleaseProfileMutation, releaseProfilesQueryOptions } from "~/api/profiles";
-import type { ReleaseProfile } from "~/api/contracts";
+import { EmptyState } from "@/components/shared/empty-state";
+import { ReleaseProfileForm } from "@/features/settings/release-profile-form";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useDeleteReleaseProfileMutation, releaseProfilesQueryOptions } from "@/api/profiles";
+import type { ReleaseProfile } from "@/api/contracts";
 
 interface ReleaseProfileCardProps {
   onDelete: (id: number) => void;

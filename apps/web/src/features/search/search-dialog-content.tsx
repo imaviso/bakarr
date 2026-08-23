@@ -9,12 +9,12 @@ import {
   SortDescendingIcon,
   StarIcon,
 } from "@phosphor-icons/react";
-import { Button } from "~/components/ui/button";
-import { Checkbox } from "~/components/ui/checkbox";
-import { DialogTitle } from "~/components/ui/dialog";
-import { Label } from "~/components/ui/label";
-import { Popover, PopoverTrigger } from "~/components/ui/popover";
-import { Input } from "~/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { DialogTitle } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Popover, PopoverTrigger } from "@/components/ui/popover";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -22,8 +22,8 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "~/components/ui/select";
-import { Skeleton } from "~/components/ui/skeleton";
+} from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
   TableBody,
@@ -31,23 +31,23 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "~/components/ui/table";
-import { EmptyState } from "~/components/shared/empty-state";
-import type { MediaKind } from "~/api/contracts";
-import { mediaUnitLabel } from "~/domain/media-unit";
-import { ReleaseSelectionMeta } from "~/features/downloads/release-search/release-meta";
+} from "@/components/ui/table";
+import { EmptyState } from "@/components/shared/empty-state";
+import type { MediaKind } from "@/api/contracts";
+import { mediaUnitLabel } from "@/domain/media-unit";
+import { ReleaseSelectionMeta } from "@/features/downloads/release-search/release-meta";
 import {
   ReleasePeersCell,
   ReleasePrimaryCell,
-} from "~/features/downloads/release-search/release-result-cells";
+} from "@/features/downloads/release-search/release-result-cells";
 import {
   CATEGORY_LABELS,
   FILTER_LABELS,
   useSearchDialogReleaseRowState,
   useSearchDialogResultsState,
-} from "~/features/search/search-dialog-state";
-import { formatSearchResultAge } from "~/domain/date-time";
-import type { NyaaSearchResult } from "~/api/contracts";
+} from "@/features/search/search-dialog-state";
+import { formatSearchResultAge } from "@/domain/date-time";
+import type { NyaaSearchResult } from "@/api/contracts";
 
 const categoryItems = Object.entries(CATEGORY_LABELS).map(([value, label]) => ({ value, label }));
 const filterItems = Object.entries(FILTER_LABELS).map(([value, label]) => ({ value, label }));
@@ -468,7 +468,7 @@ function ReleaseRow(props: {
                     : `${props.unitLabel} number`}
                 </Label>
                 {state.isBatch && (
-                  <p className="text-[11px] leading-snug text-muted-foreground">
+                  <p className="text-xs leading-snug text-muted-foreground">
                     Example: for {props.unitLabel.toLowerCase()}s 13-24, enter 13. Files after it
                     map in order.
                   </p>

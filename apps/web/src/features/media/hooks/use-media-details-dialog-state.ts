@@ -2,7 +2,7 @@ import { useState } from "react";
 import type {
   AnimeEpisodeDialogState,
   AnimeSearchModalState,
-} from "~/features/media/media-details-types";
+} from "@/features/media/media-details-types";
 
 export function useAnimeDetailsDialogState() {
   const [renameDialogOpen, setRenameDialogOpen] = useState(false);

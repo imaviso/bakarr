@@ -1,12 +1,12 @@
-import { useSearchMissingMutation, useSyncDownloadsMutation } from "~/api/system-downloads";
-import type { DownloadEventsExportInput } from "~/api/contracts";
+import { useSearchMissingMutation, useSyncDownloadsMutation } from "@/api/system-downloads";
+import type { DownloadEventsExportInput } from "@/api/contracts";
 import {
   createDownloadEventsCursorPatch,
   DOWNLOADS_EVENTS_SEARCH_KEYS,
-} from "~/domain/download/events-search";
-import { toDownloadsTab } from "~/features/downloads/downloads-search";
-import type { DownloadsSearchPatch } from "~/features/downloads/downloads-search";
-import { useDownloadEventsExport } from "~/features/downloads/use-download-events-export";
+} from "@/domain/download/events-search";
+import { toDownloadsTab } from "@/features/downloads/downloads-search";
+import type { DownloadsSearchPatch } from "@/features/downloads/downloads-search";
+import { useDownloadEventsExport } from "@/features/downloads/use-download-events-export";
 
 interface UseDownloadsActionsOptions {
   updateSearch: (patch: DownloadsSearchPatch) => void;

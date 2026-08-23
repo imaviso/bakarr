@@ -1,26 +1,26 @@
 import { useForm } from "@tanstack/react-form";
 import { Schema } from "effect";
-import { SortableQualityList } from "~/features/settings/sortable-quality-list";
-import { fieldErrorMessage } from "~/api/effect/errors";
-import { Button } from "~/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
-import { Input } from "~/components/ui/input";
-import { Label } from "~/components/ui/label";
+import { SortableQualityList } from "@/features/settings/sortable-quality-list";
+import { fieldErrorMessage } from "@/api/effect/errors";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "~/components/ui/select";
-import { Switch } from "~/components/ui/switch";
-import { SizeInput } from "~/features/settings/form-controls";
+} from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { SizeInput } from "@/features/settings/form-controls";
 import {
   useCreateProfileMutation,
   useQualitiesQuery,
   useUpdateProfileMutation,
-} from "~/api/profiles";
-import type { QualityProfile } from "~/api/contracts";
+} from "@/api/profiles";
+import type { QualityProfile } from "@/api/contracts";
 
 const ProfileSchema = Schema.mutable(
   Schema.Struct({
@@ -109,7 +109,7 @@ export function ProfileForm(props: {
                   placeholder="e.g., HD Quality"
                 />
                 {field.state.meta.errors[0]?.message && (
-                  <div className="text-[0.8rem] text-destructive">
+                  <div className="text-xs text-destructive">
                     {field.state.meta.errors[0]?.message}
                   </div>
                 )}
@@ -148,7 +148,7 @@ export function ProfileForm(props: {
                   </SelectContent>
                 </Select>
                 {field.state.meta.errors.length > 0 && (
-                  <div className="text-[0.8rem] text-destructive">
+                  <div className="text-xs text-destructive">
                     {field.state.meta.errors[0]?.message}
                   </div>
                 )}

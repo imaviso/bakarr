@@ -6,7 +6,7 @@ import {
   getAuthState,
   loginSuccess,
   replaceApiKey,
-} from "~/app/auth-state";
+} from "@/app/auth-state";
 
 beforeEach(() => {
   vi.restoreAllMocks();

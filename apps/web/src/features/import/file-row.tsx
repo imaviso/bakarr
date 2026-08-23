@@ -1,14 +1,14 @@
 import { WarningIcon, CheckIcon, FileIcon, InfoIcon } from "@phosphor-icons/react";
-import { EditMappingPopover } from "~/features/media/edit-mapping-popover";
-import { Badge } from "~/components/ui/badge";
-import { Checkbox } from "~/components/ui/checkbox";
+import { EditMappingPopover } from "@/features/media/edit-mapping-popover";
+import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "~/components/ui/select";
+} from "@/components/ui/select";
 import {
   buildFileDecisionSummary,
   formatEpisodeNumberList,
@@ -17,8 +17,8 @@ import {
   formatNamingTitleSource,
   mediaMetadataBadges,
   namingMetadataBadges,
-} from "~/domain/scanned-file";
-import { cn } from "~/infra/utils";
+} from "@/domain/scanned-file";
+import { cn } from "@/infra/utils";
 import type { FileRowProps } from "./types";
 
 export function FileRow(props: FileRowProps) {
@@ -64,7 +64,7 @@ export function FileRow(props: FileRowProps) {
         <div className="flex-1 min-w-0 overflow-hidden">
           <span className="text-sm font-medium truncate block">{props.file.filename}</span>
           {(props.file.unit_title || props.file.air_date) && (
-            <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
+            <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
               {props.file.unit_title && (
                 <span className="truncate max-w-[28rem]">{props.file.unit_title}</span>
               )}
@@ -73,7 +73,7 @@ export function FileRow(props: FileRowProps) {
             </div>
           )}
           {!props.file.unit_title && !props.file.air_date && fileSize && (
-            <div className="mt-1 text-[11px] text-muted-foreground">{fileSize}</div>
+            <div className="mt-1 text-xs text-muted-foreground">{fileSize}</div>
           )}
           {metadataBadges.length > 0 && (
             <div className="mt-1 flex flex-wrap gap-1">
@@ -102,7 +102,7 @@ export function FileRow(props: FileRowProps) {
             </div>
           )}
           {props.file.match_reason && (
-            <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
+            <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
               {matchConfidence && (
                 <Badge variant="outline" className="h-5 px-1.5 text-xs">
                   {matchConfidence}
@@ -117,7 +117,7 @@ export function FileRow(props: FileRowProps) {
                 <p
                   key={detail}
                   className={cn(
-                    "text-[11px]",
+                    "text-xs",
                     detail.startsWith("Existing file") || props.file.warnings?.includes(detail)
                       ? "text-warning"
                       : "text-muted-foreground",
@@ -136,7 +136,7 @@ export function FileRow(props: FileRowProps) {
             props.file.naming_missing_fields?.length) && (
             <div className="mt-2 space-y-1">
               {props.file.naming_filename && (
-                <p className="text-[11px] text-muted-foreground">
+                <p className="text-xs text-muted-foreground">
                   Will import as {props.file.naming_filename}
                 </p>
               )}
@@ -166,7 +166,7 @@ export function FileRow(props: FileRowProps) {
                 ))}
               </div>
               {(props.file.naming_warnings?.length || props.file.naming_missing_fields?.length) && (
-                <div className="space-y-0.5 text-[11px] text-muted-foreground">
+                <div className="space-y-0.5 text-xs text-muted-foreground">
                   {(props.file.naming_warnings || []).map((warning) => (
                     <p key={warning} className="flex items-start gap-1">
                       <WarningIcon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" />

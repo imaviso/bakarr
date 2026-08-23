@@ -2,11 +2,11 @@ import { PencilSimpleIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 import { useForm } from "@tanstack/react-form";
 import { Schema } from "effect";
-import { Button } from "~/components/ui/button";
-import { Popover, PopoverTrigger } from "~/components/ui/popover";
-import { Input } from "~/components/ui/input";
-import { Label } from "~/components/ui/label";
-import { formatFieldErrors } from "~/api/effect/errors";
+import { Button } from "@/components/ui/button";
+import { Popover, PopoverTrigger } from "@/components/ui/popover";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { formatFieldErrors } from "@/api/effect/errors";
 
 const EditMappingSchema = Schema.Struct({
   episode: Schema.Number.pipe(Schema.int(), Schema.nonNegative()),

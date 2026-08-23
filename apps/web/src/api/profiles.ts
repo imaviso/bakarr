@@ -5,8 +5,8 @@ import type {
   ReleaseProfileUpdateRequest,
 } from "./contracts";
 import { QualityProfileSchema, QualitySchema, ReleaseProfileSchema } from "@bakarr/shared";
-import { API_BASE } from "~/api/constants";
-import { fetchJson, fetchUnit, runApiEffect } from "~/api/effect/api-client";
+import { API_BASE } from "@/api/constants";
+import { fetchJson, fetchUnit, runApiEffect } from "@/api/effect/api-client";
 import { Schema } from "effect";
 import { animeKeys } from "./keys";
 

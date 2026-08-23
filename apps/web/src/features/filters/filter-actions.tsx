@@ -1,5 +1,5 @@
 import { useFilterContext } from "./filter-context";
-import { Button } from "~/components/ui/button";
+import { Button } from "@/components/ui/button";
 
 export function FilterActions() {
   const ctx = useFilterContext();

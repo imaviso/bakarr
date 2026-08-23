@@ -1,6 +1,6 @@
-import { useLogsActions } from "~/features/logs/use-logs-actions";
-import { useLogsFilters } from "~/features/logs/use-logs-filters";
-import { useLogsQueries } from "~/features/logs/use-logs-queries";
+import { useLogsActions } from "@/features/logs/use-logs-actions";
+import { useLogsFilters } from "@/features/logs/use-logs-filters";
+import { useLogsQueries } from "@/features/logs/use-logs-queries";
 
 interface UseLogsRouteStateOptions {
   search: Record<string, string | undefined>;

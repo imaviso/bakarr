@@ -5,16 +5,16 @@ import {
   ArrowClockwiseIcon,
   TrashIcon,
 } from "@phosphor-icons/react";
-import { DownloadEventsDialog } from "~/features/downloads/download-events-dialog";
-import { Button } from "~/components/ui/button";
+import { DownloadEventsDialog } from "@/features/downloads/download-events-dialog";
+import { Button } from "@/components/ui/button";
 import {
   useDeleteDownloadMutation,
   usePauseDownloadMutation,
   useReconcileDownloadMutation,
   useResumeDownloadMutation,
   useRetryDownloadMutation,
-} from "~/api/system-downloads";
-import { formatDateTime } from "~/domain/date-time";
+} from "@/api/system-downloads";
+import { formatDateTime } from "@/domain/date-time";
 
 interface ActiveDownloadActionsProps {
   allowedActions?: readonly string[] | undefined;
