@@ -132,7 +132,25 @@ function parseAbsoluteRange(value: string): AbsoluteEpisodeIdentity | undefined 
 
   for (const pattern of rangePatterns) {
     const match = value.match(pattern);
-    if (!match) continue;
+    if (!match || match.index === undefined) continue;
+
+    // Avoid misparsing title trailing number + episode as range
+    // e.g. "Otomege ... desu 2 - 03 - [1080p]" should be single 03, not 02-03
+    const isGenericRangePattern =
+      pattern.source.startsWith("(?:^|[") && !pattern.source.includes("e|ep");
+    if (isGenericRangePattern && match[1] !== undefined && match[1].length <= 2) {
+      const before = value.slice(0, match.index);
+      if (/[a-zA-Z]\s*$/.test(before)) {
+        const lastWord =
+          before
+            .trim()
+            .split(/[\s._\-]+/)
+            .pop() ?? "";
+        if (!/^(?:e|ep|episode|s|season)$/i.test(lastWord) && /\s-\s/.test(match[0])) {
+          continue;
+        }
+      }
+    }
 
     const start = Number(match[1]);
     const end = Number(match[2]);

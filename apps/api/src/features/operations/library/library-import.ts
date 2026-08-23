@@ -57,30 +57,18 @@ export const buildRenamePreview = Effect.fn("LibraryImport.buildRenamePreview")(
   const namingFormat = selectNamingFormat(animeRow, namingSettings);
   const rows = yield* mediaRepository.listMappedUnitRows(mediaId);
 
-  // Group rows by file path to handle multi-episode files
-  type MappedUnitRow = (typeof rows)[number];
-  const fileGroups = new Map<string, MappedUnitRow[]>();
+  const results: RenamePreviewItem[] = [];
   for (const row of rows) {
     if (!row.filePath) continue;
-    const existing = fileGroups.get(row.filePath) ?? [];
-    existing.push(row);
-    fileGroups.set(row.filePath, existing);
-  }
-
-  const results: RenamePreviewItem[] = [];
-  for (const [filePath, groupRows] of fileGroups) {
-    const unitNumbers = groupRows.map((r) => r.number).toSorted((a, b) => a - b);
-    const [primaryEpisode] = unitNumbers;
-
-    if (primaryEpisode === undefined) {
-      continue;
-    }
+    const unitNumbers: readonly number[] = [row.number];
+    const primaryEpisode = row.number;
+    const filePath = row.filePath;
 
     const extension = pathExtension(filePath, ".mkv");
     const plan = buildUnitFilenamePlan({
       animeRow,
       unitNumbers,
-      episodeRows: groupRows,
+      episodeRows: [row],
       filePath,
       namingFormat,
       preferredTitle: namingSettings.preferredTitle,
@@ -89,7 +77,7 @@ export const buildRenamePreview = Effect.fn("LibraryImport.buildRenamePreview")(
     results.push({
       current_path: filePath,
       unit_number: primaryEpisode,
-      unit_numbers: unitNumbers.length > 1 ? unitNumbers : undefined,
+      unit_numbers: undefined,
       fallback_used: plan.fallbackUsed || undefined,
       format_used: plan.formatUsed,
       metadata_snapshot: plan.metadataSnapshot,
@@ -100,7 +88,7 @@ export const buildRenamePreview = Effect.fn("LibraryImport.buildRenamePreview")(
     });
   }
 
-  return results;
+  return results.toSorted((a, b) => a.unit_number - b.unit_number);
 });
 
 export const toMediaSearchCandidate = Effect.fn("Operations.toMediaSearchCandidate")(function* (
