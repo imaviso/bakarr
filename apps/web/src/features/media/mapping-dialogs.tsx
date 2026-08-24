@@ -68,6 +68,9 @@ export function BulkMappingDialog(props: BulkMappingDialogProps) {
         delete next[unitNumber];
         return next;
       }
+      if (filePath === UNMAP_KEY) {
+        return { ...previous, [unitNumber]: "" };
+      }
       return { ...previous, [unitNumber]: filePath };
     });
   };
@@ -124,10 +127,16 @@ export function BulkMappingDialog(props: BulkMappingDialogProps) {
                   </TableCell>
                   <TableCell className="min-w-0 align-middle">
                     <Select
-                      selectedKey={mappings[episode.number] ?? episode.file_path ?? null}
+                      selectedKey={(() => {
+                        const pending = mappings[episode.number];
+                        if (pending !== undefined) {
+                          return pending === "" ? UNMAP_KEY : pending;
+                        }
+                        return episode.file_path ?? null;
+                      })()}
                       onSelectionChange={(value) => {
                         const key = value === null ? undefined : String(value);
-                        handleMap(episode.number, key === UNMAP_KEY ? undefined : key);
+                        handleMap(episode.number, key);
                       }}
                     >
                       <SelectTrigger className="w-full min-w-0 text-xs h-8 [&_[data-slot=select-value]]:truncate">
@@ -196,7 +205,7 @@ export function ManualMappingDialog(props: ManualMappingDialogProps) {
 
   const handleSubmit = () => {
     const file = selectedFile;
-    if (!file) {
+    if (file === null) {
       return;
     }
 
@@ -242,6 +251,34 @@ export function ManualMappingDialog(props: ManualMappingDialogProps) {
                 </TableRow>
               </TableHeader>
               <TableBody>
+                <TableRow
+                  key="__unmap__"
+                  className={cn(
+                    "cursor-pointer hover:bg-muted focus:bg-muted focus:outline-none",
+                    selectedFile === "" && "bg-muted",
+                  )}
+                  onClick={() => setSelectedFile("")}
+                  tabIndex={0}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      setSelectedFile("");
+                    }
+                  }}
+                >
+                  <TableCell>
+                    <div
+                      className={cn(
+                        "h-4 w-4 rounded-full border border-primary",
+                        selectedFile === "" && "bg-primary",
+                      )}
+                    />
+                  </TableCell>
+                  <TableCell className="text-xs text-muted-foreground italic">
+                    (Unmap / No File)
+                  </TableCell>
+                  <TableCell />
+                </TableRow>
                 {files.map((file) => (
                   <TableRow
                     key={file.path}
@@ -293,8 +330,12 @@ export function ManualMappingDialog(props: ManualMappingDialogProps) {
         <Button variant="outline" onPress={() => handleOpenChange(false)}>
           Cancel
         </Button>
-        <Button onPress={handleSubmit} isDisabled={!selectedFile || mapMutation.isPending}>
-          {mapMutation.isPending ? "Mapping..." : "Map File"}
+        <Button onPress={handleSubmit} isDisabled={selectedFile === null || mapMutation.isPending}>
+          {mapMutation.isPending
+            ? "Mapping..."
+            : selectedFile === ""
+              ? "Clear Mapping"
+              : "Map File"}
         </Button>
       </ContentDialogFooter>
     </ContentDialog>
