@@ -121,7 +121,18 @@ function buildAnimeSearchAliases(animeRow: typeof media.$inferSelect) {
       }
 
       const normalized = normalizeSearchAlias(alias);
-      return normalized === alias ? [alias] : [alias, normalized];
+      const sanitized = sanitizeSearchAlias(alias);
+      const sanitizedNormalized = sanitizeSearchAlias(normalized);
+      const truncated = truncateSearchAlias(alias);
+      const truncatedSanitized = truncated ? sanitizeSearchAlias(truncated) : null;
+      return [
+        alias,
+        normalized,
+        sanitized,
+        sanitizedNormalized,
+        ...(truncated ? [truncated] : []),
+        ...(truncatedSanitized && truncatedSanitized !== truncated ? [truncatedSanitized] : []),
+      ];
     }),
   );
 }
@@ -140,6 +151,38 @@ function normalizeSearchAlias(value: string) {
     .normalize("NFKD")
     .replace(/[\u0300-\u036f]/g, "")
     .trim();
+}
+
+function sanitizeSearchAlias(value: string) {
+  return value
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function truncateSearchAlias(value: string): string | null {
+  const separators = [":", ",", "(", "（", "~", " - ", " – ", " — "];
+  let earliest = Infinity;
+
+  for (const sep of separators) {
+    const idx = value.indexOf(sep);
+    if (idx !== -1 && idx < earliest) {
+      earliest = idx;
+    }
+  }
+
+  if (earliest === Infinity) {
+    return null;
+  }
+
+  const truncated = value.slice(0, earliest).trim();
+  if (truncated.length < 10 || truncated.length >= value.length) {
+    return null;
+  }
+  if (truncated.split(/\s+/).length < 2) {
+    return null;
+  }
+  return truncated;
 }
 
 function uniqueStrings(values: readonly string[]) {

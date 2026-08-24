@@ -270,6 +270,108 @@ it.scoped("searchUnitReleases uses Nyaa literature category for manga", () =>
   }),
 );
 
+it.scoped("searchUnitReleases finds hyphenated titles via sanitized alias", () =>
+  withSqliteTestDbEffect({
+    run: (db) =>
+      Effect.gen(function* () {
+        const requestedQueries: string[] = [];
+        const config = makeTestConfig("/tmp/test.sqlite");
+        const searchReleaseService = yield* withSearchReleaseService({
+          config,
+          db,
+          rssClient: RssClient.make({
+            fetchItems: (url: string) => {
+              const query = new URL(url).searchParams.get("q") ?? "";
+              requestedQueries.push(query);
+
+              // Only sanitized query without hyphens/colons matches the Erai release
+              return Effect.succeed(
+                query === "BLEACH Sennen Kessen hen Kashin tan 01"
+                  ? [
+                      makeRelease({
+                        title:
+                          "[Erai-raws] Bleach: Sennen Kessen Hen - Kashin Tan - 01 [1080p DSNP WEB-DL AVC AAC][MultiSub][AE2878AA]",
+                      }),
+                    ]
+                  : [],
+              );
+            },
+          }),
+          seadexClient: makeSeaDexNoneClient(),
+        });
+
+        const releases = yield* searchReleaseService.searchUnitReleases(
+          makeMediaRow({
+            titleRomaji: "BLEACH: Sennen Kessen-hen - Kashin-tan",
+            titleEnglish: "BLEACH: Thousand-Year Blood War - The Calamity",
+          }),
+          1,
+          config,
+        );
+
+        assert.deepStrictEqual(
+          requestedQueries.includes("BLEACH Sennen Kessen hen Kashin tan 01"),
+          true,
+        );
+        assert.deepStrictEqual(
+          releases.map((release) => release.title),
+          [
+            "[Erai-raws] Bleach: Sennen Kessen Hen - Kashin Tan - 01 [1080p DSNP WEB-DL AVC AAC][MultiSub][AE2878AA]",
+          ],
+        );
+      }),
+    schema: dbSchema,
+  }),
+);
+
+it.scoped("searchUnitReleases finds long titles via truncated alias", () =>
+  withSqliteTestDbEffect({
+    run: (db) =>
+      Effect.gen(function* () {
+        const requestedQueries: string[] = [];
+        const config = makeTestConfig("/tmp/test.sqlite");
+        const searchReleaseService = yield* withSearchReleaseService({
+          config,
+          db,
+          rssClient: RssClient.make({
+            fetchItems: (url: string) => {
+              const query = new URL(url).searchParams.get("q") ?? "";
+              requestedQueries.push(query);
+
+              return Effect.succeed(
+                query === "Saijo no Osewa 05"
+                  ? [
+                      makeRelease({
+                        title:
+                          "[Erai-raws] Saijo no Osewa - 05 [1080p CR WEBRip HEVC AAC][MultiSub][992EAFA0]",
+                      }),
+                    ]
+                  : [],
+              );
+            },
+          }),
+          seadexClient: makeSeaDexNoneClient(),
+        });
+
+        const releases = yield* searchReleaseService.searchUnitReleases(
+          makeMediaRow({
+            titleRomaji:
+              "Saijo no Osewa: Takane no Hanadarake na Meimonkou de, Gakuin Ichi no Ojou-sama (Seikatsu Nouryoku Kaimu) wo Kagenagara Osewa suru Koto ni Narimashita",
+          }),
+          5,
+          config,
+        );
+
+        assert.deepStrictEqual(requestedQueries.includes("Saijo no Osewa 05"), true);
+        assert.deepStrictEqual(
+          releases.map((release) => release.title),
+          ["[Erai-raws] Saijo no Osewa - 05 [1080p CR WEBRip HEVC AAC][MultiSub][992EAFA0]"],
+        );
+      }),
+    schema: dbSchema,
+  }),
+);
+
 function makeMediaRow(input: Partial<typeof media.$inferSelect> = {}): typeof media.$inferSelect {
   return {
     addedAt: "2024-01-01T00:00:00.000Z",
