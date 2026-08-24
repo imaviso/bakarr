@@ -1,13 +1,13 @@
 import { useState } from "react";
-import { ArrowClockwiseIcon } from "@phosphor-icons/react";
+import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
+import { DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import {
-  Dialog,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  ContentDialog,
+  ContentDialogBody,
+  ContentDialogFooter,
+  ContentDialogHeader,
+} from "@/components/shared/content-dialog";
 import {
   Select,
   SelectContent,
@@ -97,19 +97,15 @@ export function BulkMappingDialog(props: BulkMappingDialogProps) {
   };
 
   return (
-    <Dialog
-      isOpen={props.open}
-      onOpenChange={handleOpenChange}
-      className="sm:max-w-[800px] max-h-[90vh] w-[calc(100vw-2rem)] sm:w-full p-0 gap-0 overflow-hidden [display:flex] flex-col"
-    >
-      <DialogHeader className="p-4 pb-3 shrink-0 border-b border-border">
+    <ContentDialog size="md" isOpen={props.open} onOpenChange={handleOpenChange}>
+      <ContentDialogHeader>
         <DialogTitle>Bulk Manual Mapping</DialogTitle>
         <DialogDescription>
           Map files to episodes manually. Showing all episodes and files.
         </DialogDescription>
-      </DialogHeader>
+      </ContentDialogHeader>
 
-      <div className="flex-1 min-h-0 min-w-0 w-full overflow-auto max-h-[60vh]">
+      <ContentDialogBody>
         {filesQuery.data ? (
           <Table className="w-full">
             <TableHeader className="sticky top-0 z-10 bg-background">
@@ -165,12 +161,12 @@ export function BulkMappingDialog(props: BulkMappingDialogProps) {
           </Table>
         ) : (
           <div className="flex justify-center py-8">
-            <ArrowClockwiseIcon className="h-6 w-6 animate-spin text-muted-foreground" />
+            <Spinner className="size-6 text-muted-foreground" />
           </div>
         )}
-      </div>
+      </ContentDialogBody>
 
-      <DialogFooter className="p-4 pt-3 shrink-0 border-t border-border">
+      <ContentDialogFooter>
         <Button variant="outline" onPress={() => handleOpenChange(false)}>
           Cancel
         </Button>
@@ -180,8 +176,8 @@ export function BulkMappingDialog(props: BulkMappingDialogProps) {
         >
           {bulkMapMutation.isPending ? "Mapping..." : "Save Mappings"}
         </Button>
-      </DialogFooter>
-    </Dialog>
+      </ContentDialogFooter>
+    </ContentDialog>
   );
 }
 
@@ -219,19 +215,15 @@ export function ManualMappingDialog(props: ManualMappingDialogProps) {
   };
 
   return (
-    <Dialog
-      isOpen={props.open}
-      onOpenChange={handleOpenChange}
-      className="sm:max-w-[600px] max-h-[85vh] w-[calc(100vw-2rem)] sm:w-full p-0 gap-0 overflow-hidden [display:flex] flex-col"
-    >
-      <DialogHeader className="p-4 pb-3 shrink-0 border-b border-border">
+    <ContentDialog size="sm" isOpen={props.open} onOpenChange={handleOpenChange}>
+      <ContentDialogHeader>
         <DialogTitle>Manual Mapping - MediaUnit {props.unitNumber}</DialogTitle>
         <DialogDescription>
           Select a file from the media directory to map to this media unit.
         </DialogDescription>
-      </DialogHeader>
+      </ContentDialogHeader>
 
-      <div className="flex-1 min-h-0 min-w-0 w-full overflow-auto p-4 max-h-[60vh]">
+      <ContentDialogBody className="p-4">
         {files ? (
           <div className="border rounded-none max-h-[400px] overflow-auto w-full">
             {files.length === 0 && (
@@ -292,19 +284,19 @@ export function ManualMappingDialog(props: ManualMappingDialogProps) {
           </div>
         ) : (
           <div className="flex justify-center py-8">
-            <ArrowClockwiseIcon className="h-6 w-6 animate-spin text-muted-foreground" />
+            <Spinner className="size-6 text-muted-foreground" />
           </div>
         )}
-      </div>
+      </ContentDialogBody>
 
-      <DialogFooter className="p-4 pt-3 shrink-0 border-t border-border">
+      <ContentDialogFooter>
         <Button variant="outline" onPress={() => handleOpenChange(false)}>
           Cancel
         </Button>
         <Button onPress={handleSubmit} isDisabled={!selectedFile || mapMutation.isPending}>
           {mapMutation.isPending ? "Mapping..." : "Map File"}
         </Button>
-      </DialogFooter>
-    </Dialog>
+      </ContentDialogFooter>
+    </ContentDialog>
   );
 }

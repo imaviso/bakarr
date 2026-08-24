@@ -9,7 +9,7 @@ import {
   TrashIcon,
   XIcon,
 } from "@phosphor-icons/react";
-import { Button } from "@/components/ui/button";
+import { IconButton } from "@/components/shared/icon-button";
 import {
   DropdownMenu,
   DropdownMenuItem,
@@ -104,14 +104,12 @@ export function EpisodeTableRow(props: EpisodeTableRowProps) {
       </TableCell>
       <TableCell>
         <DropdownMenuTrigger>
-          <Button
-            variant="ghost"
-            size="icon"
+          <IconButton
             aria-label={`Actions for ${unitLabel.toLowerCase()} ${episode.number}`}
-            className="relative after:absolute after:-inset-2 h-8 w-8 text-muted-foreground hover:text-foreground"
+            className="text-muted-foreground hover:text-foreground"
           >
             <DotsThreeIcon className="h-4 w-4" />
-          </Button>
+          </IconButton>
           <DropdownMenu>
             <DropdownMenuItem onAction={() => props.onOpenSearchModal(searchModalState)}>
               {episode.downloaded ? (

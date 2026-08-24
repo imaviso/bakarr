@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { SectionLabel } from "@/components/shared/section-label";
+import { FieldError } from "@/components/shared/field-error";
 import { cn } from "@/infra/utils";
 
 function parseSizeUnit(value: string | null | undefined): "MB" | "GB" | undefined {
@@ -111,7 +112,7 @@ export function SizeInput(props: {
           </SelectContent>
         </Select>
       </div>
-      {props.error && <div className="text-xs text-destructive">{props.error}</div>}
+      <FieldError error={props.error} />
     </div>
   );
 }
@@ -178,8 +179,8 @@ export function FiniteNumberInput(props: {
 
 export function SettingRow(props: {
   children: ReactNode;
-  className?: string;
-  description?: string;
+  className?: string | undefined;
+  description?: string | undefined;
   label: string;
 }) {
   return (

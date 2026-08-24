@@ -6,7 +6,7 @@ import {
   TrashIcon,
 } from "@phosphor-icons/react";
 import { DownloadEventsDialog } from "@/features/downloads/download-events-dialog";
-import { Button } from "@/components/ui/button";
+import { IconButton } from "@/components/shared/icon-button";
 import {
   useDeleteDownloadMutation,
   usePauseDownloadMutation,
@@ -69,28 +69,24 @@ export function ActiveDownloadActions(props: ActiveDownloadActionsProps) {
   return (
     <div className="flex items-center justify-end gap-1 opacity-100 md:opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
       {canResume() ? (
-        <Button
-          variant="ghost"
-          size="icon"
-          className="relative after:absolute after:-inset-2 h-7 w-7"
+        <IconButton
+          size="icon-sm"
           aria-label="Resume download"
           onPress={handleResume}
           isDisabled={!props.downloadId || resumeDownload.isPending}
         >
           <PlayIcon className="h-4 w-4" />
-        </Button>
+        </IconButton>
       ) : (
         canPause() && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="relative after:absolute after:-inset-2 h-7 w-7"
+          <IconButton
+            size="icon-sm"
             aria-label="Pause download"
             onPress={handlePause}
             isDisabled={!props.downloadId || pauseDownload.isPending}
           >
             <PauseIcon className="h-4 w-4" />
-          </Button>
+          </IconButton>
         )
       )}
       <DownloadEventsDialog
@@ -101,28 +97,25 @@ export function ActiveDownloadActions(props: ActiveDownloadActionsProps) {
         triggerLabel="View download events"
       />
       {canRetry() && (
-        <Button
-          variant="ghost"
-          size="icon"
-          className="relative after:absolute after:-inset-2 h-7 w-7"
+        <IconButton
+          size="icon-sm"
           aria-label="Retry download"
           onPress={handleRetry}
           isDisabled={!props.downloadId || retryDownload.isPending}
         >
           <ArrowClockwiseIcon className="h-4 w-4" />
-        </Button>
+        </IconButton>
       )}
       {canDelete() && (
-        <Button
-          variant="ghost"
-          size="icon"
-          className="relative after:absolute after:-inset-2 h-7 w-7 text-destructive hover:text-destructive"
+        <IconButton
+          size="icon-sm"
+          className="text-destructive hover:text-destructive"
           aria-label="Remove download"
           onPress={handleDelete}
           isDisabled={!props.downloadId || deleteDownload.isPending}
         >
           <TrashIcon className="h-4 w-4" />
-        </Button>
+        </IconButton>
       )}
     </div>
   );
@@ -166,40 +159,34 @@ export function HistoryDownloadActions(props: HistoryDownloadActionsProps) {
         triggerLabel="View download events"
       />
       {canReconcile() && (
-        <Button
-          variant="ghost"
-          size="icon"
-          className="relative after:absolute after:-inset-2 h-7 w-7"
+        <IconButton
+          size="icon-sm"
           aria-label="Mark as reconciled"
           onPress={handleReconcile}
           isDisabled={reconcileDownload.isPending}
         >
           <CheckIcon className="h-4 w-4" />
-        </Button>
+        </IconButton>
       )}
       {canRetry() && (
-        <Button
-          variant="ghost"
-          size="icon"
-          className="relative after:absolute after:-inset-2 h-7 w-7"
+        <IconButton
+          size="icon-sm"
           aria-label="Retry download"
           onPress={handleRetry}
           isDisabled={retryDownload.isPending}
         >
           <ArrowClockwiseIcon className="h-4 w-4" />
-        </Button>
+        </IconButton>
       )}
       {canDelete() && (
-        <Button
-          variant="ghost"
-          size="icon"
-          className="relative after:absolute after:-inset-2 h-7 w-7"
+        <IconButton
+          size="icon-sm"
           aria-label="Remove download"
           onPress={handleDelete}
           isDisabled={deleteDownload.isPending}
         >
           <TrashIcon className="h-4 w-4" />
-        </Button>
+        </IconButton>
       )}
     </div>
   );

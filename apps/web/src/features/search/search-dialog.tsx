@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import type { MediaKind } from "@/api/contracts";
 import { SearchDialogContent } from "@/features/search/search-dialog-content";
 import { useSearchDialogState } from "@/features/search/search-dialog-state";
-import { Dialog } from "@/components/ui/dialog";
+import { ContentDialog } from "@/components/shared/content-dialog";
 import { Tooltip, TooltipTrigger } from "@/components/ui/tooltip";
 import { DialogTrigger } from "react-aria-components";
 
@@ -36,7 +36,7 @@ export function SearchDialog(props: SearchDialogProps) {
           props.trigger
         ))}
 
-      <Dialog className="h-[85vh] max-w-[calc(100%-2rem)] sm:max-w-7xl p-0 gap-0">
+      <ContentDialog size="lg" className="h-[85vh]">
         <SearchDialogContent
           mediaId={props.mediaId}
           mediaKind={props.mediaKind}
@@ -62,7 +62,7 @@ export function SearchDialog(props: SearchDialogProps) {
           setSortAsc={state.setSortAsc}
           setSortCol={state.setSortCol}
         />
-      </Dialog>
+      </ContentDialog>
     </DialogTrigger>
   );
 }

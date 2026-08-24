@@ -1,15 +1,17 @@
 import { WarningIcon, CheckIcon, InfoIcon, SpinnerIcon } from "@phosphor-icons/react";
+import { Spinner } from "@/components/ui/spinner";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { DialogTitle } from "@/components/ui/dialog";
 import {
-  Dialog,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  ContentDialog,
+  ContentDialogBody,
+  ContentDialogFooter,
+  ContentDialogHeader,
+} from "@/components/shared/content-dialog";
+import { DialogDescription } from "@/components/ui/dialog";
 import {
   Table,
   TableBody,
@@ -47,27 +49,23 @@ export function RenameDialog(props: RenameDialogProps) {
   };
 
   return (
-    <Dialog
-      isOpen={props.open}
-      onOpenChange={handleOpenChange}
-      className="sm:max-w-7xl max-h-[85vh] w-[calc(100vw-2rem)] sm:w-full p-0 gap-0 overflow-hidden [display:flex] flex-col"
-    >
-      <DialogHeader className="p-4 pb-3 shrink-0 border-b border-border">
+    <ContentDialog size="lg" isOpen={props.open} onOpenChange={handleOpenChange}>
+      <ContentDialogHeader>
         <DialogTitle>Rename Episodes</DialogTitle>
         <DialogDescription>
           Preview changes before applying renames. This will move/rename files according to your
           library settings.
         </DialogDescription>
-      </DialogHeader>
+      </ContentDialogHeader>
 
-      <div className="flex-1 min-h-0 min-w-0 w-full overflow-auto max-h-[60vh]">
+      <ContentDialogBody className="min-w-0">
         {previewQuery.isLoading ? (
           <div
             className="flex items-center justify-center h-full"
             role="status"
             aria-label="Loading preview"
           >
-            <SpinnerIcon className="h-8 w-8 animate-spin" />
+            <Spinner className="size-8" />
             <span className="sr-only">Loading...</span>
           </div>
         ) : (
@@ -142,7 +140,7 @@ export function RenameDialog(props: RenameDialogProps) {
                           <TableCell className="font-mono text-xs break-all whitespace-normal align-top text-muted-foreground max-w-[280px]">
                             {item.current_path.split("/").pop()}
                           </TableCell>
-                          <TableCell className="font-mono text-xs break-all whitespace-normal align-top text-success dark:text-success max-w-[280px]">
+                          <TableCell className="font-mono text-xs break-all whitespace-normal align-top text-success max-w-[280px]">
                             {item.new_filename}
                           </TableCell>
                           <TableCell>
@@ -240,9 +238,9 @@ export function RenameDialog(props: RenameDialogProps) {
             )}
           </>
         )}
-      </div>
+      </ContentDialogBody>
 
-      <DialogFooter className="p-4 pt-3 shrink-0 border-t border-border">
+      <ContentDialogFooter>
         {executeRename.data ? (
           <Button onPress={() => props.onOpenChange(false)}>Close</Button>
         ) : (
@@ -269,7 +267,7 @@ export function RenameDialog(props: RenameDialogProps) {
             </Button>
           </>
         )}
-      </DialogFooter>
-    </Dialog>
+      </ContentDialogFooter>
+    </ContentDialog>
   );
 }

@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { useCreateReleaseProfileMutation, useUpdateReleaseProfileMutation } from "@/api/profiles";
+import { FieldError } from "@/components/shared/field-error";
 import type { ReleaseProfile } from "@/api/contracts";
 
 const ReleaseProfileSchema = Schema.Struct({
@@ -106,11 +107,7 @@ export function ReleaseProfileForm(props: {
                     onChange={(event) => field.handleChange(event.currentTarget.value)}
                     placeholder="e.g., Preferred Groups"
                   />
-                  {field.state.meta.errors[0]?.message && (
-                    <div className="text-xs text-destructive">
-                      {field.state.meta.errors[0]?.message}
-                    </div>
-                  )}
+                  <FieldError error={field.state.meta.errors[0]?.message} />
                 </div>
               )}
             </form.Field>

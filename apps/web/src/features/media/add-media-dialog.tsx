@@ -13,13 +13,12 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { DialogDescription, DialogFooter, DialogTitle } from "@/components/ui/dialog";
 import {
-  Dialog,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  ContentDialog,
+  ContentDialogBody,
+  ContentDialogHeader,
+} from "@/components/shared/content-dialog";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -44,6 +43,7 @@ import { cleanSynopsis } from "@/domain/media/metadata";
 import { mediaKindLabel, mediaUnitLabel, mediaUnitShortLabel } from "@/domain/media-unit";
 import { formatMatchConfidence } from "@/domain/scanned-file";
 import { cn } from "@/infra/utils";
+import { FieldError } from "@/components/shared/field-error";
 
 const AddAnimeSchema = Schema.Struct({
   root_folder: Schema.String.pipe(
@@ -84,12 +84,8 @@ export function AddAnimeDialog(props: AddAnimeDialogProps) {
   ].filter((chip): chip is string => Boolean(chip));
 
   return (
-    <Dialog
-      isOpen={props.open}
-      onOpenChange={props.onOpenChange}
-      className="w-[100vw-2rem] max-w-none sm:max-w-none max-h-[85vh] overflow-y-auto"
-    >
-      <DialogHeader>
+    <ContentDialog size="lg" isOpen={props.open} onOpenChange={props.onOpenChange}>
+      <ContentDialogHeader>
         <DialogTitle className="flex items-center gap-3">
           {props.media.cover_image ? (
             <img
@@ -209,21 +205,23 @@ export function AddAnimeDialog(props: AddAnimeDialogProps) {
             ? cleanSynopsis(props.media.description)
             : `Configure how this ${mediaKindLabel(props.media.media_kind)} should be added to your library.`}
         </DialogDescription>
-      </DialogHeader>
+      </ContentDialogHeader>
 
-      <AddAnimeForm
-        media={props.media}
-        rootFolder={libraryPathForMediaKind(config.library, props.media.media_kind)}
-        defaultProfile={profiles[0]?.name || ""}
-        releaseProfiles={releaseProfiles}
-        profiles={profiles}
-        onSuccess={() => {
-          props.onSuccess?.();
-          props.onOpenChange(false);
-        }}
-        onCancel={() => props.onOpenChange(false)}
-      />
-    </Dialog>
+      <ContentDialogBody className="p-4">
+        <AddAnimeForm
+          media={props.media}
+          rootFolder={libraryPathForMediaKind(config.library, props.media.media_kind)}
+          defaultProfile={profiles[0]?.name || ""}
+          releaseProfiles={releaseProfiles}
+          profiles={profiles}
+          onSuccess={() => {
+            props.onSuccess?.();
+            props.onOpenChange(false);
+          }}
+          onCancel={() => props.onOpenChange(false)}
+        />
+      </ContentDialogBody>
+    </ContentDialog>
   );
 }
 
@@ -307,11 +305,7 @@ function AddAnimeForm(props: AddAnimeFormProps) {
               onChange={(event) => field.handleChange(event.currentTarget.value)}
               placeholder="/path/to/library"
             />
-            {field.state.meta.errors.length > 0 && (
-              <p className="text-xs text-destructive">
-                {formatFieldErrors(field.state.meta.errors)}
-              </p>
-            )}
+            <FieldError error={formatFieldErrors(field.state.meta.errors)} />
           </div>
         )}
       </form.Field>
@@ -341,11 +335,7 @@ function AddAnimeForm(props: AddAnimeFormProps) {
                 </SelectGroup>
               </SelectContent>
             </Select>
-            {field.state.meta.errors.length > 0 && (
-              <p className="text-xs text-destructive">
-                {formatFieldErrors(field.state.meta.errors)}
-              </p>
-            )}
+            <FieldError error={formatFieldErrors(field.state.meta.errors)} />
           </div>
         )}
       </form.Field>

@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import { SectionLabel } from "@/components/shared/section-label";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { Media } from "@/api/contracts";
@@ -100,9 +101,7 @@ export function AnimeDiscoverySection(props: AnimeDiscoverySectionProps) {
       <CardContent className="space-y-4">
         {related.length > 0 && (
           <section className="space-y-2">
-            <div className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-              Franchise
-            </div>
+            <SectionLabel as="div">Franchise</SectionLabel>
             <div className="space-y-2">
               {related.map((entry) => (
                 <MediaDiscoveryRow key={entry.id} entry={entry} libraryIds={props.libraryIds} />
@@ -113,9 +112,7 @@ export function AnimeDiscoverySection(props: AnimeDiscoverySectionProps) {
 
         {recommended.length > 0 && (
           <section className="space-y-2">
-            <div className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-              Recommended
-            </div>
+            <SectionLabel as="div">Recommended</SectionLabel>
             <div className="space-y-2">
               {recommended.slice(0, 6).map((entry) => (
                 <MediaDiscoveryRow key={entry.id} entry={entry} libraryIds={props.libraryIds} />

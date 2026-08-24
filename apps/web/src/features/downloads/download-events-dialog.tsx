@@ -2,7 +2,14 @@ import { useState } from "react";
 import { WarningIcon, EyeIcon, TableIcon, BracketsCurlyIcon } from "@phosphor-icons/react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import {
+  ContentDialog,
+  ContentDialogBody,
+  ContentDialogFooter,
+  ContentDialogHeader,
+} from "@/components/shared/content-dialog";
+import { IconButton } from "@/components/shared/icon-button";
 import { DownloadEventDetailsDialog } from "@/features/downloads/download-event-details-dialog";
 import { useDownloadEventsQuery } from "@/api/system-download-events";
 import type {
@@ -76,25 +83,28 @@ export function DownloadEventsDialog(props: DownloadEventsDialogProps) {
 
   return (
     <>
-      <Button
-        variant={props.triggerVariant ?? "ghost"}
-        size={props.triggerSize ?? "icon"}
-        {...(props.showTriggerLabel
-          ? {}
-          : { className: "relative after:absolute after:-inset-2 h-7 w-7" })}
-        aria-label={props.triggerLabel ?? "View download events"}
-        onPress={() => handleOpenChange(true)}
-      >
-        <EyeIcon className="h-4 w-4" />
-        {props.showTriggerLabel && <span>{props.triggerLabel ?? "View events"}</span>}
-      </Button>
+      {props.showTriggerLabel ? (
+        <Button
+          variant={props.triggerVariant ?? "ghost"}
+          size={props.triggerSize ?? "icon"}
+          aria-label={props.triggerLabel ?? "View download events"}
+          onPress={() => handleOpenChange(true)}
+        >
+          <EyeIcon className="h-4 w-4" />
+          <span>{props.triggerLabel ?? "View events"}</span>
+        </Button>
+      ) : (
+        <IconButton
+          variant={props.triggerVariant ?? "ghost"}
+          aria-label={props.triggerLabel ?? "View download events"}
+          onPress={() => handleOpenChange(true)}
+        >
+          <EyeIcon className="h-4 w-4" />
+        </IconButton>
+      )}
 
-      <Dialog
-        isOpen={open}
-        onOpenChange={handleOpenChange}
-        className="w-[min(calc(100vw-2rem),72rem)] max-w-none sm:max-w-none max-h-[80vh] flex flex-col"
-      >
-        <DialogHeader>
+      <ContentDialog size="xl" isOpen={open} onOpenChange={handleOpenChange}>
+        <ContentDialogHeader>
           <DialogTitle>{props.title}</DialogTitle>
           <DialogDescription>
             {props.description ?? "Recent download lifecycle events for this item."}
@@ -118,9 +128,9 @@ export function DownloadEventsDialog(props: DownloadEventsDialogProps) {
               </AlertDescription>
             </Alert>
           )}
-        </DialogHeader>
+        </ContentDialogHeader>
 
-        <div className="flex-1 overflow-y-auto space-y-3 py-2 pr-1">
+        <ContentDialogBody className="space-y-3 px-4 py-2">
           <DownloadEventsFeed
             events={events}
             formatTimestamp={props.formatTimestamp}
@@ -130,32 +140,33 @@ export function DownloadEventsDialog(props: DownloadEventsDialogProps) {
             onSelectEvent={handleSelectEvent}
             className="space-y-3"
           />
-          {events.length > 0 && (
-            <div className="flex justify-end gap-2 pt-2">
-              <Button
-                variant="outline"
-                size="sm"
-                isDisabled={!query.data?.prev_cursor}
-                onPress={() => {
-                  setPagination({ cursor: query.data?.prev_cursor, direction: "prev" });
-                }}
-              >
-                Previous
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                isDisabled={!query.data?.next_cursor}
-                onPress={() => {
-                  setPagination({ cursor: query.data?.next_cursor, direction: "next" });
-                }}
-              >
-                Next
-              </Button>
-            </div>
-          )}
-        </div>
-      </Dialog>
+        </ContentDialogBody>
+
+        {events.length > 0 && (
+          <ContentDialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              isDisabled={!query.data?.prev_cursor}
+              onPress={() => {
+                setPagination({ cursor: query.data?.prev_cursor, direction: "prev" });
+              }}
+            >
+              Previous
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              isDisabled={!query.data?.next_cursor}
+              onPress={() => {
+                setPagination({ cursor: query.data?.next_cursor, direction: "next" });
+              }}
+            >
+              Next
+            </Button>
+          </ContentDialogFooter>
+        )}
+      </ContentDialog>
 
       <DownloadEventDetailsDialog
         event={selectedEvent}

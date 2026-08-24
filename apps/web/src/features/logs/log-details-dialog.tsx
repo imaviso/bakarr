@@ -1,4 +1,9 @@
-import { Dialog, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import {
+  ContentDialog,
+  ContentDialogBody,
+  ContentDialogHeader,
+} from "@/components/shared/content-dialog";
 import type { SystemLog } from "@/api/contracts";
 
 interface LogDetailsDialogProps {
@@ -9,18 +14,14 @@ interface LogDetailsDialogProps {
 
 export function LogDetailsDialog(props: LogDetailsDialogProps) {
   return (
-    <Dialog
-      isOpen={!!props.log}
-      onOpenChange={props.onOpenChange}
-      className="sm:max-w-3xl max-h-[80vh] flex flex-col"
-    >
-      <DialogHeader>
+    <ContentDialog size="md" isOpen={!!props.log} onOpenChange={props.onOpenChange}>
+      <ContentDialogHeader>
         <DialogTitle>Log Details</DialogTitle>
         <DialogDescription>
           {props.log && props.formatTimestamp(props.log.created_at || "")}
         </DialogDescription>
-      </DialogHeader>
-      <div className="flex-1 overflow-auto space-y-4 py-4">
+      </ContentDialogHeader>
+      <ContentDialogBody className="space-y-4 p-4">
         <div className="space-y-1">
           <div className="text-sm font-medium text-muted-foreground">Message</div>
           <div className="p-3 rounded-none bg-muted text-sm font-mono whitespace-pre-wrap break-words">
@@ -45,7 +46,7 @@ export function LogDetailsDialog(props: LogDetailsDialogProps) {
             <span className="capitalize font-medium">{props.log?.event_type}</span>
           </div>
         </div>
-      </div>
-    </Dialog>
+      </ContentDialogBody>
+    </ContentDialog>
   );
 }

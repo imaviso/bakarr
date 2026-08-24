@@ -9,6 +9,7 @@ import { PageHeader } from "@/app/layout/page-header";
 import { PageShell } from "@/app/layout/page-shell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { IconButton } from "@/components/shared/icon-button";
 import { DropdownMenu, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import {
   Table,
@@ -279,14 +280,9 @@ function WantedRow(props: {
       </TableCell>
       <TableCell>
         <DropdownMenuTrigger>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="relative after:absolute after:-inset-2 h-8 w-8"
-            aria-label={`${unitLabel} options`}
-          >
+          <IconButton aria-label={`${unitLabel} options`}>
             <DotsThreeIcon className="h-4 w-4" />
-          </Button>
+          </IconButton>
           <DropdownMenu>
             <DropdownMenuItem onAction={props.onSearch}>
               <MagnifyingGlassIcon className="mr-2 h-4 w-4" />

@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { SizeInput } from "@/features/settings/form-controls";
+import { FieldError } from "@/components/shared/field-error";
 import {
   useCreateProfileMutation,
   useQualitiesQuery,
@@ -108,11 +109,7 @@ export function ProfileForm(props: {
                   disabled={isEditing}
                   placeholder="e.g., HD Quality"
                 />
-                {field.state.meta.errors[0]?.message && (
-                  <div className="text-xs text-destructive">
-                    {field.state.meta.errors[0]?.message}
-                  </div>
-                )}
+                <FieldError error={field.state.meta.errors[0]?.message} />
               </div>
             )}
           </form.Field>
@@ -147,11 +144,7 @@ export function ProfileForm(props: {
                     ))}
                   </SelectContent>
                 </Select>
-                {field.state.meta.errors.length > 0 && (
-                  <div className="text-xs text-destructive">
-                    {field.state.meta.errors[0]?.message}
-                  </div>
-                )}
+                <FieldError error={field.state.meta.errors[0]?.message} />
               </div>
             )}
           </form.Field>

@@ -1,4 +1,4 @@
-import { SpinnerIcon } from "@phosphor-icons/react";
+import { Spinner } from "@/components/ui/spinner";
 import { useRef, type ReactNode } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { DownloadEventCard } from "@/features/downloads/download-event-card";
@@ -28,7 +28,7 @@ export function DownloadEventsFeed(props: DownloadEventsFeedProps) {
   const showCount = props.showCount ?? true;
   const loadingFallback = props.loadingFallback ?? props.loadingContent ?? (
     <div className="flex items-center gap-2 text-sm text-muted-foreground">
-      <SpinnerIcon className="h-4 w-4 animate-spin" />
+      <Spinner />
       Loading download events...
     </div>
   );

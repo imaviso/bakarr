@@ -1,4 +1,5 @@
 import { Badge } from "@/components/ui/badge";
+import { SectionLabel } from "@/components/shared/section-label";
 import {
   MAX_UNMAPPED_FOLDER_MATCH_ATTEMPTS,
   type BackgroundJobStatus,
@@ -88,21 +89,21 @@ export function BackgroundMatchingCard(props: {
 
         <div className="grid grid-cols-2 gap-2 text-right text-xs text-muted-foreground sm:grid-cols-4 lg:min-w-[340px]">
           <div className="border border-border bg-muted px-3 py-2">
-            <div className="uppercase tracking-[0.18em]">Matched</div>
+            <SectionLabel as="div">Matched</SectionLabel>
             <div className="mt-1 text-lg font-medium text-foreground">{props.matchedCount}</div>
           </div>
           <div className="border border-border bg-muted px-3 py-2">
-            <div className="uppercase tracking-[0.18em]">In queue</div>
+            <SectionLabel as="div">In queue</SectionLabel>
             <div className="mt-1 text-lg font-medium text-foreground">
               {props.queuedCount + props.matchingCount}
             </div>
           </div>
           <div className="border border-border bg-muted px-3 py-2">
-            <div className="uppercase tracking-[0.18em]">Paused</div>
+            <SectionLabel as="div">Paused</SectionLabel>
             <div className="mt-1 text-lg font-medium text-foreground">{props.pausedCount}</div>
           </div>
           <div className="border border-border bg-muted px-3 py-2">
-            <div className="uppercase tracking-[0.18em]">Total</div>
+            <SectionLabel as="div">Total</SectionLabel>
             <div className="mt-1 text-lg font-medium text-foreground">{props.totalCount}</div>
           </div>
         </div>

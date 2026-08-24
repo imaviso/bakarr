@@ -7,6 +7,7 @@ import { Popover, PopoverTrigger } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { formatFieldErrors } from "@/api/effect/errors";
+import { FieldError } from "@/components/shared/field-error";
 
 const EditMappingSchema = Schema.Struct({
   episode: Schema.Number.pipe(Schema.int(), Schema.nonNegative()),
@@ -87,11 +88,7 @@ export function EditMappingPopover(props: EditMappingPopoverProps) {
                     onBlur={field.handleBlur}
                     onChange={(event) => field.handleChange(event.currentTarget.valueAsNumber)}
                   />
-                  {field.state.meta.errors.length > 0 && (
-                    <p className="text-xs text-destructive">
-                      {formatFieldErrors(field.state.meta.errors)}
-                    </p>
-                  )}
+                  <FieldError error={formatFieldErrors(field.state.meta.errors)} />
                 </div>
               )}
             </form.Field>
@@ -110,11 +107,7 @@ export function EditMappingPopover(props: EditMappingPopoverProps) {
                     onBlur={field.handleBlur}
                     onChange={(event) => field.handleChange(event.currentTarget.valueAsNumber)}
                   />
-                  {field.state.meta.errors.length > 0 && (
-                    <p className="text-xs text-destructive">
-                      {formatFieldErrors(field.state.meta.errors)}
-                    </p>
-                  )}
+                  <FieldError error={formatFieldErrors(field.state.meta.errors)} />
                 </div>
               )}
             </form.Field>

@@ -9,7 +9,10 @@ import {
   SortDescendingIcon,
   StarIcon,
 } from "@phosphor-icons/react";
+import type { ReactNode } from "react";
+import { cn } from "@/infra/utils";
 import { Button } from "@/components/ui/button";
+import { IconButton } from "@/components/shared/icon-button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -78,7 +81,7 @@ export function SearchDialogContent(props: SearchDialogContentProps) {
   const unitLabel = mediaUnitLabel(unitKind);
 
   return (
-    <div className="flex flex-col gap-0 sm:max-w-7xl w-full h-[85vh] p-0 border-none sm:rounded-none bg-background overflow-hidden">
+    <div className="flex h-full min-h-0 flex-col bg-background overflow-hidden">
       <DialogTitle className="sr-only">Search Releases</DialogTitle>
 
       <div className="flex flex-col border-b border-border">
@@ -169,6 +172,71 @@ export function SearchDialogContent(props: SearchDialogContentProps) {
   );
 }
 
+interface ReleaseSortState {
+  col: keyof NyaaSearchResult;
+  asc: boolean;
+  toggle: (column: keyof NyaaSearchResult) => void;
+}
+
+function SortableTableHead(props: {
+  label: ReactNode;
+  align?: "right";
+  sort?: ReleaseSortState | undefined;
+  column?: keyof NyaaSearchResult | undefined;
+}) {
+  const base = cn("h-9 text-xs font-medium", props.align === "right" && "text-right");
+  const column = props.column;
+  const sort = props.sort;
+  if (!sort || !column) {
+    return (
+      <TableHead scope="col" className={base}>
+        {props.label}
+      </TableHead>
+    );
+  }
+  const active = sort.col === column;
+  return (
+    <TableHead
+      scope="col"
+      className={cn(base, "cursor-pointer hover:text-foreground transition-colors select-none")}
+      onClick={() => sort.toggle(column)}
+    >
+      <div className={cn("flex items-center gap-1", props.align === "right" && "justify-end")}>
+        {props.label}
+        {active &&
+          (sort.asc ? (
+            <SortAscendingIcon className="h-3 w-3" />
+          ) : (
+            <SortDescendingIcon className="h-3 w-3" />
+          ))}
+      </div>
+    </TableHead>
+  );
+}
+
+/** Single source of truth for the release-results columns; used by both results and skeleton. */
+function ReleaseResultsTableHeader(props: {
+  unitHeader: string;
+  count?: number | undefined;
+  sort?: ReleaseSortState | undefined;
+}) {
+  return (
+    <TableHeader className="sticky top-0 bg-background z-10 border-b border-border">
+      <TableRow className="hover:bg-transparent border-border">
+        <TableHead scope="col" className="w-[45%] pl-6 h-9 text-xs font-medium">
+          Release{props.count !== undefined && ` (${props.count})`}
+        </TableHead>
+        <SortableTableHead label={props.unitHeader} sort={props.sort} column="parsed_unit" />
+        <SortableTableHead label="Res" />
+        <SortableTableHead label="Size" sort={props.sort} column="size" />
+        <SortableTableHead label="Seeds" align="right" sort={props.sort} column="seeders" />
+        <SortableTableHead label="Age" align="right" sort={props.sort} column="pub_date" />
+        <TableHead scope="col" className="w-[50px] h-9"></TableHead>
+      </TableRow>
+    </TableHeader>
+  );
+}
+
 function SearchResults(props: {
   mediaId: number;
   mediaKind: MediaKind;
@@ -200,77 +268,11 @@ function SearchResults(props: {
   return (
     <div className="h-full overflow-auto">
       <Table>
-        <TableHeader className="sticky top-0 bg-background z-10 border-b border-border">
-          <TableRow className="hover:bg-transparent border-border">
-            <TableHead scope="col" className="w-[45%] pl-6 h-9 text-xs font-medium">
-              Release ({state.searchQuery.data?.results.length ?? 0})
-            </TableHead>
-            <TableHead
-              scope="col"
-              className="h-9 text-xs font-medium cursor-pointer hover:text-foreground transition-colors select-none"
-              onClick={() => state.toggleSort("parsed_unit")}
-            >
-              <div className="flex items-center gap-1">
-                {props.mediaKind === "anime" ? "Ep" : "Vol"}
-                {state.sortCol === "parsed_unit" &&
-                  (state.sortAsc ? (
-                    <SortAscendingIcon className="h-3 w-3" />
-                  ) : (
-                    <SortDescendingIcon className="h-3 w-3" />
-                  ))}
-              </div>
-            </TableHead>
-            <TableHead scope="col" className="h-9 text-xs font-medium">
-              Res
-            </TableHead>
-            <TableHead
-              scope="col"
-              className="h-9 text-xs font-medium cursor-pointer hover:text-foreground transition-colors select-none"
-              onClick={() => state.toggleSort("size")}
-            >
-              <div className="flex items-center gap-1">
-                Size
-                {state.sortCol === "size" &&
-                  (state.sortAsc ? (
-                    <SortAscendingIcon className="h-3 w-3" />
-                  ) : (
-                    <SortDescendingIcon className="h-3 w-3" />
-                  ))}
-              </div>
-            </TableHead>
-            <TableHead
-              scope="col"
-              className="h-9 text-xs font-medium text-right cursor-pointer hover:text-foreground transition-colors select-none"
-              onClick={() => state.toggleSort("seeders")}
-            >
-              <div className="flex items-center justify-end gap-1">
-                Seeds
-                {state.sortCol === "seeders" &&
-                  (state.sortAsc ? (
-                    <SortAscendingIcon className="h-3 w-3" />
-                  ) : (
-                    <SortDescendingIcon className="h-3 w-3" />
-                  ))}
-              </div>
-            </TableHead>
-            <TableHead
-              scope="col"
-              className="h-9 text-xs font-medium text-right cursor-pointer hover:text-foreground transition-colors select-none"
-              onClick={() => state.toggleSort("pub_date")}
-            >
-              <div className="flex items-center justify-end gap-1">
-                Age
-                {state.sortCol === "pub_date" &&
-                  (state.sortAsc ? (
-                    <SortAscendingIcon className="h-3 w-3" />
-                  ) : (
-                    <SortDescendingIcon className="h-3 w-3" />
-                  ))}
-              </div>
-            </TableHead>
-            <TableHead scope="col" className="w-[50px] h-9"></TableHead>
-          </TableRow>
-        </TableHeader>
+        <ReleaseResultsTableHeader
+          unitHeader={props.mediaKind === "anime" ? "Ep" : "Vol"}
+          count={state.searchQuery.data?.results.length}
+          sort={{ col: state.sortCol, asc: state.sortAsc, toggle: state.toggleSort }}
+        />
         <TableBody>
           {state.sortedResults.length > 0 ? (
             state.sortedResults.map((result) => (
@@ -303,29 +305,7 @@ function SearchResultsSkeleton(props: { unitHeader: string }) {
   return (
     <div className="h-full overflow-hidden flex flex-col">
       <Table>
-        <TableHeader className="sticky top-0 bg-background z-10 border-b border-border">
-          <TableRow className="hover:bg-transparent border-border">
-            <TableHead scope="col" className="w-[45%] pl-6 h-9 text-xs font-medium">
-              Release
-            </TableHead>
-            <TableHead scope="col" className="h-9 text-xs font-medium">
-              {props.unitHeader}
-            </TableHead>
-            <TableHead scope="col" className="h-9 text-xs font-medium">
-              Res
-            </TableHead>
-            <TableHead scope="col" className="h-9 text-xs font-medium">
-              Size
-            </TableHead>
-            <TableHead scope="col" className="h-9 text-xs font-medium text-right">
-              Seeds
-            </TableHead>
-            <TableHead scope="col" className="h-9 text-xs font-medium text-right">
-              Age
-            </TableHead>
-            <TableHead scope="col" className="w-[50px] h-9"></TableHead>
-          </TableRow>
-        </TableHeader>
+        <ReleaseResultsTableHeader unitHeader={props.unitHeader} />
         <TableBody>
           {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((row) => (
             <TableRow key={`skeleton-${row}`} className="hover:bg-transparent border-border">
@@ -426,14 +406,14 @@ function ReleaseRow(props: {
       </TableCell>
       <TableCell className="py-2.5 pr-4">
         <PopoverTrigger isOpen={state.popoverOpen} onOpenChange={state.setPopoverOpen}>
-          <Button
-            size="icon"
-            variant="ghost"
-            className="relative after:absolute after:-inset-2 h-7 w-7 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity hover:bg-primary/10 hover:text-primary"
+          <IconButton
+            size="icon-sm"
+            reveal
+            className="hover:bg-primary/10 hover:text-primary"
             aria-label="Download release"
           >
             <DownloadIcon className="h-4 w-4" />
-          </Button>
+          </IconButton>
           <Popover className="w-72 p-3">
             <div className="space-y-3">
               <div className="space-y-1">

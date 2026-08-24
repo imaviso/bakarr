@@ -13,6 +13,8 @@ import {
   XIcon,
 } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
+import { Spinner } from "@/components/ui/spinner";
+import { IconButton } from "@/components/shared/icon-button";
 import { Suspense } from "react";
 import { AddAnimeDialog } from "@/features/media/add-media-dialog";
 import { FileBrowser } from "@/components/shared/file-browser";
@@ -70,14 +72,9 @@ function ImportTopBar(props: { state: ImportPageState }) {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Link to="/media" search={DEFAULT_ANIME_SEARCH}>
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label="Back to media library"
-              className="relative after:absolute after:-inset-2"
-            >
+            <IconButton aria-label="Back to media library">
               <ArrowLeftIcon className="h-4 w-4" />
-            </Button>
+            </IconButton>
           </Link>
           <div>
             <h1 className="text-xl font-medium tracking-tight text-foreground">Import Files</h1>
@@ -199,7 +196,7 @@ function ImportScanStep(props: { state: ImportPageState }) {
               <Suspense
                 fallback={
                   <div className="h-full flex items-center justify-center">
-                    <SpinnerIcon className="h-6 w-6 animate-spin text-muted-foreground" />
+                    <Spinner className="size-6 text-muted-foreground" />
                   </div>
                 }
               >
@@ -312,7 +309,7 @@ function ImportReviewStep(props: { state: ImportPageState }) {
             <p className="text-sm text-muted-foreground mt-1">
               Found {props.state.flow.scannedFiles.length} file(s)
               {props.state.flow.skippedFiles.length > 0 && (
-                <span className="text-warning dark:text-warning">
+                <span className="text-warning">
                   {" "}
                   - {props.state.flow.skippedFiles.length} skipped
                 </span>

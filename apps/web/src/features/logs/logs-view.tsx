@@ -19,16 +19,7 @@ import { DownloadEventDetailsDialog } from "@/features/downloads/download-event-
 import { logsFilterColumns } from "@/features/logs/logs-filter-config";
 import { formatUiTimestamp } from "@/domain/date-time";
 import { type useLogsRouteState } from "@/features/logs/logs-route-state";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { DropdownMenu, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -85,30 +76,19 @@ export function LogsView(props: LogsViewProps) {
             </DropdownMenu>
           </DropdownMenuTrigger>
 
-          <AlertDialogTrigger>
-            <Button variant="destructive" size="sm">
-              <TrashIcon className="h-4 w-4" />
-              Clear Logs
-            </Button>
-            <AlertDialog>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Clear All Logs?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  This action cannot be undone. This will permanently delete all system logs from
-                  the database.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction
-                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  onPress={() => props.state.clearLogs.mutate()}
-                >
-                  Clear Logs
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialog>
-          </AlertDialogTrigger>
+          <ConfirmDialog
+            trigger={
+              <Button variant="destructive" size="sm">
+                <TrashIcon className="h-4 w-4" />
+                Clear Logs
+              </Button>
+            }
+            title="Clear All Logs?"
+            description="This action cannot be undone. This will permanently delete all system logs from the database."
+            confirmLabel="Clear Logs"
+            destructive
+            onConfirm={() => props.state.clearLogs.mutate()}
+          />
         </div>
       </PageHeader>
 

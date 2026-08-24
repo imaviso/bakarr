@@ -11,6 +11,7 @@ import { ProfileForm } from "@/features/settings/quality-profile-form";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { IconButton } from "@/components/shared/icon-button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { useDeleteProfileMutation, profilesQueryOptions } from "@/api/profiles";
@@ -51,15 +52,9 @@ function QualityProfileCard(props: QualityProfileCardProps) {
           </div>
 
           <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            <Button
-              size="icon"
-              variant="ghost"
-              className="relative after:absolute after:-inset-2 h-8 w-8"
-              onPress={() => props.onEdit(props.profile)}
-              aria-label="Edit profile"
-            >
+            <IconButton onPress={() => props.onEdit(props.profile)} aria-label="Edit profile">
               <PencilSimpleIcon className="h-4 w-4" />
-            </Button>
+            </IconButton>
             <ConfirmDialog
               title="Delete Profile"
               description={`Are you sure you want to delete profile "${props.profile.name}"? This action cannot be undone.`}
@@ -67,14 +62,12 @@ function QualityProfileCard(props: QualityProfileCardProps) {
               destructive
               onConfirm={() => props.onDelete(props.profile.name)}
               trigger={
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="relative after:absolute after:-inset-2 h-8 w-8 text-muted-foreground hover:text-destructive"
+                <IconButton
+                  className="text-muted-foreground hover:text-destructive"
                   aria-label="Delete profile"
                 >
                   <TrashIcon className="h-4 w-4" />
-                </Button>
+                </IconButton>
               }
             />
           </div>

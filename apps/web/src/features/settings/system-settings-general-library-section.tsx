@@ -1,5 +1,10 @@
-import { FiniteNumberInput, SettingRow, SettingSection } from "@/features/settings/form-controls";
+import { SettingRow, SettingSection } from "@/features/settings/form-controls";
 import type { SettingsFormApi } from "@/features/settings/system-settings-form-hook";
+import {
+  SettingNumberField,
+  SettingSelectField,
+  SettingTextField,
+} from "@/features/settings/system-settings-fields";
 import {
   IMPORT_MODE_OPTIONS,
   importModeLabel,
@@ -7,14 +12,6 @@ import {
   preferredTitleLabel,
 } from "@/features/settings/system-settings-schema";
 import { TimezonePicker } from "@/components/shared/timezone-picker";
-import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 
 interface SystemSettingsGeneralLibrarySectionProps {
   form: SettingsFormApi;
@@ -25,135 +22,64 @@ export function SystemSettingsGeneralLibrarySection(
 ) {
   return (
     <SettingSection title="Library">
-      <props.form.Field name="library.anime_path">
-        {(field) => (
-          <SettingRow label="Anime Library Path" description="Root folder for anime media">
-            <Input
-              value={field.state.value}
-              onInput={(event) => field.handleChange(event.currentTarget.value)}
-              className="w-64"
-            />
-          </SettingRow>
-        )}
-      </props.form.Field>
+      <SettingTextField
+        form={props.form}
+        name="library.anime_path"
+        label="Anime Library Path"
+        description="Root folder for anime media"
+        inputClassName="w-64"
+      />
 
-      <props.form.Field name="library.manga_path">
-        {(field) => (
-          <SettingRow label="Manga Library Path" description="Root folder for manga media">
-            <Input
-              value={field.state.value}
-              onInput={(event) => field.handleChange(event.currentTarget.value)}
-              className="w-64"
-            />
-          </SettingRow>
-        )}
-      </props.form.Field>
+      <SettingTextField
+        form={props.form}
+        name="library.manga_path"
+        label="Manga Library Path"
+        description="Root folder for manga media"
+        inputClassName="w-64"
+      />
 
-      <props.form.Field name="library.light_novel_path">
-        {(field) => (
-          <SettingRow label="Light Novel Library Path" description="Root folder for light novels">
-            <Input
-              value={field.state.value}
-              onInput={(event) => field.handleChange(event.currentTarget.value)}
-              className="w-64"
-            />
-          </SettingRow>
-        )}
-      </props.form.Field>
+      <SettingTextField
+        form={props.form}
+        name="library.light_novel_path"
+        label="Light Novel Library Path"
+        description="Root folder for light novels"
+        inputClassName="w-64"
+      />
 
-      <props.form.Field name="library.recycle_path">
-        {(field) => (
-          <SettingRow
-            label="Recycle Bin Path"
-            description="Deleted files are moved here before permanent deletion"
-          >
-            <Input
-              value={field.state.value}
-              onInput={(event) => field.handleChange(event.currentTarget.value)}
-              className="w-64"
-            />
-          </SettingRow>
-        )}
-      </props.form.Field>
+      <SettingTextField
+        form={props.form}
+        name="library.recycle_path"
+        label="Recycle Bin Path"
+        description="Deleted files are moved here before permanent deletion"
+        inputClassName="w-64"
+      />
 
-      <props.form.Field name="library.recycle_cleanup_days">
-        {(field) => (
-          <SettingRow
-            label="Recycle Cleanup"
-            description="Days to keep files in recycle before cleanup"
-          >
-            <div className="flex items-center gap-2">
-              <FiniteNumberInput
-                min="0"
-                value={field.state.value}
-                onChange={field.handleChange}
-                className="w-20"
-              />
-              <span className="text-xs text-muted-foreground">days</span>
-            </div>
-          </SettingRow>
-        )}
-      </props.form.Field>
+      <SettingNumberField
+        form={props.form}
+        name="library.recycle_cleanup_days"
+        label="Recycle Cleanup"
+        description="Days to keep files in recycle before cleanup"
+        min="0"
+        suffix="days"
+      />
 
-      <props.form.Field name="library.import_mode">
-        {(field) => (
-          <SettingRow
-            label="Import Mode"
-            description="How files are moved from downloads to library"
-          >
-            <Select
-              selectedKey={field.state.value}
-              onSelectionChange={(value) => {
-                const mode = String(value);
-                if (mode === "copy" || mode === "move") {
-                  field.handleChange(mode);
-                }
-              }}
-            >
-              <SelectTrigger className="w-32">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {IMPORT_MODE_OPTIONS.map((option) => (
-                  <SelectItem key={option} id={option} textValue={importModeLabel(option)}>
-                    {importModeLabel(option)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </SettingRow>
-        )}
-      </props.form.Field>
+      <SettingSelectField
+        form={props.form}
+        name="library.import_mode"
+        label="Import Mode"
+        description="How files are moved from downloads to library"
+        options={IMPORT_MODE_OPTIONS}
+        formatLabel={importModeLabel}
+      />
 
-      <props.form.Field name="library.preferred_title">
-        {(field) => (
-          <SettingRow
-            label="Preferred Title"
-            description="Title language for folder and file naming"
-          >
-            <Select
-              selectedKey={field.state.value}
-              onSelectionChange={(value) => {
-                const title = String(value);
-                if (title === "romaji" || title === "english" || title === "native") {
-                  field.handleChange(title);
-                }
-              }}
-            >
-              <SelectTrigger className="w-32">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {PREFERRED_TITLE_OPTIONS.map((option) => (
-                  <SelectItem key={option} id={option} textValue={preferredTitleLabel(option)}>
-                    {preferredTitleLabel(option)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </SettingRow>
-        )}
-      </props.form.Field>
+      <SettingSelectField
+        form={props.form}
+        name="library.preferred_title"
+        label="Preferred Title"
+        description="Title language for folder and file naming"
+        options={PREFERRED_TITLE_OPTIONS}
+        formatLabel={preferredTitleLabel}
+      />
 
       <props.form.Field name="library.airing_timezone">
         {(field) => (
@@ -169,26 +95,16 @@ export function SystemSettingsGeneralLibrarySection(
         )}
       </props.form.Field>
 
-      <props.form.Field name="library.airing_day_start_hour">
-        {(field) => (
-          <SettingRow
-            label="Airing Day Start"
-            description="Treat airings before this hour as part of the previous day in calendar and wanted views"
-          >
-            <div className="flex items-center gap-2">
-              <FiniteNumberInput
-                min="0"
-                max="23"
-                value={field.state.value}
-                fallbackValue={0}
-                onChange={field.handleChange}
-                className="w-20"
-              />
-              <span className="text-xs text-muted-foreground">hour</span>
-            </div>
-          </SettingRow>
-        )}
-      </props.form.Field>
+      <SettingNumberField
+        form={props.form}
+        name="library.airing_day_start_hour"
+        label="Airing Day Start"
+        description="Treat airings before this hour as part of the previous day in calendar and wanted views"
+        min="0"
+        max="23"
+        fallbackValue={0}
+        suffix="hour"
+      />
     </SettingSection>
   );
 }

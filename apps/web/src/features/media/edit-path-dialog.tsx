@@ -13,6 +13,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { formatFieldErrors } from "@/api/effect/errors";
+import { FieldError } from "@/components/shared/field-error";
 
 const EditPathSchema = Schema.Struct({
   path: Schema.String.pipe(Schema.minLength(1)),
@@ -77,11 +78,7 @@ export function EditPathDialog(props: EditPathDialogProps) {
                   onChange={(event) => field.handleChange(event.currentTarget.value)}
                   placeholder="/path/to/media"
                 />
-                {field.state.meta.errors.length > 0 && (
-                  <p className="text-xs text-destructive">
-                    {formatFieldErrors(field.state.meta.errors)}
-                  </p>
-                )}
+                <FieldError error={formatFieldErrors(field.state.meta.errors)} />
               </>
             )}
           </form.Field>

@@ -1,7 +1,10 @@
-import { FiniteNumberInput, SettingRow, SettingSection } from "@/features/settings/form-controls";
+import { SettingSection } from "@/features/settings/form-controls";
 import type { SettingsFormApi } from "@/features/settings/system-settings-form-hook";
-import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
+import {
+  SettingNumberField,
+  SettingSwitchField,
+  SettingTextField,
+} from "@/features/settings/system-settings-fields";
 
 interface SystemSettingsAutomationSchedulerSectionProps {
   form: SettingsFormApi;
@@ -12,106 +15,62 @@ export function SystemSettingsAutomationSchedulerSection(
 ) {
   return (
     <SettingSection title="Scheduler">
-      <props.form.Field name="scheduler.enabled">
-        {(field) => (
-          <SettingRow label="Enable Scheduler" description="Run automated background tasks">
-            <Switch
-              isSelected={field.state.value}
-              onChange={(checked) => field.handleChange(checked)}
-            />
-          </SettingRow>
-        )}
-      </props.form.Field>
+      <SettingSwitchField
+        form={props.form}
+        name="scheduler.enabled"
+        label="Enable Scheduler"
+        description="Run automated background tasks"
+      />
 
-      <props.form.Field name="scheduler.check_interval_minutes">
-        {(field) => (
-          <SettingRow label="Check Interval" description="Minutes between RSS checks">
-            <div className="flex items-center gap-2">
-              <FiniteNumberInput
-                value={field.state.value}
-                onChange={field.handleChange}
-                className="w-20"
-              />
-              <span className="text-xs text-muted-foreground">min</span>
-            </div>
-          </SettingRow>
-        )}
-      </props.form.Field>
+      <SettingNumberField
+        form={props.form}
+        name="scheduler.check_interval_minutes"
+        label="Check Interval"
+        description="Minutes between RSS checks"
+        suffix="min"
+      />
 
-      <props.form.Field name="scheduler.max_concurrent_checks">
-        {(field) => (
-          <SettingRow label="Max Concurrent Checks" description="Parallel media checks">
-            <FiniteNumberInput
-              value={field.state.value}
-              onChange={field.handleChange}
-              className="w-20"
-            />
-          </SettingRow>
-        )}
-      </props.form.Field>
+      <SettingNumberField
+        form={props.form}
+        name="scheduler.max_concurrent_checks"
+        label="Max Concurrent Checks"
+        description="Parallel media checks"
+      />
 
-      <props.form.Field name="scheduler.check_delay_seconds">
-        {(field) => (
-          <SettingRow label="Check Delay" description="Delay between consecutive automated checks">
-            <div className="flex items-center gap-2">
-              <FiniteNumberInput
-                min="0"
-                value={field.state.value}
-                onChange={field.handleChange}
-                className="w-20"
-              />
-              <span className="text-xs text-muted-foreground">sec</span>
-            </div>
-          </SettingRow>
-        )}
-      </props.form.Field>
+      <SettingNumberField
+        form={props.form}
+        name="scheduler.check_delay_seconds"
+        label="Check Delay"
+        description="Delay between consecutive automated checks"
+        min="0"
+        suffix="sec"
+      />
 
-      <props.form.Field name="scheduler.metadata_refresh_hours">
-        {(field) => (
-          <SettingRow label="Metadata Refresh" description="Hours between metadata updates">
-            <div className="flex items-center gap-2">
-              <FiniteNumberInput
-                value={field.state.value}
-                onChange={field.handleChange}
-                className="w-20"
-              />
-              <span className="text-xs text-muted-foreground">hours</span>
-            </div>
-          </SettingRow>
-        )}
-      </props.form.Field>
+      <SettingNumberField
+        form={props.form}
+        name="scheduler.metadata_refresh_hours"
+        label="Metadata Refresh"
+        description="Hours between metadata updates"
+        suffix="hours"
+      />
 
-      <props.form.Field name="library.auto_scan_interval_hours">
-        {(field) => (
-          <SettingRow
-            label="Library Scan Interval"
-            description="Hours between automatic library scans. Set to 0 to disable."
-          >
-            <div className="flex items-center gap-2">
-              <FiniteNumberInput
-                min="0"
-                value={field.state.value}
-                onChange={field.handleChange}
-                className="w-20"
-              />
-              <span className="text-xs text-muted-foreground">hours</span>
-            </div>
-          </SettingRow>
-        )}
-      </props.form.Field>
+      <SettingNumberField
+        form={props.form}
+        name="library.auto_scan_interval_hours"
+        label="Library Scan Interval"
+        description="Hours between automatic library scans. Set to 0 to disable."
+        min="0"
+        suffix="hours"
+      />
 
-      <props.form.Field name="scheduler.cron_expression">
-        {(field) => (
-          <SettingRow label="Cron Expression" description="Custom schedule (overrides interval)">
-            <Input
-              value={field.state.value || ""}
-              onInput={(event) => field.handleChange(event.currentTarget.value)}
-              placeholder="0 */6 * * *"
-              className="w-36 font-mono text-xs"
-            />
-          </SettingRow>
-        )}
-      </props.form.Field>
+      <SettingTextField
+        form={props.form}
+        name="scheduler.cron_expression"
+        label="Cron Expression"
+        description="Custom schedule (overrides interval)"
+        placeholder="0 */6 * * *"
+        inputClassName="w-36 font-mono text-xs"
+      />
     </SettingSection>
   );
 }

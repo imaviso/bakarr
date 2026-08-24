@@ -4,13 +4,14 @@ import {
   CheckIcon,
   EyeIcon,
   InfoIcon,
-  SpinnerIcon,
 } from "@phosphor-icons/react";
 import { useRef, type ReactNode } from "react";
+import { Spinner } from "@/components/ui/spinner";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useInfiniteNearEnd } from "@/hooks/use-infinite-near-end";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { IconButton } from "@/components/shared/icon-button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -157,15 +158,13 @@ export function SystemLogsTable(props: SystemLogsTableProps) {
                           </TableCell>
                           <TableCell>
                             {log.details && (
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="relative after:absolute after:-inset-2 h-8 w-8 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity"
+                              <IconButton
+                                reveal
                                 onPress={() => onSelectLog(log)}
                                 aria-label="View details"
                               >
                                 <EyeIcon className="h-4 w-4" />
-                              </Button>
+                              </IconButton>
                             )}
                           </TableCell>
                         </TableRow>
@@ -193,8 +192,8 @@ export function SystemLogsTable(props: SystemLogsTableProps) {
                 </TableRow>
               )
             ) : (
-              <>
-                <TableRow key="log-skeleton-0">
+              Array.from({ length: 5 }, (_, row) => (
+                <TableRow key={`log-skeleton-${row}`}>
                   <TableCell>
                     <Skeleton className="h-4 w-32" />
                   </TableCell>
@@ -211,75 +210,7 @@ export function SystemLogsTable(props: SystemLogsTableProps) {
                     <Skeleton className="h-8 w-8" />
                   </TableCell>
                 </TableRow>
-                <TableRow key="log-skeleton-1">
-                  <TableCell>
-                    <Skeleton className="h-4 w-32" />
-                  </TableCell>
-                  <TableCell>
-                    <Skeleton className="h-4 w-16" />
-                  </TableCell>
-                  <TableCell>
-                    <Skeleton className="h-4 w-24" />
-                  </TableCell>
-                  <TableCell>
-                    <Skeleton className="h-4 w-full" />
-                  </TableCell>
-                  <TableCell>
-                    <Skeleton className="h-8 w-8" />
-                  </TableCell>
-                </TableRow>
-                <TableRow key="log-skeleton-2">
-                  <TableCell>
-                    <Skeleton className="h-4 w-32" />
-                  </TableCell>
-                  <TableCell>
-                    <Skeleton className="h-4 w-16" />
-                  </TableCell>
-                  <TableCell>
-                    <Skeleton className="h-4 w-24" />
-                  </TableCell>
-                  <TableCell>
-                    <Skeleton className="h-4 w-full" />
-                  </TableCell>
-                  <TableCell>
-                    <Skeleton className="h-8 w-8" />
-                  </TableCell>
-                </TableRow>
-                <TableRow key="log-skeleton-3">
-                  <TableCell>
-                    <Skeleton className="h-4 w-32" />
-                  </TableCell>
-                  <TableCell>
-                    <Skeleton className="h-4 w-16" />
-                  </TableCell>
-                  <TableCell>
-                    <Skeleton className="h-4 w-24" />
-                  </TableCell>
-                  <TableCell>
-                    <Skeleton className="h-4 w-full" />
-                  </TableCell>
-                  <TableCell>
-                    <Skeleton className="h-8 w-8" />
-                  </TableCell>
-                </TableRow>
-                <TableRow key="log-skeleton-4">
-                  <TableCell>
-                    <Skeleton className="h-4 w-32" />
-                  </TableCell>
-                  <TableCell>
-                    <Skeleton className="h-4 w-16" />
-                  </TableCell>
-                  <TableCell>
-                    <Skeleton className="h-4 w-24" />
-                  </TableCell>
-                  <TableCell>
-                    <Skeleton className="h-4 w-full" />
-                  </TableCell>
-                  <TableCell>
-                    <Skeleton className="h-8 w-8" />
-                  </TableCell>
-                </TableRow>
-              </>
+              ))
             )}
           </TableBody>
         </Table>
@@ -307,7 +238,7 @@ function CardShell(props: {
           >
             {props.isFetchingNextPage ? (
               <>
-                <SpinnerIcon className="h-4 w-4 animate-spin" />
+                <Spinner />
                 Loading...
               </>
             ) : (

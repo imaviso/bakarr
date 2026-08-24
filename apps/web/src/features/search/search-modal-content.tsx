@@ -1,4 +1,5 @@
-import { WarningIcon, DownloadIcon, SpinnerIcon, PlugIcon, VideoIcon } from "@phosphor-icons/react";
+import { WarningIcon, DownloadIcon, PlugIcon, VideoIcon } from "@phosphor-icons/react";
+import { Spinner } from "@/components/ui/spinner";
 import { formatDistanceToNow } from "date-fns";
 
 import {
@@ -8,7 +9,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { errorMessage } from "@/api/effect/errors";
-import { DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import { ContentDialogBody, ContentDialogHeader } from "@/components/shared/content-dialog";
 import {
   Table,
   TableBody,
@@ -40,15 +42,15 @@ export function SearchModalContent(props: SearchModalContentProps) {
   const unitLabel = mediaUnitLabel(props.unitKind);
   return (
     <>
-      <DialogHeader className="p-4 pb-3 shrink-0 border-b border-border">
+      <ContentDialogHeader>
         <DialogTitle>Manual Search</DialogTitle>
         <DialogDescription>
           Searching for {unitLabel} {props.unitNumber}
           {props.unitTitle && `- ${props.unitTitle}`}
         </DialogDescription>
-      </DialogHeader>
+      </ContentDialogHeader>
 
-      <div className="flex-1 min-h-0 min-w-0 w-full overflow-hidden flex flex-col p-4 pt-3 max-h-[60vh]">
+      <ContentDialogBody className="overflow-hidden flex flex-col p-4 pt-3">
         {!props.state.searchQuery.isLoading ? (
           <>
             {!props.state.searchQuery.error ? (
@@ -117,11 +119,11 @@ export function SearchModalContent(props: SearchModalContentProps) {
           </>
         ) : (
           <div className="h-full flex flex-col items-center justify-center gap-4 py-8">
-            <SpinnerIcon className="h-8 w-8 animate-spin text-muted-foreground" />
+            <Spinner className="size-8 text-muted-foreground" />
             <p className="text-muted-foreground">Searching releases...</p>
           </div>
         )}
-      </div>
+      </ContentDialogBody>
     </>
   );
 }

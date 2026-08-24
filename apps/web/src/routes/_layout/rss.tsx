@@ -21,6 +21,7 @@ import { formatDateTime } from "@/domain/date-time";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { IconButton } from "@/components/shared/icon-button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -40,6 +41,7 @@ import {
 } from "@/api/system-rss-calendar";
 import type { RssFeed } from "@/api/contracts";
 import { usePageTitle } from "@/app/page-title";
+import { FieldError } from "@/components/shared/field-error";
 
 export const Route = createFileRoute("/_layout/rss")({
   loader: async ({ context: { queryClient } }) => {
@@ -149,14 +151,12 @@ function FeedCard(props: {
           destructive
           onConfirm={props.onDelete}
           trigger={
-            <Button
-              size="icon"
-              variant="ghost"
-              className="relative after:absolute after:-inset-2 w-8 h-8 text-muted-foreground hover:text-destructive"
+            <IconButton
+              className="text-muted-foreground hover:text-destructive"
               aria-label="Delete feed"
             >
               <TrashIcon className="h-4 w-4" />
-            </Button>
+            </IconButton>
           }
         />
       </CardContent>
@@ -220,11 +220,7 @@ function AddFeedForm(props: { onCancel: () => void; onSuccess: () => void }) {
                     ))}
                   </SelectContent>
                 </Select>
-                {field.state.meta.errors.length > 0 && (
-                  <div className="text-xs text-destructive">
-                    {field.state.meta.errors[0]?.message}
-                  </div>
-                )}
+                <FieldError error={field.state.meta.errors[0]?.message} />
               </div>
             )}
           </form.Field>
@@ -239,11 +235,7 @@ function AddFeedForm(props: { onCancel: () => void; onSuccess: () => void }) {
                   onChange={(event) => field.handleChange(event.currentTarget.value)}
                   placeholder="https://nyaa.si/?page=rss&..."
                 />
-                {field.state.meta.errors[0]?.message && (
-                  <div className="text-xs text-destructive">
-                    {field.state.meta.errors[0]?.message}
-                  </div>
-                )}
+                <FieldError error={field.state.meta.errors[0]?.message} />
               </div>
             )}
           </form.Field>

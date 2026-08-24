@@ -1,4 +1,5 @@
 import { cn } from "@/infra/utils";
+import { SectionLabel } from "@/components/shared/section-label";
 
 export function StatChip(props: { label: string; value: string; tone?: "default" | "info" }) {
   return (
@@ -9,9 +10,7 @@ export function StatChip(props: { label: string; value: string; tone?: "default"
         props.tone === "info" ? "border-info/20 bg-info/5" : "border-border bg-background/80",
       )}
     >
-      <div className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
-        {props.label}
-      </div>
+      <SectionLabel as="div">{props.label}</SectionLabel>
       <div className="text-lg font-medium text-foreground">{props.value}</div>
     </div>
   );

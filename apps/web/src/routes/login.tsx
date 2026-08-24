@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Schema } from "effect";
 import { Button } from "@/components/ui/button";
 import { errorMessage, formatFieldErrors } from "@/api/effect/errors";
+import { FieldError } from "@/components/shared/field-error";
 import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -170,9 +171,10 @@ function LoginPage() {
                       }
                     />
                     {field.state.meta.errors.length > 0 && (
-                      <p id={usernameErrorId} className="text-xs text-destructive">
-                        {formatFieldErrors(field.state.meta.errors)}
-                      </p>
+                      <FieldError
+                        id={usernameErrorId}
+                        error={formatFieldErrors(field.state.meta.errors)}
+                      />
                     )}
                   </div>
                 )}
@@ -193,9 +195,10 @@ function LoginPage() {
                       }
                     />
                     {field.state.meta.errors.length > 0 && (
-                      <p id={passwordErrorId} className="text-xs text-destructive">
-                        {formatFieldErrors(field.state.meta.errors)}
-                      </p>
+                      <FieldError
+                        id={passwordErrorId}
+                        error={formatFieldErrors(field.state.meta.errors)}
+                      />
                     )}
                   </div>
                 )}
@@ -247,9 +250,10 @@ function LoginPage() {
                       }
                     />
                     {field.state.meta.errors.length > 0 && (
-                      <p id={apiKeyErrorId} className="text-xs text-destructive">
-                        {formatFieldErrors(field.state.meta.errors)}
-                      </p>
+                      <FieldError
+                        id={apiKeyErrorId}
+                        error={formatFieldErrors(field.state.meta.errors)}
+                      />
                     )}
                   </div>
                 )}

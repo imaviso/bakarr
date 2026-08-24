@@ -2,11 +2,11 @@ import {
   WarningIcon,
   CalendarIcon,
   InfoIcon,
-  SpinnerIcon,
   PlusIcon,
   MagnifyingGlassIcon,
 } from "@phosphor-icons/react";
 import { useMemo, useRef, useState } from "react";
+import { Spinner } from "@/components/ui/spinner";
 import { useDebouncedValue } from "@tanstack/react-pacer";
 import { MediaDiscoveryRow } from "@/features/media/media-discovery";
 import { Badge } from "@/components/ui/badge";
@@ -71,7 +71,7 @@ export function ManualSearchCore(props: ManualSearchCoreProps) {
             className="pl-9"
           />
           {search.isFetching && (
-            <SpinnerIcon className="absolute right-3 top-3 h-3 w-3 animate-spin text-muted-foreground" />
+            <Spinner className="absolute right-3 top-3 size-3 text-muted-foreground" />
           )}
         </div>
         <Select

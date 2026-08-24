@@ -9,6 +9,7 @@ import {
   TrashIcon,
 } from "@phosphor-icons/react";
 import { memo } from "react";
+import { SectionLabel } from "@/components/shared/section-label";
 import { MediaDiscoveryRow } from "@/features/media/media-discovery";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { Badge } from "@/components/ui/badge";
@@ -67,9 +68,7 @@ export const FolderItem = memo(function FolderItem(props: {
             <p className="text-xs text-muted-foreground">{folderMatchHint(props.folder)}</p>
             {props.folder.search_queries?.length ? (
               <div className="flex flex-wrap items-center gap-1 pt-1">
-                <span className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-                  Search
-                </span>
+                <SectionLabel>Search</SectionLabel>
                 {props.folder.search_queries.slice(0, 3).map((query) => (
                   <Badge key={query} variant="outline" className="h-5 px-1.5 text-xs">
                     {query}
@@ -173,9 +172,7 @@ export const FolderItem = memo(function FolderItem(props: {
               ) : null}
               {!state.selectedAnime.already_in_library && (
                 <div className="space-y-2 pt-1">
-                  <span className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-                    Quality profile for the new media
-                  </span>
+                  <SectionLabel>Quality profile for the new media</SectionLabel>
                   <Select
                     selectedKey={state.selectedProfile?.name ?? null}
                     onSelectionChange={(value) => {

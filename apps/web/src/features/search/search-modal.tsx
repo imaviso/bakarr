@@ -1,4 +1,4 @@
-import { Dialog } from "@/components/ui/dialog";
+import { ContentDialog } from "@/components/shared/content-dialog";
 import { SearchModalContent } from "@/features/search/search-modal-content";
 import { useSearchModalState } from "@/features/search/search-modal-state";
 import type { MediaUnitKind } from "@/api/contracts";
@@ -21,17 +21,13 @@ export function SearchModal(props: SearchModalProps) {
   });
 
   return (
-    <Dialog
-      isOpen={props.open}
-      onOpenChange={props.onOpenChange}
-      className="sm:max-w-7xl max-h-[85vh] w-[calc(100vw-2rem)] sm:w-full p-0 gap-0 overflow-hidden [display:flex] flex-col"
-    >
+    <ContentDialog size="lg" isOpen={props.open} onOpenChange={props.onOpenChange}>
       <SearchModalContent
         unitNumber={props.unitNumber}
         unitTitle={props.unitTitle}
         unitKind={props.unitKind}
         state={state}
       />
-    </Dialog>
+    </ContentDialog>
   );
 }

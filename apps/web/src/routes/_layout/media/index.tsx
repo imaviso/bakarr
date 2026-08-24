@@ -9,6 +9,7 @@ import {
   MagnifyingGlassIcon,
 } from "@phosphor-icons/react";
 import { useSuspenseQuery } from "@tanstack/react-query";
+import { IconButton } from "@/components/shared/icon-button";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useDebouncedValue } from "@tanstack/react-pacer";
 import { Suspense, lazy } from "react";
@@ -207,31 +208,23 @@ function AnimeIndexPage() {
         <Separator orientation="vertical" className="h-6" />
 
         <div className="flex items-center gap-1 bg-muted p-1">
-          <Button
-            variant="ghost"
-            size="icon"
-            className={cn(
-              "relative after:absolute after:-inset-2 h-7 w-7",
-              view === "grid" ? "bg-background " : "hover:bg-background",
-            )}
+          <IconButton
+            size="icon-sm"
+            className={cn(view === "grid" ? "bg-background " : "hover:bg-background")}
             aria-label="Grid view"
             onPress={() => updateView("grid")}
           >
             <SquaresFourIcon className="h-4 w-4" />
-          </Button>
+          </IconButton>
 
-          <Button
-            variant="ghost"
-            size="icon"
-            className={cn(
-              "relative after:absolute after:-inset-2 h-7 w-7",
-              view === "list" ? "bg-background " : "hover:bg-background",
-            )}
+          <IconButton
+            size="icon-sm"
+            className={cn(view === "list" ? "bg-background " : "hover:bg-background")}
             aria-label="List view"
             onPress={() => updateView("list")}
           >
             <ListIcon className="h-4 w-4" />
-          </Button>
+          </IconButton>
         </div>
       </div>
 

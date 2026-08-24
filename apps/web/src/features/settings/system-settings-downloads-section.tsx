@@ -2,15 +2,11 @@ import { Schema } from "effect";
 import { PathMappingsEditor, SettingRow, SettingSection } from "@/features/settings/form-controls";
 import type { SettingsFormApi } from "@/features/settings/system-settings-form-hook";
 import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
+import { SettingSwitchField, SettingTextField } from "@/features/settings/system-settings-fields";
 import { SectionLabel } from "@/components/shared/section-label";
 
 interface SystemSettingsDownloadsSectionProps {
   form: SettingsFormApi;
-}
-
-function SubSectionTitle({ children }: { children: string }) {
-  return <SectionLabel className="block px-0.5 pt-4 pb-1">{children}</SectionLabel>;
 }
 
 const RatioLimitInputSchema = Schema.Union(Schema.Literal(""), Schema.NumberFromString);
@@ -25,90 +21,59 @@ function decodeRatioLimitInput(value: string, fallback: number | null | undefine
 export function SystemSettingsDownloadsSection(props: SystemSettingsDownloadsSectionProps) {
   return (
     <SettingSection title="Downloads">
-      <SubSectionTitle>Download Client</SubSectionTitle>
+      <SectionLabel className="block px-0.5 pt-4 pb-1">Download Client</SectionLabel>
 
-      <props.form.Field name="qbittorrent.enabled">
-        {(field) => (
-          <SettingRow
-            label="Enable qBittorrent"
-            description="Connect to qBittorrent for downloading"
-          >
-            <Switch
-              isSelected={field.state.value}
-              onChange={(checked) => field.handleChange(checked)}
-            />
-          </SettingRow>
-        )}
-      </props.form.Field>
+      <SettingSwitchField
+        form={props.form}
+        name="qbittorrent.enabled"
+        label="Enable qBittorrent"
+        description="Connect to qBittorrent for downloading"
+      />
 
-      <props.form.Field name="qbittorrent.url">
-        {(field) => (
-          <SettingRow label="URL" description="qBittorrent Web UI address">
-            <Input
-              value={field.state.value}
-              onInput={(event) => field.handleChange(event.currentTarget.value)}
-              placeholder="http://localhost:8080"
-              className="w-56"
-            />
-          </SettingRow>
-        )}
-      </props.form.Field>
+      <SettingTextField
+        form={props.form}
+        name="qbittorrent.url"
+        label="URL"
+        description="qBittorrent Web UI address"
+        placeholder="http://localhost:8080"
+        inputClassName="w-56"
+      />
 
-      <props.form.Field name="qbittorrent.username">
-        {(field) => (
-          <SettingRow label="Username">
-            <Input
-              value={field.state.value}
-              onInput={(event) => field.handleChange(event.currentTarget.value)}
-              autoComplete="off"
-              className="w-40"
-            />
-          </SettingRow>
-        )}
-      </props.form.Field>
+      <SettingTextField
+        form={props.form}
+        name="qbittorrent.username"
+        label="Username"
+        autoComplete="off"
+        inputClassName="w-40"
+      />
 
-      <props.form.Field name="qbittorrent.password">
-        {(field) => (
-          <SettingRow label="Password">
-            <Input
-              type="password"
-              value={field.state.value || ""}
-              onInput={(event) => field.handleChange(event.currentTarget.value)}
-              autoComplete="off"
-              className="w-40"
-            />
-          </SettingRow>
-        )}
-      </props.form.Field>
+      <SettingTextField
+        form={props.form}
+        name="qbittorrent.password"
+        label="Password"
+        type="password"
+        autoComplete="off"
+        inputClassName="w-40"
+      />
 
-      <props.form.Field name="qbittorrent.default_category">
-        {(field) => (
-          <SettingRow label="Category" description="qBittorrent category for downloads">
-            <Input
-              value={field.state.value}
-              onInput={(event) => field.handleChange(event.currentTarget.value)}
-              placeholder="bakarr"
-              className="w-32"
-            />
-          </SettingRow>
-        )}
-      </props.form.Field>
+      <SettingTextField
+        form={props.form}
+        name="qbittorrent.default_category"
+        label="Category"
+        description="qBittorrent category for downloads"
+        placeholder="bakarr"
+        inputClassName="w-32"
+      />
 
-      <props.form.Field name="qbittorrent.save_path">
-        {(field) => (
-          <SettingRow
-            label="Save Path"
-            description="qBittorrent download folder for newly added torrents"
-          >
-            <Input
-              value={field.state.value ?? ""}
-              onInput={(event) => field.handleChange(event.currentTarget.value || null)}
-              placeholder="/downloads/media"
-              className="w-64"
-            />
-          </SettingRow>
-        )}
-      </props.form.Field>
+      <SettingTextField
+        form={props.form}
+        name="qbittorrent.save_path"
+        label="Save Path"
+        description="qBittorrent download folder for newly added torrents"
+        placeholder="/downloads/media"
+        inputClassName="w-64"
+        emptyAsNull
+      />
 
       <props.form.Field name="qbittorrent.ratio_limit">
         {(field) => (
@@ -133,22 +98,15 @@ export function SystemSettingsDownloadsSection(props: SystemSettingsDownloadsSec
         )}
       </props.form.Field>
 
-      <SubSectionTitle>Import Defaults</SubSectionTitle>
+      <SectionLabel className="block px-0.5 pt-4 pb-1">Import Defaults</SectionLabel>
 
-      <props.form.Field name="downloads.root_path">
-        {(field) => (
-          <SettingRow
-            label="Download Path"
-            description="Folder Bakarr watches for completed downloads"
-          >
-            <Input
-              value={field.state.value}
-              onInput={(event) => field.handleChange(event.currentTarget.value)}
-              className="w-64"
-            />
-          </SettingRow>
-        )}
-      </props.form.Field>
+      <SettingTextField
+        form={props.form}
+        name="downloads.root_path"
+        label="Download Path"
+        description="Folder Bakarr watches for completed downloads"
+        inputClassName="w-64"
+      />
 
       <props.form.Field name="downloads.remote_path_mappings">
         {(field) => (
@@ -172,61 +130,35 @@ export function SystemSettingsDownloadsSection(props: SystemSettingsDownloadsSec
         )}
       </props.form.Field>
 
-      <props.form.Field name="downloads.create_media_folders">
-        {(field) => (
-          <SettingRow
-            label="Create Media Folders"
-            description="Group downloaded files by title before import"
-          >
-            <Switch
-              isSelected={field.state.value}
-              onChange={(checked) => field.handleChange(checked)}
-            />
-          </SettingRow>
-        )}
-      </props.form.Field>
+      <SettingSwitchField
+        form={props.form}
+        name="downloads.create_media_folders"
+        label="Create Media Folders"
+        description="Group downloaded files by title before import"
+      />
 
-      <props.form.Field name="downloads.reconcile_completed_downloads">
-        {(field) => (
-          <SettingRow
-            label="Import Completed Torrents"
-            description="Automatically import finished qBittorrent downloads"
-          >
-            <Switch
-              isSelected={field.state.value ?? true}
-              onChange={(checked) => field.handleChange(checked)}
-            />
-          </SettingRow>
-        )}
-      </props.form.Field>
+      <SettingSwitchField
+        form={props.form}
+        name="downloads.reconcile_completed_downloads"
+        label="Import Completed Torrents"
+        description="Automatically import finished qBittorrent downloads"
+        defaultChecked
+      />
 
-      <props.form.Field name="downloads.remove_torrent_on_import">
-        {(field) => (
-          <SettingRow
-            label="Remove Torrent After Import"
-            description="Delete torrent from qBittorrent after import"
-          >
-            <Switch
-              isSelected={field.state.value ?? true}
-              onChange={(checked) => field.handleChange(checked)}
-            />
-          </SettingRow>
-        )}
-      </props.form.Field>
+      <SettingSwitchField
+        form={props.form}
+        name="downloads.remove_torrent_on_import"
+        label="Remove Torrent After Import"
+        description="Delete torrent from qBittorrent after import"
+        defaultChecked
+      />
 
-      <props.form.Field name="downloads.delete_download_files_after_import">
-        {(field) => (
-          <SettingRow
-            label="Delete Download Data After Import"
-            description="Remove downloaded data when torrent cleanup runs"
-          >
-            <Switch
-              isSelected={field.state.value ?? false}
-              onChange={(checked) => field.handleChange(checked)}
-            />
-          </SettingRow>
-        )}
-      </props.form.Field>
+      <SettingSwitchField
+        form={props.form}
+        name="downloads.delete_download_files_after_import"
+        label="Delete Download Data After Import"
+        description="Remove downloaded data when torrent cleanup runs"
+      />
     </SettingSection>
   );
 }

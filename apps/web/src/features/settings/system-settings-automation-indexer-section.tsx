@@ -1,7 +1,10 @@
-import { FiniteNumberInput, SettingRow, SettingSection } from "@/features/settings/form-controls";
+import { SettingSection } from "@/features/settings/form-controls";
 import type { SettingsFormApi } from "@/features/settings/system-settings-form-hook";
-import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
+import {
+  SettingNumberField,
+  SettingSwitchField,
+  SettingTextField,
+} from "@/features/settings/system-settings-fields";
 
 interface SystemSettingsAutomationIndexerSectionProps {
   form: SettingsFormApi;
@@ -12,73 +15,46 @@ export function SystemSettingsAutomationIndexerSection(
 ) {
   return (
     <SettingSection title="Indexer">
-      <props.form.Field name="nyaa.base_url">
-        {(field) => (
-          <SettingRow label="Nyaa URL" description="Base URL for Nyaa.si">
-            <Input
-              value={field.state.value}
-              onInput={(event) => field.handleChange(event.currentTarget.value)}
-              placeholder="https://nyaa.si"
-              className="w-48"
-            />
-          </SettingRow>
-        )}
-      </props.form.Field>
+      <SettingTextField
+        form={props.form}
+        name="nyaa.base_url"
+        label="Nyaa URL"
+        description="Base URL for Nyaa.si"
+        placeholder="https://nyaa.si"
+        inputClassName="w-48"
+      />
 
-      <props.form.Field name="nyaa.min_seeders">
-        {(field) => (
-          <SettingRow label="Minimum Seeders" description="Skip releases with fewer seeders">
-            <FiniteNumberInput
-              value={field.state.value}
-              onChange={field.handleChange}
-              className="w-20"
-            />
-          </SettingRow>
-        )}
-      </props.form.Field>
+      <SettingNumberField
+        form={props.form}
+        name="nyaa.min_seeders"
+        label="Minimum Seeders"
+        description="Skip releases with fewer seeders"
+      />
 
-      <props.form.Field name="nyaa.default_category">
-        {(field) => (
-          <SettingRow
-            label="Default Category"
-            description="Default Nyaa category code for searches"
-          >
-            <Input
-              value={field.state.value}
-              onInput={(event) => field.handleChange(event.currentTarget.value)}
-              placeholder="1_2"
-              className="w-24"
-            />
-          </SettingRow>
-        )}
-      </props.form.Field>
+      <SettingTextField
+        form={props.form}
+        name="nyaa.default_category"
+        label="Default Category"
+        description="Default Nyaa category code for searches"
+        placeholder="1_2"
+        inputClassName="w-24"
+      />
 
-      <props.form.Field name="nyaa.preferred_resolution">
-        {(field) => (
-          <SettingRow
-            label="Preferred Resolution"
-            description="Optional hint for ranking search results"
-          >
-            <Input
-              value={field.state.value ?? ""}
-              onInput={(event) => field.handleChange(event.currentTarget.value)}
-              placeholder="1080p"
-              className="w-24"
-            />
-          </SettingRow>
-        )}
-      </props.form.Field>
+      <SettingTextField
+        form={props.form}
+        name="nyaa.preferred_resolution"
+        label="Preferred Resolution"
+        description="Optional hint for ranking search results"
+        placeholder="1080p"
+        inputClassName="w-24"
+      />
 
-      <props.form.Field name="nyaa.filter_remakes">
-        {(field) => (
-          <SettingRow label="Filter Remakes" description="Exclude remakes from search results">
-            <Switch
-              isSelected={field.state.value}
-              onChange={(checked) => field.handleChange(checked)}
-            />
-          </SettingRow>
-        )}
-      </props.form.Field>
+      <SettingSwitchField
+        form={props.form}
+        name="nyaa.filter_remakes"
+        label="Filter Remakes"
+        description="Exclude remakes from search results"
+      />
     </SettingSection>
   );
 }

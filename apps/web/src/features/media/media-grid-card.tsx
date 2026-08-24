@@ -46,7 +46,7 @@ export function MediaGridCard(props: MediaGridCardProps) {
               <TelevisionIcon className="h-12 w-12 opacity-20" />
             </div>
           )}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+          <div className="absolute inset-0 bg-gradient-to-t from-scrim/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
         </Link>
         <div className="absolute right-2 top-2 opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100 has-[:focus-visible]:opacity-100">
           <ConfirmDialog

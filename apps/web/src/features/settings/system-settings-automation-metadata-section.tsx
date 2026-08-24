@@ -1,8 +1,11 @@
-import { FiniteNumberInput, SettingRow, SettingSection } from "@/features/settings/form-controls";
+import { SettingRow, SettingSection } from "@/features/settings/form-controls";
 import type { SettingsFormApi } from "@/features/settings/system-settings-form-hook";
+import {
+  SettingNumberField,
+  SettingSwitchField,
+  SettingTextField,
+} from "@/features/settings/system-settings-fields";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
 import type { SystemStatus } from "@/api/contracts";
 
 interface SystemSettingsAutomationMetadataSectionProps {
@@ -69,104 +72,64 @@ export function SystemSettingsAutomationMetadataSection(
         )}
       </SettingRow>
 
-      <props.form.Field name="metadata.anidb.enabled">
-        {(field) => (
-          <SettingRow
-            label="Enable AniDB MediaUnit Metadata"
-            description="Use AniDB UDP API to enrich AniList metadata with episode titles and dates"
-          >
-            <Switch
-              isSelected={Boolean(field.state.value)}
-              onChange={(checked) => field.handleChange(checked)}
-            />
-          </SettingRow>
-        )}
-      </props.form.Field>
+      <SettingSwitchField
+        form={props.form}
+        name="metadata.anidb.enabled"
+        label="Enable AniDB MediaUnit Metadata"
+        description="Use AniDB UDP API to enrich AniList metadata with episode titles and dates"
+      />
 
-      <props.form.Field name="metadata.anidb.username">
-        {(field) => (
-          <SettingRow label="AniDB Username">
-            <Input
-              value={field.state.value ?? ""}
-              onInput={(event) => field.handleChange(event.currentTarget.value)}
-              autoComplete="off"
-              className="w-40"
-            />
-          </SettingRow>
-        )}
-      </props.form.Field>
+      <SettingTextField
+        form={props.form}
+        name="metadata.anidb.username"
+        label="AniDB Username"
+        autoComplete="off"
+        inputClassName="w-40"
+      />
 
-      <props.form.Field name="metadata.anidb.password">
-        {(field) => (
-          <SettingRow label="AniDB Password">
-            <Input
-              type="password"
-              value={field.state.value ?? ""}
-              onInput={(event) => field.handleChange(event.currentTarget.value)}
-              autoComplete="off"
-              className="w-40"
-            />
-          </SettingRow>
-        )}
-      </props.form.Field>
+      <SettingTextField
+        form={props.form}
+        name="metadata.anidb.password"
+        label="AniDB Password"
+        type="password"
+        autoComplete="off"
+        inputClassName="w-40"
+      />
 
-      <props.form.Field name="metadata.anidb.client">
-        {(field) => (
-          <SettingRow label="AniDB Client Name" description="4-16 lowercase letters">
-            <Input
-              value={field.state.value ?? ""}
-              onInput={(event) => field.handleChange(event.currentTarget.value)}
-              className="w-32"
-            />
-          </SettingRow>
-        )}
-      </props.form.Field>
+      <SettingTextField
+        form={props.form}
+        name="metadata.anidb.client"
+        label="AniDB Client Name"
+        description="4-16 lowercase letters"
+        inputClassName="w-32"
+      />
 
-      <props.form.Field name="metadata.anidb.client_version">
-        {(field) => (
-          <SettingRow label="AniDB Client Version">
-            <FiniteNumberInput
-              min="1"
-              value={field.state.value}
-              fallbackValue={1}
-              onChange={field.handleChange}
-              className="w-20"
-            />
-          </SettingRow>
-        )}
-      </props.form.Field>
+      <SettingNumberField
+        form={props.form}
+        name="metadata.anidb.client_version"
+        label="AniDB Client Version"
+        min="1"
+        fallbackValue={1}
+      />
 
-      <props.form.Field name="metadata.anidb.local_port">
-        {(field) => (
-          <SettingRow label="AniDB Local UDP Port">
-            <FiniteNumberInput
-              min="1025"
-              max="65535"
-              value={field.state.value}
-              fallbackValue={45553}
-              onChange={field.handleChange}
-              className="w-24"
-            />
-          </SettingRow>
-        )}
-      </props.form.Field>
+      <SettingNumberField
+        form={props.form}
+        name="metadata.anidb.local_port"
+        label="AniDB Local UDP Port"
+        min="1025"
+        max="65535"
+        fallbackValue={45553}
+        inputClassName="w-24"
+      />
 
-      <props.form.Field name="metadata.anidb.episode_limit">
-        {(field) => (
-          <SettingRow
-            label="AniDB MediaUnit Lookup Limit"
-            description="Maximum episode count fetched per anime during refresh"
-          >
-            <FiniteNumberInput
-              min="1"
-              value={field.state.value}
-              fallbackValue={200}
-              onChange={field.handleChange}
-              className="w-20"
-            />
-          </SettingRow>
-        )}
-      </props.form.Field>
+      <SettingNumberField
+        form={props.form}
+        name="metadata.anidb.episode_limit"
+        label="AniDB MediaUnit Lookup Limit"
+        description="Maximum episode count fetched per anime during refresh"
+        min="1"
+        fallbackValue={200}
+      />
     </SettingSection>
   );
 }

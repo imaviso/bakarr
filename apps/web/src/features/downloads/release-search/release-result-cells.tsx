@@ -103,7 +103,7 @@ export function ReleasePeersCell(props: ReleasePeersCellProps) {
           props.emphasizePresence
             ? "text-success"
             : props.seeders > 0
-              ? "text-success dark:text-success"
+              ? "text-success"
               : "text-muted-foreground",
         )}
       >

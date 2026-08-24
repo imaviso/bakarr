@@ -7,27 +7,19 @@ import {
   ArrowClockwiseIcon,
 } from "@phosphor-icons/react";
 import { useForm } from "@tanstack/react-form";
+import { IconButton } from "@/components/shared/icon-button";
 import { useNavigate } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import { Effect, Schema } from "effect";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NotificationSettingsCard } from "@/features/settings/notification-settings-card";
 import { SectionLabel } from "@/components/shared/section-label";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { FieldError } from "@/components/shared/field-error";
 import { useChangePasswordMutation, useRegenerateApiKeyMutation } from "@/api/auth";
 import { useAuth } from "@/app/auth";
 import { errorMessage, firstFieldErrorMessage } from "@/api/effect/errors";
@@ -169,11 +161,7 @@ export function AccountSettingsForm() {
                         )}
                       </Button>
                     </div>
-                    {firstFieldErrorMessage(field.state.meta.errors) && (
-                      <div className="text-xs text-destructive">
-                        {firstFieldErrorMessage(field.state.meta.errors)}
-                      </div>
-                    )}
+                    <FieldError error={firstFieldErrorMessage(field.state.meta.errors)} />
                   </div>
                 )}
               </passwordForm.Field>
@@ -208,11 +196,7 @@ export function AccountSettingsForm() {
                         )}
                       </Button>
                     </div>
-                    {firstFieldErrorMessage(field.state.meta.errors) && (
-                      <div className="text-xs text-destructive">
-                        {firstFieldErrorMessage(field.state.meta.errors)}
-                      </div>
-                    )}
+                    <FieldError error={firstFieldErrorMessage(field.state.meta.errors)} />
                   </div>
                 )}
               </passwordForm.Field>
@@ -241,11 +225,7 @@ export function AccountSettingsForm() {
                       type="password"
                       autoComplete="new-password"
                     />
-                    {firstFieldErrorMessage(field.state.meta.errors) && (
-                      <div className="text-xs text-destructive">
-                        {firstFieldErrorMessage(field.state.meta.errors)}
-                      </div>
-                    )}
+                    <FieldError error={firstFieldErrorMessage(field.state.meta.errors)} />
                   </div>
                 )}
               </passwordForm.Field>
@@ -283,11 +263,9 @@ export function AccountSettingsForm() {
                   className="pr-20 font-mono text-sm"
                 />
                 <div className="absolute right-0 top-0 h-full flex items-center gap-1 pr-1">
-                  <Button
+                  <IconButton
                     type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="relative after:absolute after:-inset-2 h-7 w-7"
+                    size="icon-sm"
                     onPress={() => setVisibility((prev) => ({ ...prev, apiKey: !prev.apiKey }))}
                     aria-label={visibility.apiKey ? "Hide API key" : "Show API key"}
                   >
@@ -296,18 +274,16 @@ export function AccountSettingsForm() {
                     ) : (
                       <EyeSlashIcon className="h-4 w-4 text-muted-foreground" />
                     )}
-                  </Button>
-                  <Button
+                  </IconButton>
+                  <IconButton
                     type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="relative after:absolute after:-inset-2 h-7 w-7"
+                    size="icon-sm"
                     onPress={copyApiKey}
                     isDisabled={!currentApiKey}
                     aria-label="Copy API key"
                   >
                     <CopyIcon className="h-4 w-4 text-muted-foreground" />
-                  </Button>
+                  </IconButton>
                 </div>
               </div>
             </div>
@@ -317,27 +293,18 @@ export function AccountSettingsForm() {
               create a new one for external clients.
             </p>
 
-            <AlertDialog>
-              <AlertDialogTrigger>
+            <ConfirmDialog
+              trigger={
                 <Button variant="outline" isDisabled={regenerateApiKey.isPending}>
                   <ArrowClockwiseIcon className="mr-2 h-4 w-4" />
                   {regenerateApiKey.isPending ? "Regenerating..." : "Regenerate API Key"}
                 </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Regenerate API Key?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    This will invalidate your current API key. Any applications or services using
-                    the old key will need to be updated with the new one.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onPress={handleRegenerateApiKey}>Regenerate</AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+              }
+              title="Regenerate API Key?"
+              description="This will invalidate your current API key. Any applications or services using the old key will need to be updated with the new one."
+              confirmLabel="Regenerate"
+              onConfirm={handleRegenerateApiKey}
+            />
           </CardContent>
         </Card>
       </div>
