@@ -64,7 +64,7 @@ function AlertDialog({
         <AlertDialogPrimitive
           data-slot="alert-dialog"
           role="alertdialog"
-          className="[display:inherit] [gap:inherit] outline-none"
+          className="[display:inherit] [gap:inherit] [flex-direction:inherit] outline-none"
         >
           {children}
         </AlertDialogPrimitive>

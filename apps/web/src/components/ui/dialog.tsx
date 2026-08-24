@@ -83,7 +83,7 @@ function Dialog({
       >
         <DialogPrimitive
           data-slot="dialog"
-          className="[display:inherit] [gap:inherit] outline-none"
+          className="[display:inherit] [gap:inherit] [flex-direction:inherit] flex-1 min-h-0 w-full outline-none"
         >
           {children}
           {showCloseButton && (

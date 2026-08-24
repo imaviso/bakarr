@@ -61,7 +61,7 @@ export function ContentDialogHeader({ className, ...props }: ComponentProps<"div
 }
 
 export function ContentDialogBody({ className, ...props }: ComponentProps<"div">) {
-  return <div className={cn("flex-1 min-h-0 overflow-auto", className)} {...props} />;
+  return <div className={cn("flex-1 min-h-0 min-w-0 overflow-auto", className)} {...props} />;
 }
 
 export function ContentDialogFooter({ className, ...props }: ComponentProps<"div">) {
