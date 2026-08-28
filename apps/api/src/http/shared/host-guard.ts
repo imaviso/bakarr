@@ -25,7 +25,7 @@ export function isAllowedHostHeader(hostHeader: string, trustedHosts: ReadonlyAr
     return true;
   }
 
-  return trustedHosts.includes(hostname);
+  return trustedHosts.map(normalizeHost).includes(hostname);
 }
 
 const LOCAL_HOSTNAMES = new Set(["localhost", "127.0.0.1", "::1"]);

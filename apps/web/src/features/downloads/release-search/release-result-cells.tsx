@@ -8,7 +8,7 @@ import { ReleaseMetadataSummary } from "@/features/downloads/release-metadata-su
 import type { ReleaseFlag } from "@/domain/release/metadata";
 import type { ReleaseConfidenceMetadata } from "@/domain/release/selection";
 import { Tooltip, TooltipTrigger } from "@/components/ui/tooltip";
-import { cn } from "@/infra/utils";
+import { cn, safeExternalUrl } from "@/infra/utils";
 
 interface ReleasePrimaryCellProps {
   confidence?: ReleaseConfidenceMetadata | undefined;
@@ -37,17 +37,15 @@ export function ReleasePrimaryCell(props: ReleasePrimaryCellProps) {
   const titleClass =
     props.titleClass ??
     "text-sm font-medium leading-none text-foreground hover:text-primary transition-colors truncate block pr-4";
+  // Source URLs come from indexer/RSS feed data — never render raw hrefs.
+  const sourceUrl = safeExternalUrl(props.sourceUrl);
+  const seadexComparison = safeExternalUrl(props.seadexComparison);
 
   return (
     <div className="flex flex-col gap-1.5">
       {props.useTooltip ? (
         <TooltipTrigger>
-          <a
-            href={props.sourceUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={titleClass}
-          >
+          <a href={sourceUrl} target="_blank" rel="noopener noreferrer" className={titleClass}>
             {props.title}
           </a>
           <Tooltip className="max-w-[400px]">
@@ -55,7 +53,7 @@ export function ReleasePrimaryCell(props: ReleasePrimaryCellProps) {
           </Tooltip>
         </TooltipTrigger>
       ) : (
-        <a href={props.sourceUrl} target="_blank" rel="noopener noreferrer" className={titleClass}>
+        <a href={sourceUrl} target="_blank" rel="noopener noreferrer" className={titleClass}>
           {props.title}
         </a>
       )}
@@ -66,13 +64,13 @@ export function ReleasePrimaryCell(props: ReleasePrimaryCellProps) {
           flags={props.flags}
           parsedSummary={props.parsedSummary}
           sourceSummary={props.sourceSummary}
-          sourceUrl={props.sourceUrl}
+          sourceUrl={sourceUrl}
         />
       </div>
       <ReleaseSeaDexMeta
         notes={props.seadexNotes}
         tags={props.seadexTags}
-        comparisonUrl={props.seadexComparison}
+        comparisonUrl={seadexComparison}
         className={props.seadexClass}
         tagClass={props.seadexTagClass}
       />

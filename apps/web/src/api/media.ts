@@ -303,6 +303,9 @@ export function useAnimeEpisodeStreamUrlMutation() {
 export function useExecuteRenameMutation() {
   const queryClient = useQueryClient();
   return useMutation({
+    // The rename dialog renders inline error state; the global cache onError
+    // toast would duplicate it.
+    meta: { quiet: true },
     mutationFn: (id: number) =>
       runApiEffect(
         fetchJson(RenameResultSchema, `${API_BASE}/media/${id}/rename`, {

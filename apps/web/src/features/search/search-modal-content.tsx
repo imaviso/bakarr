@@ -81,7 +81,7 @@ export function SearchModalContent(props: SearchModalContentProps) {
                       <TableBody>
                         {props.state.searchQuery.data.map((release) => (
                           <SearchReleaseRow
-                            key={release.info_hash ?? release.title}
+                            key={`${release.indexer}-${release.info_hash}-${release.title}`}
                             release={release}
                             onDownload={props.state.handleDownload}
                             isDownloading={props.state.grabRelease.isPending}

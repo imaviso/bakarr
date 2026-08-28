@@ -1,4 +1,4 @@
-import { Effect, Either } from "effect";
+import { Cause, Effect, Either } from "effect";
 
 import { brandMediaId, type Config } from "@packages/shared/index.ts";
 import type { DatabaseError } from "@/db/database.ts";
@@ -164,7 +164,18 @@ export const renameLibraryFiles = Effect.fn("Operations.renameLibraryFiles")((
       } else {
         // Claim left an empty file at destination; remove it so future
         // renames don't see a phantom "already exists" and to avoid junk.
-        yield* fs.remove(item.new_path).pipe(Effect.ignore);
+        // Best-effort: a failed removal would permanently block renames of
+        // this unit, so surface the cause in logs instead of swallowing it.
+        yield* fs.remove(item.new_path).pipe(
+          Effect.catchAllCause((cause) =>
+            Effect.logWarning("Failed to remove claimed rename destination").pipe(
+              Effect.annotateLogs({
+                path: item.new_path,
+                cause: Cause.pretty(cause),
+              }),
+            ),
+          ),
+        );
         failures.push(result.left instanceof Error ? result.left.message : String(result.left));
       }
     }

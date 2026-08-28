@@ -51,7 +51,10 @@ export const hasOverlappingDownload = Effect.fn("Operations.hasOverlappingDownlo
   coveredUnits: readonly number[],
 ) {
   // Magnets without a btih `xt` have no hash — covered-units overlap is then
-  // the only dedupe signal, so it must run regardless of the hash.
+  // the only dedupe signal, so it must run regardless of the hash. Known gap:
+  // hash-less magnets with no covered units have zero dedupe; repeated queue
+  // attempts enqueue duplicates (acceptable single-user trade-off — coverage
+  // is usually inferable from the release title).
   if (infoHash) {
     const existingByHash = yield* downloadRepository.lookupDownloadByInfoHash(infoHash);
 

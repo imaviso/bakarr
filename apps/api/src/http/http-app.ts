@@ -33,6 +33,7 @@ export function createHttpApp(
   );
 
   return apiRouter.pipe(
+    HttpRouter.concat(spaFallbackRouter(staticWebAssets)),
     HttpRouter.use((route) =>
       Effect.gen(function* () {
         // DNS-rebinding guard: reject attacker-chosen domain Host headers
@@ -53,6 +54,12 @@ export function createHttpApp(
         return yield* route;
       }),
     ),
+    HttpRouter.toHttpApp,
+  );
+}
+
+function spaFallbackRouter(assets: Record<string, EmbeddedWebAsset>) {
+  return HttpRouter.empty.pipe(
     HttpRouter.get(
       "*",
       Effect.gen(function* () {
@@ -60,13 +67,12 @@ export function createHttpApp(
         const url = new URL(request.url, "http://bakarr.local");
 
         return createHttpAppFallbackResponse({
-          assets: staticWebAssets,
+          assets,
           method: request.method,
           pathname: url.pathname,
         });
       }),
     ),
-    HttpRouter.toHttpApp,
   );
 }
 

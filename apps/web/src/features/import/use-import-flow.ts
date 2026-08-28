@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useReducer } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import type { MediaId, MediaSearchResult, ImportFileRequest, ScannedFile } from "@/api/contracts";
@@ -154,6 +154,15 @@ function reducer(state: State, action: Action): State {
 
 export function useImportFlow(options: ImportFlowOptions = {}) {
   const [state, dispatch] = useReducer(reducer, initialState);
+  // Latest selection snapshot for async callbacks: rapid candidate toggles must
+  // read the current state at execution time, not the render-time closure.
+  const stateRef = useRef(state);
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
+  // Serializes candidate toggles: each request builds on the previous
+  // response's selection, so concurrent toggles cannot overwrite each other.
+  const toggleChainRef = useRef<Promise<void>>(Promise.resolve());
 
   const scanMutation = useScanImportPathMutation();
   const importMutation = useImportFilesMutation();
@@ -190,28 +199,40 @@ export function useImportFlow(options: ImportFlowOptions = {}) {
 
   const toggleCandidate = useCallback(
     (candidate: MediaSearchResult, forceSelect = false) => {
-      importSelectionMutation.mutate(
-        {
-          candidate_id: candidate.id,
-          candidate_title:
-            candidate.title.english || candidate.title.romaji || candidate.title.native || "",
-          force_select: forceSelect,
-          files: scanMutation.data?.files ?? [],
-          selected_candidate_ids: [...state.selectedCandidateIds],
-          selected_files: [...state.selectedFiles.values()],
-        },
-        {
-          onSuccess: (next) => {
-            dispatch({
-              type: "toggleCandidateSuccess",
-              candidateIds: new Set(next.selected_candidate_ids),
-              files: new Map(next.selected_files.map((file) => [file.source_path, file])),
-            });
-          },
-        },
-      );
+      const run = toggleChainRef.current.then(() => {
+        const latest = stateRef.current;
+        return new Promise<void>((resolve) => {
+          importSelectionMutation.mutate(
+            {
+              candidate_id: candidate.id,
+              candidate_title:
+                candidate.title.english || candidate.title.romaji || candidate.title.native || "",
+              force_select: forceSelect,
+              files: scanMutation.data?.files ?? [],
+              selected_candidate_ids: [...latest.selectedCandidateIds],
+              selected_files: [...latest.selectedFiles.values()],
+            },
+            {
+              onSuccess: (next) => {
+                dispatch({
+                  type: "toggleCandidateSuccess",
+                  candidateIds: new Set(next.selected_candidate_ids),
+                  files: new Map(next.selected_files.map((file) => [file.source_path, file])),
+                });
+                resolve();
+              },
+              onError: () => {
+                resolve();
+              },
+            },
+          );
+        });
+      });
+      toggleChainRef.current = run;
+      setPendingToggles((count) => count + 1);
+      void run.finally(() => setPendingToggles((count) => count - 1));
     },
-    [importSelectionMutation, scanMutation.data, state.selectedCandidateIds, state.selectedFiles],
+    [importSelectionMutation, scanMutation.data],
   );
 
   const handleManualAdd = useCallback(
@@ -364,6 +385,12 @@ export function useImportFlow(options: ImportFlowOptions = {}) {
     [importSelectionMutation.isPending, importSelectionMutation.variables],
   );
 
+  // Import submits the current selection; block while any serialized toggle is
+  // queued or in flight so it cannot send a selection that is about to change.
+  // Chain depth is the source of truth — `isPending` misses queued toggles.
+  const [pendingToggles, setPendingToggles] = useState(0);
+  const isAwaitingToggle = pendingToggles > 0;
+
   return {
     activeAddCandidate,
     advanceAddCandidateDialog,
@@ -382,6 +409,7 @@ export function useImportFlow(options: ImportFlowOptions = {}) {
     inputMode: state.inputMode,
     isDragOver: state.isDragOver,
     isSearchOpen: state.isSearchOpen,
+    isAwaitingToggle,
     isTogglingCandidate,
     libraryIds,
     manualCandidates: state.manualCandidates,

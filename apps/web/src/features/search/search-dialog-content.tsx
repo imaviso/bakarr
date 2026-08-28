@@ -277,7 +277,7 @@ function SearchResults(props: {
           {state.sortedResults.length > 0 ? (
             state.sortedResults.map((result) => (
               <ReleaseRow
-                key={result.info_hash ?? result.title}
+                key={`${result.indexer}-${result.pub_date}-${result.info_hash ?? result.title}`}
                 result={result}
                 mediaId={props.mediaId}
                 unitLabel={props.unitLabel}
@@ -355,8 +355,8 @@ function ReleaseRow(props: {
     onGrab: props.onGrab,
     result: props.result,
   });
-  const batchCheckboxId = `batch-${props.result.info_hash}`;
-  const episodeInputId = `episode-${props.result.info_hash}`;
+  const batchCheckboxId = `batch-${props.result.info_hash ?? props.result.title}`;
+  const episodeInputId = `episode-${props.result.info_hash ?? props.result.title}`;
 
   return (
     <TableRow className="group border-b border-border transition-colors hover:bg-muted data-[state=selected]:bg-muted">

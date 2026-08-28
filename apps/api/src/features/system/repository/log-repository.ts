@@ -100,12 +100,17 @@ const deleteSystemLogsOlderThan = Effect.fn("SystemLogRepository.deleteLogsOlder
   db: AppDatabase,
   cutoffIso: string,
 ) {
+  // Count via sqlite `changes()` — materializing every pruned id just to read
+  // its length can pull 100k+ rows after long uptime.
   return yield* tryDatabasePromise("Failed to prune old system logs", () =>
-    db
-      .delete(systemLogs)
-      .where(lt(systemLogs.createdAt, cutoffIso))
-      .returning({ id: systemLogs.id }),
-  ).pipe(Effect.map((rows) => rows.length));
+    db.transaction((tx) =>
+      tx
+        .delete(systemLogs)
+        .where(lt(systemLogs.createdAt, cutoffIso))
+        .then(() => tx.all<{ changes: number }>(sql`select changes() as changes`))
+        .then((result) => result[0]?.changes ?? 0),
+    ),
+  );
 });
 
 export const loadSystemLogPage = Effect.fn("SystemLogRepository.loadPage")(function* (

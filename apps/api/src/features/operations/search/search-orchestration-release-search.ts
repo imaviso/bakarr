@@ -125,14 +125,14 @@ function buildAnimeSearchAliases(animeRow: typeof media.$inferSelect) {
       const sanitizedNormalized = sanitizeSearchAlias(normalized);
       const truncated = truncateSearchAlias(alias);
       const truncatedSanitized = truncated ? sanitizeSearchAlias(truncated) : null;
-      return [
-        alias,
-        normalized,
-        sanitized,
-        sanitizedNormalized,
-        ...(truncated ? [truncated] : []),
-        ...(truncatedSanitized && truncatedSanitized !== truncated ? [truncatedSanitized] : []),
-      ];
+      const variants: string[] = [alias, normalized, sanitized, sanitizedNormalized];
+      if (truncated) {
+        variants.push(truncated);
+      }
+      if (truncatedSanitized && truncatedSanitized !== truncated) {
+        variants.push(truncatedSanitized);
+      }
+      return variants;
     }),
   );
 }

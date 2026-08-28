@@ -20,12 +20,12 @@ interface UseInfiniteNearEndOptions {
  * page length.
  */
 export function useInfiniteNearEnd(options: UseInfiniteNearEndOptions) {
-  const lastRequestedLength = useRef(-1);
+  const lastRequested = useRef({ total: -1, lastIndex: -1 });
   const { hasNextPage, isFetchingNextPage, total, threshold, lastIndex, fetchNextPage } = options;
 
   useEffect(() => {
     if (!hasNextPage) {
-      lastRequestedLength.current = -1;
+      lastRequested.current = { total: -1, lastIndex: -1 };
       return;
     }
 
@@ -33,12 +33,14 @@ export function useInfiniteNearEnd(options: UseInfiniteNearEndOptions) {
       return;
     }
 
-    if (
-      lastIndex >= total - threshold &&
-      lastRequestedLength.current !== total &&
-      !isFetchingNextPage
-    ) {
-      lastRequestedLength.current = total;
+    // A failed page fetch never grows `total`, so a retry for the same total
+    // is only issued once the visible window has moved — retries stay bounded
+    // by actual scrolling instead of looping while the last row is in view.
+    const requested = lastRequested.current;
+    const alreadyRequested = requested.total === total && requested.lastIndex === lastIndex;
+
+    if (lastIndex >= total - threshold && !alreadyRequested && !isFetchingNextPage) {
+      lastRequested.current = { total, lastIndex };
       fetchNextPage();
     }
   }, [hasNextPage, isFetchingNextPage, total, threshold, lastIndex, fetchNextPage]);

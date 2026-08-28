@@ -504,8 +504,11 @@ const ensureUnits = Effect.fn("MediaUnitRepository.ensureUnits")(function* <E>(
         );
 
   if (unitCount !== undefined && unitCount > 0 && existingRows.length > 0) {
+    // A unitCount shrink can be a transient provider regression, so pruning is
+    // conservative: never delete units that hold a file mapping (downloaded or
+    // has filePath) — orphaning disk files is not recoverable from metadata.
     const extraNumbers = existingRows
-      .filter((row) => row.number > unitCount)
+      .filter((row) => row.number > unitCount && !row.downloaded && row.filePath === null)
       .map((row) => row.number);
     if (extraNumbers.length > 0) {
       yield* tryDatabasePromise("Failed to prune extra mediaUnits", () =>

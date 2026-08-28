@@ -439,7 +439,9 @@ function ImportReviewStep(props: { state: ImportPageState }) {
           <Button
             onPress={props.state.flow.handleImport}
             isDisabled={
-              props.state.flow.selectedFiles.size === 0 || props.state.flow.importMutation.isPending
+              props.state.flow.selectedFiles.size === 0 ||
+              props.state.flow.importMutation.isPending ||
+              props.state.flow.isAwaitingToggle
             }
           >
             {props.state.flow.importMutation.isPending ? (

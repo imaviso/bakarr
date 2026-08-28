@@ -2,6 +2,7 @@ import { ArrowSquareOutIcon } from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
 import type { ReleaseFlag } from "@/domain/release/metadata";
 import { releaseFlagBadgeClass } from "@/domain/release/metadata";
+import { safeExternalUrl } from "@/infra/utils";
 
 interface ReleaseMetadataSummaryProps {
   flags?: readonly ReleaseFlag[] | undefined;
@@ -12,6 +13,7 @@ interface ReleaseMetadataSummaryProps {
 }
 
 export function ReleaseMetadataSummary(props: ReleaseMetadataSummaryProps) {
+  const sourceUrl = safeExternalUrl(props.sourceUrl);
   return (
     <div className={props.compact ? "flex flex-col gap-0.5" : "flex flex-col gap-1"}>
       {(props.flags?.length ?? 0) > 0 && (
@@ -30,12 +32,12 @@ export function ReleaseMetadataSummary(props: ReleaseMetadataSummaryProps) {
       {props.sourceSummary && (
         <div className="text-xs text-muted-foreground leading-tight">{props.sourceSummary}</div>
       )}
-      {(props.parsedSummary || props.sourceUrl) && (
+      {(props.parsedSummary || sourceUrl) && (
         <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground leading-tight">
           {props.parsedSummary && <span>{props.parsedSummary}</span>}
-          {props.sourceUrl && (
+          {sourceUrl && (
             <a
-              href={props.sourceUrl}
+              href={sourceUrl}
               target="_blank"
               rel="noreferrer"
               className="inline-flex items-center gap-1 text-primary hover:text-primary"

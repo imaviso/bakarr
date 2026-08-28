@@ -124,17 +124,25 @@ export class DownloadReconciliationService extends Effect.Service<DownloadReconc
 
         const claimNow = yield* nowIso();
         const claimToken = buildClaimToken(claimNow, yield* randomUuid());
+        const unmarkLiveSet = Ref.update(liveClaimIds, (ids) => {
+          const next = new Set(ids);
+          next.delete(row.id);
+          return next;
+        });
         // Mark live before the DB claim to close the window where the sync
         // sweep could see a stale-token row before this fiber's live set is
-        // populated. If claim loses the race we remove the mark immediately.
-        yield* Ref.update(liveClaimIds, (ids) => new Set(ids).add(row.id));
-        const claimed = yield* repo.claimDownloadReconciliation(infoHash, claimToken);
+        // populated. The onExit below spans mark + claim too: an interrupt in
+        // that span must still unmark the live set, or the sweep would skip a
+        // stale claim until restart. Losing the claim race removes the mark
+        // inline; a won claim stays (the import block below owns its release).
+        const claimed = yield* Ref.update(liveClaimIds, (ids) => new Set(ids).add(row.id)).pipe(
+          Effect.zipRight(repo.claimDownloadReconciliation(row.id, claimToken)),
+          Effect.onExit((exit) =>
+            exit._tag === "Failure" ? unmarkLiveSet.pipe(Effect.ignoreLogged) : Effect.void,
+          ),
+        );
         if (!claimed) {
-          yield* Ref.update(liveClaimIds, (ids) => {
-            const next = new Set(ids);
-            next.delete(row.id);
-            return next;
-          });
+          yield* unmarkLiveSet.pipe(Effect.ignoreLogged);
           return;
         }
 
@@ -169,11 +177,7 @@ export class DownloadReconciliationService extends Effect.Service<DownloadReconc
           yield* reconcileSingleDownloadEffect(context.value);
         }).pipe(
           Effect.onExit(() =>
-            Ref.update(liveClaimIds, (ids) => {
-              const next = new Set(ids);
-              next.delete(row.id);
-              return next;
-            }).pipe(
+            unmarkLiveSet.pipe(
               Effect.zipRight(
                 repo.releaseDownloadReconciliationClaim({ downloadId: row.id, claimToken }),
               ),

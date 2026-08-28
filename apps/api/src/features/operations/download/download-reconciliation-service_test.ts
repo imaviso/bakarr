@@ -126,13 +126,10 @@ it.scoped("claim round-trip: prefixed token claims once and releases exactly", (
         const claimToken = buildClaimToken("2026-01-01T00:00:00.000Z", "roundtrip-uuid");
 
         // First claim wins; a concurrent claim for the same row loses.
-        assert.deepStrictEqual(
-          yield* repo.claimDownloadReconciliation("hash-claim-roundtrip", claimToken),
-          true,
-        );
+        assert.deepStrictEqual(yield* repo.claimDownloadReconciliation(1, claimToken), true);
         assert.deepStrictEqual(
           yield* repo.claimDownloadReconciliation(
-            "hash-claim-roundtrip",
+            1,
             buildClaimToken("2026-01-01T00:00:01.000Z", "other-uuid"),
           ),
           false,

@@ -99,7 +99,7 @@ export interface DownloadRepositoryShape {
    * a leftover token always means the claim must be released for retry.
    */
   readonly claimDownloadReconciliation: (
-    infoHash: string,
+    downloadId: number,
     claimToken: string,
   ) => Effect.Effect<boolean, DatabaseError>;
   readonly deleteDownloadRow: (id: number) => Effect.Effect<void, DatabaseError>;
@@ -287,8 +287,8 @@ export function makeDownloadRepositoryShape(db: AppDatabase): DownloadRepository
   return {
     bulkUpdateTorrentSyncRows: (chunk, events, createdAt) =>
       bulkUpdateTorrentSyncRows(db, chunk, events, createdAt),
-    claimDownloadReconciliation: (infoHash, claimToken) =>
-      claimDownloadReconciliation(db, infoHash, claimToken),
+    claimDownloadReconciliation: (downloadId, claimToken) =>
+      claimDownloadReconciliation(db, downloadId, claimToken),
     deleteDownloadRow: (id) => deleteDownloadRow(db, id, "Failed to remove download"),
     deleteDownloadWithEventTx: (input) => deleteDownloadWithEventTx(db, input),
     failStaleQueuedDownloads: (input) => failStaleQueuedDownloads(db, input),
@@ -753,8 +753,15 @@ const loadDownloadByInfoHash = Effect.fn("DownloadRepository.loadDownloadByInfoH
   db: AppDatabase,
   infoHash: string,
 ) {
+  // Migration 0031 allows several rows per info_hash (terminal + in-flight).
+  // Reconcile targets the current attempt: not yet reconciled, newest insert.
   const rows = yield* tryDatabasePromise("Failed to reconcile completed download", () =>
-    db.select().from(downloads).where(eq(downloads.infoHash, infoHash)).limit(1),
+    db
+      .select()
+      .from(downloads)
+      .where(and(eq(downloads.infoHash, infoHash), isNull(downloads.reconciledAt)))
+      .orderBy(desc(downloads.id))
+      .limit(1),
   );
   return rows[0];
 });
@@ -767,6 +774,8 @@ const loadPresentationContexts = Effect.fn("DownloadRepository.loadPresentationC
 
 const lookupDownloadByInfoHash = Effect.fn("DownloadRepository.lookupDownloadByInfoHash")(
   function* (db: AppDatabase, infoHash: string) {
+    // Only in-flight rows block re-queueing; terminal rows must not (the
+    // partial unique index from migration 0031 enforces this in SQL).
     const rows = yield* tryDatabasePromise("Failed to check overlapping download", () =>
       db
         .select({
@@ -774,7 +783,12 @@ const lookupDownloadByInfoHash = Effect.fn("DownloadRepository.lookupDownloadByI
           status: downloads.status,
         })
         .from(downloads)
-        .where(eq(downloads.infoHash, infoHash))
+        .where(
+          and(
+            eq(downloads.infoHash, infoHash),
+            inArray(downloads.status, ["queued", "downloading", "paused"]),
+          ),
+        )
         .limit(1),
     );
     return rows[0];
@@ -821,12 +835,15 @@ const markDownloadReconciled = Effect.fn("DownloadRepository.markDownloadReconci
 });
 
 const claimDownloadReconciliation = Effect.fn("DownloadRepository.claimDownloadReconciliation")(
-  function* (db: AppDatabase, infoHash: string, claimToken: string) {
+  function* (db: AppDatabase, downloadId: number, claimToken: string) {
+    // Claim by id, not info_hash: with migration 0031 several rows can share a
+    // hash (terminal + in-flight), and an isNull(reconciledAt) match by hash
+    // could claim a stale failed row instead of the row reconcile loaded.
     const claimedRows = yield* tryDatabasePromise("Failed to claim download reconciliation", () =>
       db
         .update(downloads)
         .set({ reconciledAt: claimToken })
-        .where(and(eq(downloads.infoHash, infoHash), isNull(downloads.reconciledAt)))
+        .where(and(eq(downloads.id, downloadId), isNull(downloads.reconciledAt)))
         .returning({ id: downloads.id }),
     );
     return claimedRows.length > 0;

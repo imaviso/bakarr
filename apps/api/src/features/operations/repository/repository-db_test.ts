@@ -280,24 +280,15 @@ it.scoped("DownloadRepository claim and release download reconciliation", () =>
         const id = yield* insertDownload({ infoHash: "hash-one" });
 
         // claim acquires an unclaimed download
-        assert.deepStrictEqual(
-          yield* repo.claimDownloadReconciliation("hash-one", "token-a"),
-          true,
-        );
+        assert.deepStrictEqual(yield* repo.claimDownloadReconciliation(id, "token-a"), true);
         assert.deepStrictEqual((yield* loadRow(id))[0]?.reconciledAt, "token-a");
 
         // a second concurrent claim is refused and keeps the original token
-        assert.deepStrictEqual(
-          yield* repo.claimDownloadReconciliation("hash-one", "token-b"),
-          false,
-        );
+        assert.deepStrictEqual(yield* repo.claimDownloadReconciliation(id, "token-b"), false);
         assert.deepStrictEqual((yield* loadRow(id))[0]?.reconciledAt, "token-a");
 
-        // unknown info hashes cannot be claimed
-        assert.deepStrictEqual(
-          yield* repo.claimDownloadReconciliation("missing-hash", "token-c"),
-          false,
-        );
+        // unknown ids cannot be claimed
+        assert.deepStrictEqual(yield* repo.claimDownloadReconciliation(9999, "token-c"), false);
 
         // release is a no-op for a stale token, resets only the matching token
         yield* repo.releaseDownloadReconciliationClaim({ downloadId: id, claimToken: "token-b" });
@@ -306,15 +297,9 @@ it.scoped("DownloadRepository claim and release download reconciliation", () =>
         assert.deepStrictEqual((yield* loadRow(id))[0]?.reconciledAt, null);
 
         // claim -> release -> re-claim works (retry cycle leaves no stale token)
-        assert.deepStrictEqual(
-          yield* repo.claimDownloadReconciliation("hash-one", "token-d"),
-          true,
-        );
+        assert.deepStrictEqual(yield* repo.claimDownloadReconciliation(id, "token-d"), true);
         yield* repo.releaseDownloadReconciliationClaim({ downloadId: id, claimToken: "token-d" });
-        assert.deepStrictEqual(
-          yield* repo.claimDownloadReconciliation("hash-one", "token-d"),
-          true,
-        );
+        assert.deepStrictEqual(yield* repo.claimDownloadReconciliation(id, "token-d"), true);
 
         // finalize overwrites the token with a timestamp; release is then a no-op
         yield* repo.markDownloadReconciled({ downloadId: id, now: "2024-02-01T00:00:00.000Z" });
@@ -322,10 +307,7 @@ it.scoped("DownloadRepository claim and release download reconciliation", () =>
         assert.deepStrictEqual((yield* loadRow(id))[0]?.reconciledAt, "2024-02-01T00:00:00.000Z");
 
         // a finalized download can no longer be claimed
-        assert.deepStrictEqual(
-          yield* repo.claimDownloadReconciliation("hash-one", "token-e"),
-          false,
-        );
+        assert.deepStrictEqual(yield* repo.claimDownloadReconciliation(id, "token-e"), false);
       }),
     schema,
   }),

@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { LinkButton } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SettingRow, SettingSection } from "@/features/settings/form-controls";
+import { safeExternalUrl } from "@/infra/utils";
 
 const LINK_LABELS: Record<keyof ObservabilityStatus["links"], string> = {
   grafana: "Grafana",
@@ -104,7 +105,13 @@ export function ObservabilitySettingsPanel() {
         ) : (
           links.map(({ key, value }) => (
             <SettingRow key={key} label={LINK_LABELS[key]}>
-              <LinkButton variant="outline" size="sm" href={value} target="_blank" rel="noreferrer">
+              <LinkButton
+                variant="outline"
+                size="sm"
+                href={safeExternalUrl(value) ?? "#"}
+                target="_blank"
+                rel="noreferrer"
+              >
                 Open
                 <ArrowSquareOutIcon className="size-3.5" />
               </LinkButton>

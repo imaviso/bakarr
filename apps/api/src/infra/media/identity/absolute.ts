@@ -144,7 +144,7 @@ function parseAbsoluteRange(value: string): AbsoluteEpisodeIdentity | undefined 
         const lastWord =
           before
             .trim()
-            .split(/[\s._\-]+/)
+            .split(/[\s._-]+/)
             .pop() ?? "";
         if (!/^(?:e|ep|episode|s|season)$/i.test(lastWord) && /\s-\s/.test(match[0])) {
           continue;

@@ -6,7 +6,7 @@ import {
   selectionKindBadgeClass,
   type ReleaseConfidenceMetadata,
 } from "@/domain/release/selection";
-import { cn } from "@/infra/utils";
+import { cn, safeExternalUrl } from "@/infra/utils";
 
 interface ReleaseSeaDexMetaProps {
   notes?: string | undefined;
@@ -17,9 +17,10 @@ interface ReleaseSeaDexMetaProps {
 }
 
 export function ReleaseSeaDexMeta(props: ReleaseSeaDexMetaProps) {
+  const comparisonUrl = safeExternalUrl(props.comparisonUrl);
   return (
     <>
-      {props.notes || props.tags?.length || props.comparisonUrl ? (
+      {props.notes || props.tags?.length || comparisonUrl ? (
         <div className={cn("flex flex-col gap-1 text-xs text-muted-foreground", props.className)}>
           {props.notes && <span className="line-clamp-2">{props.notes}</span>}
           {props.tags?.length ? (
@@ -38,9 +39,9 @@ export function ReleaseSeaDexMeta(props: ReleaseSeaDexMetaProps) {
               ))}
             </div>
           ) : null}
-          {props.comparisonUrl && (
+          {comparisonUrl && (
             <a
-              href={props.comparisonUrl}
+              href={comparisonUrl}
               target="_blank"
               rel="noreferrer"
               className="inline-flex items-center gap-1 text-xs text-primary hover:text-primary w-fit"
