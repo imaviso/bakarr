@@ -1,4 +1,4 @@
-import ipaddr from "ipaddr.js";
+import { isIP } from "node:net";
 
 /**
  * DNS-rebinding guard: decide whether a request's Host header may be served.
@@ -32,8 +32,8 @@ const LOCAL_HOSTNAMES = new Set(["localhost", "127.0.0.1", "::1"]);
 
 function normalizeHost(hostHeader: string) {
   const withoutPort = stripPort(hostHeader.trim().toLowerCase());
-  // Strip brackets, trailing dot ( DNS allows `example.com.` ), then lower.
-  return withoutPort.replace(/^\[/, "").replace(/\]$/, "").replace(/\.$/, "");
+  // Strip brackets, trailing dot (DNS allows `example.com.`), then lower.
+  return withoutPort.replace(/^\[([^\]]+)\]$/, "$1").replace(/\.$/, "");
 }
 
 function stripPort(host: string) {
@@ -41,15 +41,16 @@ function stripPort(host: string) {
     const closeIndex = host.indexOf("]");
     return closeIndex === -1 ? host : host.slice(0, closeIndex + 1);
   }
+  // Bare IPv6 without brackets must not be treated as host:port — it
+  // contains multiple colons and never appears as a Host header literal
+  // (RFC 3986 requires brackets), but guard against truncation.
+  if (host.indexOf(":") !== host.lastIndexOf(":")) {
+    return host;
+  }
   const colonIndex = host.lastIndexOf(":");
   return colonIndex === -1 ? host : host.slice(0, colonIndex);
 }
 
 function isIpLiteral(hostname: string) {
-  try {
-    ipaddr.parse(hostname);
-    return true;
-  } catch {
-    return false;
-  }
+  return isIP(hostname) !== 0;
 }

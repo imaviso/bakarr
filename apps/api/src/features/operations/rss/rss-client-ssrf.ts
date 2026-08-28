@@ -1,5 +1,5 @@
-import { Effect, Either, Option } from "effect";
-import ipaddr from "ipaddr.js";
+import { isIP } from "node:net";
+import { Effect, Either } from "effect";
 
 import { DnsResolver, isDnsNoRecordError } from "@/infra/dns-resolver.ts";
 import { parseUrlEffect } from "@/infra/url.ts";
@@ -68,7 +68,7 @@ export const resolvePinnedRequestTarget = Effect.fn("RssClient.resolvePinnedRequ
     }
 
     for (const addr of resolvedAddrs) {
-      if (isPrivateIpAddress(addr)) {
+      if (isPrivateIpString(addr)) {
         return yield* new RssFeedRejectedError({
           message: `${hostname} resolves to private IP ${addr}`,
         });
@@ -190,17 +190,16 @@ function isBlockedHostname(hostname: string): boolean {
 }
 
 function normalizeHostname(hostname: string) {
-  return hostname.toLowerCase().replace(/^\[/, "").replace(/\]$/, "").replace(/\.$/, "");
+  return hostname
+    .toLowerCase()
+    .replace(/^\[([^\]]+)\]$/, "$1")
+    .replace(/\.$/, "");
 }
 
 function isIpLiteral(hostname: string) {
-  return Option.isSome(Option.liftThrowable(() => ipaddr.parse(hostname))());
-}
-
-function isPrivateIpAddress(addr: string): boolean {
-  return isPrivateIpString(addr);
+  return isIP(hostname) !== 0;
 }
 
 function isIpv4Address(addr: string) {
-  return ipaddr.parse(addr).kind() === "ipv4";
+  return isIP(addr) === 4;
 }

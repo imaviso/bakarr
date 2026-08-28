@@ -29,8 +29,7 @@
     "better-sqlite3": "^13.0.1",
     "drizzle-orm": "^0.45.2",
     "effect": "^3.22.0",
-    "fast-xml-parser": "^5.10.1",
-    "ipaddr.js": "^2.4.0"
+    "fast-xml-parser": "^5.10.1"
   },
   "devDependencies": {
     "@effect/vitest": "^0.30.0",
