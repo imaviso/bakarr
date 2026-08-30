@@ -10,7 +10,10 @@ import {
   type AppConfigOverrides,
   type BootstrapConfigOverrides,
 } from "@/app/config/schema.ts";
-import { ObservabilityConfig, type ObservabilityConfigOverrides } from "@/app/config/observability.ts";
+import {
+  ObservabilityConfig,
+  type ObservabilityConfigOverrides,
+} from "@/app/config/observability.ts";
 import { DatabaseLayerLive } from "@/db/database.ts";
 import { BackgroundWorkerMonitorLive } from "@/background/monitor.ts";
 import { EventBus } from "@/infra/effect/event-bus.ts";
