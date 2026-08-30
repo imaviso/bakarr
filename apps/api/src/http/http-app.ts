@@ -3,7 +3,7 @@ import { Effect } from "effect";
 
 import { AppConfig } from "@/app/config/schema.ts";
 import { embeddedWebAssets } from "@/generated/embedded-web-assets.ts";
-import { mediaRouter } from "@/http/media/router.ts";
+import { mediaRouter } from "@/features/media/router.ts";
 import { authRouter } from "@/http/auth/router.ts";
 import { createEmbeddedWebResponse, type EmbeddedWebAsset } from "@/http/shared/embedded-web.ts";
 import { isAllowedHostHeader } from "@/http/shared/host-guard.ts";

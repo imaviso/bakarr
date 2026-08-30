@@ -20,7 +20,7 @@ import { SystemReadService } from "@/features/system/system-read-service.ts";
 import {
   OperationsTaskIdParamsSchema,
   OperationsTaskQuerySchema,
-} from "@/http/media/request-schemas.ts";
+} from "@/features/media/request-schemas.ts";
 import {
   authedRouteResponse,
   decodePathParams,

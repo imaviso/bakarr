@@ -1,6 +1,6 @@
 import { Effect } from "effect";
 
-import type { FileByteRange } from "@/http/file-stream.ts";
+import type { FileByteRange } from "@/infra/file-stream.ts";
 import { StreamRangeError } from "@/features/media/stream/media-stream-errors.ts";
 
 export function parseStreamRange(

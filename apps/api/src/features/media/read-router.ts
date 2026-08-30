@@ -26,7 +26,7 @@ import {
   SearchMediaQuerySchema,
   SeasonalMediaQuerySchema,
   StreamUrlQuerySchema,
-} from "@/http/media/request-schemas.ts";
+} from "@/features/media/request-schemas.ts";
 import { IdParamsSchema } from "@/http/shared/common-request-schemas.ts";
 import { inlineContentDisposition } from "@/http/shared/route-fs.ts";
 import {

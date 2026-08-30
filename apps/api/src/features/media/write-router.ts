@@ -24,7 +24,7 @@ import {
   PathBodySchema,
   ProfileNameBodySchema,
   ReleaseProfileIdsBodySchema,
-} from "@/http/media/request-schemas.ts";
+} from "@/features/media/request-schemas.ts";
 import { IdParamsSchema } from "@/http/shared/common-request-schemas.ts";
 import {
   authedRouteResponse,

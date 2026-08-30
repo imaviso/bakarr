@@ -42,7 +42,7 @@ import {
 import {
   OperationsTaskIdParamsSchema,
   OperationsTaskQuerySchema,
-} from "@/http/media/request-schemas.ts";
+} from "@/features/media/request-schemas.ts";
 
 const acceptedOperationResponse = schemaAcceptedResponse(AsyncOperationAcceptedSchema);
 

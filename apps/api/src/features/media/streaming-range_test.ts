@@ -2,7 +2,7 @@ import { Cause, Effect, Exit } from "effect";
 
 import { assert, it } from "@effect/vitest";
 import { StreamRangeError } from "@/features/media/stream/media-stream-errors.ts";
-import { parseStreamRange } from "@/http/media/streaming-range.ts";
+import { parseStreamRange } from "@/features/media/streaming-range.ts";
 
 it.effect("parses absolute and open-ended stream ranges", () =>
   Effect.gen(function* () {

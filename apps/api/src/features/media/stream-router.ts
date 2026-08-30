@@ -3,9 +3,9 @@ import { Effect } from "effect";
 
 import { MediaStreamService } from "@/features/media/stream/media-stream-service.ts";
 import { FileSystem } from "@/infra/filesystem/filesystem.ts";
-import { MediaUnitParamsSchema, StreamQuerySchema } from "@/http/media/request-schemas.ts";
-import { parseStreamRange } from "@/http/media/streaming-range.ts";
-import { createFileChunkStream } from "@/http/file-stream.ts";
+import { MediaUnitParamsSchema, StreamQuerySchema } from "@/features/media/request-schemas.ts";
+import { parseStreamRange } from "@/features/media/streaming-range.ts";
+import { createFileChunkStream } from "@/infra/file-stream.ts";
 import { contentType, inlineContentDisposition } from "@/http/shared/route-fs.ts";
 import { StreamAccessError } from "@/features/media/stream/media-stream-errors.ts";
 import {
