@@ -9,7 +9,7 @@ import {
   SystemLogsQuerySchema,
   toSystemLogExportQueryParams,
   toSystemLogsQueryParams,
-} from "@/http/system/request-schemas.ts";
+} from "@/features/system/http/request-schemas.ts";
 import {
   authedRouteResponse,
   decodeQueryWithLabel,

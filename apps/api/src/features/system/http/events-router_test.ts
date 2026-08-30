@@ -3,7 +3,7 @@ import { Effect, Stream } from "effect";
 
 import { assert, it } from "@effect/vitest";
 import type { NotificationEvent } from "@packages/shared/index.ts";
-import { buildSystemEventsResponse } from "@/http/system/events-router.ts";
+import { buildSystemEventsResponse } from "@/features/system/http/events-router.ts";
 
 const infoEvent: NotificationEvent = { payload: { message: "hello" }, type: "Info" };
 

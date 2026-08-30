@@ -11,7 +11,7 @@ import { downloadsRouter } from "@/features/operations/downloads-router.ts";
 import { libraryRouter } from "@/features/operations/library-router.ts";
 import { rssRouter } from "@/features/operations/rss-router.ts";
 import { searchRouter } from "@/features/operations/search-router.ts";
-import { systemRouter } from "@/http/system/router.ts";
+import { systemRouter } from "@/features/system/http/router.ts";
 
 export function createHttpApp(
   options: {

@@ -2,7 +2,7 @@ import { Effect } from "effect";
 
 import { assert, it } from "@effect/vitest";
 import { decodeNotificationEventWire } from "@packages/shared/index.ts";
-import { encodeNotificationEventJson } from "@/http/event-socket.ts";
+import { encodeNotificationEventJson } from "@/app/event-socket.ts";
 
 it.effect("encodeNotificationEventJson serializes valid notification events", () =>
   Effect.gen(function* () {

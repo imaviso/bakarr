@@ -22,7 +22,7 @@ import {
   ConfigSchema,
   SystemLogExportQuerySchema,
   SystemLogsQuerySchema,
-} from "@/http/system/request-schemas.ts";
+} from "@/features/system/http/request-schemas.ts";
 
 function makeValidConfig() {
   return {

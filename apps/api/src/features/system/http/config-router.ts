@@ -16,7 +16,7 @@ import {
   NameParamsSchema,
   QualityProfileSchema,
   UpdateReleaseProfileSchema,
-} from "@/http/system/request-schemas.ts";
+} from "@/features/system/http/request-schemas.ts";
 import {
   authedRouteResponse,
   decodeJsonBodyWithLabel,

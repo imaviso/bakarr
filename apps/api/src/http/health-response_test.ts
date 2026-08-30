@@ -6,7 +6,7 @@ import { AppConfig, makeDefaultAppConfig } from "@/app/config/schema.ts";
 import { AuthSessionService } from "@/features/auth/session-service.ts";
 import { StoredConfigMissingError } from "@/features/system/errors.ts";
 import { SystemReadService } from "@/features/system/system-read-service.ts";
-import { healthRouter } from "@/http/system/health-router.ts";
+import { healthRouter } from "@/features/system/http/health-router.ts";
 
 it.effect("health router live endpoint returns the live status payload", () =>
   Effect.gen(function* () {

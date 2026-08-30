@@ -4,7 +4,7 @@ import { Effect, Stream } from "effect";
 
 import type { NotificationEvent } from "@packages/shared/index.ts";
 import { SystemEventsService } from "@/features/system/system-events-service.ts";
-import { encodeNotificationEventJson } from "@/http/event-socket.ts";
+import { encodeNotificationEventJson } from "@/app/event-socket.ts";
 import { authedRouteResponse } from "@/http/shared/router-helpers.ts";
 
 const EVENT_SOCKET_IDLE_TIMEOUT = "5 minutes";
