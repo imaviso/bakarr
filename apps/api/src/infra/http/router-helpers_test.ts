@@ -4,7 +4,7 @@ import { Effect, Exit, Logger } from "effect";
 
 import { assert, it } from "@effect/vitest";
 import { AuthUnauthorizedError } from "@/features/auth/errors.ts";
-import { routeResponse } from "@/http/shared/router-helpers.ts";
+import { routeResponse } from "@/infra/http/router-helpers.ts";
 
 const stubRequest = HttpServerRequest.fromWeb(new Request("http://bakarr.local/api/test"));
 

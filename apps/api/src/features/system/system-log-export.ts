@@ -5,7 +5,7 @@ import { brandSystemLogId, type SystemLog } from "@packages/shared/index.ts";
 import { systemLogs } from "@/db/schema.ts";
 import type { DatabaseError } from "@/db/database.ts";
 import { normalizeLevel } from "@/features/system/support.ts";
-import { escapeCsv } from "@/http/shared/route-fs.ts";
+import { escapeCsv } from "@/infra/http/route-fs.ts";
 
 const EXPORT_LIMIT = 10_000;
 const textEncoder = new TextEncoder();

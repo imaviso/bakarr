@@ -21,7 +21,7 @@ import {
   AbsoluteFilesystemPathStringSchema,
   HttpUrlStringSchema,
   IsoDateTimeStringSchema,
-} from "@/http/shared/common-request-schemas.ts";
+} from "@/infra/http/common-request-schemas.ts";
 
 const RssFeedNameStringSchema = Schema.String.pipe(Schema.minLength(1));
 const ProfileNameStringSchema = Schema.String.pipe(Schema.minLength(1));

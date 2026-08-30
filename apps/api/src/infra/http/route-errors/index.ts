@@ -1,14 +1,14 @@
 // oxlint-disable typescript/no-restricted-types -- `unknown` is the honest type at error/cause boundaries (Effect error channels, try/catch causes, Logger messages)
 import { Match, Schema } from "effect";
 
-import type { RouteErrorResponse } from "@/http/shared/route-types.ts";
+import type { RouteErrorResponse } from "@/infra/http/route-types.ts";
 import { DatabaseError } from "@/db/database.ts";
 import { WorkerTimeoutError } from "@/background/workers.ts";
 import { StreamPayloadTooLargeError } from "@/infra/effect/bounded-stream.ts";
 import { ExternalCallError } from "@/infra/effect/retry.ts";
 import { PasswordError } from "@/security/password.ts";
 import { TokenHasherError } from "@/security/token-hasher.ts";
-import { RequestValidationError } from "@/http/shared/route-validation.ts";
+import { RequestValidationError } from "@/infra/http/route-validation.ts";
 import {
   AuthBadRequestError,
   AuthErrorSchema,
@@ -17,10 +17,10 @@ import {
   AuthRateLimitedError,
   AuthUnauthorizedError,
 } from "@/features/auth/errors.ts";
-import { mapMediaRouteError } from "@/http/shared/route-errors/media.ts";
-import { mapOperationsRouteError } from "@/http/shared/route-errors/operations.ts";
-import { mapSystemRouteError } from "@/http/shared/route-errors/system.ts";
-import { fixedStatus, mapTaggedRouteError } from "@/http/shared/route-errors/helpers.ts";
+import { mapMediaRouteError } from "@/infra/http/route-errors/media.ts";
+import { mapOperationsRouteError } from "@/infra/http/route-errors/operations.ts";
+import { mapSystemRouteError } from "@/infra/http/route-errors/system.ts";
+import { fixedStatus, mapTaggedRouteError } from "@/infra/http/route-errors/helpers.ts";
 import {
   DomainConflictError,
   DomainInputError,

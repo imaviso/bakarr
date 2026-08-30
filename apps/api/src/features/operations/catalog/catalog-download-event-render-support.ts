@@ -4,7 +4,7 @@ import type { DownloadEvent } from "@packages/shared/index.ts";
 import type { DatabaseError } from "@/db/database.ts";
 import type { StoredDataError } from "@/features/errors.ts";
 import type { DownloadEventExportHeader } from "@/features/operations/repository/download-repository.ts";
-import { escapeCsv } from "@/http/shared/route-fs.ts";
+import { escapeCsv } from "@/infra/http/route-fs.ts";
 
 export interface DownloadEventExportStreamShape {
   readonly header: DownloadEventExportHeader;

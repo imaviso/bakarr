@@ -34,7 +34,7 @@ import {
   schemaAcceptedResponse,
   schemaJsonResponse,
   successResponse,
-} from "@/http/shared/router-helpers.ts";
+} from "@/infra/http/router-helpers.ts";
 import {
   decodeOperationsTaskQuery,
   OperationsTaskReadService,

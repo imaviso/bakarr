@@ -27,14 +27,14 @@ import {
   SeasonalMediaQuerySchema,
   StreamUrlQuerySchema,
 } from "@/features/media/request-schemas.ts";
-import { IdParamsSchema } from "@/http/shared/common-request-schemas.ts";
-import { inlineContentDisposition } from "@/http/shared/route-fs.ts";
+import { IdParamsSchema } from "@/infra/http/common-request-schemas.ts";
+import { inlineContentDisposition } from "@/infra/http/route-fs.ts";
 import {
   authedRouteResponse,
   decodePathParams,
   decodeQuery,
   schemaJsonResponse,
-} from "@/http/shared/router-helpers.ts";
+} from "@/infra/http/router-helpers.ts";
 
 const StreamUrlResponseSchema = Schema.Struct({ url: Schema.String });
 

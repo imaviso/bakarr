@@ -3,7 +3,7 @@ import { Effect } from "effect";
 import { AsyncOperationAcceptedSchema } from "@packages/shared/index.ts";
 
 import { BackgroundTaskRunner } from "@/background/task-runner.ts";
-import { authedRouteResponse, schemaAcceptedResponse } from "@/http/shared/router-helpers.ts";
+import { authedRouteResponse, schemaAcceptedResponse } from "@/infra/http/router-helpers.ts";
 
 const acceptedOperationResponse = schemaAcceptedResponse(AsyncOperationAcceptedSchema);
 

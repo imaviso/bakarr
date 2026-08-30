@@ -3,13 +3,13 @@ import { HttpRouter, HttpServerRequest, HttpServerResponse } from "@effect/platf
 import { Cause, Effect, Option, ParseResult, Predicate, Schema } from "effect";
 
 import { collectBoundedText, StreamPayloadTooLargeError } from "@/infra/effect/bounded-stream.ts";
-import { mapRouteError } from "@/http/shared/route-errors/index.ts";
-import { requireViewerFromHttpRequest } from "@/http/shared/route-auth.ts";
+import { mapRouteError } from "@/infra/http/route-errors/index.ts";
+import { requireViewerFromHttpRequest } from "@/infra/http/route-auth.ts";
 import {
   formatValidationErrorMessage,
   RequestValidationError,
-} from "@/http/shared/route-validation.ts";
-import type { RouteErrorResponse } from "@/http/shared/route-types.ts";
+} from "@/infra/http/route-validation.ts";
+import type { RouteErrorResponse } from "@/infra/http/route-types.ts";
 
 export const MAX_JSON_BODY_BYTES = 1_048_576;
 

@@ -25,7 +25,7 @@ import {
   ProfileNameBodySchema,
   ReleaseProfileIdsBodySchema,
 } from "@/features/media/request-schemas.ts";
-import { IdParamsSchema } from "@/http/shared/common-request-schemas.ts";
+import { IdParamsSchema } from "@/infra/http/common-request-schemas.ts";
 import {
   authedRouteResponse,
   decodeJsonBodyWithLabel,
@@ -33,7 +33,7 @@ import {
   schemaAcceptedResponse,
   schemaJsonResponse,
   successResponse,
-} from "@/http/shared/router-helpers.ts";
+} from "@/infra/http/router-helpers.ts";
 
 const acceptedOperationResponse = schemaAcceptedResponse(AsyncOperationAcceptedSchema);
 

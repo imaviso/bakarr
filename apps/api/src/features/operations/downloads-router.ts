@@ -11,8 +11,8 @@ import { CatalogDownloadReadService } from "@/features/operations/catalog/catalo
 import { DownloadReconciliationService } from "@/features/operations/download/download-reconciliation-service.ts";
 import { DownloadTorrentActionService } from "@/features/operations/download/download-torrent-action-service.ts";
 import { DownloadTorrentSyncService } from "@/features/operations/download/download-torrent-sync-service.ts";
-import { IdParamsSchema } from "@/http/shared/common-request-schemas.ts";
-import { buildExportHeaders, buildExportStreamResponse } from "@/http/shared/export-responses.ts";
+import { IdParamsSchema } from "@/infra/http/common-request-schemas.ts";
+import { buildExportHeaders, buildExportStreamResponse } from "@/infra/http/export-responses.ts";
 import {
   DeleteDownloadQuerySchema,
   DownloadEventsExportQuerySchema,
@@ -27,7 +27,7 @@ import {
   schemaAcceptedResponse,
   schemaJsonResponse,
   successResponse,
-} from "@/http/shared/router-helpers.ts";
+} from "@/infra/http/router-helpers.ts";
 
 export const downloadsRouter = HttpRouter.empty.pipe(
   HttpRouter.get(

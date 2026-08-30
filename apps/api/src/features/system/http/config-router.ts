@@ -9,7 +9,7 @@ import {
   redactConfigSecrets,
   SystemConfigService,
 } from "@/features/system/system-config-service.ts";
-import { IdParamsSchema } from "@/http/shared/common-request-schemas.ts";
+import { IdParamsSchema } from "@/infra/http/common-request-schemas.ts";
 import {
   ConfigSchema,
   CreateReleaseProfileSchema,
@@ -23,7 +23,7 @@ import {
   decodePathParams,
   schemaJsonResponse,
   successResponse,
-} from "@/http/shared/router-helpers.ts";
+} from "@/infra/http/router-helpers.ts";
 
 export const configRouter = HttpRouter.empty.pipe(
   HttpRouter.get(

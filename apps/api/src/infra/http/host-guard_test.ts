@@ -1,6 +1,6 @@
 import { assert, describe, it } from "@effect/vitest";
 
-import { isAllowedHostHeader } from "@/http/shared/host-guard.ts";
+import { isAllowedHostHeader } from "@/infra/http/host-guard.ts";
 
 describe("host guard", () => {
   it("allows IP-literal hosts", () => {

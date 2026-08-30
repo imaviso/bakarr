@@ -8,7 +8,7 @@ import {
   PositiveIntFromStringSchema,
   ReleaseProfileIdSchema,
 } from "@/infra/schema.ts";
-import { AbsoluteFilesystemPathStringSchema } from "@/http/shared/common-request-schemas.ts";
+import { AbsoluteFilesystemPathStringSchema } from "@/infra/http/common-request-schemas.ts";
 import {
   MediaSeasonSchema,
   MediaKindSchema,

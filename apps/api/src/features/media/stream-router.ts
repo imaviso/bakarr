@@ -6,13 +6,13 @@ import { FileSystem } from "@/infra/filesystem/filesystem.ts";
 import { MediaUnitParamsSchema, StreamQuerySchema } from "@/features/media/request-schemas.ts";
 import { parseStreamRange } from "@/features/media/streaming-range.ts";
 import { createFileChunkStream } from "@/infra/file-stream.ts";
-import { contentType, inlineContentDisposition } from "@/http/shared/route-fs.ts";
+import { contentType, inlineContentDisposition } from "@/infra/http/route-fs.ts";
 import { StreamAccessError } from "@/features/media/stream/media-stream-errors.ts";
 import {
   decodePathParams,
   decodeQueryWithLabel,
   routeResponse,
-} from "@/http/shared/router-helpers.ts";
+} from "@/infra/http/router-helpers.ts";
 
 export const mediaStreamRouter = HttpRouter.empty.pipe(
   HttpRouter.get(

@@ -26,7 +26,7 @@ import {
   decodePathParams,
   decodeQueryWithLabel,
   schemaJsonResponse,
-} from "@/http/shared/router-helpers.ts";
+} from "@/infra/http/router-helpers.ts";
 
 export const infoRouter = HttpRouter.empty.pipe(
   HttpRouter.get(

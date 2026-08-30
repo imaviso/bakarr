@@ -9,7 +9,7 @@ import {
 } from "@/app/config/schema.ts";
 import { AuthForbiddenError, AuthUnauthorizedError } from "@/features/auth/errors.ts";
 import { AuthSessionService } from "@/features/auth/session-service.ts";
-import { persistSessionResponse, requireViewerFromHttpRequest } from "@/http/shared/route-auth.ts";
+import { persistSessionResponse, requireViewerFromHttpRequest } from "@/infra/http/route-auth.ts";
 import { assert, it } from "@effect/vitest";
 import { brandUserId, type AuthUser } from "@packages/shared/index.ts";
 

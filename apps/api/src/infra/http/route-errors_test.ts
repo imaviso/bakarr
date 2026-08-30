@@ -27,13 +27,13 @@ import {
   StoredConfigCorruptError,
   StoredConfigMissingError,
 } from "@/features/system/errors.ts";
-import { mapRouteError } from "@/http/shared/route-errors/index.ts";
+import { mapRouteError } from "@/infra/http/route-errors/index.ts";
 import {
   StreamAccessError,
   StreamRangeError,
 } from "@/features/media/stream/media-stream-errors.ts";
-import { RequestValidationError } from "@/http/shared/route-validation.ts";
-import { routeResponse } from "@/http/shared/router-helpers.ts";
+import { RequestValidationError } from "@/infra/http/route-validation.ts";
+import { routeResponse } from "@/infra/http/router-helpers.ts";
 
 it("route errors maps known tagged errors to expected responses", () => {
   const cases = [

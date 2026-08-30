@@ -29,8 +29,8 @@ import {
   schemaAcceptedResponse,
   schemaJsonResponse,
   successResponse,
-} from "@/http/shared/router-helpers.ts";
-import { SearchUnitParamsSchema } from "@/http/shared/common-request-schemas.ts";
+} from "@/infra/http/router-helpers.ts";
+import { SearchUnitParamsSchema } from "@/infra/http/common-request-schemas.ts";
 
 const acceptedOperationResponse = schemaAcceptedResponse(AsyncOperationAcceptedSchema);
 

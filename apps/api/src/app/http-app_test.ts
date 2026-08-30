@@ -1,8 +1,8 @@
 import { HttpApp } from "@effect/platform";
 import { Effect } from "effect";
 
-import { createHttpAppFallbackResponse } from "@/http/http-app.ts";
-import { type EmbeddedWebAsset } from "@/http/shared/embedded-web.ts";
+import { createHttpAppFallbackResponse } from "@/app/http-app.ts";
+import { type EmbeddedWebAsset } from "@/infra/http/embedded-web.ts";
 import { assert, it } from "@effect/vitest";
 
 it.effect(

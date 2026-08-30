@@ -3,7 +3,7 @@ import { Effect } from "effect";
 import { SystemLogsResponseSchema } from "@packages/shared/index.ts";
 
 import { SystemLogService } from "@/features/system/system-log-service.ts";
-import { buildExportHeaders, buildExportStreamResponse } from "@/http/shared/export-responses.ts";
+import { buildExportHeaders, buildExportStreamResponse } from "@/infra/http/export-responses.ts";
 import {
   SystemLogExportQuerySchema,
   SystemLogsQuerySchema,
@@ -15,7 +15,7 @@ import {
   decodeQueryWithLabel,
   schemaJsonResponse,
   successResponse,
-} from "@/http/shared/router-helpers.ts";
+} from "@/infra/http/router-helpers.ts";
 
 export const logsRouter = HttpRouter.empty.pipe(
   HttpRouter.get(

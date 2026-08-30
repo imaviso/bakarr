@@ -20,7 +20,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { bootstrapProgram } from "./src/app/startup.ts";
 import { makeApiLifecycleLayers } from "./src/app/lifecycle-layers.ts";
-import { createHttpApp } from "./src/http/http-app.ts";
+import { createHttpApp } from "./src/app/http-app.ts";
 import { commandArgs, commandName } from "./src/test/stubs.ts";
 import { AniListClient } from "./src/features/media/metadata/anilist.ts";
 import { JikanClient } from "./src/features/media/metadata/jikan.ts";

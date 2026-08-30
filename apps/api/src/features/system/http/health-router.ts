@@ -11,8 +11,8 @@ import {
   authedRouteResponse,
   routeResponse,
   schemaJsonResponse,
-} from "@/http/shared/router-helpers.ts";
-import { isReadinessDegradedError } from "@/http/shared/route-errors/system.ts";
+} from "@/infra/http/router-helpers.ts";
+import { isReadinessDegradedError } from "@/infra/http/route-errors/system.ts";
 
 const ReadyResponseSchema = Schema.Struct({
   checks: Schema.Struct({ database: Schema.Boolean }),

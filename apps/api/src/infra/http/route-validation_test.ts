@@ -1,7 +1,7 @@
 import { assert, it } from "@effect/vitest";
 import { Schema } from "effect";
 
-import { formatValidationErrorMessage } from "@/http/shared/route-validation.ts";
+import { formatValidationErrorMessage } from "@/infra/http/route-validation.ts";
 
 it("formatValidationErrorMessage includes parse error paths", () => {
   const schema = Schema.Struct({

@@ -13,13 +13,13 @@ import {
   SystemConflictError,
   SystemNotFoundError,
 } from "@/features/system/errors.ts";
-import type { RouteErrorResponse } from "@/http/shared/route-types.ts";
+import type { RouteErrorResponse } from "@/infra/http/route-types.ts";
 import {
   errorStatus,
   fixedStatus,
   mapTaggedRouteError,
   messageStatus,
-} from "@/http/shared/route-errors/helpers.ts";
+} from "@/infra/http/route-errors/helpers.ts";
 
 const internalServerError = fixedStatus("Internal server error", 500);
 

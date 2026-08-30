@@ -11,12 +11,12 @@ import {
   StreamAccessError,
   StreamRangeError,
 } from "@/features/media/stream/media-stream-errors.ts";
-import type { RouteErrorResponse } from "@/http/shared/route-types.ts";
+import type { RouteErrorResponse } from "@/infra/http/route-types.ts";
 import {
   errorStatus,
   mapTaggedRouteError,
   messageStatus,
-} from "@/http/shared/route-errors/helpers.ts";
+} from "@/infra/http/route-errors/helpers.ts";
 
 const MediaRouteErrorSchema = Schema.Union(
   AniDbRuntimeConfigError,

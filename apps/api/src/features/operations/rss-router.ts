@@ -10,8 +10,8 @@ import {
   decodePathParams,
   schemaJsonResponse,
   successResponse,
-} from "@/http/shared/router-helpers.ts";
-import { IdParamsSchema } from "@/http/shared/common-request-schemas.ts";
+} from "@/infra/http/router-helpers.ts";
+import { IdParamsSchema } from "@/infra/http/common-request-schemas.ts";
 
 export const rssRouter = HttpRouter.empty.pipe(
   HttpRouter.get(

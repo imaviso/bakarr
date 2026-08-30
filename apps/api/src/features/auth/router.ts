@@ -16,8 +16,8 @@ import {
   routeResponse,
   schemaJsonResponse,
   successResponse,
-} from "@/http/shared/router-helpers.ts";
-import { persistSessionResponse, requireViewerFromHttpRequest } from "@/http/shared/route-auth.ts";
+} from "@/infra/http/router-helpers.ts";
+import { persistSessionResponse, requireViewerFromHttpRequest } from "@/infra/http/route-auth.ts";
 
 export const authRouter = HttpRouter.empty.pipe(
   HttpRouter.post(

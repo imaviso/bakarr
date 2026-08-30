@@ -4,7 +4,7 @@ import * as NodeRuntime from "@effect/platform-node/NodeRuntime";
 import { Effect, Layer } from "effect";
 import { createServer } from "node:http";
 
-import { createHttpApp } from "./src/http/http-app.ts";
+import { createHttpApp } from "./src/app/http-app.ts";
 import { bootstrapProgram, logServerListening, startBackgroundWorkers } from "./src/app/startup.ts";
 import { makeApiLifecycleLayers } from "./src/app/lifecycle-layers.ts";
 

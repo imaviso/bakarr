@@ -4,11 +4,11 @@ import { Cause, Duration, Effect, Option } from "effect";
 
 import { ObservabilityConfig } from "@/app/config/observability.ts";
 import { SystemRuntimeMetricsService } from "@/features/system/system-runtime-metrics-service.ts";
-import { requireViewerFromHttpRequest } from "@/http/shared/route-auth.ts";
-import { mapRouteError } from "@/http/shared/route-errors/index.ts";
+import { requireViewerFromHttpRequest } from "@/infra/http/route-auth.ts";
+import { mapRouteError } from "@/infra/http/route-errors/index.ts";
 import { currentTimeNanos } from "@/infra/time.ts";
 import { recordHttpRequestMetrics } from "@/infra/metrics.ts";
-import { routeResponse } from "@/http/shared/router-helpers.ts";
+import { routeResponse } from "@/infra/http/router-helpers.ts";
 
 const METRICS_ROUTE = "/api/metrics";
 

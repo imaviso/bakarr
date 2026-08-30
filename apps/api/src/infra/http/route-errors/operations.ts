@@ -11,12 +11,12 @@ import { ImportFileError } from "@/features/operations/download/download-file-im
 import { UpsertUnitFileError } from "@/features/media/units/media-unit-repository.ts";
 import { QBitTorrentClientError } from "@/features/operations/qbittorrent/qbittorrent-models.ts";
 import { FileSystemError } from "@/infra/filesystem/filesystem.ts";
-import type { RouteErrorResponse } from "@/http/shared/route-types.ts";
+import type { RouteErrorResponse } from "@/infra/http/route-types.ts";
 import {
   fixedStatus,
   mapTaggedRouteError,
   messageStatus,
-} from "@/http/shared/route-errors/helpers.ts";
+} from "@/infra/http/route-errors/helpers.ts";
 
 const OperationsRouteErrorSchema = Schema.Union(
   RssFeedParseError,

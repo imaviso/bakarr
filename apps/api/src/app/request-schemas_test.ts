@@ -6,7 +6,7 @@ import {
   LoginRequestSchema,
 } from "@packages/shared/index.ts";
 
-import { formatValidationErrorMessage } from "@/http/shared/route-validation.ts";
+import { formatValidationErrorMessage } from "@/infra/http/route-validation.ts";
 import {
   AddRssFeedBodySchema,
   BrowseQuerySchema,
