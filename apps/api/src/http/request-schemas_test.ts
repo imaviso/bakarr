@@ -16,7 +16,7 @@ import {
   ImportUnmappedFolderBodySchema,
   SearchDownloadBodySchema,
   CalendarQuerySchema,
-} from "@/http/operations/request-schemas.ts";
+} from "@/features/operations/request-schemas.ts";
 import { AddMediaInputSchema, BulkUnitMappingsBodySchema } from "@/features/media/request-schemas.ts";
 import {
   ConfigSchema,

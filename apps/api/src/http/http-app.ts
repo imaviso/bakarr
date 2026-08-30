@@ -7,10 +7,10 @@ import { mediaRouter } from "@/features/media/router.ts";
 import { authRouter } from "@/http/auth/router.ts";
 import { createEmbeddedWebResponse, type EmbeddedWebAsset } from "@/http/shared/embedded-web.ts";
 import { isAllowedHostHeader } from "@/http/shared/host-guard.ts";
-import { downloadsRouter } from "@/http/operations/downloads-router.ts";
-import { libraryRouter } from "@/http/operations/library-router.ts";
-import { rssRouter } from "@/http/operations/rss-router.ts";
-import { searchRouter } from "@/http/operations/search-router.ts";
+import { downloadsRouter } from "@/features/operations/downloads-router.ts";
+import { libraryRouter } from "@/features/operations/library-router.ts";
+import { rssRouter } from "@/features/operations/rss-router.ts";
+import { searchRouter } from "@/features/operations/search-router.ts";
 import { systemRouter } from "@/http/system/router.ts";
 
 export function createHttpApp(
