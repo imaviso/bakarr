@@ -8,7 +8,7 @@ import {
   MediaIdSchema,
   DownloadIdSchema,
   UnitNumberSchema,
-} from "@/domain/domain-schema.ts";
+} from "@/infra/schema.ts";
 
 it("PositiveIntSchema rejects non-positive values", () => {
   assert.deepStrictEqual(Schema.decodeUnknownEither(PositiveIntSchema)(0)._tag, "Left");

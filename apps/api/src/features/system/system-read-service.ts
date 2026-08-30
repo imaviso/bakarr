@@ -1,7 +1,7 @@
 import { Effect } from "effect";
 
 import { AppRuntime } from "@/app/runtime.ts";
-import { AppConfig } from "@/config/schema.ts";
+import { AppConfig } from "@/app/config/schema.ts";
 import type { DatabaseError } from "@/db/database.ts";
 import { toDownloadEvent } from "@/features/operations/download/download-event-presentations.ts";
 import { DownloadRepository } from "@/features/operations/repository/download-repository.ts";

@@ -5,7 +5,7 @@ import {
   inferAiredAt,
   scoreAnimeSearchResultMatch,
   summarizeEpisodeCoverage,
-} from "@/domain/media/derivations.ts";
+} from "@/features/media/shared/derivations.ts";
 
 it("deriveEpisodeTimelineMetadata classifies aired, future, and unknown mediaUnits", () => {
   const now = new Date("2025-05-01T00:00:00.000Z");

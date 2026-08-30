@@ -5,7 +5,7 @@ import * as SqlClient from "@effect/sql/SqlClient";
 import { Effect, Layer, Schema } from "effect";
 import type { SqliteRemoteDatabase } from "drizzle-orm/sqlite-proxy";
 
-import { AppConfig } from "@/config/schema.ts";
+import { AppConfig } from "@/app/config/schema.ts";
 import { isSqliteBusyLock, isSqliteUniqueConstraint } from "@/db/sqlite-errors.ts";
 import * as schema from "@/db/schema.ts";
 

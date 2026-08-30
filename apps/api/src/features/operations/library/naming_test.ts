@@ -1,5 +1,5 @@
 import { assert, it } from "@effect/vitest";
-import { type NamingInput, renderUnitFilename } from "@/infra/naming.ts";
+import { type NamingInput, renderUnitFilename } from "@/features/operations/library/naming.ts";
 
 function makeInput(overrides: Partial<NamingInput> = {}): NamingInput {
   return {

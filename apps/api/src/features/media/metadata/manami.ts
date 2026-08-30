@@ -2,7 +2,7 @@ import * as NodeSqliteClient from "@effect/sql-sqlite-node/SqliteClient";
 import { HttpClient } from "@effect/platform";
 import { Effect, Layer, Option } from "effect";
 
-import { AppConfig } from "@/config/schema.ts";
+import { AppConfig } from "@/app/config/schema.ts";
 import {
   refreshSqliteCacheIfNeeded,
   resolveManamiCachePaths,

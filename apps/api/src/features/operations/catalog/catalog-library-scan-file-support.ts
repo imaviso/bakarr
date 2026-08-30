@@ -1,6 +1,6 @@
 import { Effect } from "effect";
 
-import { classifyMediaArtifact } from "@/infra/media/identity/identity.ts";
+import { classifyMediaArtifact } from "@/features/media/identity/identity.ts";
 import { extractUnitNumbersFromFile } from "@/features/media/files/files.ts";
 import type { MediaUnitRepositoryShape } from "@/features/media/units/media-unit-repository.ts";
 import { InfrastructureError } from "@/features/errors.ts";

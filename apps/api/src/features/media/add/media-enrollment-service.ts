@@ -2,7 +2,7 @@ import { Effect, Option } from "effect";
 
 import type { DatabaseError } from "@/db/database.ts";
 import { MediaImageCacheService } from "@/features/media/metadata/media-image-cache-service.ts";
-import { EventBus } from "@/features/events/event-bus.ts";
+import { EventBus } from "@/infra/effect/event-bus.ts";
 import { nowIso as currentNowIso } from "@/infra/time.ts";
 import { MediaMetadataProviderService } from "@/features/media/metadata/media-metadata-provider-service.ts";
 import { FileSystem } from "@/infra/filesystem/filesystem.ts";

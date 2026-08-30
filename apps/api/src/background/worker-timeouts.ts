@@ -1,7 +1,7 @@
 import { Config, Effect, Schema } from "effect";
 
-import { PositiveIntSchema } from "@/domain/domain-schema.ts";
-import { BACKGROUND_WORKER_TIMEOUT_MS, type BackgroundWorkerName } from "@/domain/worker-model.ts";
+import { PositiveIntSchema } from "@/infra/schema.ts";
+import { BACKGROUND_WORKER_TIMEOUT_MS, type BackgroundWorkerName } from "@/background/worker-model.ts";
 
 const PositiveIntConfigSchema = Schema.NumberFromString.pipe(Schema.compose(PositiveIntSchema));
 

@@ -2,7 +2,7 @@
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from "@effect/platform";
 import { Cause, Effect, Option, ParseResult, Predicate, Schema } from "effect";
 
-import { collectBoundedText, StreamPayloadTooLargeError } from "@/domain/bounded-stream.ts";
+import { collectBoundedText, StreamPayloadTooLargeError } from "@/infra/effect/bounded-stream.ts";
 import { mapRouteError } from "@/http/shared/route-errors/index.ts";
 import { requireViewerFromHttpRequest } from "@/http/shared/route-auth.ts";
 import {

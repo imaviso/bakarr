@@ -8,7 +8,7 @@ import {
   buildPathParseContext,
   classifyMediaArtifact,
   parseFileSourceIdentity,
-} from "@/infra/media/identity/identity.ts";
+} from "@/features/media/identity/identity.ts";
 import { parseVolumeNumbersFromTitle } from "@/features/operations/search/release-volume.ts";
 import type { QBitTorrentFile } from "@/features/operations/qbittorrent/qbittorrent.ts";
 import { StoredDataError } from "@/features/errors.ts";

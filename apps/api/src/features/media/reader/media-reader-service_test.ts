@@ -8,7 +8,7 @@ import { assert, it } from "@effect/vitest";
 import type { AppDatabase } from "@/db/database.ts";
 import { AppDrizzleDatabase } from "@/db/database.ts";
 import * as schema from "@/db/schema.ts";
-import { AppConfig } from "@/config/schema.ts";
+import { AppConfig } from "@/app/config/schema.ts";
 import { FileSystem } from "@/infra/filesystem/filesystem.ts";
 import { MediaReaderService } from "@/features/media/reader/media-reader-service.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";

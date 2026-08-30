@@ -9,11 +9,11 @@ import {
   BootstrapConfig,
   type AppConfigOverrides,
   type BootstrapConfigOverrides,
-} from "@/config/schema.ts";
-import { ObservabilityConfig, type ObservabilityConfigOverrides } from "@/config/observability.ts";
+} from "@/app/config/schema.ts";
+import { ObservabilityConfig, type ObservabilityConfigOverrides } from "@/app/config/observability.ts";
 import { DatabaseLayerLive } from "@/db/database.ts";
 import { BackgroundWorkerMonitorLive } from "@/background/monitor.ts";
-import { EventBus } from "@/features/events/event-bus.ts";
+import { EventBus } from "@/infra/effect/event-bus.ts";
 import { ExternalCallLive } from "@/infra/effect/retry.ts";
 import { FileSystemLive } from "@/infra/filesystem/filesystem.ts";
 import { RandomService } from "@/infra/random.ts";

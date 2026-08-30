@@ -1,6 +1,6 @@
 import { assert, it } from "@effect/vitest";
 
-import { parseAbsoluteIdentity } from "@/infra/media/identity/absolute.ts";
+import { parseAbsoluteIdentity } from "@/features/media/identity/absolute.ts";
 
 it("parseAbsoluteIdentity parses explicit episode markers and brackets", () => {
   assert.deepStrictEqual(parseAbsoluteIdentity("Show - E12", "Show - E12.mkv")?.unit_numbers, [12]);

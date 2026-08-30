@@ -27,7 +27,7 @@
  */
 
 import { sanitizeFilename } from "@/infra/filesystem/filesystem.ts";
-import { formatEpisodeSegment } from "@/infra/media/identity/identity.ts";
+import { formatEpisodeSegment } from "@/features/media/identity/identity.ts";
 import { escapeRegex } from "@/infra/text.ts";
 import type { ParsedUnitIdentity } from "@packages/shared/index.ts";
 

@@ -8,7 +8,7 @@ import { makeBackgroundWorkerController } from "@/background/controller-core.ts"
 import { makeBackgroundWorkerMonitor } from "@/background/monitor.ts";
 import { BackgroundWorkerTimeouts } from "@/background/worker-timeouts.ts";
 import { repeatWorker, withLockEffectOrFail } from "@/background/workers.ts";
-import { BACKGROUND_WORKER_TIMEOUT_MS } from "@/domain/worker-model.ts";
+import { BACKGROUND_WORKER_TIMEOUT_MS } from "@/background/worker-model.ts";
 import { makeLatestValuePublisher } from "@/infra/effect/coalescing-latest-value-publisher.ts";
 import {
   makeSerializedDrainEffectRunner,

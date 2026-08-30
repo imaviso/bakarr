@@ -3,7 +3,7 @@ import { Effect } from "effect";
 import type { Config, ImportResult } from "@packages/shared/index.ts";
 import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import type { MediaProbeShape } from "@/infra/media/probe.ts";
-import { EventBus } from "@/features/events/event-bus.ts";
+import { EventBus } from "@/infra/effect/event-bus.ts";
 import { MediaRepository } from "@/features/media/shared/media-repository.ts";
 import type { MediaUnitRepositoryShape } from "@/features/media/units/media-unit-repository.ts";
 import { buildLibraryImportPlan } from "@/features/operations/catalog/catalog-library-write-import-plan-support.ts";

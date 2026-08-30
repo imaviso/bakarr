@@ -4,7 +4,7 @@ import {
   MediaIdFromStringSchema,
   UnitNumberFromStringSchema,
   PositiveIntFromStringSchema,
-} from "@/domain/domain-schema.ts";
+} from "@/infra/schema.ts";
 import { httpUrlTargetsPrivateHost } from "@/security/private-host.ts";
 
 export const FilesystemPathStringSchema = Schema.String.pipe(

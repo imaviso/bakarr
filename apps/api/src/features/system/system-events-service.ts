@@ -1,7 +1,7 @@
 import { Effect, Stream } from "effect";
 
 import type { DownloadStatus, NotificationEvent } from "@packages/shared/index.ts";
-import { EventBus } from "@/features/events/event-bus.ts";
+import { EventBus } from "@/infra/effect/event-bus.ts";
 import { OperationsProgress } from "@/features/operations/tasks/operations-progress-service.ts";
 
 const makeSystemEventsService = Effect.fn("SystemEventsService.make")(function* () {

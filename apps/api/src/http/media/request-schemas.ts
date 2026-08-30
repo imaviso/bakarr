@@ -7,7 +7,7 @@ import {
   NonNegativeIntFromStringSchema,
   PositiveIntFromStringSchema,
   ReleaseProfileIdSchema,
-} from "@/domain/domain-schema.ts";
+} from "@/infra/schema.ts";
 import { AbsoluteFilesystemPathStringSchema } from "@/http/shared/common-request-schemas.ts";
 import {
   MediaSeasonSchema,

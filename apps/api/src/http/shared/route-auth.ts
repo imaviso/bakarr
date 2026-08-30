@@ -2,7 +2,7 @@ import { HttpServerRequest, HttpServerResponse } from "@effect/platform";
 import { Duration, Effect, Option } from "effect";
 import { LoginResponseSchema, type LoginResponse } from "@packages/shared/index.ts";
 
-import { AppConfig } from "@/config/schema.ts";
+import { AppConfig } from "@/app/config/schema.ts";
 import { AuthForbiddenError, AuthUnauthorizedError } from "@/features/auth/errors.ts";
 import { AuthSessionService } from "@/features/auth/session-service.ts";
 

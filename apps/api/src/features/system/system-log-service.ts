@@ -2,7 +2,7 @@ import { Effect } from "effect";
 
 import type { SystemLogsResponse } from "@packages/shared/index.ts";
 import { nowIso as currentNowIso } from "@/infra/time.ts";
-import { EventBus } from "@/features/events/event-bus.ts";
+import { EventBus } from "@/infra/effect/event-bus.ts";
 import { SystemLogRepository } from "@/features/system/repository/log-repository.ts";
 import {
   buildSystemLogExportPlan,

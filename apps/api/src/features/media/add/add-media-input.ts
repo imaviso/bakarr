@@ -1,6 +1,6 @@
 import { Schema } from "effect";
 
-import { MediaIdSchema, ReleaseProfileIdSchema } from "@/domain/domain-schema.ts";
+import { MediaIdSchema, ReleaseProfileIdSchema } from "@/infra/schema.ts";
 import { MediaKindSchema } from "@packages/shared/index.ts";
 
 const ReleaseProfileIdArraySchema = Schema.Array(ReleaseProfileIdSchema);

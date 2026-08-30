@@ -1,7 +1,7 @@
 import { assert, it } from "@effect/vitest";
 import { Redacted } from "effect";
 
-import { ObservabilityConfigModel } from "@/config/observability.ts";
+import { ObservabilityConfigModel } from "@/app/config/observability.ts";
 import {
   formatSafeEndpoint,
   makeObservabilityStatus,

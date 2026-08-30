@@ -1,7 +1,7 @@
 import { Effect, Option, Redacted } from "effect";
 import { dirname } from "node:path";
 
-import { AppConfig, BootstrapConfig } from "@/config/schema.ts";
+import { AppConfig, BootstrapConfig } from "@/app/config/schema.ts";
 import { nowIso as currentNowIso } from "@/infra/time.ts";
 import { randomHexFrom, RandomService } from "@/infra/random.ts";
 import { hashPassword, PasswordCrypto } from "@/security/password.ts";

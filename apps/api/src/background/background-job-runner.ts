@@ -2,12 +2,12 @@
 import { Cause, Effect, Ref } from "effect";
 
 import type { DatabaseError } from "@/db/database.ts";
-import type { BackgroundJobName } from "@/domain/worker-model.ts";
+import type { BackgroundJobName } from "@/background/worker-model.ts";
 import { nowIso } from "@/infra/time.ts";
 import {
   markJobFailureOrFailWithCause,
   markJobFailureOrFailWithError,
-} from "@/infra/job-failure-support.ts";
+} from "@/background/job-failure-support.ts";
 import {
   BackgroundJobRepository,
   type BackgroundJobRepositoryShape,

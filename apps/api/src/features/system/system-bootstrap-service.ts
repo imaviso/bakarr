@@ -1,6 +1,6 @@
 import { Effect } from "effect";
 
-import { AppConfig } from "@/config/schema.ts";
+import { AppConfig } from "@/app/config/schema.ts";
 import { DatabaseError } from "@/db/database.ts";
 import { nowIso as currentNowIso } from "@/infra/time.ts";
 import { RuntimeLogLevelState } from "@/infra/logging.ts";

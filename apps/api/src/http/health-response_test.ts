@@ -2,7 +2,7 @@ import { HttpApp } from "@effect/platform";
 import { Effect } from "effect";
 
 import { assert, it } from "@effect/vitest";
-import { AppConfig, makeDefaultAppConfig } from "@/config/schema.ts";
+import { AppConfig, makeDefaultAppConfig } from "@/app/config/schema.ts";
 import { AuthSessionService } from "@/features/auth/session-service.ts";
 import { StoredConfigMissingError } from "@/features/system/errors.ts";
 import { SystemReadService } from "@/features/system/system-read-service.ts";

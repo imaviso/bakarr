@@ -18,7 +18,7 @@ import {
 import { FileSystemError, type FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import { FileSystem } from "@/infra/filesystem/filesystem.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
-import { EventBus } from "@/features/events/event-bus.ts";
+import { EventBus } from "@/infra/effect/event-bus.ts";
 import { MediaRepository } from "@/features/media/shared/media-repository.ts";
 import { MediaUnitRepository } from "@/features/media/units/media-unit-repository.ts";
 import { QualityProfileRepository } from "@/features/system/repository/quality-profile-repository.ts";

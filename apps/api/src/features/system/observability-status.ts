@@ -2,7 +2,7 @@ import type { ObservabilityStatus } from "@bakarr/shared";
 
 import { Option } from "effect";
 import { parseUrlOption } from "@/infra/url.ts";
-import type { ObservabilityConfigShape } from "@/config/observability.ts";
+import type { ObservabilityConfigShape } from "@/app/config/observability.ts";
 
 export const METRICS_ENDPOINT = "/api/metrics";
 

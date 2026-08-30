@@ -8,7 +8,7 @@ import {
   ChangePasswordRequestSchema,
   LoginRequestSchema,
 } from "@packages/shared/index.ts";
-import { AppConfig } from "@/config/schema.ts";
+import { AppConfig } from "@/app/config/schema.ts";
 import { AuthCredentialService } from "@/features/auth/credential-service.ts";
 import { AuthSessionService } from "@/features/auth/session-service.ts";
 import {

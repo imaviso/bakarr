@@ -5,7 +5,7 @@ import {
   isValidDate,
   isYearLike,
   rangeArray,
-} from "@/infra/media/identity/parser-shared.ts";
+} from "@/features/media/identity/parser-shared.ts";
 
 it("isYearLike accepts only media metadata year range", () => {
   assert.deepStrictEqual(isYearLike(1899), false);

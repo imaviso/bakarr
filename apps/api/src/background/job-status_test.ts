@@ -1,7 +1,7 @@
 import { assert, it } from "@effect/vitest";
 import { Cause } from "effect";
 
-import { formatJobFailureMessage } from "@/infra/job-status.ts";
+import { formatJobFailureMessage } from "@/background/job-status.ts";
 
 it("formatJobFailureMessage formats Effect causes", () => {
   assert.match(formatJobFailureMessage(Cause.fail("boom")), /boom/);

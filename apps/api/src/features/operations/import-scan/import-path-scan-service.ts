@@ -6,7 +6,7 @@ import type {
   ImportCandidateSelectionResult,
 } from "@packages/shared/index.ts";
 import { DatabaseError } from "@/db/database.ts";
-import { summarizeEpisodeCoverage } from "@/domain/media/derivations.ts";
+import { summarizeEpisodeCoverage } from "@/features/media/shared/derivations.ts";
 import { AniListClient } from "@/features/media/metadata/anilist.ts";
 import { ManamiClient } from "@/features/media/metadata/manami.ts";
 import { searchMediaWithFallback } from "@/features/media/metadata/media-metadata-provider-service.ts";

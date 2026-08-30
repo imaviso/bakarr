@@ -2,7 +2,7 @@ import * as Cron from "effect/Cron";
 import { Either, Schema } from "effect";
 
 import type { Config } from "@packages/shared/index.ts";
-import type { BackgroundWorkerName } from "@/domain/worker-model.ts";
+import type { BackgroundWorkerName } from "@/background/worker-model.ts";
 
 export const DOWNLOAD_SYNC_INTERVAL_MS = 5_000;
 const DEFAULT_MANAMI_REFRESH_MS = 24 * 60 * 60 * 1000;

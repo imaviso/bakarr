@@ -8,8 +8,8 @@ import type {
 import {
   scoreAnimeSearchResultMatch,
   summarizeEpisodeCoverage,
-} from "@/domain/media/derivations.ts";
-import { buildScannedFileMetadata } from "@/infra/media/identity/scanned-file-metadata.ts";
+} from "@/features/media/shared/derivations.ts";
+import { buildScannedFileMetadata } from "@/features/media/identity/scanned-file-metadata.ts";
 import {
   buildPathParseContext,
   classifyMediaArtifact,
@@ -17,7 +17,7 @@ import {
   getSourceIdentitySeason,
   parseFileSourceIdentity,
   toSharedParsedEpisodeIdentity,
-} from "@/infra/media/identity/identity.ts";
+} from "@/features/media/identity/identity.ts";
 import { parseResolution } from "@/features/operations/search/release-ranking.ts";
 import { parseVolumeNumbersFromTitle } from "@/features/operations/search/release-volume.ts";
 import { media } from "@/db/schema.ts";

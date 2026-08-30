@@ -4,7 +4,7 @@ import { brandMediaId, type Config, type DownloadSourceMetadata } from "@package
 import type { downloads } from "@/db/schema.ts";
 import { media } from "@/db/schema.ts";
 import type { DatabaseError } from "@/db/database.ts";
-import { EventBus } from "@/features/events/event-bus.ts";
+import { EventBus } from "@/infra/effect/event-bus.ts";
 import { DomainPathError, StoredDataError } from "@/features/errors.ts";
 import { MediaNotFoundError } from "@/features/media/errors.ts";
 import { MediaRepository } from "@/features/media/shared/media-repository.ts";
@@ -12,7 +12,7 @@ import type {
   MediaUnitRepositoryShape,
   UpsertUnitFileError,
 } from "@/features/media/units/media-unit-repository.ts";
-import { classifyMediaArtifact } from "@/infra/media/identity/identity.ts";
+import { classifyMediaArtifact } from "@/features/media/identity/identity.ts";
 import type { MediaProbeShape } from "@/infra/media/probe.ts";
 import { pathBasename } from "@/infra/path.ts";
 import type { FileSystemError, FileSystemShape } from "@/infra/filesystem/filesystem.ts";

@@ -2,7 +2,7 @@ import { Effect } from "effect";
 import { brandMediaId } from "@packages/shared/index.ts";
 
 import { DatabaseError } from "@/db/database.ts";
-import { EventBus } from "@/features/events/event-bus.ts";
+import { EventBus } from "@/infra/effect/event-bus.ts";
 import { TorrentClientService } from "@/features/operations/qbittorrent/torrent-client-service.ts";
 import { prepareTriggerDownload } from "@/features/operations/download/download-trigger-support.ts";
 import { queueDownload } from "@/features/operations/download/download-queue-support.ts";

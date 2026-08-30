@@ -2,7 +2,7 @@ import { Effect, Ref, Stream } from "effect";
 
 import type { DatabaseError } from "@/db/database.ts";
 import { media } from "@/db/schema.ts";
-import { EventBus } from "@/features/events/event-bus.ts";
+import { EventBus } from "@/infra/effect/event-bus.ts";
 import { DomainPathError, InfrastructureError } from "@/features/errors.ts";
 import {
   MediaRepository,

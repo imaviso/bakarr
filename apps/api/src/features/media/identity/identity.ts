@@ -16,8 +16,8 @@ import {
   getSourceIdentityAirDate,
   getSourceIdentitySeason,
   toSharedParsedEpisodeIdentity,
-} from "@/infra/media/identity/model.ts";
-import type { ParsedMediaFile, PathParseContext } from "@/infra/media/identity/types.ts";
+} from "@/features/media/identity/model.ts";
+import type { ParsedMediaFile, PathParseContext } from "@/features/media/identity/types.ts";
 import {
   buildPathParseContext,
   classifyMediaArtifact,
@@ -26,16 +26,16 @@ import {
   extractTitleBeforeIdentity,
   extractTitleBeforeNumber,
   stripExtension,
-} from "@/infra/media/identity/file-helpers.ts";
+} from "@/features/media/identity/file-helpers.ts";
 import { pathBasename } from "@/infra/path.ts";
-import { normalizeSourceText } from "@/infra/media/identity/normalize.ts";
+import { normalizeSourceText } from "@/features/media/identity/normalize.ts";
 
-import { parseAbsoluteIdentity } from "@/infra/media/identity/absolute.ts";
-import { parseDailyIdentity } from "@/infra/media/identity/daily.ts";
-import { parseSeasonEpisodeIdentity } from "@/infra/media/identity/season.ts";
+import { parseAbsoluteIdentity } from "@/features/media/identity/absolute.ts";
+import { parseDailyIdentity } from "@/features/media/identity/daily.ts";
+import { parseSeasonEpisodeIdentity } from "@/features/media/identity/season.ts";
 
-export type { ParsedUnitIdentity } from "@/infra/media/identity/model.ts";
-export type { ParsedMediaFile, PathParseContext } from "@/infra/media/identity/types.ts";
+export type { ParsedUnitIdentity } from "@/features/media/identity/model.ts";
+export type { ParsedMediaFile, PathParseContext } from "@/features/media/identity/types.ts";
 
 export {
   AbsoluteEpisodeIdentity,
@@ -275,8 +275,8 @@ export function formatEpisodeSegment(input: {
 export {
   rankAnimeCandidates,
   resolveSourceIdentityToEpisodeNumbers,
-} from "@/infra/media/identity/ranking.ts";
-export type { ResolvedEpisodeTarget } from "@/infra/media/identity/ranking.ts";
+} from "@/features/media/identity/ranking.ts";
+export type { ResolvedEpisodeTarget } from "@/features/media/identity/ranking.ts";
 
 // Daily/season/absolute parsing moved to dedicated modules.
 

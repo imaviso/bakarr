@@ -2,7 +2,7 @@
 import { Cause, Config, Context, Duration, Effect, Layer, Schedule, Schema } from "effect";
 
 import { currentTimeNanos } from "@/infra/time.ts";
-import { PositiveIntFromStringSchema } from "@/domain/domain-schema.ts";
+import { PositiveIntFromStringSchema } from "@/infra/schema.ts";
 import { compactLogAnnotations, errorLogAnnotations } from "@/infra/logging.ts";
 
 export const EXTERNAL_CALL_PROVIDERS: readonly [

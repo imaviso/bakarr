@@ -1,4 +1,4 @@
-import { type NamingInput, renderUnitFilename } from "@/infra/naming.ts";
+import { type NamingInput, renderUnitFilename } from "@/features/operations/library/naming.ts";
 import type {
   DownloadSourceMetadata,
   ParsedUnitIdentity as SharedParsedEpisodeIdentity,
@@ -9,7 +9,7 @@ import {
   getSourceIdentityAirDate,
   getSourceIdentitySeason,
   toSharedParsedEpisodeIdentity,
-} from "@/infra/media/identity/identity.ts";
+} from "@/features/media/identity/identity.ts";
 import type { ProbedMediaMetadata } from "@/infra/media/probe.ts";
 import {
   buildEpisodeNamingInputFromPath,

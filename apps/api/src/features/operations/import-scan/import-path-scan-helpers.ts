@@ -8,7 +8,7 @@ import {
   type ScannedFile,
   type SkippedFile,
 } from "@packages/shared/index.ts";
-import { scoreAnimeSearchResultMatch } from "@/domain/media/derivations.ts";
+import { scoreAnimeSearchResultMatch } from "@/features/media/shared/derivations.ts";
 import { DomainPathError } from "@/features/errors.ts";
 import { MediaRepository } from "@/features/media/shared/media-repository.ts";
 import { scanVideoFilesStream } from "@/features/operations/import-scan/file-scanner.ts";

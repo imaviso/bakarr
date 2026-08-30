@@ -2,7 +2,7 @@
 import { ParseResult, Schema, Effect, Option, Stream } from "effect";
 import { XMLParser } from "fast-xml-parser";
 
-import { collectBoundedText } from "@/domain/bounded-stream.ts";
+import { collectBoundedText } from "@/infra/effect/bounded-stream.ts";
 import { RssFeedParseError, RssFeedTooLargeError } from "@/features/operations/errors.ts";
 import { MAX_RSS_BYTES } from "@/features/operations/rss/rss-limits.ts";
 import { parseResolution } from "@/features/operations/search/release-ranking.ts";

@@ -9,7 +9,7 @@ import {
   OperationsTaskReadService,
   OperationsTaskWriteService,
 } from "@/features/operations/tasks/operations-task-service.ts";
-import { EventBusNoopLive } from "@/features/events/event-bus.ts";
+import { EventBusNoopLive } from "@/infra/effect/event-bus.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 import * as schema from "@/db/schema.ts";
 import { OperationsTaskRepository } from "@/features/operations/repository/task-repository.ts";

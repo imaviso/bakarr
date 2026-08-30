@@ -4,7 +4,7 @@ import { brandMediaId, type Config } from "@packages/shared/index.ts";
 import type { DatabaseError } from "@/db/database.ts";
 import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import { isFileExistsError, isNotFoundError } from "@/infra/filesystem/fs-errors.ts";
-import { EventBus } from "@/features/events/event-bus.ts";
+import { EventBus } from "@/infra/effect/event-bus.ts";
 import { buildRenamePreview } from "@/features/operations/library/library-import.ts";
 import { DomainPathError } from "@/features/errors.ts";
 import type { MediaNotFoundError } from "@/features/media/errors.ts";

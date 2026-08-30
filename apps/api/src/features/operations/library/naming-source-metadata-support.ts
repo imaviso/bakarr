@@ -2,7 +2,7 @@ import type { DownloadAction, DownloadSourceMetadata } from "@packages/shared/in
 import {
   parseReleaseSourceIdentity,
   toSharedParsedEpisodeIdentity,
-} from "@/infra/media/identity/identity.ts";
+} from "@/features/media/identity/identity.ts";
 import {
   extractAudioChannels,
   extractAudioCodec,
@@ -11,7 +11,7 @@ import {
   extractVideoCodec,
   normalizeAirDate,
   normalizeText,
-} from "@/infra/media/identity/scanned-file-metadata.ts";
+} from "@/features/media/identity/scanned-file-metadata.ts";
 
 export function buildDownloadSourceMetadataFromRelease(input: {
   title: string;

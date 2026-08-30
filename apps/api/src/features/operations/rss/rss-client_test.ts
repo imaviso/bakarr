@@ -2,7 +2,7 @@
 import { assert, it } from "@effect/vitest";
 import { Cause, Effect, Exit, Layer } from "effect";
 
-import { DnsLookupError, DnsResolver } from "@/infra/dns-resolver.ts";
+import { DnsLookupError, DnsResolver } from "@/security/dns-resolver.ts";
 import { ExternalCallError, ExternalCallLive } from "@/infra/effect/retry.ts";
 import { RssClient, RssClientLive } from "@/features/operations/rss/rss-client.ts";
 import {

@@ -1,5 +1,5 @@
-import type { ParsedUnitIdentity } from "@/infra/media/identity/identity.ts";
-import type { ParsedMediaFile, PathParseContext } from "@/infra/media/identity/types.ts";
+import type { ParsedUnitIdentity } from "@/features/media/identity/identity.ts";
+import type { ParsedMediaFile, PathParseContext } from "@/features/media/identity/types.ts";
 
 export interface ResolvedEpisodeTarget {
   media_id: number;

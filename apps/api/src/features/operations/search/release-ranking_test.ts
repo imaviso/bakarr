@@ -1,7 +1,7 @@
 import { assert, it } from "@effect/vitest";
 import { Effect, Either, Option } from "effect";
 
-import { makeDefaultAppConfig } from "@/config/schema.ts";
+import { makeDefaultAppConfig } from "@/app/config/schema.ts";
 import type { Config, QualityProfile } from "@packages/shared/index.ts";
 import {
   compareUnitSearchResults,

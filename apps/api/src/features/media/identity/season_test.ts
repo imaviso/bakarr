@@ -1,6 +1,6 @@
 import { assert, it } from "@effect/vitest";
 
-import { parseSeasonEpisodeIdentity } from "@/infra/media/identity/season.ts";
+import { parseSeasonEpisodeIdentity } from "@/features/media/identity/season.ts";
 
 it("parseSeasonEpisodeIdentity parses season episode ranges", () => {
   const parsed = parseSeasonEpisodeIdentity("Show - S02E03-E05 [1080p]");

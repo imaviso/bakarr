@@ -1,7 +1,7 @@
 // oxlint-disable typescript/no-restricted-types -- `unknown` is the honest type at error/cause boundaries (Effect error channels, try/catch causes, Logger messages)
 import { Effect, Metric, MetricBoundaries, Schema } from "effect";
 
-import type { BackgroundWorkerName } from "@/domain/worker-model.ts";
+import type { BackgroundWorkerName } from "@/background/worker-model.ts";
 
 const histogramBoundaries = MetricBoundaries.fromIterable([
   5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000,

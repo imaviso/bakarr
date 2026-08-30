@@ -1,5 +1,5 @@
 import type { MediaSearchResult } from "@packages/shared/index.ts";
-import { scoreAnimeSearchResultMatch } from "@/domain/media/derivations.ts";
+import { scoreAnimeSearchResultMatch } from "@/features/media/shared/derivations.ts";
 
 export function annotateMediaSearchResultsForQuery(
   query: string,

@@ -1,7 +1,7 @@
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from "@effect/platform";
 import { Effect } from "effect";
 
-import { AppConfig } from "@/config/schema.ts";
+import { AppConfig } from "@/app/config/schema.ts";
 import { embeddedWebAssets } from "@/generated/embedded-web-assets.ts";
 import { mediaRouter } from "@/http/media/router.ts";
 import { authRouter } from "@/http/auth/router.ts";

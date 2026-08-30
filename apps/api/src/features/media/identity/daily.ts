@@ -1,5 +1,5 @@
-import { DailyEpisodeIdentity } from "@/infra/media/identity/model.ts";
-import { isValidDate } from "@/infra/media/identity/parser-shared.ts";
+import { DailyEpisodeIdentity } from "@/features/media/identity/model.ts";
+import { isValidDate } from "@/features/media/identity/parser-shared.ts";
 
 export function parseDailyIdentity(value: string): DailyEpisodeIdentity | undefined {
   const ymdMatch = value.match(

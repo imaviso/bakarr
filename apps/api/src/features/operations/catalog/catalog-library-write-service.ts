@@ -3,7 +3,7 @@ import { Effect } from "effect";
 import { brandMediaId } from "@packages/shared/index.ts";
 import type { AsyncOperationAccepted, ImportResult, RenameResult } from "@packages/shared/index.ts";
 import type { DatabaseError } from "@/db/database.ts";
-import { EventBus } from "@/features/events/event-bus.ts";
+import { EventBus } from "@/infra/effect/event-bus.ts";
 import type { InfrastructureError } from "@/features/errors.ts";
 import { MediaProbe } from "@/infra/media/probe.ts";
 import { FileSystem } from "@/infra/filesystem/filesystem.ts";

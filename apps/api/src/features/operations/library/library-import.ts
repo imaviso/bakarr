@@ -10,7 +10,7 @@ import type { media } from "@/db/schema.ts";
 import { buildUnitFilenamePlan } from "@/features/operations/library/naming-canonical-support.ts";
 import { selectNamingFormat } from "@/features/operations/library/naming-format-support.ts";
 import { StoredDataError } from "@/features/errors.ts";
-import { deriveAnimeSeason, extractYearFromDate } from "@/domain/media/date-utils.ts";
+import { deriveAnimeSeason, extractYearFromDate } from "@/features/media/shared/date-utils.ts";
 import { pathExtension } from "@/infra/path.ts";
 import type { MediaRepositoryShape } from "@/features/media/shared/media-repository.ts";
 

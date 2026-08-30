@@ -6,7 +6,7 @@ import {
   makeDefaultAppConfig,
   type AppConfigShape,
   AppConfig,
-} from "@/config/schema.ts";
+} from "@/app/config/schema.ts";
 import { AuthForbiddenError, AuthUnauthorizedError } from "@/features/auth/errors.ts";
 import { AuthSessionService } from "@/features/auth/session-service.ts";
 import { persistSessionResponse, requireViewerFromHttpRequest } from "@/http/shared/route-auth.ts";

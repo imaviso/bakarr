@@ -6,9 +6,9 @@ import {
   isWithinPathRoot,
   sanitizePathSegmentEffect,
 } from "@/infra/filesystem/filesystem.ts";
-import { classifyMediaArtifact } from "@/infra/media/identity/identity.ts";
+import { classifyMediaArtifact } from "@/features/media/identity/identity.ts";
 import { extractUnitNumbersFromFile } from "@/features/media/files/files.ts";
-import { inferAiredAt } from "@/domain/media/derivations.ts";
+import { inferAiredAt } from "@/features/media/shared/derivations.ts";
 import {
   getLibraryPathForMediaKind,
   resolveMediaRootFolderEffect,

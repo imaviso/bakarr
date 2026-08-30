@@ -1,4 +1,4 @@
-import type { NamingInput } from "@/infra/naming.ts";
+import type { NamingInput } from "@/features/operations/library/naming.ts";
 import type { NamingTitleSource, RenamePreviewMetadataSnapshot } from "@packages/shared/index.ts";
 
 export interface ResolvedNamingPlan {

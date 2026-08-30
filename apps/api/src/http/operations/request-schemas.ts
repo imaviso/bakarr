@@ -16,7 +16,7 @@ import {
   NonNegativeIntFromStringSchema,
   PositiveIntSchema,
   PositiveIntFromStringSchema,
-} from "@/domain/domain-schema.ts";
+} from "@/infra/schema.ts";
 import {
   AbsoluteFilesystemPathStringSchema,
   HttpUrlStringSchema,

@@ -10,7 +10,7 @@ import {
   DownloadEventMetadataSchema,
   DownloadSourceMetadataSchema,
 } from "@packages/shared/index.ts";
-import { toSharedParsedEpisodeIdentity } from "@/infra/media/identity/identity.ts";
+import { toSharedParsedEpisodeIdentity } from "@/features/media/identity/identity.ts";
 import type { AppDatabase } from "@/db/database.ts";
 import { downloadEvents, downloads } from "@/db/schema.ts";
 import { StoredDataError } from "@/features/errors.ts";

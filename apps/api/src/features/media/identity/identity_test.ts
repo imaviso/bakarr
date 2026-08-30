@@ -8,7 +8,7 @@ import {
   parseReleaseSourceIdentity,
   rankAnimeCandidates,
   resolveSourceIdentityToEpisodeNumbers,
-} from "@/infra/media/identity/identity.ts";
+} from "@/features/media/identity/identity.ts";
 
 // ---------------------------------------------------------------------------
 // Daily / airdate parsing

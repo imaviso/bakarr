@@ -1,6 +1,6 @@
 import { Config as EffectConfig, Effect, Schema } from "effect";
 
-import { PositiveIntFromStringSchema } from "@/domain/domain-schema.ts";
+import { PositiveIntFromStringSchema } from "@/infra/schema.ts";
 import { makeSerializedShareEffectRunner } from "@/infra/effect/serialized-runner.ts";
 import { nowIso as currentNowIso } from "@/infra/time.ts";
 import { MediaImageCacheService } from "@/features/media/metadata/media-image-cache-service.ts";

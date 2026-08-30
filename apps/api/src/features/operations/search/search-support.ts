@@ -1,7 +1,7 @@
 import type { NyaaSearchResult } from "@packages/shared/index.ts";
 
 import type { ParsedRelease } from "@/features/operations/rss/rss-client-parse.ts";
-import { parseReleaseSourceIdentity } from "@/infra/media/identity/identity.ts";
+import { parseReleaseSourceIdentity } from "@/features/media/identity/identity.ts";
 import { parseReleaseName } from "@/features/operations/search/release-ranking.ts";
 
 export function mapSearchCategory(category: string | undefined, fallback: string) {

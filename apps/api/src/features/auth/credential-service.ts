@@ -13,7 +13,7 @@ import {
   AuthNotFoundError,
   AuthUnauthorizedError,
 } from "@/features/auth/errors.ts";
-import { EventBus } from "@/features/events/event-bus.ts";
+import { EventBus } from "@/infra/effect/event-bus.ts";
 import { AuthUserRepository } from "@/features/auth/user-repository.ts";
 
 export interface AuthCredentialServiceShape {

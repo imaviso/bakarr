@@ -1,5 +1,5 @@
-import { SeasonEpisodeIdentity } from "@/infra/media/identity/model.ts";
-import { formatSeasonLabel, rangeArray } from "@/infra/media/identity/parser-shared.ts";
+import { SeasonEpisodeIdentity } from "@/features/media/identity/model.ts";
+import { formatSeasonLabel, rangeArray } from "@/features/media/identity/parser-shared.ts";
 
 export function parseSeasonEpisodeIdentity(value: string): SeasonEpisodeIdentity | undefined {
   if (hasMalformedSeasonEpisodeRange(value)) {

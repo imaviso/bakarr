@@ -1,7 +1,7 @@
 import { Config as EffectConfig, Context, Effect, Layer, Redacted, Schema } from "effect";
 
-import { AppConfig } from "@/config/schema.ts";
-import { PositiveIntSchema } from "@/domain/domain-schema.ts";
+import { AppConfig } from "@/app/config/schema.ts";
+import { PositiveIntSchema } from "@/infra/schema.ts";
 
 export class ObservabilityConfigModel extends Schema.Class<ObservabilityConfigModel>(
   "ObservabilityConfigModel",

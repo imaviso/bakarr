@@ -5,7 +5,7 @@ import {
   JobFailurePersistenceError,
   markJobFailureOrFailWithError,
   markJobFailureOrFailWithCause,
-} from "@/infra/job-failure-support.ts";
+} from "@/background/job-failure-support.ts";
 
 class TestJobError extends Data.TaggedError("TestJobError")<{
   readonly message: string;

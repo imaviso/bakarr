@@ -4,7 +4,7 @@ import { brandMediaId } from "@packages/shared/index.ts";
 import type { AsyncOperationAccepted } from "@packages/shared/index.ts";
 
 import type { DatabaseError } from "@/db/database.ts";
-import { AppConfig } from "@/config/schema.ts";
+import { AppConfig } from "@/app/config/schema.ts";
 import { MediaMetadataProviderService } from "@/features/media/metadata/media-metadata-provider-service.ts";
 import { MediaImageCacheService } from "@/features/media/metadata/media-image-cache-service.ts";
 import { syncMediaMetadataEffect } from "@/features/media/metadata/media-metadata-sync.ts";
@@ -13,7 +13,7 @@ import { MediaUnitRepository } from "@/features/media/units/media-unit-repositor
 import { AniDbRuntimeConfigError, MediaNotFoundError } from "@/features/media/errors.ts";
 import { makeMetadataRefreshRunner } from "@/features/media/metadata/metadata-refresh.ts";
 import { pdfCacheDirectory } from "@/features/media/reader/pdf-reader.ts";
-import { EventBus } from "@/features/events/event-bus.ts";
+import { EventBus } from "@/infra/effect/event-bus.ts";
 import { BackgroundJobRepository } from "@/features/system/repository/background-job-repository.ts";
 import { SystemLogRepository } from "@/features/system/repository/log-repository.ts";
 import { nowIso as currentNowIso } from "@/infra/time.ts";

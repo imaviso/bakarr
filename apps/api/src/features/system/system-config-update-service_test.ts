@@ -2,7 +2,7 @@ import { Effect, Layer, Ref, Stream } from "effect";
 import type * as NodeSqliteClient from "@effect/sql-sqlite-node/SqliteClient";
 
 import type { Config } from "@packages/shared/index.ts";
-import { AppConfig } from "@/config/schema.ts";
+import { AppConfig } from "@/app/config/schema.ts";
 import { BackgroundWorkerController } from "@/background/controller-core.ts";
 import { AppDrizzleDatabase, type AppDatabase } from "@/db/database.ts";
 import * as schema from "@/db/schema.ts";
@@ -20,7 +20,7 @@ import {
 } from "@/features/system/repository/system-config-repository.ts";
 import { QualityProfileRepository } from "@/features/system/repository/quality-profile-repository.ts";
 import { SystemLogRepository } from "@/features/system/repository/log-repository.ts";
-import { EventBus } from "@/features/events/event-bus.ts";
+import { EventBus } from "@/infra/effect/event-bus.ts";
 
 describe("SystemConfigUpdateService", () => {
   it.scoped("persists updated config and reloads background workers", () =>

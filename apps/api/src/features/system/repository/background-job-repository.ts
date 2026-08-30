@@ -5,7 +5,7 @@ import { Effect } from "effect";
 import { AppDrizzleDatabase, type AppDatabase, type DatabaseError } from "@/db/database.ts";
 import { backgroundJobs } from "@/db/schema.ts";
 import { tryDatabasePromise } from "@/infra/effect/db.ts";
-import { formatJobFailureMessage } from "@/infra/job-status.ts";
+import { formatJobFailureMessage } from "@/background/job-status.ts";
 
 type NowIso<E = never> = () => Effect.Effect<string, E>;
 type BackgroundJobRow = typeof backgroundJobs.$inferSelect;

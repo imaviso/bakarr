@@ -1,6 +1,6 @@
 import { assert, it } from "@effect/vitest";
 
-import { deriveAnimeSeason, extractYearFromDate } from "@/domain/media/date-utils.ts";
+import { deriveAnimeSeason, extractYearFromDate } from "@/features/media/shared/date-utils.ts";
 
 it("deriveAnimeSeason maps ISO month boundaries to media seasons", () => {
   assert.deepStrictEqual(deriveAnimeSeason("2025-01-10"), "winter");

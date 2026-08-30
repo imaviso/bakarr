@@ -1,4 +1,4 @@
-import { parseReleaseSourceIdentity } from "@/infra/media/identity/identity.ts";
+import { parseReleaseSourceIdentity } from "@/features/media/identity/identity.ts";
 import {
   parseQualityFromTitle,
   parseResolution,

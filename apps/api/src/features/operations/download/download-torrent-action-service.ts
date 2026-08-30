@@ -1,7 +1,7 @@
 import { Effect } from "effect";
 
 import { DatabaseError } from "@/db/database.ts";
-import { EventBus } from "@/features/events/event-bus.ts";
+import { EventBus } from "@/infra/effect/event-bus.ts";
 import { DomainInputError, InfrastructureError, StoredDataError } from "@/features/errors.ts";
 import { OperationsProgress } from "@/features/operations/tasks/operations-progress-service.ts";
 import { OperationsConflictError, OperationsNotFoundError } from "@/features/operations/errors.ts";

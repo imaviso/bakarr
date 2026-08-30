@@ -22,7 +22,7 @@ import {
   makeSeasonalMediaCacheRepository,
 } from "@/test/repository-factories.ts";
 import { SeasonalMediaCacheRepository } from "@/features/media/query/seasonal-media-cache-repository.ts";
-import { deriveEpisodeTimelineMetadata } from "@/domain/media/derivations.ts";
+import { deriveEpisodeTimelineMetadata } from "@/features/media/shared/derivations.ts";
 import { MediaProbeMetadataFound } from "@/infra/media/probe.ts";
 import { withFileSystemSandboxEffect, writeTextFile } from "@/test/filesystem-test.ts";
 import { StoredDataError } from "@/features/errors.ts";

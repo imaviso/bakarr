@@ -1,12 +1,12 @@
 import { Effect, Option } from "effect";
 
 import type { Config } from "@packages/shared/index.ts";
-import { AppConfig } from "@/config/schema.ts";
+import { AppConfig } from "@/app/config/schema.ts";
 import { DatabaseError } from "@/db/database.ts";
 import { nowIso as currentNowIso } from "@/infra/time.ts";
 import { RuntimeLogLevelState } from "@/infra/logging.ts";
 import { BackgroundWorkerController } from "@/background/controller-core.ts";
-import { EventBus } from "@/features/events/event-bus.ts";
+import { EventBus } from "@/infra/effect/event-bus.ts";
 import { persistAndActivateConfig } from "@/features/system/config-activation.ts";
 import { validateConfigUpdate } from "@/features/system/config-update-validation.ts";
 import {

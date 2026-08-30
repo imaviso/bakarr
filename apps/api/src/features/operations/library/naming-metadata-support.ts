@@ -1,10 +1,10 @@
-import type { NamingInput } from "@/infra/naming.ts";
+import type { NamingInput } from "@/features/operations/library/naming.ts";
 import {
   buildPathParseContext,
   parseFileSourceIdentity,
   toSharedParsedEpisodeIdentity,
-} from "@/infra/media/identity/identity.ts";
-import { extractYearFromDate } from "@/domain/media/date-utils.ts";
+} from "@/features/media/identity/identity.ts";
+import { extractYearFromDate } from "@/features/media/shared/date-utils.ts";
 import {
   extractAudioChannels,
   extractAudioCodec,
@@ -13,7 +13,7 @@ import {
   extractVideoCodec,
   normalizeAirDate,
   normalizeText,
-} from "@/infra/media/identity/scanned-file-metadata.ts";
+} from "@/features/media/identity/scanned-file-metadata.ts";
 
 export function buildEpisodeNamingInputFromPath(input: {
   animeStartDate?: string | null;

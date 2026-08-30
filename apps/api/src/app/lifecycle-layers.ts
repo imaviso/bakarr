@@ -10,8 +10,8 @@ import {
   type AppPlatformRuntimeOptions,
 } from "@/app/platform/runtime-core.ts";
 import { PureDbLeaves } from "@/app/pure-db-leaves.ts";
-import type { AppConfigOverrides, BootstrapConfigOverrides } from "@/config/schema.ts";
-import type { ObservabilityConfigOverrides } from "@/config/observability.ts";
+import type { AppConfigOverrides, BootstrapConfigOverrides } from "@/app/config/schema.ts";
+import type { ObservabilityConfigOverrides } from "@/app/config/observability.ts";
 import { BackgroundWorkerControllerLive } from "@/background/controller-core.ts";
 import { BackgroundTaskRunnerLive } from "@/background/task-runner.ts";
 import { MediaFeatureLayer } from "@/features/media/layer.ts";

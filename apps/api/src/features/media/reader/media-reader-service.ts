@@ -4,7 +4,7 @@ import { Cache, Effect, Schema } from "effect";
 import type { ReaderPage, ReaderPagesResponse } from "@packages/shared/index.ts";
 
 import type { DatabaseError } from "@/db/database.ts";
-import { AppConfig } from "@/config/schema.ts";
+import { AppConfig } from "@/app/config/schema.ts";
 import { FileSystem, type FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import { pathBasename } from "@/infra/path.ts";
 import { MediaNotFoundError } from "@/features/media/errors.ts";

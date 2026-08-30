@@ -2,7 +2,7 @@ import { brandMediaId, type MediaDiscoveryEntry } from "@packages/shared/index.t
 import type { AnimeMetadata } from "@/features/media/metadata/metadata-model.ts";
 import type { JikanNormalizedAnime } from "@/features/media/metadata/jikan-model.ts";
 import type { ManamiLookupEntry } from "@/features/media/metadata/manami.ts";
-import { extractYearFromDate } from "@/domain/media/date-utils.ts";
+import { extractYearFromDate } from "@/features/media/shared/date-utils.ts";
 
 type JikanRelationTarget = JikanNormalizedAnime["relations"][number];
 type JikanRecommendationTarget = NonNullable<JikanNormalizedAnime["recommendations"]>[number];

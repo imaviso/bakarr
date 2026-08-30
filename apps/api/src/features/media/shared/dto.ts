@@ -6,7 +6,7 @@ import {
   type MediaDiscoveryEntry,
 } from "@packages/shared/index.ts";
 import { media, mediaUnits } from "@/db/schema.ts";
-import { deriveAnimeSeason, extractYearFromDate } from "@/domain/media/date-utils.ts";
+import { deriveAnimeSeason, extractYearFromDate } from "@/features/media/shared/date-utils.ts";
 import {
   decodeStoredDiscoveryEntriesEffect,
   decodeStoredNumberListEffect,

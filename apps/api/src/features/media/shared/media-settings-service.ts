@@ -1,7 +1,7 @@
 import { Effect } from "effect";
 
 import type { DatabaseError } from "@/db/database.ts";
-import { EventBus } from "@/features/events/event-bus.ts";
+import { EventBus } from "@/infra/effect/event-bus.ts";
 import { nowIso as currentNowIso } from "@/infra/time.ts";
 import { FileSystem } from "@/infra/filesystem/filesystem.ts";
 import { encodeNumberList } from "@/features/system/profile-codec.ts";

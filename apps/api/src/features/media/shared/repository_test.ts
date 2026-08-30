@@ -21,7 +21,7 @@ import {
   makeQualityProfileRepository,
   makeSystemConfigRepository,
 } from "@/test/repository-factories.ts";
-import { inferAiredAt } from "@/domain/media/derivations.ts";
+import { inferAiredAt } from "@/features/media/shared/derivations.ts";
 import { markSearchResultsAlreadyInLibraryEffect } from "@/features/media/query/search-results.ts";
 import {
   getConfiguredImagesPathEffect,

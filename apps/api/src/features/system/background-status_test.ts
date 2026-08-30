@@ -4,7 +4,7 @@ import {
   BackgroundWorkerSnapshotModel,
   BackgroundWorkerStatsModel,
   initialBackgroundWorkerSnapshot,
-} from "@/domain/worker-model.ts";
+} from "@/background/worker-model.ts";
 import { makeTestConfig } from "@/test/config-fixture.ts";
 import {
   composeBackgroundJobStatuses,

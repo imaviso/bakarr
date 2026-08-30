@@ -7,7 +7,7 @@ import type {
   DownloadSourceMetadata,
 } from "@packages/shared/index.ts";
 import type { downloads } from "@/db/schema.ts";
-import { EventBus } from "@/features/events/event-bus.ts";
+import { EventBus } from "@/infra/effect/event-bus.ts";
 import {
   inferCoveredUnitsFromTorrentContents,
   parseCoveredUnitsEffect,

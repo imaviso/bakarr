@@ -2,7 +2,7 @@
 import { HttpRouter, HttpServerResponse } from "@effect/platform";
 import { Cause, Duration, Effect, Option } from "effect";
 
-import { ObservabilityConfig } from "@/config/observability.ts";
+import { ObservabilityConfig } from "@/app/config/observability.ts";
 import { SystemRuntimeMetricsService } from "@/features/system/system-runtime-metrics-service.ts";
 import { requireViewerFromHttpRequest } from "@/http/shared/route-auth.ts";
 import { mapRouteError } from "@/http/shared/route-errors/index.ts";

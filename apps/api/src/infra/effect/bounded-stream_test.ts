@@ -5,7 +5,7 @@ import {
   collectBoundedBytes,
   collectBoundedText,
   StreamPayloadTooLargeError,
-} from "@/domain/bounded-stream.ts";
+} from "@/infra/effect/bounded-stream.ts";
 
 it("collectBoundedBytes collects all chunks under limit", () =>
   Effect.gen(function* () {

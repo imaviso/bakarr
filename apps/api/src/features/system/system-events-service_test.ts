@@ -2,7 +2,7 @@ import { assert, it } from "@effect/vitest";
 import { Effect, Layer, Stream } from "effect";
 
 import { brandMediaId, brandDownloadId } from "@packages/shared/index.ts";
-import { makeEventBus, EventBus } from "@/features/events/event-bus.ts";
+import { makeEventBus, EventBus } from "@/infra/effect/event-bus.ts";
 import { OperationsProgress } from "@/features/operations/tasks/operations-progress-service.ts";
 import {
   SystemEventsService,

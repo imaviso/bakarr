@@ -1,4 +1,4 @@
-import type { ParsedUnitIdentity } from "@/infra/media/identity/model.ts";
+import type { ParsedUnitIdentity } from "@/features/media/identity/model.ts";
 
 export interface PathParseContext {
   entry_folder_title?: string;

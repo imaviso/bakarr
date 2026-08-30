@@ -3,7 +3,7 @@ import { Effect, Scope } from "effect";
 import type { DownloadStatus } from "@packages/shared/index.ts";
 import type { DatabaseError } from "@/db/database.ts";
 import type { downloads } from "@/db/schema.ts";
-import { EventBus } from "@/features/events/event-bus.ts";
+import { EventBus } from "@/infra/effect/event-bus.ts";
 import { type StoredDataError } from "@/features/errors.ts";
 import { toDownloadStatus } from "@/features/operations/download/download-presentation.ts";
 import type { DownloadPresentationContext } from "@/features/operations/repository/types.ts";

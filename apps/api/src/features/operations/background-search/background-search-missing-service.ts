@@ -8,7 +8,7 @@ import {
 } from "@packages/shared/index.ts";
 
 import { DatabaseError } from "@/db/database.ts";
-import { EventBus } from "@/features/events/event-bus.ts";
+import { EventBus } from "@/infra/effect/event-bus.ts";
 import {
   decideDownloadAction,
   validateQualityProfileSizeLabels,

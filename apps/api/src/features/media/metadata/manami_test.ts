@@ -2,7 +2,7 @@ import { HttpClient, HttpClientResponse } from "@effect/platform";
 import { assert, it } from "@effect/vitest";
 import { Effect, Either, Layer, Option, Schema, TestClock } from "effect";
 
-import { AppConfig } from "@/config/schema.ts";
+import { AppConfig } from "@/app/config/schema.ts";
 import {
   MANAMI_CACHE_DIR_NAME,
   MANAMI_CACHE_DATASET_FILE,

@@ -1,6 +1,6 @@
 import { assert, it } from "@effect/vitest";
 
-import { normalizeSourceText } from "@/infra/media/identity/normalize.ts";
+import { normalizeSourceText } from "@/features/media/identity/normalize.ts";
 
 it("normalizeSourceText normalizes full-width brackets and season markers", () => {
   assert.deepStrictEqual(

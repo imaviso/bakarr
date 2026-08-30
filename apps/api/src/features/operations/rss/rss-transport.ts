@@ -5,7 +5,7 @@ import { Effect, Predicate, Schema } from "effect";
 
 import { MAX_RSS_BYTES } from "@/features/operations/rss/rss-limits.ts";
 import type { PinnedRequestTarget } from "@/features/operations/rss/rss-client-ssrf.ts";
-import { StreamPayloadTooLargeError } from "@/domain/bounded-stream.ts";
+import { StreamPayloadTooLargeError } from "@/infra/effect/bounded-stream.ts";
 
 export interface RssTransportResponse {
   readonly body: Uint8Array;

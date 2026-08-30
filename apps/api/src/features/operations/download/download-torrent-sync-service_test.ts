@@ -15,7 +15,7 @@ import {
   makeMediaUnitRepository,
 } from "@/test/repository-factories.ts";
 import { makeTestFileSystemEffect } from "@/test/filesystem-test.ts";
-import { EventBusNoopLive } from "@/features/events/event-bus.ts";
+import { EventBusNoopLive } from "@/infra/effect/event-bus.ts";
 import { FileSystem } from "@/infra/filesystem/filesystem.ts";
 import { MediaProbe, MediaProbeNoMetadata } from "@/infra/media/probe.ts";
 import { RandomService } from "@/infra/random.ts";

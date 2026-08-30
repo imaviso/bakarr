@@ -4,7 +4,7 @@ import { Cause, Effect, Exit, Layer } from "effect";
 
 import * as schema from "@/db/schema.ts";
 import { AppDrizzleDatabase, type AppDatabase } from "@/db/database.ts";
-import { EventBus } from "@/features/events/event-bus.ts";
+import { EventBus } from "@/infra/effect/event-bus.ts";
 import { MediaRepository } from "@/features/media/shared/media-repository.ts";
 import { MediaSettingsService } from "@/features/media/shared/media-settings-service.ts";
 import { QualityProfileRepository } from "@/features/system/repository/quality-profile-repository.ts";

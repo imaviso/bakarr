@@ -2,7 +2,7 @@
 import { Effect } from "effect";
 
 import { DatabaseError } from "@/db/database.ts";
-import { EventBus } from "@/features/events/event-bus.ts";
+import { EventBus } from "@/infra/effect/event-bus.ts";
 import { SearchBackgroundMissingService } from "@/features/operations/background-search/background-search-missing-service.ts";
 import { SearchBackgroundRssService } from "@/features/operations/background-search/background-search-rss-service.ts";
 import { OperationsProgress } from "@/features/operations/tasks/operations-progress-service.ts";

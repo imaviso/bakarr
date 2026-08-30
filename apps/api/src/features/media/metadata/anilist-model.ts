@@ -1,7 +1,7 @@
 import { Schema } from "effect";
 
 import { brandMediaId, type MediaDiscoveryEntry, type MediaKind } from "@packages/shared/index.ts";
-import { deriveAnimeSeason } from "@/domain/media/date-utils.ts";
+import { deriveAnimeSeason } from "@/features/media/shared/date-utils.ts";
 import { mediaKindFromAniListFormat } from "@/features/media/shared/media-kind.ts";
 
 import {

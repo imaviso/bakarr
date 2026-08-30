@@ -1,7 +1,7 @@
 // oxlint-disable typescript/no-restricted-types -- `unknown` is the honest type at error/cause boundaries (Effect error channels, try/catch causes, Logger messages)
 import { Effect, Either, Option, Stream } from "effect";
 
-import { DnsResolver } from "@/infra/dns-resolver.ts";
+import { DnsResolver } from "@/security/dns-resolver.ts";
 import { ExternalCall, ExternalCallError, type ExternalCallShape } from "@/infra/effect/retry.ts";
 import { parseUrlEffect } from "@/infra/url.ts";
 import {

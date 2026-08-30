@@ -3,7 +3,7 @@ import { DateTime, Effect } from "effect";
 
 import { BackgroundWorkerController } from "@/background/controller-core.ts";
 import { initializeBackgroundWorkerMetrics } from "@/background/monitor.ts";
-import { AppConfig, type AppConfigShape } from "@/config/schema.ts";
+import { AppConfig, type AppConfigShape } from "@/app/config/schema.ts";
 import { migrateDatabase } from "@/db/migrate.ts";
 import { AuthBootstrapService } from "@/features/auth/bootstrap-service.ts";
 import { BackgroundJobRepository } from "@/features/system/repository/background-job-repository.ts";

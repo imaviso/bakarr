@@ -8,7 +8,7 @@ import {
 } from "@packages/shared/index.ts";
 import type { DatabaseError } from "@/db/database.ts";
 import { media } from "@/db/schema.ts";
-import { EventBus } from "@/features/events/event-bus.ts";
+import { EventBus } from "@/infra/effect/event-bus.ts";
 import { DomainPathError, InfrastructureError, StoredDataError } from "@/features/errors.ts";
 import { getLibraryPathForMediaKind } from "@/features/media/shared/config-support.ts";
 import { mergeLocalFolderMatch } from "@/features/operations/unmapped/unmapped-folder-match-support.ts";

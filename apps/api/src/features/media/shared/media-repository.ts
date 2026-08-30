@@ -5,7 +5,7 @@ import { Effect, Option } from "effect";
 import { brandMediaId, type CalendarEvent, type MissingUnit } from "@packages/shared/index.ts";
 import { AppDrizzleDatabase, type AppDatabase, type DatabaseError } from "@/db/database.ts";
 import { media, mediaUnits, systemLogs } from "@/db/schema.ts";
-import { deriveEpisodeTimelineMetadata } from "@/domain/media/derivations.ts";
+import { deriveEpisodeTimelineMetadata } from "@/features/media/shared/derivations.ts";
 import { queryFirst, tryDatabasePromise } from "@/infra/effect/db.ts";
 import { MediaNotFoundError } from "@/features/media/errors.ts";
 

@@ -1,6 +1,6 @@
 import { assert, it } from "@effect/vitest";
 
-import { parseDailyIdentity } from "@/infra/media/identity/daily.ts";
+import { parseDailyIdentity } from "@/features/media/identity/daily.ts";
 
 it("parseDailyIdentity parses YMD and DMY dates", () => {
   assert.deepStrictEqual(parseDailyIdentity("Show.2025-03-14.1080p")?.air_dates, ["2025-03-14"]);

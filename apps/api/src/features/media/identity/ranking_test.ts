@@ -1,10 +1,10 @@
 import { assert, it } from "@effect/vitest";
 
-import { SeasonEpisodeIdentity, DailyEpisodeIdentity } from "@/infra/media/identity/model.ts";
+import { SeasonEpisodeIdentity, DailyEpisodeIdentity } from "@/features/media/identity/model.ts";
 import {
   rankAnimeCandidates,
   resolveSourceIdentityToEpisodeNumbers,
-} from "@/infra/media/identity/ranking.ts";
+} from "@/features/media/identity/ranking.ts";
 
 it("resolveSourceIdentityToEpisodeNumbers maps daily identities through episode air dates", () => {
   const resolved = resolveSourceIdentityToEpisodeNumbers({

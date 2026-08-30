@@ -10,7 +10,7 @@ import {
 } from "@packages/shared/index.ts";
 
 import { BackgroundJobStatusService } from "@/features/system/background-job-status-service.ts";
-import { ObservabilityConfig } from "@/config/observability.ts";
+import { ObservabilityConfig } from "@/app/config/observability.ts";
 import {
   decodeOperationsTaskQuery,
   OperationsTaskReadService,

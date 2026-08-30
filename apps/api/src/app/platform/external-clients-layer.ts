@@ -15,7 +15,7 @@ import {
 import { RssClientLive, type RssClient } from "@/features/operations/rss/rss-client.ts";
 import { RssTransportLive } from "@/features/operations/rss/rss-transport.ts";
 import { SeaDexClientLive, type SeaDexClient } from "@/features/operations/search/seadex-client.ts";
-import { DnsResolverLive } from "@/infra/dns-resolver.ts";
+import { DnsResolverLive } from "@/security/dns-resolver.ts";
 
 export interface AppExternalClientLayerOptions {
   readonly aniDbLayer?: Layer.Layer<AniDbClient>;

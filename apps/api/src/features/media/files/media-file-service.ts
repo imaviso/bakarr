@@ -6,7 +6,7 @@ import {
 } from "@packages/shared/index.ts";
 
 import type { DatabaseError } from "@/db/database.ts";
-import { EventBus } from "@/features/events/event-bus.ts";
+import { EventBus } from "@/infra/effect/event-bus.ts";
 import { nowIso as currentNowIso } from "@/infra/time.ts";
 import { FileSystem } from "@/infra/filesystem/filesystem.ts";
 import { isWithinPathRoot } from "@/infra/filesystem/filesystem.ts";
@@ -21,19 +21,19 @@ import {
   classifyMediaArtifact,
   parseFileSourceIdentity,
   toSharedParsedEpisodeIdentity,
-} from "@/infra/media/identity/identity.ts";
+} from "@/features/media/identity/identity.ts";
 import {
   collectVideoFiles,
   collectVolumeFiles,
   extractUnitNumbersFromFile,
 } from "@/features/media/files/files.ts";
-import { buildScannedFileMetadata } from "@/infra/media/identity/scanned-file-metadata.ts";
+import { buildScannedFileMetadata } from "@/features/media/identity/scanned-file-metadata.ts";
 import {
   loadMediaRoot,
   validateUnitFilePath,
 } from "@/features/media/files/media-file-path-policy.ts";
 import { buildAiringScheduleMap } from "@/features/media/units/media-schedule-repository.ts";
-import { inferAiredAt } from "@/domain/media/derivations.ts";
+import { inferAiredAt } from "@/features/media/shared/derivations.ts";
 import { MediaRepository } from "@/features/media/shared/media-repository.ts";
 import { MediaUnitRepository } from "@/features/media/units/media-unit-repository.ts";
 import { SystemLogRepository } from "@/features/system/repository/log-repository.ts";

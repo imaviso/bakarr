@@ -1,6 +1,6 @@
 import { parseResolutionLabel } from "@/infra/media/resolution.ts";
 import { stripExtension } from "@/infra/path.ts";
-import type { ParsedMediaFile, PathParseContext } from "@/infra/media/identity/types.ts";
+import type { ParsedMediaFile, PathParseContext } from "@/features/media/identity/types.ts";
 
 const EXTRA_KEYWORDS = new Set([
   "extras",

@@ -1,6 +1,6 @@
 import { mediaUnits } from "@/db/schema.ts";
 import { clampInferredEpisodeUpperBound } from "@/features/media/units/unit-backfill-policy.ts";
-import { inferAiredAt } from "@/domain/media/derivations.ts";
+import { inferAiredAt } from "@/features/media/shared/derivations.ts";
 
 export interface FutureAiringScheduleEntry {
   readonly airingAt: string;

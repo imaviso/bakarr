@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 
 import type { AppDatabase } from "@/db/database.ts";
 import * as schema from "@/db/schema.ts";
-import { EventBus, type EventBusShape } from "@/features/events/event-bus.ts";
+import { EventBus, type EventBusShape } from "@/infra/effect/event-bus.ts";
 import { SearchBackgroundMissingService } from "@/features/operations/background-search/background-search-missing-service.ts";
 import { BackgroundSearchRssWorkerService } from "@/features/operations/background-search/background-search-rss-worker-service.ts";
 import { SearchBackgroundRssService } from "@/features/operations/background-search/background-search-rss-service.ts";

@@ -12,7 +12,7 @@ import type {
   BackgroundTaskRunnerShape,
 } from "@/background/task-runner.ts";
 import type { BackgroundWorkerMonitorShape } from "@/background/monitor.ts";
-import { BACKGROUND_WORKER_NAMES, type BackgroundWorkerName } from "@/domain/worker-model.ts";
+import { BACKGROUND_WORKER_NAMES, type BackgroundWorkerName } from "@/background/worker-model.ts";
 import { currentTimeNanos } from "@/infra/time.ts";
 import { makeSerializedDropEffectRunner } from "@/infra/effect/serialized-runner.ts";
 import { compactLogAnnotations, errorLogAnnotations } from "@/infra/logging.ts";

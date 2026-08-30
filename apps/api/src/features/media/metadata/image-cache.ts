@@ -2,7 +2,7 @@
 import { HttpClient } from "@effect/platform";
 import { Effect, Option, Schema } from "effect";
 
-import { collectBoundedBytes } from "@/domain/bounded-stream.ts";
+import { collectBoundedBytes } from "@/infra/effect/bounded-stream.ts";
 
 import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import { isNotFoundError } from "@/infra/filesystem/fs-errors.ts";

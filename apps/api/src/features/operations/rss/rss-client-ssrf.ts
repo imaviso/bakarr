@@ -1,7 +1,7 @@
 import { isIP } from "node:net";
 import { Effect, Either } from "effect";
 
-import { DnsResolver, isDnsNoRecordError } from "@/infra/dns-resolver.ts";
+import { DnsResolver, isDnsNoRecordError } from "@/security/dns-resolver.ts";
 import { parseUrlEffect } from "@/infra/url.ts";
 import { RssFeedRejectedError } from "@/features/operations/errors.ts";
 import { isPrivateIpString } from "@/security/private-host.ts";

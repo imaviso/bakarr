@@ -2,7 +2,7 @@ import { assert, it } from "@effect/vitest";
 import { Deferred, Effect, Exit, Fiber, Stream, TestClock } from "effect";
 
 import type { NotificationEvent } from "@packages/shared/index.ts";
-import { type EventSubscription, makeEventBus } from "@/features/events/event-bus.ts";
+import { type EventSubscription, makeEventBus } from "@/infra/effect/event-bus.ts";
 
 it.scoped("event bus fans out events to active subscribers", () =>
   Effect.gen(function* () {

@@ -7,7 +7,7 @@ import {
   type LoginRequest,
   type LoginResponse,
 } from "@packages/shared/index.ts";
-import { AppConfig } from "@/config/schema.ts";
+import { AppConfig } from "@/app/config/schema.ts";
 import { DatabaseError } from "@/db/database.ts";
 import type { users } from "@/db/schema.ts";
 import { nowIso as currentNowIso } from "@/infra/time.ts";

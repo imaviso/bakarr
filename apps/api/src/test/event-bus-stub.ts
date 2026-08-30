@@ -1,6 +1,6 @@
 import { Effect, Layer, Stream } from "effect";
 
-import { EventBus } from "@/features/events/event-bus.ts";
+import { EventBus } from "@/infra/effect/event-bus.ts";
 
 export function makeUnusedEventBusLayer(message: string) {
   return Layer.succeed(

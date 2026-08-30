@@ -1,7 +1,7 @@
 import { Cause, Effect, Option, Ref } from "effect";
 
 import type { Config } from "@packages/shared/index.ts";
-import { EventBus } from "@/features/events/event-bus.ts";
+import { EventBus } from "@/infra/effect/event-bus.ts";
 import { nowIso as currentNowIso } from "@/infra/time.ts";
 import { FileSystem } from "@/infra/filesystem/filesystem.ts";
 import { MediaProbe } from "@/infra/media/probe.ts";

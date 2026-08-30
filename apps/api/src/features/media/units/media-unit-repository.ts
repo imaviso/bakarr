@@ -5,7 +5,7 @@ import { Effect, Schema } from "effect";
 
 import { AppDrizzleDatabase, type AppDatabase, type DatabaseError } from "@/db/database.ts";
 import { media, mediaUnits } from "@/db/schema.ts";
-import { inferAiredAt } from "@/domain/media/derivations.ts";
+import { inferAiredAt } from "@/features/media/shared/derivations.ts";
 import type { AnimeMetadataEpisode } from "@/features/media/metadata/anilist-model.ts";
 import {
   buildMissingEpisodeRows,
