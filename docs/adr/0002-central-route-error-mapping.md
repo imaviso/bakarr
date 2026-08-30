@@ -10,7 +10,7 @@ Shared domain errors such as `DomainNotFoundError` and `DomainConflictError` are
 
 ## Decision
 
-Common domain errors map once in `http/shared/route-errors/index.ts`. Feature route-error mappers only handle feature-specific errors.
+Common domain errors map once in `infra/http/route-errors/index.ts` (moved from `http/shared/route-errors/` by ADR-0005). Feature route-error mappers only handle feature-specific errors.
 
 ## Consequences
 

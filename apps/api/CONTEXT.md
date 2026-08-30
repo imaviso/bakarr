@@ -112,7 +112,8 @@ and optional linked media. Supports coalescing concurrent requests.
 - Drizzle ORM for typed SQL queries
 - Layer-based DI with `Effect.Service` plus explicit app-layer composition
 - `Effect.Service` `dependencies:` list pure leaves (repositories, crypto, random); stateful singletons and platform services are provided once at the lifecycle layer and `yield*`ed from context
-- HTTP routes are thin adapters that call feature services
+- HTTP routes are thin adapters colocated with their feature slice (`features/<f>/router.ts`, `system/http/`); assembled once in `app/http-app.ts` (ADR-0005)
+- Tier semantics fixed per ADR-0005: app = assembly, background = runtime, features = vertical slices, infra = generic utilities, security = audit-worthy crypto; no `http/` or `domain/` tiers
 - Feature services are domain modules with explicit dependencies via tags
 - Background workers run in scoped fibers under a controller
 - Test integration uses real SQLite with HTTP-level assertions
