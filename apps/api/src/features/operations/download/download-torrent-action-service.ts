@@ -8,8 +8,8 @@ import { OperationsConflictError, OperationsNotFoundError } from "@/features/ope
 import { DownloadRepository } from "@/features/operations/repository/download-repository.ts";
 import { decodeDownloadSourceMetadata } from "@/features/operations/repository/download-repository.ts";
 import { parseCoveredUnitsEffect } from "@/features/operations/download/download-coverage.ts";
-import { TorrentClientService } from "@/features/operations/qbittorrent/torrent-client-service.ts";
-import { QBitTorrentClientError } from "@/features/operations/qbittorrent/qbittorrent-models.ts";
+import { TorrentClientService } from "@/features/operations/torrent/torrent-client-service.ts";
+import { TorrentClientUnavailableError } from "@/features/operations/torrent/torrent-domain.ts";
 import type { ExternalCallError } from "@/infra/effect/retry.ts";
 import type { RuntimeConfigSnapshotError } from "@/features/system/runtime-config-snapshot-service.ts";
 import { nowIso as currentNowIso } from "@/infra/time.ts";
@@ -21,7 +21,7 @@ type TorrentActionError =
   | InfrastructureError
   | OperationsNotFoundError
   | OperationsConflictError
-  | QBitTorrentClientError
+  | TorrentClientUnavailableError
   | RuntimeConfigSnapshotError
   | StoredDataError;
 
@@ -62,7 +62,7 @@ export class DownloadTorrentActionService extends Effect.Service<DownloadTorrent
           if (action === "pause") {
             const pauseResult = yield* torrentClientService.pauseTorrentIfEnabled(row.infoHash);
             if (pauseResult._tag === "Disabled") {
-              yield* Effect.logDebug("Skipped pause because qBittorrent is disabled").pipe(
+              yield* Effect.logDebug("Skipped pause because the torrent client is disabled").pipe(
                 Effect.annotateLogs({ downloadId: id }),
               );
               return undefined;
@@ -70,7 +70,7 @@ export class DownloadTorrentActionService extends Effect.Service<DownloadTorrent
           } else if (action === "resume") {
             const resumeResult = yield* torrentClientService.resumeTorrentIfEnabled(row.infoHash);
             if (resumeResult._tag === "Disabled") {
-              yield* Effect.logDebug("Skipped resume because qBittorrent is disabled").pipe(
+              yield* Effect.logDebug("Skipped resume because the torrent client is disabled").pipe(
                 Effect.annotateLogs({ downloadId: id }),
               );
               return undefined;
@@ -157,15 +157,15 @@ export class DownloadTorrentActionService extends Effect.Service<DownloadTorrent
         }
 
         const coveredUnits = yield* parseCoveredUnitsEffect(row.coveredUnits);
-        const qbitResult = yield* torrentClientService.addTorrentUrlIfEnabled(row.magnet);
-        const startedInQBit = qbitResult._tag === "Added";
+        const addResult = yield* torrentClientService.addTorrentUrlIfEnabled(row.magnet);
+        const startedInClient = addResult._tag === "Added";
 
         const retryNow = yield* currentNowIso();
         yield* actionRepo.updateDownloadRetryRow({
           id,
-          externalState: startedInQBit ? "downloading" : "queued",
+          externalState: startedInClient ? "downloading" : "queued",
           retryNow,
-          status: startedInQBit ? "downloading" : "queued",
+          status: startedInClient ? "downloading" : "queued",
         });
 
         const retrySourceMetadata = yield* decodeDownloadSourceMetadata(row.sourceMetadata);
@@ -180,7 +180,7 @@ export class DownloadTorrentActionService extends Effect.Service<DownloadTorrent
               ...(retrySourceMetadata ? { source_metadata: retrySourceMetadata } : {}),
             },
             message: `Retried ${row.torrentName}`,
-            toStatus: startedInQBit ? "downloading" : "queued",
+            toStatus: startedInClient ? "downloading" : "queued",
           },
           retryNow,
         );

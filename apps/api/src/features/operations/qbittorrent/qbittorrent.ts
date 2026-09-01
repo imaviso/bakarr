@@ -16,6 +16,7 @@ import {
   QBitTorrentClientError,
   type QBitConfig,
 } from "@/features/operations/qbittorrent/qbittorrent-models.ts";
+import type { TorrentState } from "@/features/operations/torrent/torrent-domain.ts";
 
 interface QBitTorrentClientShape {
   readonly addTorrentUrl: (
@@ -265,7 +266,7 @@ export type QBitTorrentFile = Schema.Schema.Type<typeof QBitTorrentFileSchema>;
 
 const QBitTorrentFileArraySchema = Schema.Array(QBitTorrentFileSchema);
 
-export function mapQBitState(state: string): string {
+export function mapQBitState(state: string): TorrentState {
   const value = state.toLowerCase();
 
   if (value.includes("error") || value.includes("missing")) {

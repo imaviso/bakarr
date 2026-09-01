@@ -4,7 +4,7 @@ import type { DownloadSourceMetadata } from "@packages/shared/index.ts";
 import { DatabaseError } from "@/db/database.ts";
 import { media } from "@/db/schema.ts";
 import { InfrastructureError } from "@/features/errors.ts";
-import { TorrentClientService } from "@/features/operations/qbittorrent/torrent-client-service.ts";
+import { TorrentClientService } from "@/features/operations/torrent/torrent-client-service.ts";
 import { DownloadRepository } from "@/features/operations/repository/download-repository.ts";
 import { encodeDownloadSourceMetadata } from "@/features/operations/repository/download-repository.ts";
 import {
@@ -164,18 +164,18 @@ export const queueDownload = Effect.fn("Operations.queueDownload")(function* (in
   const insertedId = insertResult.right;
   let status: "queued" | "downloading" = "queued";
 
-  const qbitResult = yield* Effect.either(
+  const addResult = yield* Effect.either(
     input.torrentClientService.addTorrentUrlIfEnabled(input.magnet),
   );
 
-  if (qbitResult._tag === "Left") {
+  if (addResult._tag === "Left") {
     const cleanupResult = yield* Effect.either(
       input.downloadRepository.deleteDownloadRow(insertedId),
     );
 
     if (cleanupResult._tag === "Left") {
       yield* Effect.logWarning(
-        "Failed to clean up queued download after qBittorrent add failure",
+        "Failed to clean up queued download after torrent client add failure",
       ).pipe(
         Effect.annotateLogs({
           cleanupError: cleanupResult.left.message,
@@ -186,11 +186,11 @@ export const queueDownload = Effect.fn("Operations.queueDownload")(function* (in
 
     return yield* new InfrastructureError({
       message: "Failed to trigger download",
-      cause: qbitResult.left,
+      cause: addResult.left,
     });
   }
 
-  if (qbitResult.right._tag === "Added") {
+  if (addResult.right._tag === "Added") {
     status = "downloading";
   }
 

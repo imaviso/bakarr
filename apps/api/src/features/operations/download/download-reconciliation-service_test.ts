@@ -18,7 +18,7 @@ import { EventBusNoopLive } from "@/infra/effect/event-bus.ts";
 import { FileSystem } from "@/infra/filesystem/filesystem.ts";
 import { MediaProbe, MediaProbeNoMetadata } from "@/infra/media/probe.ts";
 import { RandomService } from "@/infra/random.ts";
-import { TorrentClientService } from "@/features/operations/qbittorrent/torrent-client-service.ts";
+import { TorrentClientService } from "@/features/operations/torrent/torrent-client-service.ts";
 import { OperationsProgress } from "@/features/operations/tasks/operations-progress-service.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 import { DownloadRepository } from "@/features/operations/repository/download-repository.ts";

@@ -19,8 +19,8 @@ import { EventBusNoopLive } from "@/infra/effect/event-bus.ts";
 import { FileSystem } from "@/infra/filesystem/filesystem.ts";
 import { MediaProbe, MediaProbeNoMetadata } from "@/infra/media/probe.ts";
 import { RandomService } from "@/infra/random.ts";
-import { TorrentClientService } from "@/features/operations/qbittorrent/torrent-client-service.ts";
-import type { QBitTorrent } from "@/features/operations/qbittorrent/qbittorrent.ts";
+import { TorrentClientService } from "@/features/operations/torrent/torrent-client-service.ts";
+import type { TorrentSnapshot } from "@/features/operations/torrent/torrent-domain.ts";
 import { OperationsProgress } from "@/features/operations/tasks/operations-progress-service.ts";
 import { OperationsTaskLauncherService } from "@/features/operations/tasks/operations-task-launcher-service.ts";
 import { OperationsTaskRepository } from "@/features/operations/repository/task-repository.ts";
@@ -40,17 +40,18 @@ import { DownloadTorrentSyncService } from "@/features/operations/download/downl
 // the epoch — so seeded claim/sync timestamps are offsets from epoch zero.
 const minutesAgoIso = (minutes: number) => new Date(-minutes * 60 * 1000).toISOString();
 
-const makeTorrent = (hash: string): QBitTorrent => ({
-  content_path: `/downloads/${hash}`,
-  downloaded: 100,
-  dlspeed: 0,
+const makeTorrent = (hash: string): TorrentSnapshot => ({
+  contentPath: `/downloads/${hash}`,
+  downloadedBytes: 100,
   eta: 0,
   hash,
   name: `torrent-${hash}`,
   progress: 1,
-  save_path: "/downloads",
+  rawState: "pausedUP",
+  savePath: "/downloads",
   size: 100,
-  state: "pausedUP",
+  speed: 0,
+  state: "completed",
 });
 
 const makeSyncServiceLayer = (db: AppDatabase, databaseFile: string) =>

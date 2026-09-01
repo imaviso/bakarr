@@ -9,6 +9,7 @@ import {
 import { ConfigCoreSchema, ConfigSchema } from "@/features/system/config-schema.ts";
 import { normalizeMetadataProvidersConfig } from "@/features/system/metadata-providers-config.ts";
 import { normalizeQBitTorrentConfig } from "@/features/system/qbittorrent-config.ts";
+import { normalizeRtorrentConfig } from "@/features/system/rtorrent-config.ts";
 
 export type ConfigCore = Schema.Schema.Type<typeof ConfigCoreSchema>;
 export type ConfigCoreEncoded = Schema.Schema.Encoded<typeof ConfigCoreSchema>;
@@ -17,12 +18,14 @@ export const normalizeConfig = Effect.fn("SystemConfig.normalizeConfig")(functio
   config: Config,
 ) {
   const qbittorrent = yield* normalizeQBitTorrentConfig(config.qbittorrent);
+  const rtorrent = yield* normalizeRtorrentConfig(config.rtorrent);
   const metadata = yield* normalizeMetadataProvidersConfig(config.metadata);
 
   return {
     ...config,
     metadata,
     qbittorrent,
+    rtorrent,
   } satisfies Config;
 });
 

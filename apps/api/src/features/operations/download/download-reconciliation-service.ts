@@ -6,7 +6,7 @@ import { nowIso as currentNowIso } from "@/infra/time.ts";
 import { FileSystem } from "@/infra/filesystem/filesystem.ts";
 import { MediaProbe } from "@/infra/media/probe.ts";
 import { RandomService } from "@/infra/random.ts";
-import { TorrentClientService } from "@/features/operations/qbittorrent/torrent-client-service.ts";
+import { TorrentClientService } from "@/features/operations/torrent/torrent-client-service.ts";
 import { DownloadRepository } from "@/features/operations/repository/download-repository.ts";
 import { OperationsProgress } from "@/features/operations/tasks/operations-progress-service.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
@@ -90,11 +90,11 @@ export class DownloadReconciliationService extends Effect.Service<DownloadReconc
           .pipe(
             Effect.flatMap((result) =>
               result._tag === "Disabled"
-                ? Effect.logDebug("Skipped qBittorrent cleanup because it is disabled")
+                ? Effect.logDebug("Skipped torrent client cleanup because it is disabled")
                 : Effect.void,
             ),
             Effect.catchAllCause((cause) =>
-              Effect.logWarning("Failed to delete imported torrent from qBittorrent").pipe(
+              Effect.logWarning("Failed to delete imported torrent").pipe(
                 Effect.annotateLogs({
                   infoHash,
                   cause: Cause.pretty(cause),

@@ -23,9 +23,8 @@ import {
   DownloadRepository,
   type TorrentSyncUpdate,
 } from "@/features/operations/repository/download-repository.ts";
-import { mapQBitState } from "@/features/operations/qbittorrent/qbittorrent.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
-import { TorrentClientService } from "@/features/operations/qbittorrent/torrent-client-service.ts";
+import { TorrentClientService } from "@/features/operations/torrent/torrent-client-service.ts";
 import { currentTimeNanos, nowIso as currentNowIso } from "@/infra/time.ts";
 import {
   isClaimToken,
@@ -42,7 +41,7 @@ function shouldReconcileCompletedDownloads(config: Config | null) {
 
 const TORRENT_SYNC_UPDATE_CHUNK_SIZE = 50;
 const TORRENT_CONTENTS_REFINE_CONCURRENCY = 4;
-/** A queued row absent from qBittorrent for this long is considered lost. */
+/** A queued row absent from the torrent client for this long is considered lost. */
 const STALE_QUEUED_THRESHOLD_MS = 10 * 60 * 1000;
 
 /** Job-edge union — reconcile domain tags collapsed for background sync. */
@@ -102,7 +101,7 @@ export class DownloadTorrentSyncService extends Effect.Service<DownloadTorrentSy
           .pipe(Effect.either);
 
         if (contentsResult._tag === "Left") {
-          yield* Effect.logDebug("Failed to inspect qBittorrent file list").pipe(
+          yield* Effect.logDebug("Failed to inspect torrent file list").pipe(
             Effect.annotateLogs({
               downloadId: refineInput.downloadId,
               error: String(contentsResult.left),
@@ -161,7 +160,7 @@ export class DownloadTorrentSyncService extends Effect.Service<DownloadTorrentSy
                 ? { source_metadata: refineInput.sourceMetadata }
                 : {}),
             },
-            message: `Refined batch mediaUnits from qBittorrent file list: ${inferredEpisodes.join(", ")}`,
+            message: `Refined batch mediaUnits from torrent file list: ${inferredEpisodes.join(", ")}`,
             metadata: encodedInferredEpisodes,
           },
           coverageNow,
@@ -228,7 +227,7 @@ export class DownloadTorrentSyncService extends Effect.Service<DownloadTorrentSy
               .pipe(Effect.either);
 
             if (torrentsResult._tag === "Left") {
-              yield* Effect.logWarning("qBittorrent unreachable, skipping download sync").pipe(
+              yield* Effect.logWarning("Torrent client unreachable, skipping download sync").pipe(
                 Effect.annotateLogs({ error: String(torrentsResult.left) }),
               );
               return;
@@ -280,7 +279,7 @@ export class DownloadTorrentSyncService extends Effect.Service<DownloadTorrentSy
             }
 
             const updateRows = torrents.map((torrent): TorrentSyncUpdate => {
-              const status = mapQBitState(torrent.state);
+              const status = torrent.state;
               const hash = torrent.hash.toLowerCase();
               const existing = existingDownloadsMap.get(hash);
               // A leftover claim token means the import never finished — treat
@@ -290,7 +289,7 @@ export class DownloadTorrentSyncService extends Effect.Service<DownloadTorrentSy
               const nextStatus = preservedImported ? "imported" : status;
               const nextExternalState = preservedImported
                 ? (existing?.externalState ?? "imported")
-                : torrent.state;
+                : torrent.rawState;
               const nextDownloadDate = preservedImported
                 ? (existing?.downloadDate ?? syncNow)
                 : status === "completed"
@@ -298,12 +297,12 @@ export class DownloadTorrentSyncService extends Effect.Service<DownloadTorrentSy
                   : null;
 
               return {
-                contentPath: torrent.content_path ?? null,
-                downloadedBytes: torrent.downloaded,
+                contentPath: torrent.contentPath,
+                downloadedBytes: torrent.downloadedBytes,
                 downloadDate: nextDownloadDate,
                 errorMessage:
                   !preservedImported && status === "error"
-                    ? `qBittorrent state: ${torrent.state}`
+                    ? `Torrent state: ${torrent.rawState}`
                     : null,
                 etaSeconds: torrent.eta,
                 externalState: nextExternalState,
@@ -312,11 +311,11 @@ export class DownloadTorrentSyncService extends Effect.Service<DownloadTorrentSy
                 lastSyncedAt: syncNow,
                 nextStatus,
                 progress: Math.round(torrent.progress * 100),
-                savePath: torrent.save_path ?? null,
+                savePath: torrent.savePath,
                 status,
                 torrentName: torrent.name,
                 totalBytes: torrent.size,
-                speedBytes: torrent.dlspeed,
+                speedBytes: torrent.speed,
               };
             });
 

@@ -19,7 +19,7 @@ import { AuthFeatureLayer } from "@/features/auth/layer.ts";
 import { OperationsFeatureLayer } from "@/features/operations/layer.ts";
 import { SystemFeatureLayer } from "@/features/system/layer.ts";
 import { OperationsProgressLive } from "@/features/operations/tasks/operations-progress-service.ts";
-import { TorrentClientServiceLive } from "@/features/operations/qbittorrent/torrent-client-service.ts";
+import { TorrentClientServiceLive } from "@/features/operations/torrent/torrent-client-service.ts";
 import { DiskSpaceInspectorLive } from "@/features/system/disk-space.ts";
 import { RuntimeConfigSnapshotServiceLive } from "@/features/system/runtime-config-snapshot-service.ts";
 import { MediaProbeLive } from "@/infra/media/probe.ts";

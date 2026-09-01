@@ -5,6 +5,7 @@ import type { Config } from "@packages/shared/index.ts";
 import type { DatabaseError } from "@/db/database.ts";
 import { ConfigValidationError } from "@/features/system/errors.ts";
 import { normalizeQBitTorrentConfig } from "@/features/system/qbittorrent-config.ts";
+import { normalizeRtorrentConfig } from "@/features/system/rtorrent-config.ts";
 
 export interface ExistingConfigProfileRow {
   readonly name: string;
@@ -29,6 +30,7 @@ export const validateConfigUpdate = Effect.fn("ConfigUpdateValidation.validateCo
     }
 
     yield* normalizeQBitTorrentConfig(input.nextConfig.qbittorrent);
+    yield* normalizeRtorrentConfig(input.nextConfig.rtorrent);
 
     const keptProfileNames = new Set(input.nextConfig.profiles.map((profile) => profile.name));
     const removedProfileNames = input.existingProfileRows

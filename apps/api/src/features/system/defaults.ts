@@ -42,6 +42,12 @@ export function makeDefaultConfig(databasePath: string): ConfigCore {
       url: "http://localhost:8080",
       username: "admin",
     },
+    rtorrent: {
+      enabled: false,
+      save_path: null,
+      trusted_local: true,
+      url: "scgi://localhost:5000",
+    },
     nyaa: {
       base_url: "https://nyaa.si",
       default_category: "1_2",

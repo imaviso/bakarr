@@ -9,7 +9,7 @@ import {
 } from "@/features/operations/errors.ts";
 import { ImportFileError } from "@/features/operations/download/download-file-import-errors.ts";
 import { UpsertUnitFileError } from "@/features/media/units/media-unit-repository.ts";
-import { QBitTorrentClientError } from "@/features/operations/qbittorrent/qbittorrent-models.ts";
+import { TorrentClientUnavailableError } from "@/features/operations/torrent/torrent-domain.ts";
 import { FileSystemError } from "@/infra/filesystem/filesystem.ts";
 import type { RouteErrorResponse } from "@/infra/http/route-types.ts";
 import {
@@ -24,7 +24,7 @@ const OperationsRouteErrorSchema = Schema.Union(
   RssFeedTooLargeError,
   OperationsConflictError,
   OperationsNotFoundError,
-  QBitTorrentClientError,
+  TorrentClientUnavailableError,
   ImportFileError,
   FileSystemError,
   UpsertUnitFileError,
@@ -36,7 +36,7 @@ const invalidRssFeed = fixedStatus("RSS feed response was invalid", 503);
 
 const rssTooLarge = fixedStatus("RSS feed payload exceeded the allowed size", 503);
 
-const qbitUnavailable = fixedStatus("qBittorrent unavailable", 503);
+const torrentUnavailable = fixedStatus("Torrent client unavailable", 503);
 
 const operationsRouteErrorMappers: {
   [K in OperationsRouteError["_tag"]]: (
@@ -48,7 +48,7 @@ const operationsRouteErrorMappers: {
   RssFeedTooLargeError: rssTooLarge,
   OperationsConflictError: messageStatus(409),
   OperationsNotFoundError: messageStatus(404),
-  QBitTorrentClientError: qbitUnavailable,
+  TorrentClientUnavailableError: torrentUnavailable,
   ImportFileError: messageStatus(500),
   FileSystemError: messageStatus(500),
   UpsertUnitFileError: messageStatus(500),

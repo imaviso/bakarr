@@ -87,5 +87,8 @@ export function redactConfigSecrets(config: Config): Config {
       ...config.qbittorrent,
       password: null,
     },
+    rtorrent: {
+      ...config.rtorrent,
+    },
   } satisfies Config;
 }

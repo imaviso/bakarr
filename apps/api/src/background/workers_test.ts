@@ -42,6 +42,12 @@ const baseConfig: Config = {
     recycle_cleanup_days: 30,
     recycle_path: "./recycle-bin",
   },
+  rtorrent: {
+    enabled: false,
+    save_path: null,
+    trusted_local: true,
+    url: "scgi://localhost:5000",
+  },
   nyaa: {
     base_url: "https://nyaa.si",
     default_category: "1_2",

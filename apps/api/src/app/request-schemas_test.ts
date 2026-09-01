@@ -65,6 +65,12 @@ function makeValidConfig() {
       min_seeders: 2,
       preferred_resolution: "1080p",
     },
+    rtorrent: {
+      enabled: false,
+      save_path: null,
+      trusted_local: true,
+      url: "scgi://localhost:5000",
+    },
     profiles: [
       {
         allowed_qualities: ["1080p", "720p"],

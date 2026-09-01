@@ -3,7 +3,7 @@ import { brandMediaId } from "@packages/shared/index.ts";
 
 import { DatabaseError } from "@/db/database.ts";
 import { EventBus } from "@/infra/effect/event-bus.ts";
-import { TorrentClientService } from "@/features/operations/qbittorrent/torrent-client-service.ts";
+import { TorrentClientService } from "@/features/operations/torrent/torrent-client-service.ts";
 import { prepareTriggerDownload } from "@/features/operations/download/download-trigger-support.ts";
 import { queueDownload } from "@/features/operations/download/download-queue-support.ts";
 import { DomainInputError, InfrastructureError, StoredDataError } from "@/features/errors.ts";
@@ -91,7 +91,7 @@ export class DownloadTriggerService extends Effect.Service<DownloadTriggerServic
           "downloads.triggered",
           "success",
           shouldDeferBatchCoverage
-            ? `Queued batch download for ${plan.animeRow.titleRomaji}; waiting for qBittorrent metadata to determine covered mediaUnits`
+            ? `Queued batch download for ${plan.animeRow.titleRomaji}; waiting for torrent client metadata to determine covered mediaUnits`
             : `Queued download for ${plan.animeRow.titleRomaji} episode ${plan.requestedEpisode}`,
           currentNowIso,
         );

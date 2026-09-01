@@ -98,6 +98,32 @@ export function SystemSettingsDownloadsSection(props: SystemSettingsDownloadsSec
         )}
       </props.form.Field>
 
+      <SettingSwitchField
+        form={props.form}
+        name="rtorrent.enabled"
+        label="Enable rTorrent"
+        description="Connect to rTorrent over SCGI for downloading"
+      />
+
+      <SettingTextField
+        form={props.form}
+        name="rtorrent.url"
+        label="rTorrent SCGI URL"
+        description="scgi://host:port, scgi:///path/to/rpc.sock, or a proxied http(s) endpoint"
+        placeholder="scgi://localhost:5000"
+        inputClassName="w-64"
+      />
+
+      <SettingTextField
+        form={props.form}
+        name="rtorrent.save_path"
+        label="rTorrent Save Path"
+        description="Download folder for newly added torrents"
+        placeholder="/downloads/media"
+        inputClassName="w-64"
+        emptyAsNull
+      />
+
       <SectionLabel className="block px-0.5 pt-4 pb-1">Import Defaults</SectionLabel>
 
       <SettingTextField

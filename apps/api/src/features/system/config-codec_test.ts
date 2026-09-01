@@ -49,6 +49,12 @@ it.effect("config codec round-trips config core without mutating arrays", () =>
         recycle_cleanup_days: 30,
         recycle_path: "./recycle",
       },
+      rtorrent: {
+        enabled: false,
+        save_path: null,
+        trusted_local: true,
+        url: "scgi://localhost:5000",
+      },
       nyaa: {
         base_url: "https://nyaa.si",
         default_category: "1_2",
@@ -136,6 +142,12 @@ it.effect("config codec strips removed download preference fields from legacy co
           password: "secret",
           url: "http://localhost:8080",
           username: "admin",
+        },
+        rtorrent: {
+          enabled: false,
+          save_path: null,
+          trusted_local: true,
+          url: "scgi://localhost:5000",
         },
         scheduler: {
           check_delay_seconds: 5,

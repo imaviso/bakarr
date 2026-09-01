@@ -1,0 +1,270 @@
+// oxlint-disable oxc/no-async-await -- async/await required by transaction callbacks, test callbacks, and tryPromise wrappers
+import { describe, expect, it } from "vitest";
+import { Effect, Exit } from "effect";
+
+import {
+  encodeScgiRequest,
+  splitScgiResponse,
+} from "@/features/operations/rtorrent/scgi-transport.ts";
+import {
+  decodeXmlRpcResponse,
+  encodeXmlRpcCall,
+  int,
+  str,
+} from "@/features/operations/rtorrent/xmlrpc.ts";
+import { makeRtorrentClient } from "@/features/operations/rtorrent/rtorrent-client.ts";
+
+const methodResponse = (payload: string) =>
+  `<?xml version="1.0"?><methodResponse><params><param><value>${payload}</value></param></params></methodResponse>`;
+
+function makeStubTransport(
+  responseBody: string,
+  calls?: Array<{ method: string; params: readonly string[] }>,
+) {
+  return {
+    request: (encoded: Uint8Array) =>
+      Effect.sync(() => {
+        const raw = Buffer.from(encoded).toString("utf8");
+        const bodyStart = raw.indexOf(",");
+        const body = raw.slice(bodyStart + 1);
+
+        const methodMatch = /<methodName>([^<]+)<\/methodName>/.exec(body);
+        const stringParams = [
+          ...body.matchAll(/<param><value>(?:<string>|<i8>|<int>)?([^<]*)/g),
+        ].map((match) => match[1] ?? "");
+
+        calls?.push({ method: methodMatch?.[1] ?? "", params: stringParams });
+
+        return `Status: 200 OK\r\nContent-Length: ${responseBody.length}\r\n\r\n${responseBody}`;
+      }),
+  };
+}
+
+function makeTestClient(transport: ReturnType<typeof makeStubTransport>) {
+  const exit = Effect.runSyncExit(makeRtorrentClient(transport));
+  if (exit._tag !== "Success") {
+    throw new Error("makeRtorrentClient unexpectedly failed in test");
+  }
+  return exit.value;
+}
+
+function expectSuccess<A, E>(exit: Exit.Exit<A, E>): A {
+  if (exit._tag !== "Success") {
+    throw new Error(`Expected success but failed with: ${String(exit.cause)}`);
+  }
+  return exit.value;
+}
+
+const runPromiseExit = <A, E>(effect: Effect.Effect<A, E>) => Effect.runPromiseExit(effect);
+
+describe("scgi-transport", () => {
+  it("encodes netstring-framed SCGI headers", () => {
+    const encoded = encodeScgiRequest({ CONTENT_LENGTH: "5", SCGI: "1" }, "hello");
+
+    const text = Buffer.from(encoded).toString("utf8");
+    // netstring: "24:" + NUL-terminated header pairs + "," + body
+    expect(text).toBe("24:CONTENT_LENGTH\u00005\u0000SCGI\u00001\u0000,hello");
+  });
+
+  it("splits HTTP-style header block from the XML payload", () => {
+    const raw = "Status: 200 OK\r\nContent-Length: 4\r\n\r\n<xml>";
+    expect(splitScgiResponse(raw)).toBe("<xml>");
+  });
+
+  it("returns the body unchanged when no header block exists", () => {
+    expect(splitScgiResponse("<xml/>")).toBe("<xml/>");
+  });
+});
+
+describe("xmlrpc", () => {
+  it("decodes multicall struct rows with i8 fields", async () => {
+    const body = methodResponse(
+      `<array><data>
+        <value><struct>
+          <member><name>d.hash</name><value><string>feed</string></value></member>
+          <member><name>d.size_bytes</name><value><i8>100</i8></value></member>
+        </struct></value>
+        <value><struct>
+          <member><name>d.hash</name><value><string>beef</string></value></member>
+          <member><name>d.size_bytes</name><value><i8>200</i8></value></member>
+        </struct></value>
+      </data></array>`,
+    );
+
+    const value = expectSuccess(await runPromiseExit(decodeXmlRpcResponse(body)));
+    expect(value.kind).toBe("array");
+    expect(value.arrayValue).toHaveLength(2);
+    expect(value.arrayValue?.[0]?.structValue?.["d.hash"]).toEqual({
+      kind: "string",
+      stringValue: "feed",
+    });
+    expect(value.arrayValue?.[0]?.structValue?.["d.size_bytes"]).toEqual({
+      kind: "int",
+      intValue: 100,
+    });
+  });
+
+  it("decodes arrays with a single collapsed element", async () => {
+    const body = methodResponse(`<array><data><value><string>only</string></value></data></array>`);
+    const value = expectSuccess(await runPromiseExit(decodeXmlRpcResponse(body)));
+    expect(value.arrayValue).toEqual([{ kind: "string", stringValue: "only" }]);
+  });
+
+  it("decodes an empty array", async () => {
+    const value = expectSuccess(
+      await runPromiseExit(decodeXmlRpcResponse(methodResponse(`<array><data></data></array>`))),
+    );
+    expect(value.arrayValue).toEqual([]);
+  });
+
+  it("fails on fault responses", async () => {
+    const body = `<?xml version="1.0"?><methodResponse><fault><value><struct>
+      <member><name>faultString</name><value><string>boom</string></value></member>
+    </struct></value></fault></methodResponse>`;
+
+    const exit = await runPromiseExit(decodeXmlRpcResponse(body));
+    expect(exit._tag).toBe("Failure");
+  });
+
+  it("escapes XML-sensitive characters in params", () => {
+    const call = encodeXmlRpcCall("load.start", [str(""), str("magnet:?a=1&b=<2>")]);
+    expect(call).toContain("magnet:?a=1&amp;b=&lt;2&gt;");
+    expect(call).toContain("<methodName>load.start</methodName>");
+  });
+
+  it("renders integer params", () => {
+    const call = encodeXmlRpcCall("t.set", [str("hash"), int(60)]);
+    expect(call).toContain("<param><value><int>60</int></value></param>");
+  });
+});
+
+describe("rtorrent-client", () => {
+  const torrentRow = (cells: string) =>
+    methodResponse(
+      `<array><data><value><array><data>${cells}</data></array></value></data></array>`,
+    );
+
+  it("maps multicall rows into normalized snapshots", () => {
+    const calls: Array<{ method: string; params: readonly string[] }> = [];
+    const client = makeTestClient(
+      makeStubTransport(
+        torrentRow(
+          `<value><string>FEEDFACE</string></value>
+           <value><string>Ubuntu ISO</string></value>
+           <value><i8>90</i8></value>
+           <value><i8>100</i8></value>
+           <value><i8>1024</i8></value>
+           <value><i8>1</i8></value>
+           <value><i8>0</i8></value>
+           <value><i8>0</i8></value>
+           <value><string></string></value>
+           <value><string>/data/ubuntu</string></value>
+           <value><string>/data</string></value>`,
+        ),
+        calls,
+      ),
+    );
+
+    const torrents = Effect.runSync(client.listTorrents());
+    expect(calls[0]?.method).toBe("d.multicall2");
+    expect(torrents).toHaveLength(1);
+
+    const torrent = torrents[0]!;
+    expect(torrent.hash).toBe("feedface");
+    expect(torrent.name).toBe("Ubuntu ISO");
+    expect(torrent.progress).toBeCloseTo(0.9);
+    expect(torrent.state).toBe("downloading");
+    expect(torrent.contentPath).toBeNull();
+    expect(torrent.savePath).toBe("/data");
+    expect(torrent.rawState).toBe("downloading");
+    expect(torrent.downloadedBytes).toBe(90);
+    expect(torrent.size).toBe(100);
+    expect(torrent.speed).toBe(1024);
+  });
+
+  it("marks completed paused torrents as completed with a content path", () => {
+    const client = makeTestClient(
+      makeStubTransport(
+        torrentRow(
+          `<value><string>beef</string></value>
+           <value><string>Done</string></value>
+           <value><i8>100</i8></value>
+           <value><i8>100</i8></value>
+           <value><i8>0</i8></value>
+           <value><i8>0</i8></value>
+           <value><i8>1</i8></value>
+           <value><i8>1</i8></value>
+           <value><string></string></value>
+           <value><string>/data/done</string></value>
+           <value><string>/data</string></value>`,
+        ),
+      ),
+    );
+
+    const [torrent] = Effect.runSync(client.listTorrents());
+    expect(torrent?.state).toBe("completed");
+    expect(torrent?.contentPath).toBe("/data/done");
+  });
+
+  it("maps error messages to the error state", () => {
+    const client = makeTestClient(
+      makeStubTransport(
+        torrentRow(
+          `<value><string>bad</string></value>
+           <value><string>Broken</string></value>
+           <value><i8>0</i8></value>
+           <value><i8>100</i8></value>
+           <value><i8>0</i8></value>
+           <value><i8>0</i8></value>
+           <value><i8>0</i8></value>
+           <value><i8>0</i8></value>
+           <value><string>Torrent error: tracker down</string></value>
+           <value><string>/data</string></value>
+           <value><string>/data</string></value>`,
+        ),
+      ),
+    );
+
+    const [torrent] = Effect.runSync(client.listTorrents());
+    expect(torrent?.state).toBe("error");
+    expect(torrent?.rawState).toBe("Torrent error: tracker down");
+  });
+
+  it("lists torrent files from f.multicall", () => {
+    const calls: Array<{ method: string; params: readonly string[] }> = [];
+    const client = makeTestClient(
+      makeStubTransport(
+        torrentRow(
+          `<value><string>Season 01/EP 01.mkv</string></value>
+           <value><i8>100</i8></value>
+           <value><i8>4</i8></value>
+           <value><i8>4</i8></value>`,
+        ),
+        calls,
+      ),
+    );
+
+    const files = Effect.runSync(client.listTorrentContents("FEED"));
+    expect(calls[0]?.method).toBe("f.multicall");
+    expect(calls[0]?.params[0]).toBe("FEED:");
+    expect(files).toEqual([{ name: "Season 01/EP 01.mkv", progress: 1, size: 100 }]);
+  });
+
+  it("sends load.start for magnet adds", async () => {
+    const calls: Array<{ method: string; params: readonly string[] }> = [];
+    const client = makeTestClient(makeStubTransport(methodResponse(`<string></string>`), calls));
+
+    await Effect.runPromise(client.addTorrentUrl("magnet:?xt=urn:btih:feed"));
+    expect(calls[0]?.method).toBe("load.start");
+    expect(calls[0]?.params).toEqual(["", "magnet:?xt=urn:btih:feed"]);
+  });
+
+  it("erases torrents via d.erase", async () => {
+    const calls: Array<{ method: string; params: readonly string[] }> = [];
+    const client = makeTestClient(makeStubTransport(methodResponse(`<i8>0</i8>`), calls));
+
+    await Effect.runPromise(client.deleteTorrent("feed", false));
+    expect(calls[0]?.method).toBe("d.erase");
+    expect(calls[0]?.params).toEqual(["feed"]);
+  });
+});

@@ -14,7 +14,7 @@ import {
 } from "@/features/operations/download/download-queue-support.ts";
 import { toCoveredUnitsJson } from "@/features/operations/download/download-coverage.ts";
 import type { ParsedRelease } from "@/features/operations/rss/rss-client-parse.ts";
-import { TorrentClientService } from "@/features/operations/qbittorrent/torrent-client-service.ts";
+import { TorrentClientService } from "@/features/operations/torrent/torrent-client-service.ts";
 import { DownloadTriggerGate } from "@/features/operations/tasks/task-coordinators.ts";
 import { DownloadRepository } from "@/features/operations/repository/download-repository.ts";
 import { nowIso as currentNowIso } from "@/infra/time.ts";

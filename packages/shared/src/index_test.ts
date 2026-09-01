@@ -1098,6 +1098,12 @@ it("shared operational detail schemas accept canonical payloads", () => {
       url: "http://localhost:8080",
       username: "admin",
     },
+    rtorrent: {
+      enabled: false,
+      save_path: null,
+      trusted_local: true,
+      url: "scgi://localhost:5000",
+    },
     scheduler: {
       check_delay_seconds: 5,
       check_interval_minutes: 30,

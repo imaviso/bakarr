@@ -10,7 +10,7 @@ import {
   parseFileSourceIdentity,
 } from "@/features/media/identity/identity.ts";
 import { parseVolumeNumbersFromTitle } from "@/features/operations/search/release-volume.ts";
-import type { QBitTorrentFile } from "@/features/operations/qbittorrent/qbittorrent.ts";
+import type { TorrentFile } from "@/features/operations/torrent/torrent-domain.ts";
 import { StoredDataError } from "@/features/errors.ts";
 import type { DownloadRepository } from "@/features/operations/repository/download-repository.ts";
 
@@ -134,7 +134,7 @@ export function inferCoveredUnitNumbers(input: {
 }
 
 export function inferCoveredUnitsFromTorrentContents(input: {
-  readonly files: readonly QBitTorrentFile[];
+  readonly files: readonly TorrentFile[];
   readonly parseVolumeNumbers?: boolean;
   readonly rootName: string;
 }) {

@@ -162,30 +162,9 @@ it("inferCoveredUnitsFromTorrentContents parses real batch file lists", () => {
   assert.deepStrictEqual(
     inferCoveredUnitsFromTorrentContents({
       files: [
-        {
-          index: 0,
-          is_seed: false,
-          name: "Season 01/Chainsaw Man - 01.mkv",
-          priority: 1,
-          progress: 1,
-          size: 100,
-        },
-        {
-          index: 1,
-          is_seed: false,
-          name: "Season 01/Chainsaw Man - 02.mkv",
-          priority: 1,
-          progress: 1,
-          size: 100,
-        },
-        {
-          index: 2,
-          is_seed: false,
-          name: "Season 01/NCOP.mkv",
-          priority: 1,
-          progress: 1,
-          size: 100,
-        },
+        { name: "Season 01/Chainsaw Man - 01.mkv", progress: 1, size: 100 },
+        { name: "Season 01/Chainsaw Man - 02.mkv", progress: 1, size: 100 },
+        { name: "Season 01/NCOP.mkv", progress: 1, size: 100 },
       ],
       rootName: "Chainsaw Man",
     }),

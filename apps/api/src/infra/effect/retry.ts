@@ -11,9 +11,10 @@ export const EXTERNAL_CALL_PROVIDERS: readonly [
   "manami",
   "anidb",
   "qbit",
+  "rtorrent",
   "rss",
   "seadex",
-] = ["anilist", "jikan", "manami", "anidb", "qbit", "rss", "seadex"];
+] = ["anilist", "jikan", "manami", "anidb", "qbit", "rtorrent", "rss", "seadex"];
 
 export type ExternalCallProvider = (typeof EXTERNAL_CALL_PROVIDERS)[number];
 
@@ -37,9 +38,10 @@ const EXTERNAL_RETRY_DELAYS_MS: readonly number[] = [200, 400];
 const DEFAULT_EXTERNAL_CALL_CONCURRENCY = 8;
 const DEFAULT_MEDIA_EXTERNAL_CALL_CONCURRENCY = 4;
 const DEFAULT_QBIT_EXTERNAL_CALL_CONCURRENCY = 2;
+const DEFAULT_RTORRENT_EXTERNAL_CALL_CONCURRENCY = 2;
 const DEFAULT_EXTERNAL_CALL_TIMEOUT = "10 seconds";
 
-type ExternalCallPool = "default" | "media" | "qbit";
+type ExternalCallPool = "default" | "media" | "qbit" | "rtorrent";
 
 export interface ExternalCallPolicyShape {
   readonly retryDelaysMs: readonly number[];
@@ -81,6 +83,10 @@ function resolveExternalCallPool(
       return "qbit";
     }
 
+    if (provider === "rtorrent") {
+      return "rtorrent";
+    }
+
     if (
       provider === "anilist" ||
       provider === "jikan" ||
@@ -95,6 +101,10 @@ function resolveExternalCallPool(
 
   if (operation.startsWith("qbit.")) {
     return "qbit";
+  }
+
+  if (operation.startsWith("rtorrent.")) {
+    return "rtorrent";
   }
 
   if (
@@ -135,11 +145,16 @@ export const makeExternalCallSemaphores = Effect.fn("ExternalCall.makeExternalCa
       "BAKARR_EXTERNAL_CALL_QBIT_CONCURRENCY",
       DEFAULT_QBIT_EXTERNAL_CALL_CONCURRENCY,
     );
+    const rtorrentConcurrency = yield* readExternalConcurrency(
+      "BAKARR_EXTERNAL_CALL_RTORRENT_CONCURRENCY",
+      DEFAULT_RTORRENT_EXTERNAL_CALL_CONCURRENCY,
+    );
 
     const semaphores = {
       default: yield* Effect.makeSemaphore(defaultConcurrency),
       media: yield* Effect.makeSemaphore(mediaConcurrency),
       qbit: yield* Effect.makeSemaphore(qbitConcurrency),
+      rtorrent: yield* Effect.makeSemaphore(rtorrentConcurrency),
     } satisfies Record<ExternalCallPool, Effect.Semaphore>;
 
     return {

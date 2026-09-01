@@ -906,6 +906,18 @@ export const QbittorrentConfigSchema: Schema.Schema<{
   username: Schema.String,
 });
 
+export const RtorrentConfigSchema: Schema.Schema<{
+  enabled: boolean;
+  save_path?: string | null | undefined;
+  trusted_local?: boolean | undefined;
+  url: string;
+}> = Schema.Struct({
+  enabled: Schema.Boolean,
+  save_path: Schema.optional(Schema.NullOr(Schema.String)),
+  trusted_local: Schema.optional(Schema.Boolean),
+  url: Schema.String,
+});
+
 export const NyaaConfigSchema: Schema.Schema<{
   base_url: string;
   default_category: string;
@@ -1009,6 +1021,7 @@ export const LibraryConfigSchema: Schema.Schema<{
 export const ConfigSchema: Schema.Schema<{
   general: Schema.Schema.Type<typeof GeneralConfigSchema>;
   qbittorrent: Schema.Schema.Type<typeof QbittorrentConfigSchema>;
+  rtorrent: Schema.Schema.Type<typeof RtorrentConfigSchema>;
   nyaa: Schema.Schema.Type<typeof NyaaConfigSchema>;
   scheduler: Schema.Schema.Type<typeof SchedulerConfigSchema>;
   downloads: Schema.Schema.Type<typeof DownloadsConfigSchema>;
@@ -1019,6 +1032,7 @@ export const ConfigSchema: Schema.Schema<{
   Schema.Struct({
     general: GeneralConfigSchema,
     qbittorrent: QbittorrentConfigSchema,
+    rtorrent: RtorrentConfigSchema,
     nyaa: NyaaConfigSchema,
     scheduler: SchedulerConfigSchema,
     downloads: DownloadsConfigSchema,
