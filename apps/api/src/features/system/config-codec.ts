@@ -7,6 +7,7 @@ import {
   StoredConfigMissingError,
 } from "@/features/system/errors.ts";
 import { ConfigCoreSchema, ConfigSchema } from "@/features/system/config-schema.ts";
+import { DEFAULT_RTORRENT_CONFIG } from "@/features/system/defaults.ts";
 import { normalizeMetadataProvidersConfig } from "@/features/system/metadata-providers-config.ts";
 import { normalizeQBitTorrentConfig } from "@/features/system/qbittorrent-config.ts";
 import { normalizeRtorrentConfig } from "@/features/system/rtorrent-config.ts";
@@ -73,7 +74,11 @@ export const composeConfig = Effect.fn("ConfigCodec.composeConfig")(
 
 export const decodeConfigCore = Effect.fn("ConfigCodec.decodeConfigCore")(
   (value: string): Effect.Effect<ConfigCore, StoredConfigCorruptError> =>
-    Schema.decodeUnknown(Schema.parseJson(ConfigCoreSchema))(value).pipe(
+    Schema.decodeUnknown(Schema.parseJson(Schema.Unknown))(value).pipe(
+      Effect.map((stored) => Object.assign({ rtorrent: DEFAULT_RTORRENT_CONFIG }, stored)),
+      Effect.flatMap((stored) =>
+        Schema.decodeUnknown(ConfigCoreSchema)(stored),
+      ),
       Effect.mapError((cause) =>
         makeStoredConfigCorruptError(
           "Stored configuration is corrupt and could not be decoded",

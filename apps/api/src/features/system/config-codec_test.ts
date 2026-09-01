@@ -242,6 +242,73 @@ it.effect(
     }),
 );
 
+it.effect("config codec backfills rtorrent defaults for legacy stored config missing the key", () =>
+  Effect.gen(function* () {
+    const legacy = yield* Schema.encode(Schema.parseJson(Schema.Unknown))({
+      downloads: {
+        create_media_folders: true,
+        remote_path_mappings: [],
+        root_path: "./downloads",
+      },
+      general: {
+        database_path: "./bakarr.sqlite",
+        images_path: "./images",
+        log_level: "info",
+        max_db_connections: 4,
+        min_db_connections: 1,
+        suppress_connection_errors: true,
+        worker_threads: 4,
+      },
+      library: {
+        auto_scan_interval_hours: 12,
+        import_mode: "copy",
+        anime_path: "./library/anime",
+        manga_path: "./library/manga",
+        light_novel_path: "./library/light-novels",
+        movie_naming_format: "{title}",
+        naming_format: "{title} - {episode}",
+        preferred_title: "romaji",
+        recycle_cleanup_days: 30,
+        recycle_path: "./recycle",
+      },
+      nyaa: {
+        base_url: "https://nyaa.si",
+        default_category: "1_2",
+        filter_remakes: true,
+        min_seeders: 2,
+        preferred_resolution: "1080p",
+      },
+      qbittorrent: {
+        default_category: "media",
+        enabled: true,
+        password: "secret",
+        url: "http://localhost:8080",
+        username: "admin",
+      },
+      scheduler: {
+        check_delay_seconds: 5,
+        check_interval_minutes: 30,
+        cron_expression: null,
+        enabled: true,
+        max_concurrent_checks: 2,
+        metadata_refresh_hours: 24,
+      },
+    });
+
+    const decoded = yield* decodeConfigCore(legacy);
+    assert.deepStrictEqual(decoded.rtorrent, {
+      enabled: false,
+      save_path: null,
+      trusted_local: true,
+      url: "scgi://localhost:5000",
+    });
+
+    const roundTrip = yield* encodeConfigCore(decoded);
+    const redecoded = yield* decodeConfigCore(roundTrip);
+    assert.deepStrictEqual(redecoded.rtorrent, decoded.rtorrent);
+  }),
+);
+
 it.effect("stored config row decoder fails with typed errors for missing and corrupt rows", () =>
   Effect.gen(function* () {
     const missingExit = yield* Effect.exit(decodeStoredConfigRow(undefined));

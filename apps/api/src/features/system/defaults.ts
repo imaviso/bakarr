@@ -1,4 +1,4 @@
-import { brandQualityId, type Quality, type QualityProfile } from "@packages/shared/index.ts";
+import { brandQualityId, type Config, type Quality, type QualityProfile } from "@packages/shared/index.ts";
 import type { ConfigCore } from "@/features/system/config-codec.ts";
 import { DEFAULT_ANIDB_METADATA_CONFIG } from "@/features/system/metadata-providers-config.ts";
 
@@ -20,6 +20,13 @@ export const DEFAULT_PROFILES: readonly QualityProfile[] = [
     upgrade_allowed: true,
   },
 ];
+
+export const DEFAULT_RTORRENT_CONFIG: Config["rtorrent"] = {
+  enabled: false,
+  save_path: null,
+  trusted_local: true,
+  url: "scgi://localhost:5000",
+};
 
 export function makeDefaultConfig(databasePath: string): ConfigCore {
   return {
@@ -43,10 +50,7 @@ export function makeDefaultConfig(databasePath: string): ConfigCore {
       username: "admin",
     },
     rtorrent: {
-      enabled: false,
-      save_path: null,
-      trusted_local: true,
-      url: "scgi://localhost:5000",
+      ...DEFAULT_RTORRENT_CONFIG,
     },
     nyaa: {
       base_url: "https://nyaa.si",
