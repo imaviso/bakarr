@@ -22,10 +22,7 @@ const methodResponse = (payload: string) =>
 
 type RecordedCall = { method: string; params: readonly string[] };
 
-function makeStubTransport(
-  responseBody: string,
-  calls?: Array<RecordedCall>,
-): ScgiTransportShape {
+function makeStubTransport(responseBody: string, calls?: Array<RecordedCall>): ScgiTransportShape {
   return {
     request: (xml: string) =>
       Effect.sync(() => {
@@ -41,8 +38,8 @@ function makeStubTransport(
   };
 }
 
-function makeTestClient(transport: ScgiTransportShape) {
-  const exit = Effect.runSyncExit(makeRtorrentClient(transport));
+function makeTestClient(transport: ScgiTransportShape, options?: { savePath?: string }) {
+  const exit = Effect.runSyncExit(makeRtorrentClient(transport, options));
   if (exit._tag !== "Success") {
     throw new Error("makeRtorrentClient unexpectedly failed in test");
   }
@@ -124,7 +121,9 @@ describe("scgi-transport", () => {
       vi.fn(() => Promise.resolve(new Response("nope", { status: 401 }))),
     );
 
-    const exit = await runPromiseExit(makeHttpTransport("https://rtorrent.local/RPC2").request("<x/>"));
+    const exit = await runPromiseExit(
+      makeHttpTransport("https://rtorrent.local/RPC2").request("<x/>"),
+    );
     expect(exit._tag).toBe("Failure");
 
     vi.unstubAllGlobals();
@@ -194,9 +193,7 @@ describe("xmlrpc", () => {
 });
 
 const torrentRow = (cells: string) =>
-  methodResponse(
-    `<array><data><value><array><data>${cells}</data></array></value></data></array>`,
-  );
+  methodResponse(`<array><data><value><array><data>${cells}</data></array></value></data></array>`);
 
 // Row order mirrors TORRENT_CALL_KEYS: name, hash, base_path, size, left,
 // down.rate, is_open, is_active, complete, message, directory.
@@ -233,9 +230,7 @@ const torrentCells = (overrides: Partial<Record<string, string>> = {}) => {
 describe("rtorrent-client", () => {
   it("maps multicall rows into normalized snapshots", () => {
     const calls: Array<RecordedCall> = [];
-    const client = makeTestClient(
-      makeStubTransport(torrentRow(torrentCells()), calls),
-    );
+    const client = makeTestClient(makeStubTransport(torrentRow(torrentCells()), calls));
 
     const torrents = Effect.runSync(client.listTorrents());
     expect(calls[0]?.method).toBe("d.multicall2");
@@ -352,10 +347,7 @@ describe("rtorrent-client", () => {
     const calls: Array<RecordedCall> = [];
     const magnet = "magnet:?xt=urn:btih:" + "a".repeat(40);
     // Every request (load.start and the d.name polls) succeeds.
-    const responses = [
-      methodResponse(`<i8>0</i8>`),
-      methodResponse(`<string>Ubuntu ISO</string>`),
-    ];
+    const responses = [methodResponse(`<i8>0</i8>`), methodResponse(`<string>Ubuntu ISO</string>`)];
     const transport: ScgiTransportShape = {
       request: (xml) =>
         Effect.sync(() => {
@@ -379,8 +371,33 @@ describe("rtorrent-client", () => {
   it("fails the add when load.start returns non-zero", async () => {
     const client = makeTestClient(makeStubTransport(methodResponse(`<i8>1</i8>`)));
 
-    const exit = await runPromiseExit(client.addTorrentUrl("magnet:?xt=urn:btih:" + "b".repeat(40)));
+    const exit = await runPromiseExit(
+      client.addTorrentUrl("magnet:?xt=urn:btih:" + "b".repeat(40)),
+    );
     expect(exit._tag).toBe("Failure");
+  });
+
+  it("binds the configured save path via d.directory_base.set on load.start", async () => {
+    const calls: Array<RecordedCall> = [];
+    const client = makeTestClient(makeStubTransport(methodResponse(`<i8>0</i8>`), calls), {
+      savePath: "/downloads/anime",
+    });
+
+    await Effect.runPromise(client.addTorrentUrl("https://example.com/torrent.torrent"));
+    expect(calls[0]?.method).toBe("load.start");
+    expect(calls[0]?.params).toEqual([
+      "",
+      "https://example.com/torrent.torrent",
+      "d.directory_base.set=/downloads/anime",
+    ]);
+  });
+
+  it("omits the directory binding when no save path is configured", async () => {
+    const calls: Array<RecordedCall> = [];
+    const client = makeTestClient(makeStubTransport(methodResponse(`<i8>0</i8>`), calls));
+
+    await Effect.runPromise(client.addTorrentUrl("https://example.com/torrent.torrent"));
+    expect(calls[0]?.params).toEqual(["", "https://example.com/torrent.torrent"]);
   });
 
   it("erases torrents via d.erase", async () => {

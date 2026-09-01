@@ -1,4 +1,9 @@
-import { brandQualityId, type Config, type Quality, type QualityProfile } from "@packages/shared/index.ts";
+import {
+  brandQualityId,
+  type Config,
+  type Quality,
+  type QualityProfile,
+} from "@packages/shared/index.ts";
 import type { ConfigCore } from "@/features/system/config-codec.ts";
 import { DEFAULT_ANIDB_METADATA_CONFIG } from "@/features/system/metadata-providers-config.ts";
 

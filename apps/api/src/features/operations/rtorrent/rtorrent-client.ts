@@ -152,10 +152,21 @@ export interface RtorrentClientShape {
   ) => Effect.Effect<void, TorrentClientUnavailableError>;
 }
 
+export interface RtorrentClientOptions {
+  /**
+   * Directory passed as `d.directory_base.set` on `load.start`. rTorrent has no
+   * separate "default save path" RPC; without this binding every add falls
+   * back to rTorrent's own `directory` setting (typically the session dir).
+   */
+  readonly savePath?: string | undefined;
+}
+
 export const makeRtorrentClient = (
   transport: ScgiTransportShape,
+  options: RtorrentClientOptions = {},
 ): Effect.Effect<RtorrentClientShape> =>
   Effect.sync(() => {
+    const savePath = options.savePath?.trim();
     const call = Effect.fn("RtorrentClient.call")(function* (
       operation: string,
       methodName: string,
@@ -219,8 +230,12 @@ export const makeRtorrentClient = (
 
     const addTorrentUrl = Effect.fn("RtorrentClient.addTorrentUrl")(function* (url: string) {
       // load.start returns 0 on success; anything else is an add failure
-      // (Sonarr throws on non-zero too).
-      const reply = yield* call("rtorrent.addTorrentUrl", "load.start", [str(""), str(url)]);
+      // (Sonarr throws on non-zero too). The directory binding must come after
+      // the target (url) so rTorrent applies it when the torrent loads.
+      const params = savePath
+        ? [str(""), str(url), str(`d.directory_base.set=${savePath}`)]
+        : [str(""), str(url)];
+      const reply = yield* call("rtorrent.addTorrentUrl", "load.start", params);
 
       if ((reply.intValue ?? 0) !== 0) {
         yield* Effect.fail(

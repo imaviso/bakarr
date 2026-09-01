@@ -121,13 +121,17 @@ const ParsedReleaseFromRssItemSchema = Schema.transformOrFail(RssItemSchema, Par
 
     const groupMatch = title.match(/^\[(.*?)\]/);
 
+    // Keep nyaa's own trackers in the magnet: with DHT/PEX disabled on the
+    // server, a tracker-less magnet can never resolve (eternal <hash>.meta).
+    const nyaaMagnet = link.startsWith("magnet:") ? link : null;
+
     return Effect.succeed({
       group: groupMatch?.[1],
       infoHash,
       isSeaDex: false,
       isSeaDexBest: false,
       leechers: leechers.value,
-      magnet: `magnet:?xt=urn:btih:${infoHash}&dn=${encodeURIComponent(title)}`,
+      magnet: nyaaMagnet ?? `magnet:?xt=urn:btih:${infoHash}&dn=${encodeURIComponent(title)}`,
       pubDate,
       remake: remake.value,
       resolution: parseResolution(title),

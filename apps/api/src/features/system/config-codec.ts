@@ -76,9 +76,7 @@ export const decodeConfigCore = Effect.fn("ConfigCodec.decodeConfigCore")(
   (value: string): Effect.Effect<ConfigCore, StoredConfigCorruptError> =>
     Schema.decodeUnknown(Schema.parseJson(Schema.Unknown))(value).pipe(
       Effect.map((stored) => Object.assign({ rtorrent: DEFAULT_RTORRENT_CONFIG }, stored)),
-      Effect.flatMap((stored) =>
-        Schema.decodeUnknown(ConfigCoreSchema)(stored),
-      ),
+      Effect.flatMap((stored) => Schema.decodeUnknown(ConfigCoreSchema)(stored)),
       Effect.mapError((cause) =>
         makeStoredConfigCorruptError(
           "Stored configuration is corrupt and could not be decoded",

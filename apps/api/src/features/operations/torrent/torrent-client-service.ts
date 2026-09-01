@@ -100,7 +100,9 @@ export class TorrentClientService extends Effect.Service<TorrentClientService>()
 
         if (config.rtorrent.enabled) {
           const transport = yield* makeTransportFromUrl(config.rtorrent.url);
-          const client = yield* makeRtorrentClient(transport);
+          const client = yield* makeRtorrentClient(transport, {
+            savePath: config.rtorrent.save_path ?? undefined,
+          });
           const enabled: EnabledSelection = { _tag: "Enabled", client };
           return enabled;
         }
