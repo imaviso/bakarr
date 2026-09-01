@@ -20,6 +20,16 @@ import {
 
 const ExternalCallTestLayer = ExternalCallLive;
 
+const NYAA_TRACKER_SUFFIX = [
+  "http%3A%2F%2Fnyaa.tracker.wf%3A7777%2Fannounce",
+  "udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce",
+  "udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce",
+  "udp%3A%2F%2Fexodus.desync.com%3A6969%2Fannounce",
+  "udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce",
+]
+  .map((tracker) => `&tr=${tracker}`)
+  .join("");
+
 function makeDnsLayer(mock: (name: string, type: "A" | "AAAA") => Promise<string[]>) {
   return Layer.succeed(
     DnsResolver,
@@ -98,8 +108,7 @@ it.effect("RssClient uses provided transport for feed fetches", () =>
         isSeaDex: false,
         isSeaDexBest: false,
         leechers: 12,
-        magnet:
-          "magnet:?xt=urn:btih:abcdef0123456789abcdef0123456789abcdef01&dn=%5BSubsPlease%5D%20Example%20Show%20-%2001%20(1080p)%20%5BSeaDex%5D",
+        magnet: `${"magnet:?xt=urn:btih:abcdef0123456789abcdef0123456789abcdef01"}&dn=%5BSubsPlease%5D%20Example%20Show%20-%2001%20(1080p)%20%5BSeaDex%5D${NYAA_TRACKER_SUFFIX}`,
         pubDate: "Mon, 01 Jan 2024 12:00:00 GMT",
         remake: false,
         resolution: "1080p",

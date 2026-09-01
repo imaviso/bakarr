@@ -1,6 +1,7 @@
 import type { NyaaSearchResult } from "@packages/shared/index.ts";
 
 import type { ParsedRelease } from "@/features/operations/rss/rss-client-parse.ts";
+import { buildNyaaMagnet } from "@/features/operations/rss/rss-client-parse.ts";
 import { parseReleaseSourceIdentity } from "@/features/media/identity/identity.ts";
 import { parseReleaseName } from "@/features/operations/search/release-ranking.ts";
 
@@ -123,7 +124,7 @@ export function fallbackReleases(query: string, title?: string): ParsedRelease[]
       isSeaDex: false,
       isSeaDexBest: false,
       leechers: 3,
-      magnet: `magnet:?xt=urn:btih:${infoHash}&dn=${encodeURIComponent(base)}`,
+      magnet: buildNyaaMagnet(infoHash, base),
       pubDate: "1970-01-01T00:00:00.000Z",
       remake: false,
       resolution: "1080p",

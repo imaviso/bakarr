@@ -32,6 +32,26 @@ export const ParsedReleaseSchema = Schema.Struct({
 
 export type ParsedRelease = Schema.Schema.Type<typeof ParsedReleaseSchema>;
 
+/**
+ * Tracker list nyaa.si embeds in its own magnet links. Mirrored so built
+ * magnets resolve even when rTorrent runs with DHT/PEX disabled.
+ */
+const NYAA_TRACKERS: readonly string[] = [
+  "http://nyaa.tracker.wf:7777/announce",
+  "udp://open.stealth.si:80/announce",
+  "udp://tracker.opentrackr.org:1337/announce",
+  "udp://exodus.desync.com:6969/announce",
+  "udp://tracker.torrent.eu.org:451/announce",
+];
+
+export function buildNyaaMagnet(infoHash: string, title: string): string {
+  return [
+    `magnet:?xt=urn:btih:${infoHash}`,
+    `dn=${encodeURIComponent(title)}`,
+    ...NYAA_TRACKERS.map((tracker) => `tr=${encodeURIComponent(tracker)}`),
+  ].join("&");
+}
+
 const xmlParser = new XMLParser({
   ignoreAttributes: false,
   attributeNamePrefix: "",
@@ -121,9 +141,10 @@ const ParsedReleaseFromRssItemSchema = Schema.transformOrFail(RssItemSchema, Par
 
     const groupMatch = title.match(/^\[(.*?)\]/);
 
-    // Keep nyaa's own trackers in the magnet: with DHT/PEX disabled on the
-    // server, a tracker-less magnet can never resolve (eternal <hash>.meta).
-    const nyaaMagnet = link.startsWith("magnet:") ? link : null;
+    // rTorrent may run without DHT/PEX; a tracker-less magnet (xt+dn only)
+    // then never resolves and sits as an eternal <hash>.meta placeholder.
+    // Nyaa's own magnets always carry trackers, so mirror them.
+    const magnet = buildNyaaMagnet(infoHash, title);
 
     return Effect.succeed({
       group: groupMatch?.[1],
@@ -131,7 +152,7 @@ const ParsedReleaseFromRssItemSchema = Schema.transformOrFail(RssItemSchema, Par
       isSeaDex: false,
       isSeaDexBest: false,
       leechers: leechers.value,
-      magnet: nyaaMagnet ?? `magnet:?xt=urn:btih:${infoHash}&dn=${encodeURIComponent(title)}`,
+      magnet,
       pubDate,
       remake: remake.value,
       resolution: parseResolution(title),
