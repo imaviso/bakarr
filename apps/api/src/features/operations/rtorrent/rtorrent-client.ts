@@ -7,11 +7,7 @@ import {
   type TorrentSnapshot,
   type TorrentState,
 } from "@/features/operations/torrent/torrent-domain.ts";
-import {
-  encodeScgiRequest,
-  splitScgiResponse,
-  type ScgiTransportShape,
-} from "@/features/operations/rtorrent/scgi-transport.ts";
+import type { ScgiTransportShape } from "@/features/operations/rtorrent/scgi-transport.ts";
 import {
   decodeXmlRpcResponse,
   encodeXmlRpcCall,
@@ -22,22 +18,38 @@ import {
 } from "@/features/operations/rtorrent/xmlrpc.ts";
 
 /**
- * rTorrent call keys requested per torrent in `d.multicall2`. Field selection
- * is explicit so future fields are opt-in, not accidental wire drift.
+ * rTorrent call keys requested per torrent in `d.multicall2`. Mirrors the
+ * field set Sonarr relies on (d.is_open/d.is_active/d.complete/d.left_bytes),
+ * which works across rTorrent 0.9.x through 0.15.x. `d.paused` is avoided
+ * because it only exists on newer releases and faults the whole multicall on
+ * older ones.
  */
 const TORRENT_CALL_KEYS: readonly string[] = [
-  "d.hash=",
   "d.name=",
-  "d.completed_bytes=",
-  "d.size_bytes=",
-  "d.down.rate=",
-  "d.state=",
-  "d.complete=",
-  "d.paused=",
-  "d.message=",
+  "d.hash=",
   "d.base_path=",
+  "d.size_bytes=",
+  "d.left_bytes=",
+  "d.down.rate=",
+  "d.is_open=",
+  "d.is_active=",
+  "d.complete=",
+  "d.message=",
   "d.directory=",
 ];
+
+// Row indexes into TORRENT_CALL_KEYS responses.
+const IDX_NAME = 0;
+const IDX_HASH = 1;
+const IDX_BASE_PATH = 2;
+const IDX_SIZE = 3;
+const IDX_LEFT = 4;
+const IDX_RATE = 5;
+const IDX_IS_OPEN = 6;
+const IDX_IS_ACTIVE = 7;
+const IDX_COMPLETE = 8;
+const IDX_MESSAGE = 9;
+const IDX_DIRECTORY = 10;
 
 const FILE_CALL_KEYS: readonly string[] = [
   "f.path=",
@@ -46,10 +58,11 @@ const FILE_CALL_KEYS: readonly string[] = [
   "f.size_chunks=",
 ];
 
-// Row indexes into TORRENT_CALL_KEYS responses.
-const IDX_MESSAGE = 8;
-const IDX_BASE_PATH = 9;
-const IDX_DIRECTORY = 10;
+// Sonarr's magnet-resolution budget: 10 tries x 500ms.
+const MAGNET_WAIT_TRIES = 10;
+const MAGNET_WAIT_DELAY = "500 millis";
+
+const MAGNET_HASH_PATTERN = /urn:btih:([0-9a-fA-F]{40}|[A-Za-z2-7]{32})/;
 
 const callError = (cause: unknown, message: string) =>
   TorrentClientUnavailableError.make({ cause, message });
@@ -62,55 +75,51 @@ const firstString = (...values: readonly (XmlRpcValue | undefined)[]): string | 
 };
 
 function mapRtorrentState(
-  state: number,
   complete: number,
-  paused: number,
+  isOpen: number,
+  isActive: number,
   message: string,
 ): TorrentState {
   if (message.length > 0 && message.toLowerCase().includes("error")) {
     return "error";
   }
 
-  if (complete === 1) {
-    return "completed";
-  }
-
-  if (paused === 1) return "paused";
-  if (state === 1) return "downloading";
-  return "queued";
+  // Sonarr's mapping: finished -> completed, active -> downloading, else paused.
+  if (complete === 1) return "completed";
+  if (isOpen === 1 && isActive === 1) return "downloading";
+  return "paused";
 }
 
-function describeRawState(state: number, complete: number, paused: number): string {
-  if (paused === 1) return complete === 1 ? "paused-seeding" : "paused";
+function describeRawState(complete: number, isOpen: number, isActive: number): string {
   if (complete === 1) return "seeding";
-  if (state === 1) return "downloading";
-  return "stopped";
+  if (isOpen !== 1) return "stopped";
+  return isActive === 1 ? "downloading" : "idle";
 }
 
 function toTorrentSnapshot(row: readonly XmlRpcValue[]): TorrentSnapshot {
-  const hash = expectString(row[0] ?? str(""));
-  const name = expectString(row[1] ?? str(""));
-  const completedBytes = row[2]?.intValue ?? 0;
-  const sizeBytes = row[3]?.intValue ?? 0;
-  const downRate = row[4]?.intValue ?? 0;
-  const state = row[5]?.intValue ?? 0;
-  const complete = row[6]?.intValue ?? 0;
-  const paused = row[7]?.intValue ?? 0;
+  const name = expectString(row[IDX_NAME] ?? str(""));
+  const hash = expectString(row[IDX_HASH] ?? str(""));
+  const sizeBytes = row[IDX_SIZE]?.intValue ?? 0;
+  const leftBytes = Math.min(row[IDX_LEFT]?.intValue ?? 0, sizeBytes);
+  const downRate = row[IDX_RATE]?.intValue ?? 0;
+  const isOpen = row[IDX_IS_OPEN]?.intValue ?? 0;
+  const isActive = row[IDX_IS_ACTIVE]?.intValue ?? 0;
+  const complete = row[IDX_COMPLETE]?.intValue ?? 0;
   const message = row[IDX_MESSAGE] ? expectString(row[IDX_MESSAGE]) : "";
-  const completePaths = complete === 1 ? [row[IDX_BASE_PATH], row[IDX_DIRECTORY]] : [];
+  const downloadedBytes = Math.max(0, sizeBytes - leftBytes);
 
   return {
-    contentPath: completePaths.length > 0 ? firstString(...completePaths) : null,
-    downloadedBytes: completedBytes,
-    eta: 0,
+    contentPath: complete === 1 ? firstString(row[IDX_BASE_PATH], row[IDX_DIRECTORY]) : null,
+    downloadedBytes,
+    eta: downRate > 0 && leftBytes > 0 ? Math.ceil(leftBytes / downRate) : 0,
     hash: hash.toLowerCase(),
     name,
-    progress: sizeBytes > 0 ? Math.min(1, completedBytes / sizeBytes) : 0,
-    rawState: message.length > 0 ? message : describeRawState(state, complete, paused),
+    progress: sizeBytes > 0 ? Math.min(1, Math.max(0, downloadedBytes / sizeBytes)) : 0,
+    rawState: message.length > 0 ? message : describeRawState(complete, isOpen, isActive),
     savePath: firstString(row[IDX_DIRECTORY], row[IDX_BASE_PATH]),
     size: sizeBytes,
     speed: downRate,
-    state: mapRtorrentState(state, complete, paused, message),
+    state: mapRtorrentState(complete, isOpen, isActive, message),
   };
 }
 
@@ -152,18 +161,9 @@ export const makeRtorrentClient = (
       methodName: string,
       params: readonly XmlRpcValue[],
     ) {
-      const body = encodeXmlRpcCall(methodName, params);
-      const encoded = encodeScgiRequest(
-        {
-          CONTENT_LENGTH: String(body.length),
-          SCGI: "1",
-        },
-        body,
-      );
+      const raw = yield* transport.request(encodeXmlRpcCall(methodName, params));
 
-      const raw = yield* transport.request(encoded);
-
-      return yield* decodeXmlRpcResponse(splitScgiResponse(raw)).pipe(
+      return yield* decodeXmlRpcResponse(raw).pipe(
         Effect.mapError((error) => callError(error.cause, `${error.message} (${operation})`)),
       );
     });
@@ -178,9 +178,10 @@ export const makeRtorrentClient = (
     });
 
     const listTorrents = Effect.fn("RtorrentClient.listTorrents")(function* () {
+      // Empty view = all downloads in every view (Sonarr's exact call shape).
       const rows = yield* multicall("rtorrent.listTorrents", "d.multicall2", [
         str(""),
-        str("main"),
+        str(""),
         ...TORRENT_CALL_KEYS.map(str),
       ]);
       return rows.map(toTorrentSnapshot);
@@ -190,14 +191,59 @@ export const makeRtorrentClient = (
       hash: string,
     ) {
       const rows = yield* multicall("rtorrent.listTorrentContents", "f.multicall", [
-        str(`${hash}:`),
+        str(hash),
         ...FILE_CALL_KEYS.map(str),
       ]);
       return rows.map(toTorrentFile);
     });
 
+    // Sonarr's HasHashTorrent: d.name on the hash, ignoring magnet meta
+    // placeholders ("<hash>.meta") and RPC faults for unknown hashes.
+    const hasHashTorrent = Effect.fn("RtorrentClient.hasHashTorrent")(function* (hash: string) {
+      const reply = yield* call("rtorrent.hasHashTorrent", "d.name", [str(hash)]).pipe(
+        Effect.catchAll(() => Effect.succeed(null)),
+      );
+
+      if (reply === null || reply.kind === "array" || reply.kind === "struct") return false;
+      const name = expectString(reply);
+      return name.length > 0 && name !== `${hash}.meta`;
+    });
+
+    const waitForTorrent = Effect.fn("RtorrentClient.waitForTorrent")(function* (hash: string) {
+      for (let attempt = 0; attempt < MAGNET_WAIT_TRIES; attempt += 1) {
+        if (yield* hasHashTorrent(hash)) return true;
+        yield* Effect.sleep(MAGNET_WAIT_DELAY);
+      }
+      return false;
+    });
+
     const addTorrentUrl = Effect.fn("RtorrentClient.addTorrentUrl")(function* (url: string) {
-      yield* call("rtorrent.addTorrentUrl", "load.start", [str(""), str(url)]);
+      // load.start returns 0 on success; anything else is an add failure
+      // (Sonarr throws on non-zero too).
+      const reply = yield* call("rtorrent.addTorrentUrl", "load.start", [str(""), str(url)]);
+
+      if ((reply.intValue ?? 0) !== 0) {
+        yield* Effect.fail(
+          callError(
+            undefined,
+            `rTorrent could not add torrent (load.start returned ${reply.intValue})`,
+          ),
+        );
+        return;
+      }
+
+      // Magnets resolve asynchronously; wait for the info hash to register so
+      // callers observe the torrent immediately instead of a missing download.
+      const magnetHash = MAGNET_HASH_PATTERN.exec(url)?.[1];
+      if (magnetHash) {
+        const hash = magnetHash.toLowerCase();
+        const found = yield* waitForTorrent(hash);
+        if (!found) {
+          yield* Effect.logWarning(
+            "rTorrent did not resolve the magnet within the wait budget; download may appear late",
+          ).pipe(Effect.annotateLogs({ hash, url }));
+        }
+      }
     });
 
     const pauseTorrent = Effect.fn("RtorrentClient.pauseTorrent")(function* (hash: string) {

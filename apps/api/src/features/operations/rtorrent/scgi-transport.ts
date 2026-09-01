@@ -43,8 +43,12 @@ export type ScgiTarget =
 
 const MAX_RESPONSE_BYTES = 16 * 1024 * 1024;
 
+/**
+ * A transport sends one XML-RPC document and resolves with the XML payload of
+ * the response (SCGI framing is the transport's concern, not the client's).
+ */
 export interface ScgiTransportShape {
-  readonly request: (encoded: Uint8Array) => Effect.Effect<string, TorrentClientUnavailableError>;
+  readonly request: (xml: string) => Effect.Effect<string, TorrentClientUnavailableError>;
 }
 
 const transportError = (cause: unknown, message: string) =>
@@ -60,8 +64,16 @@ export const makeScgiTransport = (target: ScgiTarget): Effect.Effect<ScgiTranspo
     const connectOptions: Net.NetConnectOpts =
       target.kind === "tcp" ? { host: target.host, port: target.port } : { path: target.path };
 
-    const request = (encoded: Uint8Array): Effect.Effect<string, TorrentClientUnavailableError> =>
+    const request = (xml: string): Effect.Effect<string, TorrentClientUnavailableError> =>
       Effect.gen(function* () {
+        const encoded = encodeScgiRequest(
+          {
+            CONTENT_LENGTH: String(Buffer.byteLength(xml, "utf8")),
+            SCGI: "1",
+          },
+          xml,
+        );
+
         const socket = yield* NetSocket.makeNet({
           ...connectOptions,
           openTimeout: "10 seconds",
@@ -128,3 +140,68 @@ export const makeScgiTransport = (target: ScgiTarget): Effect.Effect<ScgiTranspo
 
     return { request } satisfies ScgiTransportShape;
   });
+
+/**
+ * Reverse-proxied SCGI endpoint (nginx `scgi_pass`, Apache `ProxyPass`): the
+ * proxy speaks SCGI to rTorrent and plain HTTP to us, so requests are ordinary
+ * XML-RPC POSTs. Matches Sonarr's transport model.
+ */
+export const makeHttpTransport = (url: string): ScgiTransportShape => ({
+  request: (xml) =>
+    Effect.tryPromise({
+      try: () =>
+        fetch(url, {
+          body: xml,
+          headers: { "Content-Type": "text/xml" },
+          method: "POST",
+        }).then((response) =>
+          response.text().then((text) => {
+            if (!response.ok) {
+              throw new Error(`HTTP ${response.status} ${response.statusText}`);
+            }
+            return text;
+          }),
+        ),
+      catch: (cause) => transportError(cause, "rTorrent HTTP request failed"),
+    }),
+});
+
+/**
+ * Resolve the configured rTorrent URL into a transport:
+ * `scgi://host:port` / `scgi:///path` → raw SCGI, `http(s)://` → proxied RPC.
+ */
+export const makeTransportFromUrl = (
+  url: string,
+): Effect.Effect<ScgiTransportShape, TorrentClientUnavailableError> => {
+  const lower = url.toLowerCase();
+
+  if (lower.startsWith("http://") || lower.startsWith("https://")) {
+    return Effect.succeed(makeHttpTransport(url));
+  }
+
+  if (lower.startsWith("scgi://")) {
+    const target = url.slice("scgi://".length);
+
+    if (target.startsWith("/")) {
+      return makeScgiTransport({ kind: "unix", path: target });
+    }
+
+    const lastColon = target.lastIndexOf(":");
+    const port = Number(target.slice(lastColon + 1));
+    if (lastColon > 0 && Number.isInteger(port) && port > 0 && port <= 65535) {
+      return makeScgiTransport({ kind: "tcp", host: target.slice(0, lastColon), port });
+    }
+
+    return Effect.fail(
+      TorrentClientUnavailableError.make({
+        message: "rTorrent SCGI URL is invalid (expected scgi://host:port or scgi:///path)",
+      }),
+    );
+  }
+
+  return Effect.fail(
+    TorrentClientUnavailableError.make({
+      message: "rTorrent URL must use scgi:// or http(s)://",
+    }),
+  );
+};

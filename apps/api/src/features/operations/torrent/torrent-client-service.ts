@@ -12,10 +12,7 @@ import {
 } from "@/features/operations/qbittorrent/qbittorrent-adapter.ts";
 import { QBitTorrentClient } from "@/features/operations/qbittorrent/qbittorrent.ts";
 import { makeRtorrentClient } from "@/features/operations/rtorrent/rtorrent-client.ts";
-import {
-  makeScgiTransport,
-  type ScgiTarget,
-} from "@/features/operations/rtorrent/scgi-transport.ts";
+import { makeTransportFromUrl } from "@/features/operations/rtorrent/scgi-transport.ts";
 import {
   RuntimeConfigSnapshotService,
   type RuntimeConfigSnapshotError,
@@ -74,38 +71,6 @@ export interface TorrentClientServiceShape {
   >;
 }
 
-const scgiTargetFromUrl = (
-  url: string,
-): Effect.Effect<ScgiTarget, TorrentClientUnavailableError> => {
-  const lower = url.toLowerCase();
-
-  if (lower.startsWith("scgi://")) {
-    const target = url.slice("scgi://".length);
-
-    if (target.startsWith("/")) {
-      return Effect.succeed({ kind: "unix", path: target });
-    }
-
-    const lastColon = target.lastIndexOf(":");
-    const port = Number(target.slice(lastColon + 1));
-    if (lastColon > 0 && Number.isInteger(port) && port > 0 && port <= 65535) {
-      return Effect.succeed({ kind: "tcp", host: target.slice(0, lastColon), port });
-    }
-
-    return Effect.fail(
-      TorrentClientUnavailableError.make({
-        message: "rTorrent SCGI URL is invalid (expected scgi://host:port or scgi:///path)",
-      }),
-    );
-  }
-
-  return Effect.fail(
-    TorrentClientUnavailableError.make({
-      message: "rTorrent URL is not a supported SCGI target",
-    }),
-  );
-};
-
 /**
  * Client-agnostic torrent operations. Each call re-resolves the runtime config
  * (so settings changes apply without restart), builds the matching adapter,
@@ -134,8 +99,7 @@ export class TorrentClientService extends Effect.Service<TorrentClientService>()
         }
 
         if (config.rtorrent.enabled) {
-          const target = yield* scgiTargetFromUrl(config.rtorrent.url);
-          const transport = yield* makeScgiTransport(target);
+          const transport = yield* makeTransportFromUrl(config.rtorrent.url);
           const client = yield* makeRtorrentClient(transport);
           const enabled: EnabledSelection = { _tag: "Enabled", client };
           return enabled;
