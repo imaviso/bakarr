@@ -40,7 +40,7 @@ import {
   InputGroupButton,
   InputGroupInput,
 } from "@/components/ui/input-group";
-import { CaretDownIcon, CheckIcon, XIcon } from "@phosphor-icons/react";
+import { RiArrowDownSLine, RiCheckLine, RiCloseLine } from "@remixicon/react";
 
 function ComboboxValue<T>({ ...props }: ComboBoxValueProps<T>) {
   return <ComboBoxValuePrimitive data-slot="combobox-value" {...props} />;
@@ -60,7 +60,7 @@ function ComboboxTrigger({
       {...props}
     >
       {children}
-      <CaretDownIcon className="pointer-events-none size-4 text-muted-foreground" />
+      <RiArrowDownSLine className="pointer-events-none size-4 text-muted-foreground" />
     </ButtonPrimitive>
   );
 }
@@ -84,7 +84,7 @@ function ComboboxClear({ className, ...props }: React.ComponentProps<typeof Inpu
       slot={null}
       {...props}
     >
-      <XIcon className="pointer-events-none" />
+      <RiCloseLine className="pointer-events-none" />
     </InputGroupButton>
   );
 }
@@ -112,7 +112,7 @@ function ComboboxInput({
             className="group-has-data-[slot=combobox-clear]/input-group:hidden data-pressed:bg-transparent [&_svg:not([class*='size-'])]:size-4"
             isDisabled={disabled}
           >
-            <CaretDownIcon className="pointer-events-none size-4 text-muted-foreground" />
+            <RiArrowDownSLine className="pointer-events-none size-4 text-muted-foreground" />
           </InputGroupButton>
         )}
         {showClear && <ComboboxClear isDisabled={disabled} />}
@@ -178,7 +178,7 @@ function ComboboxItem<T extends object>({ className, children, ...props }: ListB
         <>
           {children}
           <span className="pointer-events-none absolute right-2 flex size-4 items-center justify-center">
-            {isSelected ? <CheckIcon className="pointer-events-none" /> : null}
+            {isSelected ? <RiCheckLine className="pointer-events-none" /> : null}
           </span>
         </>
       ))}
@@ -296,7 +296,7 @@ function ComboboxChip({
           className="-ml-1 opacity-50 hover:opacity-100"
           data-slot="combobox-chip-remove"
         >
-          <XIcon className="pointer-events-none" />
+          <RiCloseLine className="pointer-events-none" />
         </Button>
       )}
     </TagPrimitive>

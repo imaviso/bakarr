@@ -1,4 +1,4 @@
-import { DownloadIcon, TableIcon, BracketsCurlyIcon } from "@phosphor-icons/react";
+import { RiBracketsLine, RiDownloadLine, RiTableLine } from "@remixicon/react";
 import { DropdownMenu, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import {
@@ -90,16 +90,16 @@ export function DownloadEventsFilters(props: DownloadEventsFiltersProps) {
         <div className="flex items-end gap-2">
           <DropdownMenuTrigger>
             <Button variant="outline">
-              <DownloadIcon className="h-4 w-4" />
+              <RiDownloadLine className="h-4 w-4" />
               Export
             </Button>
             <DropdownMenu>
               <DropdownMenuItem onAction={() => props.onExport("json")}>
-                <BracketsCurlyIcon className="h-4 w-4 mr-2" />
+                <RiBracketsLine className="h-4 w-4 mr-2" />
                 Export as JSON
               </DropdownMenuItem>
               <DropdownMenuItem onAction={() => props.onExport("csv")}>
-                <TableIcon className="h-4 w-4 mr-2" />
+                <RiTableLine className="h-4 w-4 mr-2" />
                 Export as CSV
               </DropdownMenuItem>
             </DropdownMenu>

@@ -1,4 +1,4 @@
-import { ArrowLeftIcon } from "@phosphor-icons/react";
+import { RiArrowLeftLine } from "@remixicon/react";
 import { useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
@@ -52,7 +52,7 @@ export function GeneralError(props: GeneralErrorProps) {
             Refresh
           </Button>
           <Button variant="ghost" className="group" onPress={() => navigate({ to: "/" })}>
-            <ArrowLeftIcon className="mr-1.5 h-4 w-4 transition-transform group-hover:-translate-x-1" />
+            <RiArrowLeftLine className="mr-1.5 h-4 w-4 transition-transform group-hover:-translate-x-1" />
             cd ~
           </Button>
         </div>

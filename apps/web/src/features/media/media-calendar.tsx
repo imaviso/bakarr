@@ -1,4 +1,4 @@
-import { CaretLeftIcon, CaretRightIcon, CheckIcon, CircleIcon } from "@phosphor-icons/react";
+import { RiArrowLeftSLine, RiArrowRightSLine, RiCheckLine, RiCircleLine } from "@remixicon/react";
 import { Link } from "@tanstack/react-router";
 import {
   addMonths,
@@ -59,7 +59,7 @@ export function AnimeCalendar(props: AnimeCalendarProps) {
   const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 0 });
   const days = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
 
-  const weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const weekdays = ["RiSunLine", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
   const eventsByDay: Record<string, typeof events> = {};
   if (airingPreferences) {
@@ -92,13 +92,13 @@ export function AnimeCalendar(props: AnimeCalendarProps) {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="icon" onPress={handlePrevMonth} aria-label="Previous month">
-            <CaretLeftIcon className="h-4 w-4" />
+            <RiArrowLeftSLine className="h-4 w-4" />
           </Button>
           <h2 className="w-40 text-center font-mono text-base font-medium tracking-tight">
             {format(currentDate, "MMMM yyyy")}
           </h2>
           <Button variant="ghost" size="icon" onPress={handleNextMonth} aria-label="Next month">
-            <CaretRightIcon className="h-4 w-4" />
+            <RiArrowRightSLine className="h-4 w-4" />
           </Button>
         </div>
         <Button variant="outline" size="sm" onPress={handleToday}>
@@ -189,9 +189,9 @@ export function AnimeCalendar(props: AnimeCalendarProps) {
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-1">
                                     {event.extended_props.downloaded ? (
-                                      <CheckIcon className="h-3 w-3 flex-shrink-0" />
+                                      <RiCheckLine className="h-3 w-3 flex-shrink-0" />
                                     ) : (
-                                      <CircleIcon className="h-3 w-3 flex-shrink-0" />
+                                      <RiCircleLine className="h-3 w-3 flex-shrink-0" />
                                     )}
                                     <span className="truncate font-medium">
                                       {event.extended_props.media_title}

@@ -1,4 +1,4 @@
-import { ArrowSquareOutIcon, ChartLineUpIcon, LockIcon, PulseIcon } from "@phosphor-icons/react";
+import { RiExternalLinkLine, RiLineChartLine, RiLockLine, RiPulseLine } from "@remixicon/react";
 import type { ObservabilityStatus } from "@bakarr/shared";
 
 import { useObservabilityStatusQuery } from "@/api/system-config";
@@ -49,7 +49,7 @@ export function ObservabilitySettingsPanel() {
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="space-y-2">
             <div className="flex items-center gap-2">
-              <PulseIcon className="size-4 text-muted-foreground" />
+              <RiPulseLine className="size-4 text-muted-foreground" />
               <h3 className="font-mono text-sm font-medium tracking-tight">Telemetry Export</h3>
             </div>
             <p className="max-w-2xl text-sm text-muted-foreground">
@@ -90,7 +90,7 @@ export function ObservabilitySettingsPanel() {
         </SettingRow>
         <SettingRow label="Scraper auth" description="Whether /api/metrics requires Bakarr auth">
           <Badge variant={data.metrics_require_auth ? "secondary" : "outline"}>
-            <LockIcon className="size-3" />
+            <RiLockLine className="size-3" />
             {data.metrics_require_auth ? "Required" : "Open"}
           </Badge>
         </SettingRow>
@@ -113,7 +113,7 @@ export function ObservabilitySettingsPanel() {
                 rel="noreferrer"
               >
                 Open
-                <ArrowSquareOutIcon className="size-3.5" />
+                <RiExternalLinkLine className="size-3.5" />
               </LinkButton>
             </SettingRow>
           ))
@@ -121,7 +121,7 @@ export function ObservabilitySettingsPanel() {
       </SettingSection>
 
       <div className="flex items-start gap-2 border border-border/70 px-3 py-2 text-xs text-muted-foreground">
-        <ChartLineUpIcon className="mt-0.5 size-3.5 shrink-0" />
+        <RiLineChartLine className="mt-0.5 size-3.5 shrink-0" />
         Configure exporter endpoints through environment variables. The UI is read-only to avoid
         exposing OTLP headers and runtime exporter state.
       </div>

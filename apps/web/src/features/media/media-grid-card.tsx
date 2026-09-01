@@ -1,4 +1,4 @@
-import { TelevisionIcon, TrashIcon } from "@phosphor-icons/react";
+import { RiDeleteBinLine, RiTvLine } from "@remixicon/react";
 import { Link } from "@tanstack/react-router";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { Badge } from "@/components/ui/badge";
@@ -43,7 +43,7 @@ export function MediaGridCard(props: MediaGridCardProps) {
             />
           ) : (
             <div className="flex h-full items-center justify-center text-muted-foreground">
-              <TelevisionIcon className="h-12 w-12 opacity-20" />
+              <RiTvLine className="h-12 w-12 opacity-20" />
             </div>
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-scrim/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
@@ -63,7 +63,7 @@ export function MediaGridCard(props: MediaGridCardProps) {
                 aria-label={`Delete ${media.title.english || media.title.romaji}`}
                 className="relative after:absolute after:-inset-3 h-8 w-8 bg-background/90 hover:bg-destructive hover:text-destructive-foreground"
               >
-                <TrashIcon className="h-3.5 w-3.5" />
+                <RiDeleteBinLine className="h-3.5 w-3.5" />
               </Button>
             }
           />

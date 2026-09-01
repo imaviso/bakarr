@@ -1,10 +1,10 @@
 import {
-  ActivityIcon,
-  CloudIcon,
-  DatabaseIcon,
-  DownloadIcon,
-  ArrowClockwiseIcon,
-} from "@phosphor-icons/react";
+  RiCloudLine,
+  RiDatabaseLine,
+  RiDownloadLine,
+  RiPulseLine,
+  RiRefreshLine,
+} from "@remixicon/react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useSystemTaskQuery, isTaskActive } from "@/api/operations-tasks";
@@ -50,7 +50,7 @@ export function SystemStatus() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">System Status</CardTitle>
-          <ActivityIcon className="h-4 w-4 text-muted-foreground" />
+          <RiPulseLine className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">{status.data ? status.data.version : "-"}</div>
@@ -63,7 +63,7 @@ export function SystemStatus() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Disk Space</CardTitle>
-          <DatabaseIcon className="h-4 w-4 text-muted-foreground" />
+          <RiDatabaseLine className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">
@@ -78,7 +78,7 @@ export function SystemStatus() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Pending Downloads</CardTitle>
-          <DownloadIcon className="h-4 w-4 text-muted-foreground" />
+          <RiDownloadLine className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">
@@ -93,7 +93,7 @@ export function SystemStatus() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Metadata</CardTitle>
-          <CloudIcon className="h-4 w-4 text-muted-foreground" />
+          <RiCloudLine className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">
@@ -121,7 +121,7 @@ export function SystemStatus() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Quick Actions</CardTitle>
-          <ArrowClockwiseIcon className="h-4 w-4 text-muted-foreground" />
+          <RiRefreshLine className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent className="flex gap-2">
           <Button

@@ -1,17 +1,17 @@
 import {
-  ArrowLeftIcon,
-  ArrowRightIcon,
-  CheckIcon,
-  FileIcon,
-  FolderOpenIcon,
-  TreeStructureIcon,
-  SpinnerIcon,
-  PlusIcon,
-  MagnifyingGlassIcon,
-  TextTIcon,
-  UploadSimpleIcon,
-  XIcon,
-} from "@phosphor-icons/react";
+  RiAddLine,
+  RiArrowLeftLine,
+  RiArrowRightLine,
+  RiCheckLine,
+  RiCloseLine,
+  RiFileLine,
+  RiFolderOpenLine,
+  RiLoader4Line,
+  RiNodeTree,
+  RiSearchLine,
+  RiText,
+  RiUploadLine,
+} from "@remixicon/react";
 import { Link } from "@tanstack/react-router";
 import { Spinner } from "@/components/ui/spinner";
 import { IconButton } from "@/components/shared/icon-button";
@@ -73,14 +73,14 @@ function ImportTopBar(props: { state: ImportPageState }) {
         <div className="flex items-center gap-4">
           <Link to="/media" search={DEFAULT_ANIME_SEARCH}>
             <IconButton aria-label="Back to media library">
-              <ArrowLeftIcon className="h-4 w-4" />
+              <RiArrowLeftLine className="h-4 w-4" />
             </IconButton>
           </Link>
           <div>
             <h1 className="text-xl font-medium tracking-tight text-foreground">Import Files</h1>
             {props.state.flow.step === "review" && props.state.flow.path && (
               <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
-                <FolderOpenIcon className="h-3 w-3" />
+                <RiFolderOpenLine className="h-3 w-3" />
                 <span className="font-mono truncate max-w-md">{props.state.flow.path}</span>
               </div>
             )}
@@ -117,7 +117,7 @@ function ImportTopBar(props: { state: ImportPageState }) {
                   )}
                 >
                   {index < props.state.currentStepIndex ? (
-                    <CheckIcon className="h-3 w-3" />
+                    <RiCheckLine className="h-3 w-3" />
                   ) : (
                     index + 1
                   )}
@@ -162,11 +162,11 @@ function ImportScanStep(props: { state: ImportPageState }) {
         >
           <TabsList className="w-fit">
             <TabsTrigger id="browser" className="gap-2">
-              <TreeStructureIcon className="h-4 w-4" />
+              <RiNodeTree className="h-4 w-4" />
               Browse
             </TabsTrigger>
             <TabsTrigger id="manual" className="gap-2">
-              <TextTIcon className="h-4 w-4" />
+              <RiText className="h-4 w-4" />
               Manual Path
             </TabsTrigger>
           </TabsList>
@@ -229,7 +229,7 @@ function ImportScanStep(props: { state: ImportPageState }) {
               onDrop={props.state.flow.handleDrop}
             >
               <div className="rounded-full bg-muted p-4 mb-4">
-                <UploadSimpleIcon className="h-8 w-8 text-muted-foreground" />
+                <RiUploadLine className="h-8 w-8 text-muted-foreground" />
               </div>
               <p className="font-medium text-center">Drag and drop a folder here</p>
               <p className="text-sm text-muted-foreground mt-1 text-center">
@@ -262,7 +262,7 @@ function ImportScanStep(props: { state: ImportPageState }) {
           <div className="flex items-center gap-3">
             {props.state.flow.path && (
               <>
-                <FolderOpenIcon className="h-4 w-4 text-muted-foreground" />
+                <RiFolderOpenLine className="h-4 w-4 text-muted-foreground" />
                 <span className="text-sm font-mono text-muted-foreground truncate max-w-md">
                   {props.state.flow.path}
                 </span>
@@ -272,7 +272,7 @@ function ImportScanStep(props: { state: ImportPageState }) {
                   aria-label="Clear path"
                   onPress={props.state.clearPath}
                 >
-                  <XIcon className="h-3 w-3" />
+                  <RiCloseLine className="h-3 w-3" />
                 </Button>
               </>
             )}
@@ -283,12 +283,12 @@ function ImportScanStep(props: { state: ImportPageState }) {
           >
             {props.state.flow.scanMutation.isPending ? (
               <>
-                <SpinnerIcon className="mr-2 h-4 w-4 animate-spin" />
+                <RiLoader4Line className="mr-2 h-4 w-4 animate-spin" />
                 Scanning...
               </>
             ) : (
               <>
-                <MagnifyingGlassIcon className="mr-2 h-4 w-4" />
+                <RiSearchLine className="mr-2 h-4 w-4" />
                 Scan Folder
               </>
             )}
@@ -330,7 +330,7 @@ function ImportReviewStep(props: { state: ImportPageState }) {
         <div className="px-8 py-6 border-b bg-muted">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-medium flex items-center gap-2">
-              <TreeStructureIcon className="h-4 w-4 text-primary" />
+              <RiNodeTree className="h-4 w-4 text-primary" />
               Suggested Series
             </h3>
             <Dialog
@@ -344,7 +344,7 @@ function ImportReviewStep(props: { state: ImportPageState }) {
                 className="h-7 text-xs gap-1.5"
                 onPress={() => props.state.flow.setIsSearchOpen(true)}
               >
-                <PlusIcon className="h-3.5 w-3.5" />
+                <RiAddLine className="h-3.5 w-3.5" />
                 Add Series
               </Button>
               <DialogHeader>
@@ -416,7 +416,7 @@ function ImportReviewStep(props: { state: ImportPageState }) {
                   key={file.path}
                   className="px-4 py-2 flex items-center gap-3 text-muted-foreground"
                 >
-                  <FileIcon className="h-4 w-4 shrink-0" />
+                  <RiFileLine className="h-4 w-4 shrink-0" />
                   <span className="text-xs font-mono truncate flex-1">
                     {file.path.substring(file.path.lastIndexOf("/") + 1)}
                   </span>
@@ -433,7 +433,7 @@ function ImportReviewStep(props: { state: ImportPageState }) {
       <div className="px-8 py-4 border-t bg-muted">
         <div className="flex items-center justify-between">
           <Button variant="ghost" onPress={() => props.state.flow.setStep("scan")}>
-            <ArrowLeftIcon className="mr-2 h-4 w-4" />
+            <RiArrowLeftLine className="mr-2 h-4 w-4" />
             Back
           </Button>
           <Button
@@ -446,14 +446,14 @@ function ImportReviewStep(props: { state: ImportPageState }) {
           >
             {props.state.flow.importMutation.isPending ? (
               <>
-                <SpinnerIcon className="mr-2 h-4 w-4 animate-spin" />
+                <RiLoader4Line className="mr-2 h-4 w-4 animate-spin" />
                 Importing...
               </>
             ) : (
               <>
                 Import {props.state.flow.selectedFiles.size} File
                 {props.state.flow.selectedFiles.size !== 1 ? "s" : ""}
-                <ArrowRightIcon className="ml-2 h-4 w-4" />
+                <RiArrowRightLine className="ml-2 h-4 w-4" />
               </>
             )}
           </Button>

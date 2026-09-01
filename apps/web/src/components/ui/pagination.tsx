@@ -2,7 +2,7 @@ import * as React from "react";
 
 import { cn } from "@/infra/utils";
 import { LinkButton } from "@/components/ui/button";
-import { CaretLeftIcon, CaretRightIcon, DotsThreeIcon } from "@phosphor-icons/react";
+import { RiArrowLeftSLine, RiArrowRightSLine, RiMoreLine } from "@remixicon/react";
 
 function Pagination({ className, ...props }: React.ComponentProps<"nav">) {
   return (
@@ -60,7 +60,7 @@ function PaginationPrevious({
       className={cn("pl-1.5!", className)}
       {...props}
     >
-      <CaretLeftIcon data-icon="inline-start" className="" />
+      <RiArrowLeftSLine data-icon="inline-start" className="" />
       <span className="hidden sm:block">{text}</span>
     </PaginationLink>
   );
@@ -79,7 +79,7 @@ function PaginationNext({
       {...props}
     >
       <span className="hidden sm:block">{text}</span>
-      <CaretRightIcon data-icon="inline-end" className="" />
+      <RiArrowRightSLine data-icon="inline-end" className="" />
     </PaginationLink>
   );
 }
@@ -95,7 +95,7 @@ function PaginationEllipsis({ className, ...props }: React.ComponentProps<"span"
       )}
       {...props}
     >
-      <DotsThreeIcon />
+      <RiMoreLine />
       <span className="sr-only">More pages</span>
     </span>
   );

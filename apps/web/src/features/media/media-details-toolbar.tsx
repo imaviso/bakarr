@@ -1,15 +1,15 @@
 import {
-  ArrowClockwiseIcon,
-  BookmarkIcon,
-  DownloadIcon,
-  FileArrowDownIcon,
-  FolderOpenIcon,
-  LinkIcon,
-  ListIcon,
-  MagnifyingGlassIcon,
-  TextTIcon,
-  TrashIcon,
-} from "@phosphor-icons/react";
+  RiBookmarkLine,
+  RiDeleteBinLine,
+  RiDownloadLine,
+  RiFileDownloadLine,
+  RiFolderOpenLine,
+  RiLink,
+  RiListUnordered,
+  RiRefreshLine,
+  RiSearchLine,
+  RiText,
+} from "@remixicon/react";
 import { Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipTrigger } from "@/components/ui/tooltip";
@@ -66,7 +66,7 @@ export function MediaDetailsToolbar(props: ToolbarProps) {
           }
           className={cn("shrink-0", !props.isMonitored && "text-muted-foreground bg-muted")}
         >
-          <BookmarkIcon className={cn("h-4 w-4", props.isMonitored && "fill-current")} />
+          <RiBookmarkLine className={cn("h-4 w-4", props.isMonitored && "fill-current")} />
         </Button>
       </ToolbarButton>
 
@@ -78,7 +78,7 @@ export function MediaDetailsToolbar(props: ToolbarProps) {
           isDisabled={props.isRefreshPending}
           className="shrink-0"
         >
-          <ArrowClockwiseIcon
+          <RiRefreshLine
             className={cn("lg:mr-2 h-4 w-4", props.isRefreshPending && "animate-spin")}
           />
           <span className="hidden lg:inline">Refresh</span>
@@ -92,7 +92,7 @@ export function MediaDetailsToolbar(props: ToolbarProps) {
         tooltip="Search Releases"
         trigger={
           <Button variant="outline" size="sm" className="shrink-0">
-            <DownloadIcon className="lg:mr-2 h-4 w-4" />
+            <RiDownloadLine className="lg:mr-2 h-4 w-4" />
             <span className="hidden lg:inline">Search</span>
           </Button>
         }
@@ -108,7 +108,7 @@ export function MediaDetailsToolbar(props: ToolbarProps) {
           }
           className="shrink-0"
         >
-          <MagnifyingGlassIcon className="lg:mr-2 h-4 w-4" />
+          <RiSearchLine className="lg:mr-2 h-4 w-4" />
           <span className="hidden lg:inline">Search Missing</span>
         </Button>
       </ToolbarButton>
@@ -121,7 +121,7 @@ export function MediaDetailsToolbar(props: ToolbarProps) {
           isDisabled={props.isScanFolderPending}
           className="shrink-0"
         >
-          <FileArrowDownIcon
+          <RiFileDownloadLine
             className={cn("lg:mr-2 h-4 w-4", props.isScanFolderPending && "animate-spin")}
           />
           <span className="hidden lg:inline">Scan Folder</span>
@@ -130,21 +130,21 @@ export function MediaDetailsToolbar(props: ToolbarProps) {
 
       <ToolbarButton tooltip="Rename Files">
         <Button variant="outline" size="sm" onPress={props.onRenameFiles} className="shrink-0">
-          <TextTIcon className="lg:mr-2 h-4 w-4" />
+          <RiText className="lg:mr-2 h-4 w-4" />
           <span className="hidden lg:inline">Rename</span>
         </Button>
       </ToolbarButton>
 
       <Link to="/media/import" search={{ mediaId: props.mediaId }} className="shrink-0">
         <Button variant="outline" size="sm">
-          <FolderOpenIcon className="lg:mr-2 h-4 w-4" />
+          <RiFolderOpenLine className="lg:mr-2 h-4 w-4" />
           <span className="hidden lg:inline">Import</span>
         </Button>
       </Link>
 
       <ToolbarButton tooltip={`Manual Map ${props.unitLabelPlural}`}>
         <Button variant="outline" size="sm" onPress={props.onOpenBulkMapping} className="shrink-0">
-          <LinkIcon className="lg:mr-2 h-4 w-4" />
+          <RiLink className="lg:mr-2 h-4 w-4" />
           <span className="hidden lg:inline">Map {props.unitLabelPlural}</span>
         </Button>
       </ToolbarButton>
@@ -155,7 +155,7 @@ export function MediaDetailsToolbar(props: ToolbarProps) {
         className="shrink-0"
       >
         <Button variant="outline" size="sm">
-          <ListIcon className="lg:mr-2 h-4 w-4" />
+          <RiListUnordered className="lg:mr-2 h-4 w-4" />
           <span className="hidden lg:inline">Events</span>
         </Button>
       </Link>
@@ -174,7 +174,7 @@ export function MediaDetailsToolbar(props: ToolbarProps) {
               aria-label={`Delete ${props.mediaLabel}`}
               className="text-muted-foreground hover:text-destructive shrink-0"
             >
-              <TrashIcon className="h-4 w-4" />
+              <RiDeleteBinLine className="h-4 w-4" />
             </Button>
           </ToolbarButton>
         }

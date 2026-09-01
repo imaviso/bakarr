@@ -1,4 +1,4 @@
-import { ArrowClockwiseIcon, MagnifyingGlassIcon } from "@phosphor-icons/react";
+import { RiRefreshLine, RiSearchLine } from "@remixicon/react";
 import { DownloadEventsDialog } from "@/features/downloads/download-events-dialog";
 import { PageHeader } from "@/app/layout/page-header";
 import { PageShell } from "@/app/layout/page-shell";
@@ -39,7 +39,7 @@ export function DownloadsView(props: DownloadsViewProps) {
             }}
             isDisabled={props.state.syncDownloads.isPending}
           >
-            <ArrowClockwiseIcon className="h-4 w-4" />
+            <RiRefreshLine className="h-4 w-4" />
             Sync
           </Button>
           <Button
@@ -50,7 +50,7 @@ export function DownloadsView(props: DownloadsViewProps) {
             }}
             isDisabled={props.state.searchMissing.isPending}
           >
-            <MagnifyingGlassIcon className="h-4 w-4" />
+            <RiSearchLine className="h-4 w-4" />
             Search Missing
           </Button>
         </div>

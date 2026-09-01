@@ -1,4 +1,4 @@
-import { CheckIcon, FileIcon } from "@phosphor-icons/react";
+import { RiCheckLine, RiFileLine } from "@remixicon/react";
 import { MediaDiscoveryRow } from "@/features/media/media-discovery";
 import { Badge } from "@/components/ui/badge";
 import { Toggle } from "@/components/ui/toggle";
@@ -47,12 +47,12 @@ export function CandidateCard(props: CandidateCardProps) {
             />
           ) : (
             <div className="flex h-full w-full items-center justify-center bg-muted">
-              <FileIcon className="h-4 w-4 text-muted-foreground" />
+              <RiFileLine className="h-4 w-4 text-muted-foreground" />
             </div>
           )}
           {props.isSelected && (
             <div className="absolute inset-0 flex items-center justify-center bg-primary/30">
-              <CheckIcon className="h-5 w-5 text-white" />
+              <RiCheckLine className="h-5 w-5 text-white" />
             </div>
           )}
         </div>

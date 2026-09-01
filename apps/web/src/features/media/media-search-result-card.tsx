@@ -1,4 +1,4 @@
-import { CalendarIcon, CheckIcon, TelevisionIcon, PlusIcon } from "@phosphor-icons/react";
+import { RiAddLine, RiCalendarLine, RiCheckLine, RiTvLine } from "@remixicon/react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -45,7 +45,7 @@ export function MediaSearchResultCard(props: MediaSearchResultCardProps) {
           />
         ) : (
           <div className="absolute inset-0 flex items-center justify-center">
-            <TelevisionIcon className="h-12 w-12 text-muted-foreground" />
+            <RiTvLine className="h-12 w-12 text-muted-foreground" />
           </div>
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-scrim/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100">
@@ -58,12 +58,12 @@ export function MediaSearchResultCard(props: MediaSearchResultCardProps) {
           >
             {props.added ? (
               <>
-                <CheckIcon className="h-4 w-4" />
+                <RiCheckLine className="h-4 w-4" />
                 Already Added
               </>
             ) : (
               <>
-                <PlusIcon className="h-4 w-4" />
+                <RiAddLine className="h-4 w-4" />
                 Add to Library
               </>
             )}
@@ -128,7 +128,7 @@ export function MediaSearchResultCard(props: MediaSearchResultCardProps) {
           )}
           {animeSearchSubtitle(props.media) && (
             <Badge variant="outline" className="text-xs h-5 px-1.5 font-normal">
-              <CalendarIcon className="mr-1 h-3 w-3" />
+              <RiCalendarLine className="mr-1 h-3 w-3" />
               {animeSearchSubtitle(props.media)}
             </Badge>
           )}

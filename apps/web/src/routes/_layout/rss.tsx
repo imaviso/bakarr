@@ -1,12 +1,11 @@
 import {
-  ClockIcon,
-  LinkIcon,
-  PlusIcon,
-  RssIcon,
-  ToggleLeftIcon,
-  ToggleRightIcon,
-  TrashIcon,
-} from "@phosphor-icons/react";
+  RiAddLine,
+  RiDeleteBinLine,
+  RiLink,
+  RiRssLine,
+  RiTimeLine,
+  RiToggleLine,
+} from "@remixicon/react";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { useForm } from "@tanstack/react-form";
 import { createFileRoute } from "@tanstack/react-router";
@@ -65,7 +64,7 @@ function RssPage() {
     <PageShell>
       <PageHeader title="RSS Feeds">
         <Button size="sm" onPress={() => setIsAdding(true)} isDisabled={isAdding}>
-          <PlusIcon className="h-4 w-4" />
+          <RiAddLine className="h-4 w-4" />
           Add Feed
         </Button>
       </PageHeader>
@@ -76,13 +75,13 @@ function RssPage() {
 
       {feeds.length === 0 ? (
         <EmptyState
-          icon={<RssIcon className="h-12 w-12" />}
+          icon={<RiRssLine className="h-12 w-12" />}
           title="No RSS feeds"
           description="Add RSS feeds to automatically detect new episodes"
           className="border-dashed"
         >
           <Button onPress={() => setIsAdding(true)}>
-            <PlusIcon className="h-4 w-4" />
+            <RiAddLine className="h-4 w-4" />
             Add Feed
           </Button>
         </EmptyState>
@@ -117,9 +116,9 @@ function FeedCard(props: {
           aria-label={props.feed.enabled ? "Disable feed" : "Enable feed"}
         >
           {props.feed.enabled ? (
-            <ToggleRightIcon className="h-6 w-6 text-success" />
+            <RiToggleLine className="h-6 w-6 text-success" />
           ) : (
-            <ToggleLeftIcon className="h-6 w-6 text-muted-foreground" />
+            <RiToggleLine className="h-6 w-6 text-muted-foreground" />
           )}
         </Button>
         <div className="flex-1 min-w-0">
@@ -131,12 +130,12 @@ function FeedCard(props: {
           </div>
           <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
             <span className="flex items-center gap-1 truncate max-w-md">
-              <LinkIcon className="h-3.5 w-3.5 shrink-0" />
+              <RiLink className="h-3.5 w-3.5 shrink-0" />
               <span className="truncate">{props.feed.url}</span>
             </span>
             {props.feed.last_checked && (
               <span className="flex items-center gap-1 shrink-0">
-                <ClockIcon className="h-3.5 w-3.5" />
+                <RiTimeLine className="h-3.5 w-3.5" />
                 {formatDateTime(props.feed.last_checked)}
               </span>
             )}
@@ -155,7 +154,7 @@ function FeedCard(props: {
               className="text-muted-foreground hover:text-destructive"
               aria-label="Delete feed"
             >
-              <TrashIcon className="h-4 w-4" />
+              <RiDeleteBinLine className="h-4 w-4" />
             </IconButton>
           }
         />

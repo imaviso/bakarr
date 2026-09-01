@@ -12,7 +12,7 @@ import {
 } from "react-aria-components";
 
 import { cn } from "@/infra/utils";
-import { CaretRightIcon, DotsThreeIcon } from "@phosphor-icons/react";
+import { RiArrowRightSLine, RiMoreLine } from "@remixicon/react";
 
 function Breadcrumb({ className, ...props }: React.ComponentProps<"nav">) {
   return (
@@ -55,7 +55,7 @@ function BreadcrumbItem({
               aria-hidden="true"
               className={cn("[&>svg]:size-3.5", separatorClassName)}
             >
-              <CaretRightIcon className="" />
+              <RiArrowRightSLine className="" />
             </span>
           )}
         </>
@@ -97,7 +97,7 @@ function BreadcrumbEllipsis({ className, ...props }: React.ComponentProps<"span"
       className={cn("flex size-5 items-center justify-center [&>svg]:size-4", className)}
       {...props}
     >
-      <DotsThreeIcon />
+      <RiMoreLine />
       <span className="sr-only">More</span>
     </span>
   );

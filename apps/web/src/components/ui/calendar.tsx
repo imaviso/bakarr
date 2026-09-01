@@ -29,7 +29,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { CaretLeftIcon, CaretRightIcon } from "@phosphor-icons/react";
+import { RiArrowLeftSLine, RiArrowRightSLine } from "@remixicon/react";
 
 const cellVariants = cva(
   "group/day relative mt-2 aspect-square h-full w-full cursor-default rounded-(--cell-radius) p-0 text-center select-none [&:is(:last-child>[data-selected=true])>div]:rounded-r-(--cell-radius)",
@@ -146,14 +146,14 @@ function CalendarInner({
           slot="previous"
           className="size-(--cell-size) p-0 select-none aria-disabled:opacity-50"
         >
-          <CaretLeftIcon className=" size-4" />
+          <RiArrowLeftSLine className=" size-4" />
         </Button>
         <Button
           variant={buttonVariant}
           slot="next"
           className="size-(--cell-size) p-0 select-none aria-disabled:opacity-50"
         >
-          <CaretRightIcon className=" size-4" />
+          <RiArrowRightSLine className=" size-4" />
         </Button>
       </header>
       {Array.from({ length: numberOfMonths }, (_, i) => (

@@ -2,12 +2,12 @@
 
 import { Toaster as Sonner, type ToasterProps } from "sonner";
 import {
-  CheckCircleIcon,
-  InfoIcon,
-  SpinnerIcon,
-  WarningIcon,
-  XCircleIcon,
-} from "@phosphor-icons/react";
+  RiCheckboxCircleLine,
+  RiCloseCircleLine,
+  RiErrorWarningLine,
+  RiInformationLine,
+  RiLoader4Line,
+} from "@remixicon/react";
 import { useTheme } from "@/components/shared/theme-provider";
 
 function toSonnerTheme(theme: string | undefined): "light" | "dark" | "system" {
@@ -32,11 +32,11 @@ const Toaster = ({ toastOptions, theme: _theme, ...props }: ToasterProps) => {
       theme={toSonnerTheme(theme)}
       className="toaster group"
       icons={{
-        success: <CheckCircleIcon className="size-4" />,
-        info: <InfoIcon className="size-4" />,
-        warning: <WarningIcon className="size-4" />,
-        error: <XCircleIcon className="size-4" />,
-        loading: <SpinnerIcon className="size-4 animate-spin" />,
+        success: <RiCheckboxCircleLine className="size-4" />,
+        info: <RiInformationLine className="size-4" />,
+        warning: <RiErrorWarningLine className="size-4" />,
+        error: <RiCloseCircleLine className="size-4" />,
+        loading: <RiLoader4Line className="size-4 animate-spin" />,
       }}
       style={toasterStyle}
       toastOptions={{

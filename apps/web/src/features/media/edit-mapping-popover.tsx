@@ -1,4 +1,4 @@
-import { PencilSimpleIcon } from "@phosphor-icons/react";
+import { RiEditLine } from "@remixicon/react";
 import { useState } from "react";
 import { useForm } from "@tanstack/react-form";
 import { Schema } from "effect";
@@ -62,7 +62,7 @@ export function EditMappingPopover(props: EditMappingPopoverProps) {
         <span>
           S{props.season ?? 1} E{props.episode}
         </span>
-        <PencilSimpleIcon className="h-3 w-3 opacity-50" />
+        <RiEditLine className="h-3 w-3 opacity-50" />
       </Button>
       <Popover className="w-64 p-4">
         <form onSubmit={handleSubmit} className="space-y-4">

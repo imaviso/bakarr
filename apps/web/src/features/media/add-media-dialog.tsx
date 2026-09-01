@@ -1,11 +1,11 @@
 import {
-  CalendarIcon,
-  CheckIcon,
-  TelevisionIcon,
-  FolderIcon,
-  PlusIcon,
-  SpinnerIcon,
-} from "@phosphor-icons/react";
+  RiAddLine,
+  RiCalendarLine,
+  RiCheckLine,
+  RiFolderLine,
+  RiLoader4Line,
+  RiTvLine,
+} from "@remixicon/react";
 import { useForm } from "@tanstack/react-form";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Schema } from "effect";
@@ -95,7 +95,7 @@ export function AddAnimeDialog(props: AddAnimeDialogProps) {
             />
           ) : (
             <div className="w-12 h-16 bg-muted rounded-none flex items-center justify-center">
-              <TelevisionIcon className="h-6 w-6 text-muted-foreground" />
+              <RiTvLine className="h-6 w-6 text-muted-foreground" />
             </div>
           )}
           <div className="flex-1 min-w-0">
@@ -114,7 +114,7 @@ export function AddAnimeDialog(props: AddAnimeDialogProps) {
                     className="inline-flex items-center gap-1 rounded-none font-normal text-muted-foreground max-w-full"
                   >
                     {(chip.includes("/") || /^\d{4}$/.test(chip)) && (
-                      <CalendarIcon className="h-3 w-3 shrink-0" />
+                      <RiCalendarLine className="h-3 w-3 shrink-0" />
                     )}
                     <span className="truncate">{chip}</span>
                   </Badge>
@@ -295,7 +295,7 @@ function AddAnimeForm(props: AddAnimeFormProps) {
         {(field) => (
           <div className="space-y-2">
             <Label htmlFor="add-anime-root-folder" className="flex items-center gap-2">
-              <FolderIcon className="h-4 w-4" />
+              <RiFolderLine className="h-4 w-4" />
               Root Folder
             </Label>
             <Input
@@ -402,7 +402,7 @@ function AddAnimeForm(props: AddAnimeFormProps) {
 
       {props.media.already_in_library && (
         <Alert variant="destructive">
-          <CheckIcon className="h-4 w-4" />
+          <RiCheckLine className="h-4 w-4" />
           <AlertDescription>This {mediaLabel} is already in your library</AlertDescription>
         </Alert>
       )}
@@ -421,12 +421,12 @@ function AddAnimeForm(props: AddAnimeFormProps) {
             >
               {!addAnimeMutation.isPending ? (
                 <>
-                  <PlusIcon className="mr-2 h-4 w-4" />
+                  <RiAddLine className="mr-2 h-4 w-4" />
                   Add to Library
                 </>
               ) : (
                 <>
-                  <SpinnerIcon className="mr-2 h-4 w-4 animate-spin" />
+                  <RiLoader4Line className="mr-2 h-4 w-4 animate-spin" />
                   Adding...
                 </>
               )}

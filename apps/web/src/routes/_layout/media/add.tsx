@@ -1,4 +1,4 @@
-import { WarningIcon, TelevisionIcon, InfoIcon, MagnifyingGlassIcon } from "@phosphor-icons/react";
+import { RiErrorWarningLine, RiInformationLine, RiSearchLine, RiTvLine } from "@remixicon/react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useNavigate } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
@@ -137,7 +137,7 @@ function AddAnimePage() {
         subtitle="Search anime, manga, or light novels to add to your library"
       >
         <div className="relative w-full sm:max-w-sm">
-          <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <RiSearchLine className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             ref={searchInputRef}
             value={query}
@@ -179,11 +179,11 @@ function AddAnimePage() {
       >
         <TabsList className="w-full justify-start">
           <TabsTrigger id="search" className="gap-1.5">
-            <MagnifyingGlassIcon className="h-4 w-4" />
+            <RiSearchLine className="h-4 w-4" />
             Search
           </TabsTrigger>
           <TabsTrigger id="seasonal" isDisabled={mediaKind !== "anime"}>
-            <TelevisionIcon className="h-4 w-4" />
+            <RiTvLine className="h-4 w-4" />
             Seasonal
           </TabsTrigger>
         </TabsList>
@@ -329,7 +329,7 @@ function SearchResults(props: SearchResultsProps) {
     <div className="flex flex-1 min-h-0 overflow-hidden flex-col gap-4">
       {props.canSearch && props.searchDegraded && (
         <Alert className="rounded-none text-xs">
-          <InfoIcon className="mt-0.5 h-4 w-4 shrink-0" />
+          <RiInformationLine className="mt-0.5 h-4 w-4 shrink-0" />
           <AlertDescription>
             AniList is temporarily unavailable or rate-limited. Showing local library matches only.
           </AlertDescription>
@@ -338,7 +338,7 @@ function SearchResults(props: SearchResultsProps) {
 
       {!props.canSearch && (
         <div className="flex flex-1 flex-col items-center justify-center overflow-y-auto py-20 text-muted-foreground border-2 border-dashed rounded-none bg-muted">
-          <MagnifyingGlassIcon className="h-12 w-12 mb-4 opacity-50" />
+          <RiSearchLine className="h-12 w-12 mb-4 opacity-50" />
           <h2 className="font-medium text-lg">Search for your next {props.mediaLabel}</h2>
           <p className="text-sm mt-1">Type at least 3 characters in the search bar above</p>
         </div>
@@ -408,7 +408,7 @@ function SearchResults(props: SearchResultsProps) {
         !props.searchQuery.isFetching &&
         props.searchResults.length === 0 && (
           <div className="flex flex-1 flex-col items-center justify-center overflow-y-auto py-12 text-muted-foreground">
-            <WarningIcon className="h-10 w-10 mb-3 opacity-50" />
+            <RiErrorWarningLine className="h-10 w-10 mb-3 opacity-50" />
             <p>No results found for &quot;{props.debouncedQuery}&quot;</p>
           </div>
         )}

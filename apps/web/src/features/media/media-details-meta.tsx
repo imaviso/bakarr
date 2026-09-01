@@ -1,4 +1,4 @@
-import { PencilSimpleIcon } from "@phosphor-icons/react";
+import { RiEditLine } from "@remixicon/react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -48,7 +48,7 @@ export function AnimeDetailsMeta(props: AnimeDetailsMetaProps) {
           className="h-auto py-1 px-2 text-base font-bold gap-2 hover:bg-muted"
         >
           <span className="truncate">{props.profileName}</span>
-          <PencilSimpleIcon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+          <RiEditLine className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
           <span className="text-xs text-muted-foreground font-normal">Profile</span>
         </Button>
       </div>
@@ -72,7 +72,7 @@ export function AnimeDetailsMeta(props: AnimeDetailsMetaProps) {
                   onPress={props.onEditPath}
                   aria-label="Edit path"
                 >
-                  <PencilSimpleIcon className="h-3.5 w-3.5" />
+                  <RiEditLine className="h-3.5 w-3.5" />
                 </Button>
               </dd>
             </div>

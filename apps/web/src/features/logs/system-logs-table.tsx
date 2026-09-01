@@ -1,10 +1,4 @@
-import {
-  WarningCircleIcon,
-  WarningIcon,
-  CheckIcon,
-  EyeIcon,
-  InfoIcon,
-} from "@phosphor-icons/react";
+import { RiCheckLine, RiErrorWarningLine, RiEyeLine, RiInformationLine } from "@remixicon/react";
 import { useRef, type ReactNode } from "react";
 import { Spinner } from "@/components/ui/spinner";
 import { useVirtualizer } from "@tanstack/react-virtual";
@@ -163,7 +157,7 @@ export function SystemLogsTable(props: SystemLogsTableProps) {
                                 onPress={() => onSelectLog(log)}
                                 aria-label="View details"
                               >
-                                <EyeIcon className="h-4 w-4" />
+                                <RiEyeLine className="h-4 w-4" />
                               </IconButton>
                             )}
                           </TableCell>
@@ -254,19 +248,19 @@ function CardShell(props: {
 const LEVEL_STYLES: Record<string, { readonly className: string; readonly icon: ReactNode }> = {
   error: {
     className: "bg-error/15 text-error hover:bg-error/25 border-error/20",
-    icon: <WarningCircleIcon className="h-3.5 w-3.5 mr-1" />,
+    icon: <RiErrorWarningLine className="h-3.5 w-3.5 mr-1" />,
   },
   warn: {
     className: "bg-warning/15 text-warning hover:bg-warning/25 border-warning/20",
-    icon: <WarningIcon className="h-3.5 w-3.5 mr-1" />,
+    icon: <RiErrorWarningLine className="h-3.5 w-3.5 mr-1" />,
   },
   success: {
     className: "bg-success/15 text-success hover:bg-success/25 border-success/20",
-    icon: <CheckIcon className="h-3.5 w-3.5 mr-1" />,
+    icon: <RiCheckLine className="h-3.5 w-3.5 mr-1" />,
   },
   info: {
     className: "bg-info/15 text-info hover:bg-info/25 border-info/20",
-    icon: <InfoIcon className="h-3.5 w-3.5 mr-1" />,
+    icon: <RiInformationLine className="h-3.5 w-3.5 mr-1" />,
   },
 };
 
@@ -274,7 +268,7 @@ function getLevelStyle(level: string) {
   return (
     LEVEL_STYLES[level.toLowerCase()] ?? {
       className: "",
-      icon: <InfoIcon className="h-3.5 w-3.5 mr-1" />,
+      icon: <RiInformationLine className="h-3.5 w-3.5 mr-1" />,
     }
   );
 }

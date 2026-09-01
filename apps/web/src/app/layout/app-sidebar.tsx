@@ -1,14 +1,14 @@
 import {
-  WarningIcon,
-  CalendarIcon,
-  TelevisionIcon,
-  DownloadIcon,
-  HouseIcon,
-  ListIcon,
-  SignOutIcon,
-  RssIcon,
-  GearIcon,
-} from "@phosphor-icons/react";
+  RiCalendarLine,
+  RiDownloadLine,
+  RiErrorWarningLine,
+  RiHome5Line,
+  RiListUnordered,
+  RiLogoutBoxRLine,
+  RiRssLine,
+  RiSettings3Line,
+  RiTvLine,
+} from "@remixicon/react";
 import { useLocation, useRouter } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { CommandPalette } from "@/app/layout/command-palette";
@@ -34,32 +34,32 @@ const mainItems = [
   {
     title: "Dashboard",
     url: "/",
-    icon: HouseIcon,
+    icon: RiHome5Line,
   },
   {
     title: "Media",
     url: "/media",
-    icon: TelevisionIcon,
+    icon: RiTvLine,
   },
   {
     title: "RSS Feeds",
     url: "/rss",
-    icon: RssIcon,
+    icon: RiRssLine,
   },
   {
     title: "Wanted",
     url: "/wanted",
-    icon: WarningIcon,
+    icon: RiErrorWarningLine,
   },
   {
     title: "Calendar",
     url: "/calendar",
-    icon: CalendarIcon,
+    icon: RiCalendarLine,
   },
   {
     title: "Downloads",
     url: "/downloads",
-    icon: DownloadIcon,
+    icon: RiDownloadLine,
   },
 ];
 
@@ -67,12 +67,12 @@ const settingsItems = [
   {
     title: "System Logs",
     url: "/logs",
-    icon: ListIcon,
+    icon: RiListUnordered,
   },
   {
     title: "Settings",
     url: "/settings",
-    icon: GearIcon,
+    icon: RiSettings3Line,
   },
 ];
 
@@ -180,18 +180,16 @@ export function AppSidebar() {
           </SidebarMenuItem>
           <SidebarMenuItem>
             <SidebarMenuButton
-              onClick={() => {
-                // Sign out locally (server + auth store), clear the query cache,
-                // and navigate in-router — no full-page reload.
+              onPress={() => {
                 void logoutLocal().then(() => {
                   queryClient.clear();
                   void router.navigate({ to: "/login", search: { redirect: "" } });
                 });
               }}
               tooltip="Sign out"
-              className="h-9 transition-colors"
+              className="h-9"
             >
-              <SignOutIcon className="h-4 w-4 shrink-0" />
+              <RiLogoutBoxRLine className="h-4 w-4 shrink-0" />
               <span>Sign out</span>
             </SidebarMenuButton>
           </SidebarMenuItem>

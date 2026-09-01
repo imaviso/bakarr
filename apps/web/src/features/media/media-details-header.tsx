@@ -1,11 +1,11 @@
 import {
-  ActivityIcon,
-  ArrowLeftIcon,
-  BroadcastIcon,
-  CalendarIcon,
-  CheckCircleIcon,
-  ProhibitIcon,
-} from "@phosphor-icons/react";
+  RiArrowLeftLine,
+  RiBroadcastLine,
+  RiCalendarLine,
+  RiCheckboxCircleLine,
+  RiForbidLine,
+  RiPulseLine,
+} from "@remixicon/react";
 import { Link } from "@tanstack/react-router";
 import { buttonVariants } from "@/components/ui/button";
 import { Tooltip, TooltipTrigger } from "@/components/ui/tooltip";
@@ -15,16 +15,14 @@ import { mediaKindLabel, mediaUnitLabel } from "@/domain/media-unit";
 import { MediaDetailsToolbar } from "@/features/media/media-details-toolbar";
 
 const STATUS_ICON_MAP: Record<string, React.ReactNode> = {
-  RELEASING: <BroadcastIcon className="w-4 h-4 text-success" />,
-  FINISHED: <CheckCircleIcon className="w-4 h-4 text-info" />,
-  NOT_YET_RELEASED: <CalendarIcon className="w-4 h-4 text-warning" />,
-  CANCELLED: <ProhibitIcon className="w-4 h-4 text-error" />,
+  RELEASING: <RiBroadcastLine className="w-4 h-4 text-success" />,
+  FINISHED: <RiCheckboxCircleLine className="w-4 h-4 text-info" />,
+  NOT_YET_RELEASED: <RiCalendarLine className="w-4 h-4 text-warning" />,
+  CANCELLED: <RiForbidLine className="w-4 h-4 text-error" />,
 };
 
 function StatusIcon({ status }: { status: string }) {
-  const icon = STATUS_ICON_MAP[status] ?? (
-    <ActivityIcon className="w-4 h-4 text-muted-foreground" />
-  );
+  const icon = STATUS_ICON_MAP[status] ?? <RiPulseLine className="w-4 h-4 text-muted-foreground" />;
   return (
     <TooltipTrigger aria-label={status}>
       {icon}
@@ -80,7 +78,7 @@ export function MediaDetailsHeader(props: MediaDetailsHeaderProps) {
             aria-label="Back to library"
             className={buttonVariants({ variant: "ghost", size: "icon", className: "shrink-0" })}
           >
-            <ArrowLeftIcon className="h-4 w-4" />
+            <RiArrowLeftLine className="h-4 w-4" />
           </Link>
           <div className="flex-1 min-w-0">
             <h1 className="text-xl font-medium tracking-tight overflow-hidden flex items-center gap-3 min-w-0">

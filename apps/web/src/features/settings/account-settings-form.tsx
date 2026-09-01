@@ -1,11 +1,11 @@
 import {
-  CopyIcon,
-  EyeIcon,
-  EyeSlashIcon,
-  KeyIcon,
-  LockIcon,
-  ArrowClockwiseIcon,
-} from "@phosphor-icons/react";
+  RiEyeCloseLine,
+  RiEyeLine,
+  RiFileCopyLine,
+  RiKeyLine,
+  RiLockLine,
+  RiRefreshLine,
+} from "@remixicon/react";
 import { useForm } from "@tanstack/react-form";
 import { IconButton } from "@/components/shared/icon-button";
 import { useNavigate } from "@tanstack/react-router";
@@ -122,7 +122,7 @@ export function AccountSettingsForm() {
         <Card>
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
-              <LockIcon className="h-4 w-4" />
+              <RiLockLine className="h-4 w-4" />
               Change Password
             </CardTitle>
           </CardHeader>
@@ -155,9 +155,9 @@ export function AccountSettingsForm() {
                         aria-label={visibility.currentPassword ? "Hide password" : "Show password"}
                       >
                         {visibility.currentPassword ? (
-                          <EyeIcon className="h-4 w-4 text-muted-foreground" />
+                          <RiEyeLine className="h-4 w-4 text-muted-foreground" />
                         ) : (
-                          <EyeSlashIcon className="h-4 w-4 text-muted-foreground" />
+                          <RiEyeCloseLine className="h-4 w-4 text-muted-foreground" />
                         )}
                       </Button>
                     </div>
@@ -190,9 +190,9 @@ export function AccountSettingsForm() {
                         aria-label={visibility.newPassword ? "Hide password" : "Show password"}
                       >
                         {visibility.newPassword ? (
-                          <EyeIcon className="h-4 w-4 text-muted-foreground" />
+                          <RiEyeLine className="h-4 w-4 text-muted-foreground" />
                         ) : (
-                          <EyeSlashIcon className="h-4 w-4 text-muted-foreground" />
+                          <RiEyeCloseLine className="h-4 w-4 text-muted-foreground" />
                         )}
                       </Button>
                     </div>
@@ -244,7 +244,7 @@ export function AccountSettingsForm() {
         <Card>
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
-              <KeyIcon className="h-4 w-4" />
+              <RiKeyLine className="h-4 w-4" />
               API Key
             </CardTitle>
           </CardHeader>
@@ -270,9 +270,9 @@ export function AccountSettingsForm() {
                     aria-label={visibility.apiKey ? "Hide API key" : "Show API key"}
                   >
                     {visibility.apiKey ? (
-                      <EyeIcon className="h-4 w-4 text-muted-foreground" />
+                      <RiEyeLine className="h-4 w-4 text-muted-foreground" />
                     ) : (
-                      <EyeSlashIcon className="h-4 w-4 text-muted-foreground" />
+                      <RiEyeCloseLine className="h-4 w-4 text-muted-foreground" />
                     )}
                   </IconButton>
                   <IconButton
@@ -282,7 +282,7 @@ export function AccountSettingsForm() {
                     isDisabled={!currentApiKey}
                     aria-label="Copy API key"
                   >
-                    <CopyIcon className="h-4 w-4 text-muted-foreground" />
+                    <RiFileCopyLine className="h-4 w-4 text-muted-foreground" />
                   </IconButton>
                 </div>
               </div>
@@ -296,7 +296,7 @@ export function AccountSettingsForm() {
             <ConfirmDialog
               trigger={
                 <Button variant="outline" isDisabled={regenerateApiKey.isPending}>
-                  <ArrowClockwiseIcon className="mr-2 h-4 w-4" />
+                  <RiRefreshLine className="mr-2 h-4 w-4" />
                   {regenerateApiKey.isPending ? "Regenerating..." : "Regenerate API Key"}
                 </Button>
               }

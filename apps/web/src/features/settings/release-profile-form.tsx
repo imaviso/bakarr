@@ -1,4 +1,4 @@
-import { PlusIcon, TrashIcon } from "@phosphor-icons/react";
+import { RiAddLine, RiDeleteBinLine } from "@remixicon/react";
 import { useForm } from "@tanstack/react-form";
 import { Schema } from "effect";
 import { useRef } from "react";
@@ -176,7 +176,7 @@ export function ReleaseProfileForm(props: {
                       });
                     }}
                   >
-                    <PlusIcon className="mr-2 h-3.5 w-3.5" />
+                    <RiAddLine className="mr-2 h-3.5 w-3.5" />
                     Add Rule
                   </Button>
                 )}
@@ -265,7 +265,7 @@ export function ReleaseProfileForm(props: {
                         }}
                         aria-label="Remove rule"
                       >
-                        <TrashIcon className="h-4 w-4" />
+                        <RiDeleteBinLine className="h-4 w-4" />
                       </Button>
                     </div>
                   ))}

@@ -1,4 +1,4 @@
-import { ArrowSquareOutIcon, SparkleIcon } from "@phosphor-icons/react";
+import { RiExternalLinkLine, RiSparkling2Line } from "@remixicon/react";
 import { Link } from "@tanstack/react-router";
 import type { DownloadSelectionKind } from "@bakarr/shared";
 import type { ReactNode } from "react";
@@ -73,7 +73,7 @@ export function DownloadRowMeta(props: DownloadRowMetaProps) {
           )}
           {props.decisionBadge && (
             <Badge variant="secondary" className="h-5 px-1.5 text-xs shrink-0">
-              <SparkleIcon className="h-3 w-3" />
+              <RiSparkling2Line className="h-3 w-3" />
               {props.decisionBadge}
             </Badge>
           )}
@@ -116,7 +116,7 @@ export function DownloadRowMeta(props: DownloadRowMetaProps) {
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1 text-primary hover:text-primary"
             >
-              <ArrowSquareOutIcon className="h-3 w-3" /> Source
+              <RiExternalLinkLine className="h-3 w-3" /> Source
             </a>
           )}
         </div>

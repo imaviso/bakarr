@@ -1,4 +1,10 @@
-import { WarningIcon, ArrowDownIcon, CheckIcon, ClockIcon, PauseIcon } from "@phosphor-icons/react";
+import {
+  RiArrowDownLine,
+  RiCheckLine,
+  RiErrorWarningLine,
+  RiPauseLine,
+  RiTimeLine,
+} from "@remixicon/react";
 import { DownloadRowMeta } from "@/features/downloads/downloads/download-row-meta";
 import {
   ActiveDownloadActions,
@@ -29,15 +35,15 @@ function DownloadStatusIcon(props: { status?: string | undefined }) {
   const icon = () => {
     switch (presentation.icon) {
       case "alert":
-        return <WarningIcon className="h-4 w-4 text-destructive shrink-0" />;
+        return <RiErrorWarningLine className="h-4 w-4 text-destructive shrink-0" />;
       case "arrow-down":
-        return <ArrowDownIcon className="h-4 w-4 text-info shrink-0" />;
+        return <RiArrowDownLine className="h-4 w-4 text-info shrink-0" />;
       case "check":
-        return <CheckIcon className="h-4 w-4 text-success shrink-0" />;
+        return <RiCheckLine className="h-4 w-4 text-success shrink-0" />;
       case "pause":
-        return <PauseIcon className="h-4 w-4 text-warning shrink-0" />;
+        return <RiPauseLine className="h-4 w-4 text-warning shrink-0" />;
       default:
-        return <ClockIcon className="h-4 w-4 text-muted-foreground shrink-0" />;
+        return <RiTimeLine className="h-4 w-4 text-muted-foreground shrink-0" />;
     }
   };
 

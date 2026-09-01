@@ -1,4 +1,4 @@
-import { WarningIcon, DownloadIcon, PlugIcon, VideoIcon } from "@phosphor-icons/react";
+import { RiDownloadLine, RiErrorWarningLine, RiPlugLine, RiVideoLine } from "@remixicon/react";
 import { Spinner } from "@/components/ui/spinner";
 import { formatDistanceToNow } from "date-fns";
 
@@ -92,14 +92,14 @@ export function SearchModalContent(props: SearchModalContentProps) {
                   </div>
                 ) : (
                   <div className="flex flex-col items-center justify-center flex-1 text-muted-foreground">
-                    <VideoIcon className="h-12 w-12 opacity-20" />
+                    <RiVideoLine className="h-12 w-12 opacity-20" />
                     <p className="mt-2">No releases found</p>
                   </div>
                 )}
               </>
             ) : (
               <div className="flex flex-col items-center justify-center flex-1 text-error gap-2">
-                <WarningIcon className="h-8 w-8" />
+                <RiErrorWarningLine className="h-8 w-8" />
                 <p>Error searching for releases</p>
                 <p className="text-sm text-muted-foreground">
                   {errorMessage(props.state.searchQuery.error, "Search failed")}
@@ -209,9 +209,9 @@ function SearchReleaseRow(props: {
             isDisabled={props.isDownloading}
           >
             {props.isDownloading ? (
-              <PlugIcon className="h-3 w-3 animate-spin" />
+              <RiPlugLine className="h-3 w-3 animate-spin" />
             ) : (
-              <DownloadIcon className="h-3.5 w-3.5" />
+              <RiDownloadLine className="h-3.5 w-3.5" />
             )}
             {isRejected ? "Force" : "Grab"}
           </Button>

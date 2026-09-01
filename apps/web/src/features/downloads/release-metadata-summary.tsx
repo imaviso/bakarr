@@ -1,4 +1,4 @@
-import { ArrowSquareOutIcon } from "@phosphor-icons/react";
+import { RiExternalLinkLine } from "@remixicon/react";
 import { Badge } from "@/components/ui/badge";
 import type { ReleaseFlag } from "@/domain/release/metadata";
 import { releaseFlagBadgeClass } from "@/domain/release/metadata";
@@ -42,7 +42,7 @@ export function ReleaseMetadataSummary(props: ReleaseMetadataSummaryProps) {
               rel="noreferrer"
               className="inline-flex items-center gap-1 text-primary hover:text-primary"
             >
-              <ArrowSquareOutIcon className="h-3 w-3" />
+              <RiExternalLinkLine className="h-3 w-3" />
               Source
             </a>
           )}

@@ -7,7 +7,7 @@ import {
 } from "react-aria-components";
 
 import { cn } from "@/infra/utils";
-import { CheckIcon } from "@phosphor-icons/react";
+import { RiCheckLine } from "@remixicon/react";
 
 function Checkbox({ className, children, ...props }: CheckboxProps) {
   return (
@@ -31,7 +31,7 @@ function Checkbox({ className, children, ...props }: CheckboxProps) {
                 "border-primary bg-primary text-primary-foreground dark:bg-primary dark:group-data-invalid/checkbox:border-primary",
             )}
           >
-            {(isSelected || isIndeterminate) && <CheckIcon className="size-3.5" />}
+            {(isSelected || isIndeterminate) && <RiCheckLine className="size-3.5" />}
           </span>
           {children}
         </>

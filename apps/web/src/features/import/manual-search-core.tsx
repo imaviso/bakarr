@@ -1,10 +1,10 @@
 import {
-  WarningIcon,
-  CalendarIcon,
-  InfoIcon,
-  PlusIcon,
-  MagnifyingGlassIcon,
-} from "@phosphor-icons/react";
+  RiAddLine,
+  RiCalendarLine,
+  RiErrorWarningLine,
+  RiInformationLine,
+  RiSearchLine,
+} from "@remixicon/react";
 import { useMemo, useRef, useState } from "react";
 import { Spinner } from "@/components/ui/spinner";
 import { useDebouncedValue } from "@tanstack/react-pacer";
@@ -60,7 +60,7 @@ export function ManualSearchCore(props: ManualSearchCoreProps) {
     <div className="space-y-4">
       <div className="flex gap-2">
         <div className="relative flex-1">
-          <MagnifyingGlassIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <RiSearchLine className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
             ref={searchInputRef}
             autoFocus={props.autoFocusInput}
@@ -102,7 +102,7 @@ export function ManualSearchCore(props: ManualSearchCoreProps) {
       {searchDegraded && (
         <div className="rounded-none border border-border bg-muted px-2.5 py-2 text-xs text-muted-foreground">
           <div className="flex items-start gap-2">
-            <InfoIcon className="mt-0.5 h-4 w-4 shrink-0" />
+            <RiInformationLine className="mt-0.5 h-4 w-4 shrink-0" />
             <span>
               AniList is temporarily unavailable or rate-limited. Showing local library matches
               only.
@@ -172,7 +172,7 @@ export function ManualSearchCore(props: ManualSearchCoreProps) {
                         )}
                         {animeSearchSubtitle(media) && (
                           <span className="inline-flex items-center gap-1">
-                            <CalendarIcon className="h-3 w-3" />
+                            <RiCalendarLine className="h-3 w-3" />
                             {animeSearchSubtitle(media)}
                           </span>
                         )}
@@ -224,7 +224,7 @@ export function ManualSearchCore(props: ManualSearchCoreProps) {
                       (isAdded ? (
                         <span className="text-xs text-muted-foreground">Added</span>
                       ) : (
-                        <PlusIcon className="h-4 w-4 text-muted-foreground" />
+                        <RiAddLine className="h-4 w-4 text-muted-foreground" />
                       ))}
                     {props.addedIndicator === "badge" && media.already_in_library && (
                       <Badge variant="secondary">In library</Badge>
@@ -235,13 +235,13 @@ export function ManualSearchCore(props: ManualSearchCoreProps) {
             </div>
           ) : (
             <div className="h-full flex flex-col items-center justify-center text-muted-foreground">
-              <WarningIcon className="h-8 w-8 mb-2 opacity-20" />
+              <RiErrorWarningLine className="h-8 w-8 mb-2 opacity-20" />
               <p className="text-sm">No results found</p>
             </div>
           )
         ) : (
           <div className="h-full flex flex-col items-center justify-center text-muted-foreground">
-            <MagnifyingGlassIcon className="h-8 w-8 mb-2 opacity-20" />
+            <RiSearchLine className="h-8 w-8 mb-2 opacity-20" />
             <p className="text-sm">{props.emptyPrompt}</p>
           </div>
         )}

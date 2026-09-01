@@ -1,4 +1,4 @@
-import { PlayIcon } from "@phosphor-icons/react";
+import { RiPlayLine } from "@remixicon/react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { SectionLabel } from "@/components/shared/section-label";
@@ -24,7 +24,7 @@ export function AnimeDetailsSidebar(props: AnimeDetailsSidebarProps) {
           />
         ) : (
           <div className="w-full aspect-[2/3] bg-muted flex items-center justify-center">
-            <PlayIcon className="h-16 w-16 text-muted-foreground" />
+            <RiPlayLine className="h-16 w-16 text-muted-foreground" />
           </div>
         )}
       </Card>

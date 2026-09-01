@@ -1,4 +1,4 @@
-import { PlusIcon } from "@phosphor-icons/react";
+import { RiAddLine } from "@remixicon/react";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useFilterContext } from "./filter-context";
@@ -13,7 +13,7 @@ export function FilterMenu() {
   return (
     <DropdownMenuTrigger>
       <Button variant="outline" size="sm" isDisabled={availableColumns.length === 0}>
-        <PlusIcon className="h-4 w-4 mr-2" />
+        <RiAddLine className="h-4 w-4 mr-2" />
         Add Filter
       </Button>
       <DropdownMenu>

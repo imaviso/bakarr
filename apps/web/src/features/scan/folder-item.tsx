@@ -1,13 +1,13 @@
 import {
-  CheckIcon,
-  FolderIcon,
-  SpinnerIcon,
-  PauseIcon,
-  PlayIcon,
-  ArrowClockwiseIcon,
-  MagnifyingGlassIcon,
-  TrashIcon,
-} from "@phosphor-icons/react";
+  RiCheckLine,
+  RiDeleteBinLine,
+  RiFolderLine,
+  RiLoader4Line,
+  RiPauseLine,
+  RiPlayLine,
+  RiRefreshLine,
+  RiSearchLine,
+} from "@remixicon/react";
 import { memo } from "react";
 import { SectionLabel } from "@/components/shared/section-label";
 import { MediaDiscoveryRow } from "@/features/media/media-discovery";
@@ -50,7 +50,7 @@ export const FolderItem = memo(function FolderItem(props: {
       <div className="min-w-0">
         <div className="flex items-start gap-3">
           <div className="mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center border border-info/20 bg-info/10 text-info">
-            <FolderIcon className="h-5 w-5" />
+            <RiFolderLine className="h-5 w-5" />
           </div>
           <div className="min-w-0 space-y-1">
             <div className="flex flex-wrap items-center gap-2">
@@ -219,7 +219,7 @@ export const FolderItem = memo(function FolderItem(props: {
             onPress={() => state.handleControl("pause")}
             className="justify-start"
           >
-            <PauseIcon className="mr-2 h-4 w-4" />
+            <RiPauseLine className="mr-2 h-4 w-4" />
             Pause
           </Button>
           <Button
@@ -229,7 +229,7 @@ export const FolderItem = memo(function FolderItem(props: {
             onPress={() => state.handleControl("resume")}
             className="justify-start"
           >
-            <PlayIcon className="mr-2 h-4 w-4" />
+            <RiPlayLine className="mr-2 h-4 w-4" />
             Start
           </Button>
           <Button
@@ -239,9 +239,7 @@ export const FolderItem = memo(function FolderItem(props: {
             onPress={() => state.handleControl("refresh")}
             className="justify-start"
           >
-            <ArrowClockwiseIcon
-              className={cn("mr-2 h-4 w-4", state.isControlling && "animate-spin")}
-            />
+            <RiRefreshLine className={cn("mr-2 h-4 w-4", state.isControlling && "animate-spin")} />
             Refresh
           </Button>
           <Button
@@ -251,7 +249,7 @@ export const FolderItem = memo(function FolderItem(props: {
             onPress={() => state.setResetConfirmOpen(true)}
             className="justify-start"
           >
-            <TrashIcon className="mr-2 h-4 w-4" />
+            <RiDeleteBinLine className="mr-2 h-4 w-4" />
             Reset
           </Button>
         </div>
@@ -283,7 +281,7 @@ export const FolderItem = memo(function FolderItem(props: {
             })
           }
         >
-          <MagnifyingGlassIcon className="mr-2 h-4 w-4" />
+          <RiSearchLine className="mr-2 h-4 w-4" />
           Change match
         </Button>
 
@@ -295,12 +293,12 @@ export const FolderItem = memo(function FolderItem(props: {
         >
           {state.isImporting ? (
             <>
-              <SpinnerIcon className="mr-2 h-4 w-4 animate-spin" />
+              <RiLoader4Line className="mr-2 h-4 w-4 animate-spin" />
               Importing...
             </>
           ) : (
             <>
-              <CheckIcon className="mr-2 h-4 w-4" />
+              <RiCheckLine className="mr-2 h-4 w-4" />
               {state.importLabel}
             </>
           )}

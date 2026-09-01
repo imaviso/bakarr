@@ -1,14 +1,14 @@
 import {
-  CheckCircleIcon,
-  CopyIcon,
-  DotsThreeIcon,
-  LinkIcon,
-  PlayIcon,
-  ArrowClockwiseIcon,
-  MagnifyingGlassIcon,
-  TrashIcon,
-  XIcon,
-} from "@phosphor-icons/react";
+  RiCheckboxCircleLine,
+  RiCloseLine,
+  RiDeleteBinLine,
+  RiFileCopyLine,
+  RiLink,
+  RiMoreLine,
+  RiPlayLine,
+  RiRefreshLine,
+  RiSearchLine,
+} from "@remixicon/react";
 import { IconButton } from "@/components/shared/icon-button";
 import {
   DropdownMenu,
@@ -77,12 +77,12 @@ export function EpisodeTableRow(props: EpisodeTableRowProps) {
         <div className="flex justify-end pr-2">
           {episode.downloaded ? (
             <TooltipTrigger aria-label="Downloaded">
-              <CheckCircleIcon className="h-4 w-4 text-success" />
+              <RiCheckboxCircleLine className="h-4 w-4 text-success" />
               <Tooltip>Downloaded - {episode.file_path?.split("/").pop()}</Tooltip>
             </TooltipTrigger>
           ) : (
             <TooltipTrigger aria-label={isAired(episode.aired) ? "Missing" : "Upcoming"}>
-              <XIcon
+              <RiCloseLine
                 className={cn(
                   "h-4 w-4",
                   isAired(episode.aired) ? "text-warning" : "text-muted-foreground",
@@ -108,18 +108,18 @@ export function EpisodeTableRow(props: EpisodeTableRowProps) {
             aria-label={`Actions for ${unitLabel.toLowerCase()} ${episode.number}`}
             className="text-muted-foreground hover:text-foreground"
           >
-            <DotsThreeIcon className="h-4 w-4" />
+            <RiMoreLine className="h-4 w-4" />
           </IconButton>
           <DropdownMenu>
             <DropdownMenuItem onAction={() => props.onOpenSearchModal(searchModalState)}>
               {episode.downloaded ? (
                 <>
-                  <ArrowClockwiseIcon className="h-4 w-4 mr-2" />
+                  <RiRefreshLine className="h-4 w-4 mr-2" />
                   Replace
                 </>
               ) : (
                 <>
-                  <MagnifyingGlassIcon className="h-4 w-4 mr-2" />
+                  <RiSearchLine className="h-4 w-4 mr-2" />
                   Search
                 </>
               )}
@@ -127,7 +127,7 @@ export function EpisodeTableRow(props: EpisodeTableRowProps) {
 
             {!episode.downloaded && (
               <DropdownMenuItem onAction={() => props.onOpenMappingDialog(mappingDialogState)}>
-                <LinkIcon className="h-4 w-4 mr-2" />
+                <RiLink className="h-4 w-4 mr-2" />
                 Manual Map
               </DropdownMenuItem>
             )}
@@ -139,16 +139,16 @@ export function EpisodeTableRow(props: EpisodeTableRowProps) {
                   className="text-destructive focus:text-destructive"
                   onAction={() => props.onOpenDeleteDialog(deleteDialogState)}
                 >
-                  <TrashIcon className="h-4 w-4 mr-2" />
+                  <RiDeleteBinLine className="h-4 w-4 mr-2" />
                   Delete File
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onAction={() => props.onPlayInMpv(episode.number)}>
-                  <PlayIcon className="h-4 w-4 mr-2" />
+                  <RiPlayLine className="h-4 w-4 mr-2" />
                   Play in MPV
                 </DropdownMenuItem>
                 <DropdownMenuItem onAction={() => props.onCopyStreamLink(episode.number)}>
-                  <CopyIcon className="h-4 w-4 mr-2" />
+                  <RiFileCopyLine className="h-4 w-4 mr-2" />
                   Copy Stream Link
                 </DropdownMenuItem>
               </>

@@ -1,13 +1,13 @@
 import {
-  TelevisionIcon,
-  FunnelIcon,
-  FolderIcon,
-  FolderOpenIcon,
-  SquaresFourIcon,
-  ListIcon,
-  PlusIcon,
-  MagnifyingGlassIcon,
-} from "@phosphor-icons/react";
+  RiAddLine,
+  RiFilterLine,
+  RiFolderLine,
+  RiFolderOpenLine,
+  RiLayoutGridLine,
+  RiListUnordered,
+  RiSearchLine,
+  RiTvLine,
+} from "@remixicon/react";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { IconButton } from "@/components/shared/icon-button";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
@@ -148,14 +148,14 @@ function AnimeIndexPage() {
           className={buttonVariants({ size: "sm", class: "shrink-0 gap-1.5" })}
           aria-label="Add media"
         >
-          <PlusIcon className="h-4 w-4" />
+          <RiAddLine className="h-4 w-4" />
           <span className="hidden sm:inline">Add Media</span>
         </Link>
       </PageHeader>
 
       <div className="flex shrink-0 items-center gap-2">
         <div className="relative flex-1">
-          <MagnifyingGlassIcon className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <RiSearchLine className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Filter media..."
             aria-label="Filter media"
@@ -167,7 +167,7 @@ function AnimeIndexPage() {
 
         <DropdownMenuTrigger>
           <Button variant="outline" size="icon" aria-label="Filter by status">
-            <FunnelIcon className="h-4 w-4" />
+            <RiFilterLine className="h-4 w-4" />
           </Button>
           <DropdownMenu
             selectionMode="single"
@@ -194,7 +194,7 @@ function AnimeIndexPage() {
           className={buttonVariants({ variant: "outline", size: "icon" })}
           aria-label="Import from folder"
         >
-          <FolderOpenIcon className="h-4 w-4" />
+          <RiFolderOpenLine className="h-4 w-4" />
         </Link>
 
         <Link
@@ -202,7 +202,7 @@ function AnimeIndexPage() {
           className={buttonVariants({ variant: "outline", size: "icon" })}
           aria-label="Scan library"
         >
-          <FolderIcon className="h-4 w-4" />
+          <RiFolderLine className="h-4 w-4" />
         </Link>
 
         <Separator orientation="vertical" className="h-6" />
@@ -214,7 +214,7 @@ function AnimeIndexPage() {
             aria-label="Grid view"
             onPress={() => updateView("grid")}
           >
-            <SquaresFourIcon className="h-4 w-4" />
+            <RiLayoutGridLine className="h-4 w-4" />
           </IconButton>
 
           <IconButton
@@ -223,7 +223,7 @@ function AnimeIndexPage() {
             aria-label="List view"
             onPress={() => updateView("list")}
           >
-            <ListIcon className="h-4 w-4" />
+            <RiListUnordered className="h-4 w-4" />
           </IconButton>
         </div>
       </div>
@@ -254,13 +254,13 @@ function AnimeIndexPage() {
         ) : !query && filter === "all" ? (
           <div className="flex-1 overflow-y-auto">
             <EmptyState
-              icon={<TelevisionIcon className="h-12 w-12" />}
+              icon={<RiTvLine className="h-12 w-12" />}
               title="No media yet"
               description="Add your first title to start monitoring"
               className="border-dashed"
             >
               <Link to="/media/add" className={buttonVariants()}>
-                <PlusIcon className="mr-2 h-4 w-4" />
+                <RiAddLine className="mr-2 h-4 w-4" />
                 Add Media
               </Link>
             </EmptyState>

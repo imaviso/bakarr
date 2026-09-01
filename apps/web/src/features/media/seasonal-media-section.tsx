@@ -1,4 +1,4 @@
-import { CaretLeftIcon, CaretRightIcon, InfoIcon } from "@phosphor-icons/react";
+import { RiArrowLeftSLine, RiArrowRightSLine, RiInformationLine } from "@remixicon/react";
 import { useSuspenseInfiniteQuery } from "@tanstack/react-query";
 import { useCallback, useEffect } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
@@ -104,7 +104,7 @@ export function SeasonalAnimeSection(props: SeasonalAnimeSectionProps) {
             onPress={props.onPrevious}
             aria-label="Previous season"
           >
-            <CaretLeftIcon className="h-4 w-4" />
+            <RiArrowLeftSLine className="h-4 w-4" />
           </Button>
           <span className="min-w-[132px] select-none text-center text-sm font-medium text-foreground">
             {formatSeasonWindowLabel(props.seasonWindow)}
@@ -116,14 +116,14 @@ export function SeasonalAnimeSection(props: SeasonalAnimeSectionProps) {
             onPress={props.onNext}
             aria-label="Next season"
           >
-            <CaretRightIcon className="h-4 w-4" />
+            <RiArrowRightSLine className="h-4 w-4" />
           </Button>
         </div>
       </div>
 
       {isDegraded && (
         <Alert className="rounded-none text-xs">
-          <InfoIcon className="mt-0.5 h-4 w-4 shrink-0" />
+          <RiInformationLine className="mt-0.5 h-4 w-4 shrink-0" />
           <AlertDescription>
             AniList is temporarily unavailable or rate-limited. Showing Jikan fallback titles mapped
             to AniList IDs.

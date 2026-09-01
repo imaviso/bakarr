@@ -22,7 +22,7 @@ import {
 
 import { cn } from "@/infra/utils";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
-import { CaretDownIcon, CheckIcon, MagnifyingGlassIcon } from "@phosphor-icons/react";
+import { RiArrowDownSLine, RiCheckLine, RiSearchLine } from "@remixicon/react";
 
 function Select<T extends object, M extends "single" | "multiple" = "single">({
   className,
@@ -76,7 +76,7 @@ function SelectTrigger({
       {...props}
     >
       {children}
-      <CaretDownIcon className="pointer-events-none size-4 text-muted-foreground" />
+      <RiArrowDownSLine className="pointer-events-none size-4 text-muted-foreground" />
     </ButtonPrimitive>
   );
 }
@@ -160,7 +160,7 @@ function SelectInput({ className, ...props }: SearchFieldProps) {
           className="[&::-webkit-search-cancel-button]:hidden"
         />
         <InputGroupAddon>
-          <MagnifyingGlassIcon className="size-4 shrink-0 opacity-50" />
+          <RiSearchLine className="size-4 shrink-0 opacity-50" />
         </InputGroupAddon>
       </InputGroup>
     </SearchField>
@@ -196,7 +196,7 @@ function SelectItem({
         <>
           <span className="flex flex-1 shrink-0 gap-2 whitespace-nowrap">{children}</span>
           <span className="pointer-events-none absolute right-2 flex size-4 items-center justify-center">
-            {isSelected ? <CheckIcon className="pointer-events-none" /> : null}
+            {isSelected ? <RiCheckLine className="pointer-events-none" /> : null}
           </span>
         </>
       ))}

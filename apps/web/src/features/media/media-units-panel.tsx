@@ -1,4 +1,4 @@
-import { SquaresFourIcon, ListIcon } from "@phosphor-icons/react";
+import { RiLayoutGridLine, RiListUnordered } from "@remixicon/react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -37,11 +37,11 @@ export function AnimeEpisodesPanel(props: AnimeEpisodesPanelProps) {
           <CardTitle className="text-base">{unitLabelPlural}</CardTitle>
           <TabsList>
             <TabsTrigger id="grid">
-              <SquaresFourIcon className="h-4 w-4 mr-2" />
+              <RiLayoutGridLine className="h-4 w-4 mr-2" />
               Grid
             </TabsTrigger>
             <TabsTrigger id="table">
-              <ListIcon className="h-4 w-4 mr-2" />
+              <RiListUnordered className="h-4 w-4 mr-2" />
               Table
             </TabsTrigger>
           </TabsList>

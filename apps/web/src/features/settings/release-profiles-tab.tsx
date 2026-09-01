@@ -1,4 +1,4 @@
-import { PencilSimpleIcon, ListChecksIcon, PlusIcon, TrashIcon } from "@phosphor-icons/react";
+import { RiAddLine, RiDeleteBinLine, RiEditLine, RiListCheck2 } from "@remixicon/react";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -48,7 +48,7 @@ function ReleaseProfileCard(props: ReleaseProfileCardProps) {
               onPress={() => props.onEdit(props.profile)}
               aria-label="Edit release profile"
             >
-              <PencilSimpleIcon className="h-4 w-4" />
+              <RiEditLine className="h-4 w-4" />
             </IconButton>
             <ConfirmDialog
               title="Delete Profile"
@@ -61,7 +61,7 @@ function ReleaseProfileCard(props: ReleaseProfileCardProps) {
                   className="text-muted-foreground hover:text-destructive"
                   aria-label="Delete release profile"
                 >
-                  <TrashIcon className="h-4 w-4" />
+                  <RiDeleteBinLine className="h-4 w-4" />
                 </IconButton>
               }
             />
@@ -136,20 +136,20 @@ export function ReleaseProfilesTab() {
               </p>
             </div>
             <Button onPress={() => setIsCreating(true)} isDisabled={isCreating} size="sm">
-              <PlusIcon className="mr-2 h-4 w-4" />
+              <RiAddLine className="mr-2 h-4 w-4" />
               Add Profile
             </Button>
           </div>
 
           {releaseProfiles.length === 0 && (
             <EmptyState
-              icon={<ListChecksIcon className="h-12 w-12" />}
+              icon={<RiListCheck2 className="h-12 w-12" />}
               title="No release profiles"
               description="Create a profile to prefer certain groups or filter releases"
               className="bg-transparent border-dashed"
             >
               <Button onPress={() => setIsCreating(true)}>
-                <PlusIcon className="mr-2 h-4 w-4" />
+                <RiAddLine className="mr-2 h-4 w-4" />
                 Create Profile
               </Button>
             </EmptyState>

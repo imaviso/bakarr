@@ -1,4 +1,4 @@
-import { CheckIcon } from "@phosphor-icons/react";
+import { RiCheckLine } from "@remixicon/react";
 import { useState } from "react";
 import {
   Command,
@@ -45,7 +45,7 @@ export function TimezonePicker(props: TimezonePickerProps) {
                     setOpen(false);
                   }}
                 >
-                  <CheckIcon
+                  <RiCheckLine
                     className={cn(
                       "mr-2 h-4 w-4",
                       selectedValue === option.value ? "opacity-100" : "opacity-0",

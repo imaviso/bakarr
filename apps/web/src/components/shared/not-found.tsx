@@ -1,4 +1,4 @@
-import { ArrowLeftIcon } from "@phosphor-icons/react";
+import { RiArrowLeftLine } from "@remixicon/react";
 import { Link, useLocation } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 
@@ -30,7 +30,7 @@ export function NotFound() {
         <div className="flex items-center gap-2">
           <Link to="/">
             <Button variant="outline" className="group">
-              <ArrowLeftIcon className="mr-1.5 h-4 w-4 transition-transform group-hover:-translate-x-1" />
+              <RiArrowLeftLine className="mr-1.5 h-4 w-4 transition-transform group-hover:-translate-x-1" />
               cd ~
             </Button>
           </Link>

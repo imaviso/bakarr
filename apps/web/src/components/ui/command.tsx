@@ -24,7 +24,7 @@ import {
 import { cn } from "@/infra/utils";
 import { Dialog, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { InputGroup, InputGroupAddon } from "@/components/ui/input-group";
-import { CheckIcon, MagnifyingGlassIcon } from "@phosphor-icons/react";
+import { RiCheckLine, RiSearchLine } from "@remixicon/react";
 
 function Command({
   className,
@@ -111,7 +111,7 @@ function CommandInput({ className, ...props }: InputProps) {
           )}
         />
         <InputGroupAddon>
-          <MagnifyingGlassIcon className="size-4 shrink-0 opacity-50" />
+          <RiSearchLine className="size-4 shrink-0 opacity-50" />
         </InputGroupAddon>
       </InputGroup>
     </SearchField>
@@ -194,7 +194,7 @@ function CommandItem<T extends object>({
       {composeRenderProps(children, (children) => (
         <>
           {children}
-          <CheckIcon className="ml-auto opacity-0 group-has-data-[slot=command-shortcut]/command-item:hidden group-data-[checked=true]/command-item:opacity-100" />
+          <RiCheckLine className="ml-auto opacity-0 group-has-data-[slot=command-shortcut]/command-item:hidden group-data-[checked=true]/command-item:opacity-100" />
         </>
       ))}
     </MenuItem>

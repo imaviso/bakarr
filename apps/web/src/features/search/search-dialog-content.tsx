@@ -1,14 +1,14 @@
 import {
-  WarningIcon,
-  CheckIcon,
-  DownloadIcon,
-  FunnelIcon,
-  SpinnerIcon,
-  MagnifyingGlassIcon,
-  SortAscendingIcon,
-  SortDescendingIcon,
-  StarIcon,
-} from "@phosphor-icons/react";
+  RiCheckLine,
+  RiDownloadLine,
+  RiErrorWarningLine,
+  RiFilterLine,
+  RiLoader4Line,
+  RiSearchLine,
+  RiSortAsc,
+  RiSortDesc,
+  RiStarFill,
+} from "@remixicon/react";
 import type { ReactNode } from "react";
 import { cn } from "@/infra/utils";
 import { Button } from "@/components/ui/button";
@@ -86,7 +86,7 @@ export function SearchDialogContent(props: SearchDialogContentProps) {
 
       <div className="flex flex-col border-b border-border">
         <div className="flex items-center px-4 py-3 gap-3">
-          <MagnifyingGlassIcon className="h-5 w-5 text-muted-foreground shrink-0" />
+          <RiSearchLine className="h-5 w-5 text-muted-foreground shrink-0" />
           <Input
             value={props.query}
             onChange={(event) => props.setQuery(event.currentTarget.value)}
@@ -120,7 +120,7 @@ export function SearchDialogContent(props: SearchDialogContentProps) {
             onSelectionChange={(value) => props.setFilter(String(value))}
           >
             <SelectTrigger className="h-7 w-auto min-w-[120px] text-xs bg-muted border-transparent hover:bg-muted focus:ring-0 gap-2 rounded-none shadow-none px-2.5">
-              <FunnelIcon className="h-3 w-3 text-muted-foreground" />
+              <RiFilterLine className="h-3 w-3 text-muted-foreground" />
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -156,16 +156,16 @@ export function SearchDialogContent(props: SearchDialogContentProps) {
 
       <div className="px-6 py-2.5 border-t border-border bg-background text-xs text-muted-foreground flex gap-6 items-center overflow-x-auto">
         <span className="flex items-center gap-1.5 whitespace-nowrap">
-          <StarIcon weight="fill" className="h-3 w-3 text-success fill-success" /> Trusted
+          <RiStarFill className="h-3 w-3 text-success fill-success" /> Trusted
         </span>
         <span className="flex items-center gap-1.5 whitespace-nowrap">
-          <CheckIcon className="h-3 w-3 text-info fill-info" /> SeaDex
+          <RiCheckLine className="h-3 w-3 text-info fill-info" /> SeaDex
         </span>
         <span className="flex items-center gap-1.5 whitespace-nowrap">
-          <CheckIcon className="h-3 w-3 text-warning fill-warning" /> SeaDex Best
+          <RiCheckLine className="h-3 w-3 text-warning fill-warning" /> SeaDex Best
         </span>
         <span className="flex items-center gap-1.5 whitespace-nowrap">
-          <WarningIcon className="h-3 w-3 text-warning" /> Remake
+          <RiErrorWarningLine className="h-3 w-3 text-warning" /> Remake
         </span>
       </div>
     </div>
@@ -204,11 +204,7 @@ function SortableTableHead(props: {
       <div className={cn("flex items-center gap-1", props.align === "right" && "justify-end")}>
         {props.label}
         {active &&
-          (sort.asc ? (
-            <SortAscendingIcon className="h-3 w-3" />
-          ) : (
-            <SortDescendingIcon className="h-3 w-3" />
-          ))}
+          (sort.asc ? <RiSortAsc className="h-3 w-3" /> : <RiSortDesc className="h-3 w-3" />)}
       </div>
     </TableHead>
   );
@@ -289,7 +285,7 @@ function SearchResults(props: {
               <TableCell colSpan={7} className="h-48 p-0">
                 <EmptyState
                   compact
-                  icon={<MagnifyingGlassIcon className="h-8 w-8" />}
+                  icon={<RiSearchLine className="h-8 w-8" />}
                   title={state.searchQuery.isError ? "Failed to load results" : "No results found"}
                 />
               </TableCell>
@@ -412,7 +408,7 @@ function ReleaseRow(props: {
             className="hover:bg-primary/10 hover:text-primary"
             aria-label="Download release"
           >
-            <DownloadIcon className="h-4 w-4" />
+            <RiDownloadLine className="h-4 w-4" />
           </IconButton>
           <Popover className="w-72 p-3">
             <div className="space-y-3">
@@ -475,7 +471,7 @@ function ReleaseRow(props: {
                   className="h-7 px-3 text-xs"
                 >
                   {state.grabMutation.isPending ? (
-                    <SpinnerIcon className="h-3 w-3 animate-spin" />
+                    <RiLoader4Line className="h-3 w-3 animate-spin" />
                   ) : (
                     "Download"
                   )}

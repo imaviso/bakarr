@@ -1,10 +1,10 @@
 import {
-  PauseIcon,
-  PlayIcon,
-  ArrowClockwiseIcon,
-  SparkleIcon,
-  TrashIcon,
-} from "@phosphor-icons/react";
+  RiDeleteBinLine,
+  RiPauseLine,
+  RiPlayLine,
+  RiRefreshLine,
+  RiSparkling2Line,
+} from "@remixicon/react";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { SectionLabel } from "@/components/shared/section-label";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
@@ -206,7 +206,7 @@ function ScanPageHeader(props: ScanPageHeaderProps) {
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div className="space-y-3">
             <SectionLabel className="inline-flex items-center gap-2 border border-border bg-background/80 px-3 py-1">
-              <SparkleIcon className="h-3.5 w-3.5 text-info" />
+              <RiSparkling2Line className="h-3.5 w-3.5 text-info" />
               Library Scan
             </SectionLabel>
             <div>
@@ -234,9 +234,7 @@ function ScanPageHeader(props: ScanPageHeaderProps) {
               isDisabled={props.isRescanning}
               onPress={props.onRescan}
             >
-              <ArrowClockwiseIcon
-                className={cn("mr-2 h-4 w-4", props.isRescanning && "animate-spin")}
-              />
+              <RiRefreshLine className={cn("mr-2 h-4 w-4", props.isRescanning && "animate-spin")} />
               {props.isRescanning ? "Scanning..." : "Rescan"}
             </Button>
             <Button
@@ -245,7 +243,7 @@ function ScanPageHeader(props: ScanPageHeaderProps) {
               isDisabled={props.bulkControlPending || props.counts.queued === 0}
               onPress={props.onPauseQueued}
             >
-              <PauseIcon className="mr-2 h-4 w-4" />
+              <RiPauseLine className="mr-2 h-4 w-4" />
               Pause Queued
             </Button>
             <Button
@@ -254,7 +252,7 @@ function ScanPageHeader(props: ScanPageHeaderProps) {
               isDisabled={props.bulkControlPending || props.counts.paused === 0}
               onPress={props.onResumePaused}
             >
-              <PlayIcon className="mr-2 h-4 w-4" />
+              <RiPlayLine className="mr-2 h-4 w-4" />
               Start Paused
             </Button>
             <Button
@@ -263,7 +261,7 @@ function ScanPageHeader(props: ScanPageHeaderProps) {
               isDisabled={props.bulkControlPending || props.counts.failed === 0}
               onPress={props.onRetryFailed}
             >
-              <ArrowClockwiseIcon className="mr-2 h-4 w-4" />
+              <RiRefreshLine className="mr-2 h-4 w-4" />
               Retry Failed
             </Button>
             <Button
@@ -272,7 +270,7 @@ function ScanPageHeader(props: ScanPageHeaderProps) {
               isDisabled={props.bulkControlPending || props.counts.failed === 0}
               onPress={props.onResetFailed}
             >
-              <TrashIcon className="mr-2 h-4 w-4" />
+              <RiDeleteBinLine className="mr-2 h-4 w-4" />
               Reset Failed
             </Button>
             <Button variant="ghost" size="sm" onPress={props.onBack}>

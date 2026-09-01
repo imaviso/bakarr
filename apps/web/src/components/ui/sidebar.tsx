@@ -16,7 +16,7 @@ import { Separator } from "@/components/ui/separator";
 import { Sheet, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipTrigger } from "@/components/ui/tooltip";
-import { SidebarIcon } from "@phosphor-icons/react";
+import { RiSidebarFoldLine } from "@remixicon/react";
 import { mobileSidebarStyle, type CSSVars } from "@/components/ui/sidebar/constants";
 import { useSidebar } from "@/components/ui/sidebar/context";
 
@@ -142,7 +142,7 @@ function SidebarTrigger({ className, onPress, ...props }: React.ComponentProps<t
       }}
       {...props}
     >
-      <SidebarIcon className="" />
+      <RiSidebarFoldLine className="" />
       <span className="sr-only">Toggle Sidebar</span>
     </Button>
   );

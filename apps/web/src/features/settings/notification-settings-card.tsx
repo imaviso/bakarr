@@ -1,4 +1,4 @@
-import { BellIcon } from "@phosphor-icons/react";
+import { RiNotificationLine } from "@remixicon/react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -42,7 +42,7 @@ export function NotificationSettingsCard() {
     <Card>
       <CardHeader>
         <CardTitle className="text-base flex items-center gap-2">
-          <BellIcon className="h-4 w-4" />
+          <RiNotificationLine className="h-4 w-4" />
           Notifications
         </CardTitle>
         <CardDescription>

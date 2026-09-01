@@ -1,4 +1,9 @@
-import { WarningIcon, CheckIcon, InfoIcon, SpinnerIcon } from "@phosphor-icons/react";
+import {
+  RiCheckLine,
+  RiErrorWarningLine,
+  RiInformationLine,
+  RiLoader4Line,
+} from "@remixicon/react";
 import { Spinner } from "@/components/ui/spinner";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -72,7 +77,7 @@ export function RenameDialog(props: RenameDialogProps) {
           <>
             {previewQuery.isError && (
               <Alert variant="destructive">
-                <WarningIcon className="h-4 w-4" />
+                <RiErrorWarningLine className="h-4 w-4" />
                 <AlertTitle>Failed to load preview</AlertTitle>
                 <AlertDescription>
                   {previewQuery.error?.message ?? "An unknown error occurred."}
@@ -81,7 +86,7 @@ export function RenameDialog(props: RenameDialogProps) {
             )}
             {executeRename.isError && (
               <Alert variant="destructive">
-                <WarningIcon className="h-4 w-4" />
+                <RiErrorWarningLine className="h-4 w-4" />
                 <AlertTitle>Rename failed</AlertTitle>
                 <AlertDescription>
                   {executeRename.error?.message ?? "An unknown error occurred."}
@@ -92,7 +97,7 @@ export function RenameDialog(props: RenameDialogProps) {
               <div className="space-y-4" aria-live="polite">
                 {(executeRename.data.failed ?? 0) > 0 && (
                   <Alert variant="destructive">
-                    <WarningIcon className="h-4 w-4" />
+                    <RiErrorWarningLine className="h-4 w-4" />
                     <AlertTitle>Errors Occurred</AlertTitle>
                     <AlertDescription>
                       <ul className="list-disc pl-4 mt-2">
@@ -104,7 +109,7 @@ export function RenameDialog(props: RenameDialogProps) {
                   </Alert>
                 )}
                 <div className="flex flex-col items-center justify-center py-8 text-center">
-                  <CheckIcon className="h-16 w-16 text-success mb-4" />
+                  <RiCheckLine className="h-16 w-16 text-success mb-4" />
                   <h3 className="text-xl font-medium">Rename Complete</h3>
                   <p className="text-muted-foreground">
                     {executeRename.data.renamed === 0
@@ -193,7 +198,7 @@ export function RenameDialog(props: RenameDialogProps) {
                                       </div>
                                       {item.metadata_snapshot.unit_title && (
                                         <div className="flex items-start gap-1">
-                                          <InfoIcon className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                                          <RiInformationLine className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                                           <span>
                                             MediaUnit title: {item.metadata_snapshot.unit_title}
                                           </span>
@@ -201,7 +206,7 @@ export function RenameDialog(props: RenameDialogProps) {
                                       )}
                                       {item.metadata_snapshot.air_date && (
                                         <div className="flex items-start gap-1">
-                                          <InfoIcon className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                                          <RiInformationLine className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                                           <span>Air date: {item.metadata_snapshot.air_date}</span>
                                         </div>
                                       )}
@@ -209,13 +214,13 @@ export function RenameDialog(props: RenameDialogProps) {
                                   )}
                                   {(item.warnings || []).map((warning) => (
                                     <div key={warning} className="flex items-start gap-1">
-                                      <WarningIcon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" />
+                                      <RiErrorWarningLine className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" />
                                       <span>{warning}</span>
                                     </div>
                                   ))}
                                   {(item.missing_fields || []).map((field) => (
                                     <div key={field} className="flex items-start gap-1">
-                                      <InfoIcon className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                                      <RiInformationLine className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                                       <span>Missing `{field}`</span>
                                     </div>
                                   ))}
@@ -258,7 +263,7 @@ export function RenameDialog(props: RenameDialogProps) {
               }
               aria-busy={executeRename.isPending}
             >
-              {executeRename.isPending && <SpinnerIcon className="mr-2 h-4 w-4 animate-spin" />}
+              {executeRename.isPending && <RiLoader4Line className="mr-2 h-4 w-4 animate-spin" />}
               {executeRename.isPending
                 ? "Renaming…"
                 : previewCount > 0

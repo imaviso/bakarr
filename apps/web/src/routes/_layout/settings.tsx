@@ -1,14 +1,14 @@
 import {
-  ArrowClockwiseIcon,
-  ChartLineUpIcon,
-  GearIcon,
-  KeyIcon,
-  ListChecksIcon,
-  SlidersHorizontalIcon,
-} from "@phosphor-icons/react";
+  RiEqualizerLine,
+  RiKeyLine,
+  RiLineChartLine,
+  RiListCheck2,
+  RiRefreshLine,
+  RiSettings3Line,
+} from "@remixicon/react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import type { RemixiconComponentType } from "@remixicon/react";
 import { Schema } from "effect";
-import type { ComponentType } from "react";
 import { AccountSettingsForm } from "@/features/settings/account-settings-form";
 import { ObservabilitySettingsPanel } from "@/features/settings/observability-settings-panel";
 import { QualityProfilesTab } from "@/features/settings/quality-profiles-tab";
@@ -71,7 +71,7 @@ const SettingsSearchSchema = Schema.Struct({
 interface NavItem {
   value: string;
   label: string;
-  icon: ComponentType<{ className?: string }>;
+  icon: RemixiconComponentType;
 }
 
 interface NavGroup {
@@ -83,21 +83,21 @@ const SETTINGS_GROUPS: NavGroup[] = [
   {
     label: "System",
     items: [
-      { value: "general", label: "General", icon: GearIcon },
-      { value: "automation", label: "Automation", icon: ArrowClockwiseIcon },
-      { value: "observability", label: "Observability", icon: ChartLineUpIcon },
+      { value: "general", label: "General", icon: RiSettings3Line },
+      { value: "automation", label: "Automation", icon: RiRefreshLine },
+      { value: "observability", label: "Observability", icon: RiLineChartLine },
     ],
   },
   {
     label: "Profiles",
     items: [
-      { value: "profiles", label: "Quality Profiles", icon: SlidersHorizontalIcon },
-      { value: "release-profiles", label: "Release Profiles", icon: ListChecksIcon },
+      { value: "profiles", label: "Quality Profiles", icon: RiEqualizerLine },
+      { value: "release-profiles", label: "Release Profiles", icon: RiListCheck2 },
     ],
   },
   {
     label: "Account",
-    items: [{ value: "account", label: "Account", icon: KeyIcon }],
+    items: [{ value: "account", label: "Account", icon: RiKeyLine }],
   },
 ];
 

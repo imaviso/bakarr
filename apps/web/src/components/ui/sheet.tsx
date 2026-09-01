@@ -14,7 +14,7 @@ import {
 
 import { cn } from "@/infra/utils";
 import { Button } from "@/components/ui/button";
-import { XIcon } from "@phosphor-icons/react";
+import { RiCloseLine } from "@remixicon/react";
 
 function SheetTrigger({ ...props }: SheetTriggerPrimitiveProps) {
   return <SheetTriggerPrimitive data-slot="sheet-trigger" {...props} />;
@@ -91,7 +91,7 @@ function Sheet({
           {children}
           {showCloseButton && (
             <SheetClose variant="ghost" className="absolute top-3 right-3" size="icon-sm">
-              <XIcon />
+              <RiCloseLine />
               <span className="sr-only">Close</span>
             </SheetClose>
           )}

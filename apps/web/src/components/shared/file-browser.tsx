@@ -1,13 +1,13 @@
 import {
-  ArrowUpIcon,
-  CaretLeftIcon,
-  CaretRightIcon,
-  FileIcon,
-  FolderIcon,
-  FolderOpenIcon,
-  HouseIcon,
-  SpinnerIcon,
-} from "@phosphor-icons/react";
+  RiArrowLeftSLine,
+  RiArrowRightSLine,
+  RiArrowUpLine,
+  RiFileLine,
+  RiFolderLine,
+  RiFolderOpenLine,
+  RiHome5Line,
+  RiLoader4Line,
+} from "@remixicon/react";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -127,7 +127,7 @@ export function FileBrowser(props: FileBrowserProps) {
           onPress={handleGoHome}
           aria-label="Go to root directory"
         >
-          <HouseIcon className="h-4 w-4" />
+          <RiHome5Line className="h-4 w-4" />
         </Button>
         <Button
           variant="ghost"
@@ -136,7 +136,7 @@ export function FileBrowser(props: FileBrowserProps) {
           isDisabled={!browserQuery.data?.parent_path}
           aria-label="Go up one directory"
         >
-          <ArrowUpIcon className="h-4 w-4" />
+          <RiArrowUpLine className="h-4 w-4" />
         </Button>
         <div className="flex-1">
           <Input
@@ -153,7 +153,7 @@ export function FileBrowser(props: FileBrowserProps) {
           onPress={handleManualNavigate}
           isDisabled={browserQuery.isFetching}
         >
-          {browserQuery.isFetching ? <SpinnerIcon className="h-4 w-4 animate-spin" /> : "Go"}
+          {browserQuery.isFetching ? <RiLoader4Line className="h-4 w-4 animate-spin" /> : "Go"}
         </Button>
       </div>
 
@@ -172,7 +172,7 @@ export function FileBrowser(props: FileBrowserProps) {
             const isLast = index === breadcrumbs.length - 1;
             return (
               <span key={partPath} className="flex items-center gap-1 shrink-0">
-                <CaretRightIcon className="h-3 w-3" />
+                <RiArrowRightSLine className="h-3 w-3" />
                 <Button
                   variant="link"
                   onPress={() => handleNavigate(partPath)}
@@ -197,7 +197,7 @@ export function FileBrowser(props: FileBrowserProps) {
         {/* Show spinner when fetching new data while showing old data */}
         {browserQuery.isFetching && !browserQuery.isLoading && (
           <div className="absolute top-2 right-2 p-1 bg-background/80 rounded-none z-10">
-            <SpinnerIcon className="h-3 w-3 animate-spin text-primary" />
+            <RiLoader4Line className="h-3 w-3 animate-spin text-primary" />
           </div>
         )}
 
@@ -246,7 +246,7 @@ export function FileBrowser(props: FileBrowserProps) {
               aria-label="Previous page"
               onPress={() => setPageOffset((prev) => Math.max(0, prev - BROWSE_PAGE_SIZE))}
             >
-              <CaretLeftIcon className="h-3.5 w-3.5" />
+              <RiArrowLeftSLine className="h-3.5 w-3.5" />
             </Button>
             <Button
               variant="ghost"
@@ -255,7 +255,7 @@ export function FileBrowser(props: FileBrowserProps) {
               aria-label="Next page"
               onPress={() => setPageOffset((prev) => prev + BROWSE_PAGE_SIZE)}
             >
-              <CaretRightIcon className="h-3.5 w-3.5" />
+              <RiArrowRightSLine className="h-3.5 w-3.5" />
             </Button>
           </div>
         </div>
@@ -294,12 +294,12 @@ function FileEntry(props: FileEntryProps) {
       >
         {props.entry.is_directory ? (
           props.isSelected ? (
-            <FolderOpenIcon className="h-4 w-4 text-primary shrink-0" />
+            <RiFolderOpenLine className="h-4 w-4 text-primary shrink-0" />
           ) : (
-            <FolderIcon className="h-4 w-4 text-muted-foreground group-hover/button:text-foreground shrink-0" />
+            <RiFolderLine className="h-4 w-4 text-muted-foreground group-hover/button:text-foreground shrink-0" />
           )
         ) : (
-          <FileIcon className="h-4 w-4 text-muted-foreground shrink-0" />
+          <RiFileLine className="h-4 w-4 text-muted-foreground shrink-0" />
         )}
         <span className="text-sm truncate flex-1">{props.entry.name}</span>
         {!props.entry.is_directory && props.entry.size && (
@@ -308,7 +308,7 @@ function FileEntry(props: FileEntryProps) {
           </span>
         )}
         {props.entry.is_directory && (
-          <CaretRightIcon className="h-3 w-3 text-muted-foreground opacity-0 group-hover/button:opacity-100 transition-opacity shrink-0" />
+          <RiArrowRightSLine className="h-3 w-3 text-muted-foreground opacity-0 group-hover/button:opacity-100 transition-opacity shrink-0" />
         )}
       </Button>
       <Tooltip>

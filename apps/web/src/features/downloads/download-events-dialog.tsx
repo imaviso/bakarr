@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { WarningIcon, EyeIcon, TableIcon, BracketsCurlyIcon } from "@phosphor-icons/react";
+import { RiBracketsLine, RiErrorWarningLine, RiEyeLine, RiTableLine } from "@remixicon/react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -90,7 +90,7 @@ export function DownloadEventsDialog(props: DownloadEventsDialogProps) {
           aria-label={props.triggerLabel ?? "View download events"}
           onPress={() => handleOpenChange(true)}
         >
-          <EyeIcon className="h-4 w-4" />
+          <RiEyeLine className="h-4 w-4" />
           <span>{props.triggerLabel ?? "View events"}</span>
         </Button>
       ) : (
@@ -99,7 +99,7 @@ export function DownloadEventsDialog(props: DownloadEventsDialogProps) {
           aria-label={props.triggerLabel ?? "View download events"}
           onPress={() => handleOpenChange(true)}
         >
-          <EyeIcon className="h-4 w-4" />
+          <RiEyeLine className="h-4 w-4" />
         </IconButton>
       )}
 
@@ -111,17 +111,17 @@ export function DownloadEventsDialog(props: DownloadEventsDialogProps) {
           </DialogDescription>
           <div className="flex items-center justify-end gap-2 pt-2">
             <Button variant="outline" size="sm" onPress={() => openExport("json")}>
-              <BracketsCurlyIcon className="h-4 w-4" />
+              <RiBracketsLine className="h-4 w-4" />
               Export JSON
             </Button>
             <Button variant="outline" size="sm" onPress={() => openExport("csv")}>
-              <TableIcon className="h-4 w-4" />
+              <RiTableLine className="h-4 w-4" />
               Export CSV
             </Button>
           </div>
           {lastExport?.truncated && (
             <Alert className="text-xs">
-              <WarningIcon className="h-4 w-4 shrink-0" />
+              <RiErrorWarningLine className="h-4 w-4 shrink-0" />
               <AlertDescription>
                 Last export was truncated: exported {lastExport?.exported} of {lastExport?.total}{" "}
                 events (limit {lastExport?.limit}).

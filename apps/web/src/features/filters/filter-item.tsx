@@ -1,4 +1,4 @@
-import { XIcon } from "@phosphor-icons/react";
+import { RiCloseLine } from "@remixicon/react";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -136,7 +136,7 @@ export function FilterItem(props: FilterItemProps) {
         onPress={() => ctx.removeFilter(props.filter.id)}
         aria-label="Remove filter"
       >
-        <XIcon className="h-3 w-3" />
+        <RiCloseLine className="h-3 w-3" />
       </Button>
     </div>
   );

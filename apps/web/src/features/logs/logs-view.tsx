@@ -1,10 +1,10 @@
 import {
-  DownloadIcon,
-  TableIcon,
-  BracketsCurlyIcon,
-  ArrowClockwiseIcon,
-  TrashIcon,
-} from "@phosphor-icons/react";
+  RiBracketsLine,
+  RiDeleteBinLine,
+  RiDownloadLine,
+  RiRefreshLine,
+  RiTableLine,
+} from "@remixicon/react";
 import { EmptyState } from "@/components/shared/empty-state";
 import { BackgroundJobCard } from "@/features/logs/background-job-card";
 import { DashboardMetricCard } from "@/features/logs/dashboard-metric-card";
@@ -53,7 +53,7 @@ export function LogsView(props: LogsViewProps) {
             onPress={props.state.refreshAll}
             isDisabled={props.state.logsQuery.isRefetching}
           >
-            <ArrowClockwiseIcon
+            <RiRefreshLine
               className={cn("h-4 w-4", props.state.logsQuery.isRefetching && "animate-spin")}
             />
             Refresh
@@ -61,16 +61,16 @@ export function LogsView(props: LogsViewProps) {
 
           <DropdownMenuTrigger>
             <Button variant="outline" size="sm">
-              <DownloadIcon className="h-4 w-4" />
+              <RiDownloadLine className="h-4 w-4" />
               Export
             </Button>
             <DropdownMenu>
               <DropdownMenuItem onAction={() => props.state.exportLogs("json")}>
-                <BracketsCurlyIcon className="h-4 w-4 mr-2" />
+                <RiBracketsLine className="h-4 w-4 mr-2" />
                 Export as JSON
               </DropdownMenuItem>
               <DropdownMenuItem onAction={() => props.state.exportLogs("csv")}>
-                <TableIcon className="h-4 w-4 mr-2" />
+                <RiTableLine className="h-4 w-4 mr-2" />
                 Export as CSV
               </DropdownMenuItem>
             </DropdownMenu>
@@ -79,7 +79,7 @@ export function LogsView(props: LogsViewProps) {
           <ConfirmDialog
             trigger={
               <Button variant="destructive" size="sm">
-                <TrashIcon className="h-4 w-4" />
+                <RiDeleteBinLine className="h-4 w-4" />
                 Clear Logs
               </Button>
             }

@@ -1,15 +1,15 @@
 import {
-  CalendarIcon,
-  CaretRightIcon,
-  CommandIcon,
-  TelevisionIcon,
-  DownloadIcon,
-  HouseIcon,
-  ListIcon,
-  RssIcon,
-  MagnifyingGlassIcon,
-  GearIcon,
-} from "@phosphor-icons/react";
+  RiArrowRightSLine,
+  RiCalendarLine,
+  RiCommandLine,
+  RiDownloadLine,
+  RiHome5Line,
+  RiListUnordered,
+  RiRssLine,
+  RiSearchLine,
+  RiSettings3Line,
+  RiTvLine,
+} from "@remixicon/react";
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import {
@@ -30,15 +30,15 @@ import { animeSearchSubtitle } from "@/domain/media/metadata";
 import { cn } from "@/infra/utils";
 
 const navigationRoutes = [
-  { title: "Dashboard", url: "/", icon: HouseIcon },
-  { title: "Library", url: "/media", icon: TelevisionIcon },
-  { title: "Add Media", url: "/media/add", icon: TelevisionIcon },
-  { title: "RSS Feeds", url: "/rss", icon: RssIcon },
-  { title: "Wanted", url: "/wanted", icon: MagnifyingGlassIcon },
-  { title: "Calendar", url: "/calendar", icon: CalendarIcon },
-  { title: "Downloads", url: "/downloads", icon: DownloadIcon },
-  { title: "System Logs", url: "/logs", icon: ListIcon },
-  { title: "Settings", url: "/settings", icon: GearIcon },
+  { title: "Dashboard", url: "/", icon: RiHome5Line },
+  { title: "Library", url: "/media", icon: RiTvLine },
+  { title: "Add Media", url: "/media/add", icon: RiTvLine },
+  { title: "RSS Feeds", url: "/rss", icon: RiRssLine },
+  { title: "Wanted", url: "/wanted", icon: RiSearchLine },
+  { title: "Calendar", url: "/calendar", icon: RiCalendarLine },
+  { title: "Downloads", url: "/downloads", icon: RiDownloadLine },
+  { title: "System Logs", url: "/logs", icon: RiListUnordered },
+  { title: "Settings", url: "/settings", icon: RiSettings3Line },
 ];
 
 function SearchResults(props: {
@@ -112,7 +112,7 @@ function SearchResults(props: {
                   />
                 ) : (
                   <div className="flex h-8 w-6 shrink-0 items-center justify-center bg-muted">
-                    <TelevisionIcon className="size-4 text-muted-foreground" />
+                    <RiTvLine className="size-4 text-muted-foreground" />
                   </div>
                 )}
                 <div className="flex min-w-0 flex-1 flex-col">
@@ -130,7 +130,7 @@ function SearchResults(props: {
                     </span>
                   )}
                 </div>
-                <CaretRightIcon className="size-4 shrink-0 text-muted-foreground" />
+                <RiArrowRightSLine className="size-4 shrink-0 text-muted-foreground" />
               </CommandItem>
             ))}
           </CommandGroup>
@@ -175,10 +175,10 @@ export function CommandPalette() {
           "group-data-[collapsible=icon]:!size-9 group-data-[collapsible=icon]:!p-0 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:border-0 group-data-[collapsible=icon]:bg-transparent",
         )}
       >
-        <MagnifyingGlassIcon className="h-4 w-4 shrink-0" />
+        <RiSearchLine className="h-4 w-4 shrink-0" />
         <span className="truncate group-data-[collapsible=icon]:hidden">Search...</span>
         <Kbd className="ml-auto group-data-[collapsible=icon]:hidden">
-          <CommandIcon className="h-2.5 w-2.5" />K
+          <RiCommandLine className="h-2.5 w-2.5" />K
         </Kbd>
       </Button>
 

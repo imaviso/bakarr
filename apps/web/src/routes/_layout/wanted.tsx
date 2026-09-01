@@ -1,4 +1,4 @@
-import { DotsThreeIcon, MagnifyingGlassIcon } from "@phosphor-icons/react";
+import { RiMoreLine, RiSearchLine } from "@remixicon/react";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Suspense, lazy, useRef, useState } from "react";
@@ -115,7 +115,7 @@ function WantedPage() {
           onPress={handleSearchAll}
           isDisabled={searchMissing.isPending || isSearchMissingRunning || data.length === 0}
         >
-          <MagnifyingGlassIcon className="mr-2 h-4 w-4" />
+          <RiSearchLine className="mr-2 h-4 w-4" />
           {searchMissing.isPending || isSearchMissingRunning ? "Searching..." : "Search All"}
         </Button>
       </PageHeader>
@@ -281,11 +281,11 @@ function WantedRow(props: {
       <TableCell>
         <DropdownMenuTrigger>
           <IconButton aria-label={`${unitLabel} options`}>
-            <DotsThreeIcon className="h-4 w-4" />
+            <RiMoreLine className="h-4 w-4" />
           </IconButton>
           <DropdownMenu>
             <DropdownMenuItem onAction={props.onSearch}>
-              <MagnifyingGlassIcon className="mr-2 h-4 w-4" />
+              <RiSearchLine className="mr-2 h-4 w-4" />
               Search
             </DropdownMenuItem>
           </DropdownMenu>

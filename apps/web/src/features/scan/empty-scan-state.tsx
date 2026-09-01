@@ -1,10 +1,10 @@
-import { FolderIcon } from "@phosphor-icons/react";
+import { RiFolderLine } from "@remixicon/react";
 
 export function EmptyScanState(props: { hasOutstandingMatches: boolean; isScanning: boolean }) {
   return (
     <div className="flex min-h-[50vh] flex-col items-center justify-center border border-dashed border-border bg-background px-6 text-center">
       <div className="flex h-16 w-16 items-center justify-center border border-info/20 bg-info/10">
-        <FolderIcon className="h-8 w-8 text-info" />
+        <RiFolderLine className="h-8 w-8 text-info" />
       </div>
       <p className="mt-5 text-base font-medium text-foreground">
         {props.isScanning || props.hasOutstandingMatches

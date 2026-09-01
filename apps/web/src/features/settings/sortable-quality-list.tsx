@@ -1,4 +1,4 @@
-import { ArrowDownIcon, ArrowUpIcon, DotsSixVerticalIcon, XIcon } from "@phosphor-icons/react";
+import { RiArrowDownLine, RiArrowUpLine, RiCloseLine, RiDraggable } from "@remixicon/react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -86,7 +86,7 @@ export function SortableQualityList(props: SortableQualityListProps) {
             onDragEnd={handleDragEnd}
             className={`flex items-center gap-1 p-2.5 text-sm group bg-card hover:bg-accent transition-colors cursor-default ${draggedItem === quality ? "opacity-50" : ""}`}
           >
-            <DotsSixVerticalIcon className="h-4 w-4 ml-2 mr-1 text-muted-foreground cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity" />
+            <RiDraggable className="h-4 w-4 ml-2 mr-1 text-muted-foreground cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity" />
             <span className="flex-1 font-medium">{quality}</span>
             <Button
               variant="ghost"
@@ -96,7 +96,7 @@ export function SortableQualityList(props: SortableQualityListProps) {
               isDisabled={index === 0}
               aria-label={`Move ${quality} up`}
             >
-              <ArrowUpIcon className="h-3.5 w-3.5" />
+              <RiArrowUpLine className="h-3.5 w-3.5" />
             </Button>
             <Button
               variant="ghost"
@@ -106,7 +106,7 @@ export function SortableQualityList(props: SortableQualityListProps) {
               isDisabled={index === props.value.length - 1}
               aria-label={`Move ${quality} down`}
             >
-              <ArrowDownIcon className="h-3.5 w-3.5" />
+              <RiArrowDownLine className="h-3.5 w-3.5" />
             </Button>
             <Button
               variant="ghost"
@@ -115,7 +115,7 @@ export function SortableQualityList(props: SortableQualityListProps) {
               onPress={() => removeQuality(quality)}
               aria-label={`Remove ${quality}`}
             >
-              <XIcon className="h-3.5 w-3.5" />
+              <RiCloseLine className="h-3.5 w-3.5" />
             </Button>
           </li>
         ))}

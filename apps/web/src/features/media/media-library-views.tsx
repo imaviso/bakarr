@@ -1,4 +1,4 @@
-import { TelevisionIcon, TrashIcon } from "@phosphor-icons/react";
+import { RiDeleteBinLine, RiTvLine } from "@remixicon/react";
 import { Link } from "@tanstack/react-router";
 import { useRef } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
@@ -159,7 +159,7 @@ export function AnimeListView(props: AnimeLibraryViewProps) {
                       />
                     ) : (
                       <div className="flex items-center justify-center h-full text-muted-foreground">
-                        <TelevisionIcon className="h-6 w-6" />
+                        <RiTvLine className="h-6 w-6" />
                       </div>
                     )}
                   </Link>
@@ -227,7 +227,7 @@ export function AnimeListView(props: AnimeLibraryViewProps) {
                           className="relative after:absolute after:-inset-3 h-8 w-8 text-muted-foreground hover:text-destructive"
                           onClick={(e: React.MouseEvent) => e.stopPropagation()}
                         >
-                          <TrashIcon className="h-4 w-4" />
+                          <RiDeleteBinLine className="h-4 w-4" />
                         </Button>
                       }
                     />

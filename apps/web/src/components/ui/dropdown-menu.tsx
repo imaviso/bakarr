@@ -17,7 +17,7 @@ import {
 } from "react-aria-components";
 
 import { cn } from "@/infra/utils";
-import { CaretRightIcon, CheckIcon } from "@phosphor-icons/react";
+import { RiArrowRightSLine, RiCheckLine } from "@remixicon/react";
 
 function DropdownMenuTrigger({ ...props }: React.ComponentProps<typeof MenuTriggerPrimitive>) {
   return <MenuTriggerPrimitive data-slot="dropdown-menu-trigger" {...props} />;
@@ -134,7 +134,7 @@ function DropdownMenuItem({
                   : "dropdown-menu-checkbox-item-indicator"
               }
             >
-              {isSelected ? <CheckIcon /> : null}
+              {isSelected ? <RiCheckLine /> : null}
             </span>
           ) : null}
           {children}
@@ -174,7 +174,7 @@ function DropdownMenuSubTrigger({
       {composeRenderProps(children, (children) => (
         <>
           {children}
-          <CaretRightIcon className=" ml-auto" />
+          <RiArrowRightSLine className=" ml-auto" />
         </>
       ))}
     </MenuItemPrimitive>

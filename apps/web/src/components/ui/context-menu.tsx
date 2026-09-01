@@ -21,7 +21,7 @@ import {
 import { createPortal } from "react-dom";
 
 import { cn } from "@/infra/utils";
-import { CaretRightIcon, CheckIcon } from "@phosphor-icons/react";
+import { RiArrowRightSLine, RiCheckLine } from "@remixicon/react";
 
 function ContextMenu({
   "data-slot": dataSlot = "context-menu-content",
@@ -227,7 +227,7 @@ function ContextMenuItem({
                   : "context-menu-checkbox-item-indicator"
               }
             >
-              {isSelected ? <CheckIcon /> : null}
+              {isSelected ? <RiCheckLine /> : null}
             </span>
           ) : null}
           {children}
@@ -267,7 +267,7 @@ function ContextMenuSubTrigger({
       {composeRenderProps(children, (children) => (
         <>
           {children}
-          <CaretRightIcon className=" ml-auto" />
+          <RiArrowRightSLine className=" ml-auto" />
         </>
       ))}
     </MenuItemPrimitive>

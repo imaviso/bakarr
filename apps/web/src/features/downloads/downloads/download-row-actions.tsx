@@ -1,10 +1,10 @@
 import {
-  CheckIcon,
-  PauseIcon,
-  PlayIcon,
-  ArrowClockwiseIcon,
-  TrashIcon,
-} from "@phosphor-icons/react";
+  RiCheckLine,
+  RiDeleteBinLine,
+  RiPauseLine,
+  RiPlayLine,
+  RiRefreshLine,
+} from "@remixicon/react";
 import { DownloadEventsDialog } from "@/features/downloads/download-events-dialog";
 import { IconButton } from "@/components/shared/icon-button";
 import {
@@ -75,7 +75,7 @@ export function ActiveDownloadActions(props: ActiveDownloadActionsProps) {
           onPress={handleResume}
           isDisabled={!props.downloadId || resumeDownload.isPending}
         >
-          <PlayIcon className="h-4 w-4" />
+          <RiPlayLine className="h-4 w-4" />
         </IconButton>
       ) : (
         canPause() && (
@@ -85,7 +85,7 @@ export function ActiveDownloadActions(props: ActiveDownloadActionsProps) {
             onPress={handlePause}
             isDisabled={!props.downloadId || pauseDownload.isPending}
           >
-            <PauseIcon className="h-4 w-4" />
+            <RiPauseLine className="h-4 w-4" />
           </IconButton>
         )
       )}
@@ -103,7 +103,7 @@ export function ActiveDownloadActions(props: ActiveDownloadActionsProps) {
           onPress={handleRetry}
           isDisabled={!props.downloadId || retryDownload.isPending}
         >
-          <ArrowClockwiseIcon className="h-4 w-4" />
+          <RiRefreshLine className="h-4 w-4" />
         </IconButton>
       )}
       {canDelete() && (
@@ -114,7 +114,7 @@ export function ActiveDownloadActions(props: ActiveDownloadActionsProps) {
           onPress={handleDelete}
           isDisabled={!props.downloadId || deleteDownload.isPending}
         >
-          <TrashIcon className="h-4 w-4" />
+          <RiDeleteBinLine className="h-4 w-4" />
         </IconButton>
       )}
     </div>
@@ -165,7 +165,7 @@ export function HistoryDownloadActions(props: HistoryDownloadActionsProps) {
           onPress={handleReconcile}
           isDisabled={reconcileDownload.isPending}
         >
-          <CheckIcon className="h-4 w-4" />
+          <RiCheckLine className="h-4 w-4" />
         </IconButton>
       )}
       {canRetry() && (
@@ -175,7 +175,7 @@ export function HistoryDownloadActions(props: HistoryDownloadActionsProps) {
           onPress={handleRetry}
           isDisabled={retryDownload.isPending}
         >
-          <ArrowClockwiseIcon className="h-4 w-4" />
+          <RiRefreshLine className="h-4 w-4" />
         </IconButton>
       )}
       {canDelete() && (
@@ -185,7 +185,7 @@ export function HistoryDownloadActions(props: HistoryDownloadActionsProps) {
           onPress={handleDelete}
           isDisabled={deleteDownload.isPending}
         >
-          <TrashIcon className="h-4 w-4" />
+          <RiDeleteBinLine className="h-4 w-4" />
         </IconButton>
       )}
     </div>

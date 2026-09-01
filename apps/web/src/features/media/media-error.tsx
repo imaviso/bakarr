@@ -1,4 +1,4 @@
-import { WarningIcon, ArrowLeftIcon } from "@phosphor-icons/react";
+import { RiArrowLeftLine, RiErrorWarningLine } from "@remixicon/react";
 import { Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 
@@ -9,7 +9,10 @@ export function AnimeError() {
       <div className="relative z-10 flex flex-col items-center text-center space-y-8 px-4 animate-in fade-in zoom-in duration-500">
         {/* Icon/Visual */}
         <div className="relative">
-          <WarningIcon className="h-24 w-24 text-destructive/80 relative z-10" strokeWidth={1} />
+          <RiErrorWarningLine
+            className="h-24 w-24 text-destructive/80 relative z-10"
+            strokeWidth={1}
+          />
         </div>
 
         {/* Typography */}
@@ -27,7 +30,7 @@ export function AnimeError() {
         <div className="flex items-center gap-4">
           <Link to="/media" search={{ q: "", filter: "all", view: "grid" }}>
             <Button variant="outline" className="group">
-              <ArrowLeftIcon className="mr-2 h-4 w-4 group-hover:-translate-x-1 transition-transform" />
+              <RiArrowLeftLine className="mr-2 h-4 w-4 group-hover:-translate-x-1 transition-transform" />
               Back to Library
             </Button>
           </Link>

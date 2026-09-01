@@ -14,7 +14,7 @@ import {
 
 import { cn } from "@/infra/utils";
 import { Button } from "@/components/ui/button";
-import { XIcon } from "@phosphor-icons/react";
+import { RiCloseLine } from "@remixicon/react";
 
 function DialogTrigger({ ...props }: DialogTriggerPrimitiveProps) {
   return <DialogTriggerPrimitive data-slot="dialog-trigger" {...props} />;
@@ -88,7 +88,7 @@ function Dialog({
           {children}
           {showCloseButton && (
             <DialogClose variant="ghost" className="absolute top-2 right-2" size="icon-sm">
-              <XIcon />
+              <RiCloseLine />
               <span className="sr-only">Close</span>
             </DialogClose>
           )}

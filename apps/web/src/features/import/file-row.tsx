@@ -1,4 +1,4 @@
-import { WarningIcon, CheckIcon, FileIcon, InfoIcon } from "@phosphor-icons/react";
+import { RiCheckLine, RiErrorWarningLine, RiFileLine, RiInformationLine } from "@remixicon/react";
 import { EditMappingPopover } from "@/features/media/edit-mapping-popover";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -60,7 +60,7 @@ export function FileRow(props: FileRowProps) {
           }}
           className="shrink-0"
         />
-        <FileIcon className="h-4 w-4 text-muted-foreground shrink-0" />
+        <RiFileLine className="h-4 w-4 text-muted-foreground shrink-0" />
         <div className="flex-1 min-w-0 overflow-hidden">
           <span className="text-sm font-medium truncate block">{props.file.filename}</span>
           {(props.file.unit_title || props.file.air_date) && (
@@ -169,13 +169,13 @@ export function FileRow(props: FileRowProps) {
                 <div className="space-y-0.5 text-xs text-muted-foreground">
                   {(props.file.naming_warnings || []).map((warning) => (
                     <p key={warning} className="flex items-start gap-1">
-                      <WarningIcon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" />
+                      <RiErrorWarningLine className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" />
                       <span>{warning}</span>
                     </p>
                   ))}
                   {(props.file.naming_missing_fields || []).map((field) => (
                     <p key={field} className="flex items-start gap-1">
-                      <InfoIcon className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                      <RiInformationLine className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                       <span>Missing naming field `{field}`</span>
                     </p>
                   ))}
@@ -207,7 +207,7 @@ export function FileRow(props: FileRowProps) {
         <div className="flex items-center gap-2 shrink-0 w-64">
           {hasMatch ? (
             <>
-              <CheckIcon className="h-4 w-4 text-success shrink-0" />
+              <RiCheckLine className="h-4 w-4 text-success shrink-0" />
               <Select
                 selectedKey={String(props.selectedAnimeId || matchedAnimeId)}
                 onSelectionChange={(value) => {
@@ -250,7 +250,7 @@ export function FileRow(props: FileRowProps) {
             </>
           ) : (
             <>
-              <WarningIcon className="h-4 w-4 text-warning shrink-0" />
+              <RiErrorWarningLine className="h-4 w-4 text-warning shrink-0" />
               <Select
                 selectedKey={null}
                 onSelectionChange={(value) => {
