@@ -6,7 +6,10 @@ export function AnimeError() {
   return (
     <div className="h-full w-full flex flex-col items-center justify-center relative overflow-hidden bg-background">
       {/* Content */}
-      <div className="relative z-10 flex flex-col items-center text-center space-y-8 px-4 animate-in fade-in zoom-in duration-500">
+      <div
+        className="relative z-10 flex flex-col items-center text-center space-y-8 px-4 animate-in fade-in zoom-in-95"
+        style={{ animationDuration: "500ms" }}
+      >
         {/* Icon/Visual */}
         <div className="relative">
           <RiErrorWarningLine

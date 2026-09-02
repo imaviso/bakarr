@@ -80,16 +80,20 @@ export function useImportPageState(options: CreateImportPageStateOptions) {
         ...(media.title.english ? { english: media.title.english } : {}),
       },
     })),
-    ...candidateList
-      .filter((candidate) => !animeIds.has(candidate.id))
-      .map((candidate) => ({
+    ...candidateList.reduce<FileRowAnimeOption[]>((options, candidate) => {
+      if (animeIds.has(candidate.id)) {
+        return options;
+      }
+      options.push({
         id: candidate.id,
         source: "candidate" as const,
         title: {
           romaji: animeDisplayTitle(candidate),
           ...(candidate.title.english ? { english: candidate.title.english } : {}),
         },
-      })),
+      });
+      return options;
+    }, []),
   ].toSorted((left, right) => left.title.romaji.localeCompare(right.title.romaji));
 
   const candidateIds = new Set(flow.candidates.map((candidate) => candidate.id));

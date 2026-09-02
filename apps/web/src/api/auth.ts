@@ -15,6 +15,7 @@ export function authMeQueryOptions() {
 }
 
 export function useLoginMutation() {
+  const queryClient = useQueryClient();
   return useMutation({
     meta: { isAuth: true },
     mutationFn: (data: LoginRequest) =>
@@ -24,10 +25,16 @@ export function useLoginMutation() {
           body: data,
         }),
       ),
+    // The router guard serves ["auth","me"] with staleTime Infinity; a fresh
+    // login must drop the previous user's cached entry.
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: animeKeys.auth.me() });
+    },
   });
 }
 
 export function useApiKeyLoginMutation() {
+  const queryClient = useQueryClient();
   return useMutation({
     meta: { isAuth: true },
     mutationFn: (data: ApiKeyLoginRequest) =>
@@ -37,10 +44,14 @@ export function useApiKeyLoginMutation() {
           body: data,
         }),
       ),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: animeKeys.auth.me() });
+    },
   });
 }
 
 export function useChangePasswordMutation() {
+  const queryClient = useQueryClient();
   return useMutation({
     meta: { isAuth: true },
     mutationFn: (data: ChangePasswordRequest) =>
@@ -50,6 +61,11 @@ export function useChangePasswordMutation() {
           body: data,
         }),
       ),
+    // Password change clears every server session; drop the cached user so
+    // the guard refetches instead of trusting the now-signed-out identity.
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: animeKeys.auth.me() });
+    },
   });
 }
 

@@ -69,10 +69,10 @@ export function FileRow(props: FileRowProps) {
                 <span className="truncate max-w-[28rem]">{props.file.unit_title}</span>
               )}
               {props.file.air_date && <span>{props.file.air_date}</span>}
-              {fileSize && <span>{fileSize}</span>}
+              {fileSize !== undefined && <span>{fileSize}</span>}
             </div>
           )}
-          {!props.file.unit_title && !props.file.air_date && fileSize && (
+          {!props.file.unit_title && !props.file.air_date && fileSize !== undefined && (
             <div className="mt-1 text-xs text-muted-foreground">{fileSize}</div>
           )}
           {metadataBadges.length > 0 && (
@@ -113,19 +113,22 @@ export function FileRow(props: FileRowProps) {
           )}
           {decisionSummary.length > 0 && (
             <div className="mt-1 space-y-0.5">
-              {decisionSummary.map((detail) => (
-                <p
-                  key={detail}
-                  className={cn(
-                    "text-xs",
-                    detail.startsWith("Existing file") || props.file.warnings?.includes(detail)
-                      ? "text-warning"
-                      : "text-muted-foreground",
-                  )}
-                >
-                  {detail}
-                </p>
-              ))}
+              {(() => {
+                const warnings = new Set(props.file.warnings ?? []);
+                return decisionSummary.map((detail) => (
+                  <p
+                    key={detail}
+                    className={cn(
+                      "text-xs",
+                      detail.startsWith("Existing file") || warnings.has(detail)
+                        ? "text-warning"
+                        : "text-muted-foreground",
+                    )}
+                  >
+                    {detail}
+                  </p>
+                ));
+              })()}
             </div>
           )}
           {(props.file.naming_filename ||

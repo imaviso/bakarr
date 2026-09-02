@@ -1,18 +1,25 @@
 import {
   RiArrowLeftLine,
+  RiBookmarkLine,
   RiBroadcastLine,
   RiCalendarLine,
   RiCheckboxCircleLine,
+  RiFileDownloadLine,
   RiForbidLine,
+  RiLink,
   RiPulseLine,
+  RiRefreshLine,
+  RiSearchLine,
+  RiText,
 } from "@remixicon/react";
 import { Link } from "@tanstack/react-router";
-import { buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button-variants";
 import { Tooltip, TooltipTrigger } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
 import type { Media } from "@/api/contracts";
 import { mediaKindLabel, mediaUnitLabel } from "@/domain/media-unit";
 import { MediaDetailsToolbar } from "@/features/media/media-details-toolbar";
+import type { MediaToolbarAction } from "@/features/media/media-toolbar-action";
 
 const STATUS_ICON_MAP: Record<string, React.ReactNode> = {
   RELEASING: <RiBroadcastLine className="w-4 h-4 text-success" />,
@@ -47,6 +54,68 @@ interface MediaDetailsHeaderProps {
   onRenameFiles: () => void;
   onOpenBulkMapping: () => void;
   onDeleteMedia: () => void;
+}
+
+function buildToolbarActions(props: MediaDetailsHeaderProps): MediaToolbarAction[] {
+  const monitorTooltip = props.isMonitored
+    ? `Unmonitor ${mediaKindLabel(props.media.media_kind)}`
+    : `Monitor ${mediaKindLabel(props.media.media_kind)}`;
+
+  return [
+    {
+      key: "monitor",
+      icon: <RiBookmarkLine className={props.isMonitored ? "h-4 w-4 fill-current" : "h-4 w-4"} />,
+      tooltip: monitorTooltip,
+      onPress: props.onToggleMonitor,
+      pending: props.isToggleMonitorPending,
+      variant: props.isMonitored ? "default" : "outline",
+    },
+    {
+      key: "refresh",
+      icon: <RiRefreshLine className="h-4 w-4" />,
+      tooltip: "Refresh Metadata",
+      label: "Refresh",
+      onPress: props.onRefreshEpisodes,
+      pending: props.isRefreshPending,
+    },
+    {
+      key: "search-missing",
+      icon: <RiSearchLine className="h-4 w-4" />,
+      tooltip: `Search Missing ${mediaUnitLabel(
+        props.media.media_kind === "anime" ? "episode" : "volume",
+        2,
+      )}`,
+      label: "Search Missing",
+      onPress: props.onSearchMissing,
+      pending: props.isSearchMissingPending,
+      disabled: !props.isMonitored || props.missingCount === 0,
+    },
+    {
+      key: "scan-folder",
+      icon: <RiFileDownloadLine className="h-4 w-4" />,
+      tooltip: "Scan Folder",
+      label: "Scan Folder",
+      onPress: props.onScanFolder,
+      pending: props.isScanFolderPending,
+    },
+    {
+      key: "rename",
+      icon: <RiText className="h-4 w-4" />,
+      tooltip: "Rename Files",
+      label: "Rename",
+      onPress: props.onRenameFiles,
+    },
+    {
+      key: "bulk-map",
+      icon: <RiLink className="h-4 w-4" />,
+      tooltip: `Manual Map ${mediaUnitLabel(
+        props.media.media_kind === "anime" ? "episode" : "volume",
+        2,
+      )}`,
+      label: `Map ${mediaUnitLabel(props.media.media_kind === "anime" ? "episode" : "volume", 2)}`,
+      onPress: props.onOpenBulkMapping,
+    },
+  ];
 }
 
 export function MediaDetailsHeader(props: MediaDetailsHeaderProps) {
@@ -109,18 +178,7 @@ export function MediaDetailsHeader(props: MediaDetailsHeaderProps) {
           mediaId={props.mediaId}
           mediaLabel={mediaLabel}
           unitLabelPlural={unitLabelPlural}
-          isMonitored={props.isMonitored}
-          missingCount={props.missingCount}
-          isRefreshPending={props.isRefreshPending}
-          isScanFolderPending={props.isScanFolderPending}
-          isSearchMissingPending={props.isSearchMissingPending}
-          isToggleMonitorPending={props.isToggleMonitorPending}
-          onToggleMonitor={props.onToggleMonitor}
-          onRefreshEpisodes={props.onRefreshEpisodes}
-          onSearchMissing={props.onSearchMissing}
-          onScanFolder={props.onScanFolder}
-          onRenameFiles={props.onRenameFiles}
-          onOpenBulkMapping={props.onOpenBulkMapping}
+          actions={buildToolbarActions(props)}
           onDeleteMedia={props.onDeleteMedia}
         />
       </div>

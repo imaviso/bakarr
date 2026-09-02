@@ -94,7 +94,13 @@ export function useImportUnmappedFolderMutation() {
   });
 }
 
-export function useScanImportPathMutation() {
+/**
+ * Read-only dry run: the backend scans a path and returns a preview of what
+ * an import would do (files, candidates, skips) without importing anything.
+ * The result lives in mutation state (`scanMutation.data`), not the query
+ * cache, so no invalidation is needed.
+ */
+export function usePreviewImportPathMutation() {
   return useMutation({
     mutationFn: (data: { path: string; media_id?: number }) =>
       runApiEffect(
@@ -121,7 +127,13 @@ export function useImportFilesMutation() {
   });
 }
 
-export function useImportCandidateSelectionMutation() {
+/**
+ * Read-only: the backend computes a preview of the next import selection
+ * (candidate toggles) from the posted files. The result feeds local reducer
+ * state via `mutate` callbacks, not the query cache, so no invalidation is
+ * needed.
+ */
+export function usePreviewImportSelectionMutation() {
   return useMutation({
     mutationFn: (data: ImportCandidateSelectionRequest) =>
       runApiEffect(

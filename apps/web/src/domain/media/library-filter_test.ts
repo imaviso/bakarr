@@ -39,9 +39,7 @@ const FIXTURE: Media[] = [
 
 function assertIds(actual: Media[], expected: number[]) {
   const ids = actual.map((item) => item.id);
-  const sameLength = ids.length === expected.length;
-  const sameOrder = ids.every((id, index) => id === expected[index]);
-  if (!sameLength || !sameOrder) {
+  if (ids.length !== expected.length || !ids.every((id, index) => id === expected[index])) {
     throw new Error(`Expected ids [${expected.join(", ")}], got [${ids.join(", ")}]`);
   }
 }

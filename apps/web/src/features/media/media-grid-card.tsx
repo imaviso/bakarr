@@ -14,7 +14,8 @@ import {
   type getAiringDisplayPreferences,
 } from "@/domain/media/metadata";
 import { mediaKindLabel } from "@/domain/media-unit";
-import { MediaProgressBar, progressTone } from "@/features/media/media-progress-bar";
+import { MediaProgressBar } from "@/features/media/media-progress-bar";
+import { progressTone } from "@/features/media/media-progress-tone";
 import {
   nextProgressLabel,
   progressPercent,

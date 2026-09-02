@@ -205,61 +205,6 @@ export function SettingSection(props: { children: ReactNode; title: string }) {
   );
 }
 
-function formatStringList(values: string[]) {
-  return values.join("\n");
-}
-
-function parseStringList(value: string, splitOnComma: boolean) {
-  const parsed: string[] = [];
-
-  for (const line of value.split(/\n/g)) {
-    const items = splitOnComma ? line.split(",") : [line];
-    for (const item of items) {
-      const trimmed = item.trim();
-      if (trimmed.length > 0) {
-        parsed.push(trimmed);
-      }
-    }
-  }
-
-  return parsed;
-}
-
-export function StringListEditor(props: {
-  className?: string;
-  onChange: (value: string[]) => void;
-  placeholder?: string;
-  rows?: number;
-  splitOnComma?: boolean;
-  value: string[];
-}) {
-  const formatted = formatStringList(props.value);
-  const [text, setText] = useState(formatted);
-  const [isFocused, setIsFocused] = useState(false);
-
-  const commit = () => {
-    props.onChange(parseStringList(text, props.splitOnComma ?? false));
-  };
-
-  return (
-    <Textarea
-      {...(props.className === undefined ? {} : { className: props.className })}
-      value={isFocused ? text : formatted}
-      rows={props.rows ?? 4}
-      {...(props.placeholder === undefined ? {} : { placeholder: props.placeholder })}
-      onFocus={() => {
-        setIsFocused(true);
-        setText(formatted);
-      }}
-      onInput={(event) => setText(event.currentTarget.value)}
-      onBlur={() => {
-        setIsFocused(false);
-        commit();
-      }}
-    />
-  );
-}
-
 function formatPathMappings(values: string[][]) {
   return values.map(([from = "", to = ""]) => `${from} => ${to}`).join("\n");
 }

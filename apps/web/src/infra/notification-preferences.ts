@@ -71,7 +71,8 @@ export const NOTIFICATION_PREFERENCE_OPTIONS = {
 
 export type NotificationPreferences = Record<NotificationPreferenceKey, boolean>;
 
-const NOTIFICATION_PREFERENCES_STORAGE_KEY = "bakarr_notification_preferences";
+const NOTIFICATION_PREFERENCES_STORAGE_KEY = "bakarr_notification_preferences:v1";
+const NOTIFICATION_PREFERENCES_LEGACY_KEY = "bakarr_notification_preferences";
 
 const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
   account: true,
@@ -121,7 +122,9 @@ export function readNotificationPreferences(): NotificationPreferences {
   }
 
   try {
-    const raw = localStorage.getItem(NOTIFICATION_PREFERENCES_STORAGE_KEY);
+    const raw =
+      localStorage.getItem(NOTIFICATION_PREFERENCES_STORAGE_KEY) ??
+      localStorage.getItem(NOTIFICATION_PREFERENCES_LEGACY_KEY);
     if (raw === null) {
       cachedPreferences = { ...DEFAULT_NOTIFICATION_PREFERENCES };
       return cachedPreferences;

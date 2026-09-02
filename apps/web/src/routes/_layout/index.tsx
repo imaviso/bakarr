@@ -1,19 +1,18 @@
-import { RiArrowRightLine, RiCheckLine, RiTimeLine } from "@remixicon/react";
+import { RiArrowRightLine } from "@remixicon/react";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { formatDistanceToNow } from "date-fns";
 import { EmptyState } from "@/components/shared/empty-state";
 import { GeneralError } from "@/components/shared/general-error";
 import { PageHeader } from "@/app/layout/page-header";
 import { PageShell } from "@/app/layout/page-shell";
 import { SectionLabel } from "@/components/shared/section-label";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
-import type { ActivityItem } from "@/api/contracts";
 import { activityQueryOptions, libraryStatsQueryOptions } from "@/api/library";
 import { createDownloadsRouteSearch } from "@/domain/download/events-search";
 import { usePageTitle } from "@/app/page-title";
+import { Separator } from "@/components/ui/separator";
+import { StatItem } from "@/app/dashboard/stat-item";
+import { ActivityRow } from "@/app/dashboard/activity-row";
 
 export const Route = createFileRoute("/_layout/")({
   loader: async ({ context: { queryClient } }) => {
@@ -40,7 +39,10 @@ function DashboardPage() {
     <PageShell>
       <PageHeader title="Dashboard" subtitle={statsSummary} />
 
-      <div className="flex flex-wrap items-center gap-x-6 gap-y-3 animate-in fade-in slide-in-from-bottom-2 duration-300 ease-out">
+      <div
+        className="flex flex-wrap items-center gap-x-6 gap-y-3 animate-in fade-in slide-in-from-bottom-2 zoom-in-95 ease-out"
+        style={{ animationDuration: "300ms" }}
+      >
         <StatItem label="Media" value={stats.total_media} />
         <StatItem
           label="Monitored"
@@ -83,7 +85,10 @@ function DashboardPage() {
         </div>
       </div>
 
-      <div className="flex flex-col gap-3 animate-in fade-in slide-in-from-bottom-2 duration-500 ease-out">
+      <div
+        className="flex flex-col gap-3 animate-in fade-in slide-in-from-bottom-2 zoom-in-95 ease-out"
+        style={{ animationDuration: "500ms" }}
+      >
         <div className="flex items-center justify-between">
           <SectionLabel as="h2">Recent Activity</SectionLabel>
           {activity.length > 5 && (
@@ -111,51 +116,5 @@ function DashboardPage() {
         )}
       </div>
     </PageShell>
-  );
-}
-
-function StatItem(props: {
-  label: string;
-  value: number;
-  sub?: string | undefined;
-  tone?: "warning" | undefined;
-}) {
-  return (
-    <div className="flex items-baseline gap-2">
-      <span
-        className={`text-xl font-medium tabular-nums ${props.tone === "warning" ? "text-warning" : "text-foreground"}`}
-      >
-        {props.value}
-      </span>
-      <span className="text-xs text-muted-foreground">{props.label}</span>
-      {props.sub && (
-        <Badge variant="secondary" className="h-4 px-1.5 py-0 text-xs">
-          {props.sub}
-        </Badge>
-      )}
-    </div>
-  );
-}
-
-function ActivityRow(props: { item: ActivityItem }) {
-  return (
-    <div className="flex items-center gap-4 py-3 transition-colors hover:bg-muted">
-      <div className="bg-success/10 p-2">
-        <RiCheckLine className="h-4 w-4 text-success" />
-      </div>
-      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <p className="truncate text-sm font-medium">{props.item.media_title}</p>
-        <p className="text-xs text-muted-foreground">{props.item.description}</p>
-      </div>
-      <time
-        className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground"
-        dateTime={props.item.timestamp}
-      >
-        <RiTimeLine className="h-3.5 w-3.5" />
-        {formatDistanceToNow(props.item.timestamp, {
-          addSuffix: true,
-        })}
-      </time>
-    </div>
   );
 }

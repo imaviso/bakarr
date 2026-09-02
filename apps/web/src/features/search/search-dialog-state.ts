@@ -123,7 +123,8 @@ export function useSearchDialogReleaseRowState(input: {
   const detectedIsBatch =
     (input.result.parsed_unit_numbers?.length ?? 0) > 1 || !input.result.parsed_unit;
   const [episodeNumberInput, setEpisodeNumberInput] = useState(
-    input.result.parsed_unit?.toString() ||
+    () =>
+      input.result.parsed_unit?.toString() ||
       input.result.parsed_unit_numbers?.[0]?.toString() ||
       (detectedIsBatch ? "1" : ""),
   );

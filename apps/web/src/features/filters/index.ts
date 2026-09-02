@@ -1,16 +1,8 @@
-import type { ReactNode } from "react";
 import { FilterActions } from "./filter-actions";
 import { FilterList } from "./filter-list";
 import { FilterMenu } from "./filter-menu";
 import { FilterProvider } from "./filter-provider";
-
-interface FilterRootProps {
-  children: ReactNode;
-}
-
-function FilterRoot(props: FilterRootProps) {
-  return <div className="flex flex-col gap-3">{props.children}</div>;
-}
+import { FilterRoot } from "./filter-root";
 
 export const Filter = {
   Provider: FilterProvider,
@@ -20,4 +12,4 @@ export const Filter = {
   Actions: FilterActions,
 };
 
-export * from "./types";
+export type { FilterColumnConfig, FilterOperator, FilterOption, FilterState } from "./types";

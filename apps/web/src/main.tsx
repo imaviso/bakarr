@@ -3,7 +3,7 @@ import { MutationCache, QueryClient, QueryClientProvider } from "@tanstack/react
 import { toast } from "sonner";
 import { createRouter, RouterProvider } from "@tanstack/react-router";
 import { routeTree } from "./routeTree.gen";
-import { logout } from "@/app/auth";
+import { logout } from "@/app/auth-state";
 import {
   ApiClientError,
   ApiDecodeError,

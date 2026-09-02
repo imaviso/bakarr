@@ -1,6 +1,6 @@
 import { toast } from "sonner";
 import type { QueryClient } from "@tanstack/react-query";
-import { decodeNotificationEventWire, type NotificationEvent } from "@bakarr/shared";
+import { type NotificationEvent } from "@bakarr/shared";
 import { animeKeys } from "@/api/keys";
 import type { BackgroundJobStatus, DownloadStatus, SystemStatus } from "@/api/contracts";
 import { getNotificationToastCopy } from "@/domain/notification-metadata";
@@ -8,8 +8,6 @@ import {
   getNotificationPreferenceKeyForEvent,
   readNotificationPreferences,
 } from "@/infra/notification-preferences";
-
-export { decodeNotificationEventWire };
 
 const EVENT_TOAST_ID: Partial<Record<NotificationEvent["type"], string>> = {
   DownloadFinished: "ops.download",

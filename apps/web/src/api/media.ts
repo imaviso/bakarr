@@ -288,7 +288,12 @@ export function useRenamePreviewQuery(id: number, options?: { enabled?: boolean 
 
 const AnimeEpisodeStreamUrlSchema = Schema.Struct({ url: Schema.String });
 
-export function useAnimeEpisodeStreamUrlMutation() {
+/**
+ * Read-only: the backend signs a temporary stream URL, nothing is written.
+ * The response is used directly by callers (mpv launch / clipboard), so no
+ * query cache is affected and no invalidation is needed.
+ */
+export function useSignEpisodeStreamUrlMutation() {
   return useMutation({
     mutationFn: (input: { mediaId: number; unitNumber: number }) =>
       runApiEffect(

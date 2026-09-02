@@ -118,19 +118,6 @@ export function createDownloadEventsSearchSchema(
   });
 }
 
-export function parseDownloadEventsSearch(
-  search: Record<string, unknown>,
-  keys: DownloadEventsSearchKeys,
-): Record<string, string> {
-  const defaults = createDownloadEventsSearchDefaults(keys);
-  const parsed = Schema.decodeUnknownSync(createDownloadEventsSearchSchema(keys, defaults))(search);
-
-  return {
-    ...defaults,
-    ...parsed,
-  };
-}
-
 export function createDownloadEventsCursorPatch(
   keys: DownloadEventsSearchKeys,
   direction: DownloadEventsDirection,

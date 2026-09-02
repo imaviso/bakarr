@@ -3,7 +3,7 @@ import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { Suspense, lazy } from "react";
 import { AppSidebar } from "@/app/layout/app-sidebar";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { syncAuthenticatedUser } from "@/app/auth";
+import { syncAuthenticatedUser } from "@/app/auth-state";
 import { authMeQueryOptions } from "@/api/auth";
 import { isApiUnauthorizedError } from "@/api/effect/api-client";
 

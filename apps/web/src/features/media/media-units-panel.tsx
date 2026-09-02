@@ -61,8 +61,7 @@ export function AnimeEpisodesPanel(props: AnimeEpisodesPanelProps) {
             )}
 
             {hasEpisodes && (
-              <div
-                role="list"
+              <ul
                 aria-label={`${unitLabel} status overview`}
                 className="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12 gap-1.5"
               >
@@ -74,9 +73,8 @@ export function AnimeEpisodesPanel(props: AnimeEpisodesPanelProps) {
                       : "Upcoming";
 
                   return (
-                    <div
+                    <li
                       key={episode.number}
-                      role="listitem"
                       aria-label={`${unitLabel} ${episode.number}: ${status}`}
                       className={cn(
                         "aspect-square flex items-center justify-center rounded-none text-xs font-mono transition-colors",
@@ -91,10 +89,10 @@ export function AnimeEpisodesPanel(props: AnimeEpisodesPanelProps) {
                       }`}
                     >
                       {episode.number}
-                    </div>
+                    </li>
                   );
                 })}
-              </div>
+              </ul>
             )}
           </TabsContent>
 

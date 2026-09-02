@@ -370,8 +370,12 @@ function ImportReviewStep(props: { state: ImportPageState }) {
                   candidate={candidate}
                   libraryIds={props.state.flow.libraryIds}
                   isSelected={props.state.flow.selectedCandidateIds.has(candidate.id)}
-                  isLocal={props.state.flow.libraryIds.has(candidate.id)}
-                  isManual={props.state.manualCandidateIds.has(candidate.id)}
+                  badges={[
+                    ...(props.state.flow.libraryIds.has(candidate.id) ? [] : (["new"] as const)),
+                    ...(props.state.manualCandidateIds.has(candidate.id)
+                      ? (["manual"] as const)
+                      : []),
+                  ]}
                   isToggling={props.state.flow.isTogglingCandidate(candidate.id)}
                   onToggle={() => props.state.flow.toggleCandidate(candidate)}
                   className=""

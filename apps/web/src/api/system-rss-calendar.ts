@@ -1,10 +1,4 @@
-import {
-  keepPreviousData,
-  queryOptions,
-  useMutation,
-  useQuery,
-  useQueryClient,
-} from "@tanstack/react-query";
+import { keepPreviousData, queryOptions, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { RssFeedCreateRequest } from "./contracts";
 import { Schema } from "effect";
 import { CalendarEventSchema, RssFeedSchema } from "@bakarr/shared";
@@ -25,33 +19,6 @@ export function rssFeedsQueryOptions() {
         ),
       ),
     staleTime: 1000 * 60 * 5,
-  });
-}
-
-export function useRssFeedsQuery() {
-  return useQuery(rssFeedsQueryOptions());
-}
-
-export function animeRssFeedsQueryOptions(mediaId: number) {
-  return queryOptions({
-    queryKey: animeKeys.rss.media(mediaId),
-    queryFn: ({ signal }) =>
-      runApiEffect(
-        fetchJson(
-          Schema.mutable(Schema.Array(RssFeedSchema)),
-          `${API_BASE}/media/${mediaId}/rss`,
-          undefined,
-          signal,
-        ),
-      ),
-    staleTime: 1000 * 60 * 5,
-  });
-}
-
-export function useAnimeRssFeedsQuery(mediaId: number) {
-  return useQuery({
-    ...animeRssFeedsQueryOptions(mediaId),
-    enabled: !!mediaId,
   });
 }
 

@@ -1,6 +1,5 @@
 import { cn } from "@/infra/utils";
-
-type ProgressTone = "warning" | "primary" | "muted";
+import type { ProgressTone } from "./media-progress-tone";
 
 interface MediaProgressBarProps {
   percent: number | null;
@@ -25,13 +24,4 @@ export function MediaProgressBar(props: MediaProgressBarProps) {
       />
     </div>
   );
-}
-
-export function progressTone(
-  nextMissingUnit: number | null | undefined,
-  monitored: boolean,
-): ProgressTone {
-  if (nextMissingUnit) return "warning";
-  if (monitored) return "primary";
-  return "muted";
 }

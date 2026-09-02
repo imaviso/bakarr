@@ -53,7 +53,8 @@ export function FilterItem(props: FilterItemProps) {
   }
 
   if (column?.operators && column.operators.length > 0) {
-    operatorOptions = operatorOptions.filter((option) => column.operators?.includes(option.value));
+    const allowedOperators = new Set(column.operators);
+    operatorOptions = operatorOptions.filter((option) => allowedOperators.has(option.value));
   }
 
   const handleOperatorChange = (operator: FilterOperator | null) => {

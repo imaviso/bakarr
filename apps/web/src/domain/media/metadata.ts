@@ -267,12 +267,12 @@ function getDateTimePartsFormatter(timeZone?: string): Intl.DateTimeFormat {
 }
 
 function getDateTimeParts(date: Date, timeZone?: string) {
-  const parts = Object.fromEntries(
-    getDateTimePartsFormatter(timeZone)
-      .formatToParts(date)
-      .filter((part) => part.type !== "literal")
-      .map((part) => [part.type, part.value]),
-  );
+  const parts: Partial<Record<Intl.DateTimeFormatPartTypes, string>> = {};
+  for (const part of getDateTimePartsFormatter(timeZone).formatToParts(date)) {
+    if (part.type !== "literal") {
+      parts[part.type] = part.value;
+    }
+  }
 
   const day = Number(parts["day"]);
   const hour = Number(parts["hour"]);
@@ -307,6 +307,8 @@ function formatTimeParts(parts: { hour: number; minute: number }) {
   return format(new Date(2000, 0, 1, parts.hour, parts.minute), "h:mm a");
 }
 
+const timeZoneValidationCache = new Map<string, string | undefined>();
+
 function normalizeTimeZone(value?: string | null) {
   const trimmed = value?.trim();
 
@@ -314,9 +316,18 @@ function normalizeTimeZone(value?: string | null) {
     return undefined;
   }
 
-  try {
-    return new Intl.DateTimeFormat(undefined, { timeZone: trimmed }).resolvedOptions().timeZone;
-  } catch {
-    return undefined;
+  const cached = timeZoneValidationCache.get(trimmed);
+  if (cached !== undefined) {
+    return cached;
   }
+
+  let resolved: string | undefined;
+  try {
+    resolved = getDateTimePartsFormatter(trimmed).resolvedOptions().timeZone;
+  } catch {
+    resolved = undefined;
+  }
+
+  timeZoneValidationCache.set(trimmed, resolved);
+  return resolved;
 }

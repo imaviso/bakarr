@@ -1,11 +1,3 @@
-import {
-  differenceInDays,
-  differenceInHours,
-  differenceInMinutes,
-  isValid,
-  parseISO,
-} from "date-fns";
-
 const BYTE_UNITS = ["B", "KB", "MB", "GB", "TB"] as const;
 const SPEED_UNITS = ["B/s", "KB/s", "MB/s", "GB/s"] as const;
 
@@ -59,22 +51,6 @@ export function formatEta(seconds: number): string {
 }
 
 /**
- * Format a duration in seconds as "1d 2h 3m". Preserves the `system-status`
- * `formatUptime` behavior (always includes minutes, drops empty leading units).
- */
-export function formatDurationCompact(seconds: number): string {
-  const d = Math.floor(seconds / (3600 * 24));
-  const h = Math.floor((seconds % (3600 * 24)) / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-
-  const parts = [];
-  if (d > 0) parts.push(`${d}d`);
-  if (h > 0) parts.push(`${h}h`);
-  if (m > 0 || parts.length === 0) parts.push(`${m}m`);
-  return parts.join(" ");
-}
-
-/**
  * Format a duration in seconds as "1h 5m" / "1m 5s" / "45s".
  * Preserves the `scanned-file` `formatDurationSeconds` behavior (test-pinned).
  */
@@ -113,23 +89,4 @@ export function formatFileSize(size?: number): string | undefined {
   }
 
   return `${(size / 1024 / 1024).toFixed(1)} MB`;
-}
-
-/**
- * Format an ISO timestamp as a compact "N ago" string.
- * Preserves the `system-status` `formatRelativeTime` behavior ("Never", "Just now",
- * "Nm ago", "Nh ago", "Nd ago").
- */
-export function formatRelativeTime(dateStr: string | null | undefined): string {
-  if (!dateStr) return "Never";
-  const date = parseISO(dateStr);
-  if (!isValid(date)) return "Never";
-
-  const now = new Date();
-  const mins = differenceInMinutes(now, date);
-  if (mins < 1) return "Just now";
-  if (mins < 60) return `${mins}m ago`;
-  const hours = differenceInHours(now, date);
-  if (hours < 24) return `${hours}h ago`;
-  return `${differenceInDays(now, date)}d ago`;
 }

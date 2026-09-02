@@ -28,6 +28,8 @@ import { cn } from "@/infra/utils";
 
 const toMonthKey = (date: Date) => format(date, "yyyy-MM");
 
+const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
 function parseMonthKey(month: string): Date {
   const parsed = new Date(`${month}-15T00:00:00`);
   return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
@@ -58,8 +60,6 @@ export function AnimeCalendar(props: AnimeCalendarProps) {
   const calendarStart = startOfWeek(monthStart, { weekStartsOn: 0 });
   const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 0 });
   const days = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
-
-  const weekdays = ["RiSunLine", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
   const eventsByDay: Record<string, typeof events> = {};
   if (airingPreferences) {
@@ -111,7 +111,7 @@ export function AnimeCalendar(props: AnimeCalendarProps) {
         <div className="min-w-0 md:min-w-[800px]">
           {/* Weekday Headers */}
           <div className="grid grid-cols-7 border-b border-border bg-muted">
-            {weekdays.map((day) => (
+            {WEEKDAYS.map((day) => (
               <SectionLabel key={day} className="block py-2 text-center">
                 {day}
               </SectionLabel>

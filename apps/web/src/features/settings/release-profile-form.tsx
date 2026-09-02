@@ -1,7 +1,7 @@
 import { RiAddLine, RiDeleteBinLine } from "@remixicon/react";
 import { useForm } from "@tanstack/react-form";
 import { Schema } from "effect";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -33,7 +33,14 @@ const ReleaseProfileSchema = Schema.Struct({
   ),
 });
 
-function createRuleRowId(ref: React.MutableRefObject<number>) {
+function createRuleRowIds(
+  rules: ReleaseProfile["rules"] | undefined,
+  ref: React.MutableRefObject<number>,
+): string[] {
+  return (rules ?? []).map(() => nextRuleRowId(ref));
+}
+
+function nextRuleRowId(ref: React.MutableRefObject<number>): string {
   ref.current += 1;
   return `release-rule-${ref.current}`;
 }
@@ -47,8 +54,8 @@ export function ReleaseProfileForm(props: {
   const updateProfile = useUpdateReleaseProfileMutation();
   const isEditing = !!props.profile;
   const ruleRowIdCounterRef = useRef(0);
-  const ruleRowIdsRef = useRef(
-    (props.profile?.rules ?? []).map(() => createRuleRowId(ruleRowIdCounterRef)),
+  const [ruleRowIds, setRuleRowIds] = useState<string[]>(() =>
+    createRuleRowIds(props.profile?.rules, ruleRowIdCounterRef),
   );
 
   const form = useForm({
@@ -79,14 +86,7 @@ export function ReleaseProfileForm(props: {
   };
 
   const getRuleRowId = (index: number) => {
-    const existing = ruleRowIdsRef.current[index];
-    if (existing) {
-      return existing;
-    }
-
-    const next = createRuleRowId(ruleRowIdCounterRef);
-    ruleRowIdsRef.current[index] = next;
-    return next;
+    return ruleRowIds[index] ?? `release-rule-legacy-${index}`;
   };
 
   return (
@@ -168,7 +168,8 @@ export function ReleaseProfileForm(props: {
                     variant="outline"
                     size="sm"
                     onPress={() => {
-                      ruleRowIdsRef.current.push(createRuleRowId(ruleRowIdCounterRef));
+                      const id = nextRuleRowId(ruleRowIdCounterRef);
+                      setRuleRowIds((ids) => [...ids, id]);
                       field.pushValue({
                         term: "",
                         rule_type: "preferred",
@@ -260,7 +261,7 @@ export function ReleaseProfileForm(props: {
                         size="icon"
                         className="mt-0.5 text-muted-foreground hover:text-destructive"
                         onPress={() => {
-                          ruleRowIdsRef.current.splice(index, 1);
+                          setRuleRowIds((ids) => ids.filter((_, idIndex) => idIndex !== index));
                           field.removeValue(index);
                         }}
                         aria-label="Remove rule"

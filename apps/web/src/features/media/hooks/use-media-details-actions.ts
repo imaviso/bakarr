@@ -9,7 +9,7 @@ import {
   useUpdateMediaReleaseProfilesMutation,
 } from "@/api/media-mutations";
 import { useSearchMissingMutation } from "@/api/system-downloads";
-import { useAnimeEpisodeStreamUrlMutation } from "@/api/media";
+import { useSignEpisodeStreamUrlMutation } from "@/api/media";
 import { Effect } from "effect";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -30,7 +30,7 @@ export function useAnimeDetailsActions(options: UseAnimeDetailsActionsOptions) {
   const updatePath = useUpdateMediaPathMutation();
   const updateProfile = useUpdateMediaProfileMutation();
   const updateReleaseProfiles = useUpdateMediaReleaseProfilesMutation();
-  const streamUrl = useAnimeEpisodeStreamUrlMutation();
+  const streamUrl = useSignEpisodeStreamUrlMutation();
   const [latestScanTaskId, setLatestScanTaskId] = useState<number | undefined>(undefined);
 
   const handlePlayInMpv = (unitNumber: number) => {

@@ -1,14 +1,9 @@
 import {
-  RiBookmarkLine,
   RiDeleteBinLine,
   RiDownloadLine,
-  RiFileDownloadLine,
   RiFolderOpenLine,
   RiLink,
   RiListUnordered,
-  RiRefreshLine,
-  RiSearchLine,
-  RiText,
 } from "@remixicon/react";
 import { Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
@@ -17,6 +12,7 @@ import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { SearchDialog } from "@/features/search/search-dialog";
 import type { Media } from "@/api/contracts";
 import { createLogsRouteSearch } from "@/domain/download/events-search";
+import type { MediaToolbarAction } from "@/features/media/media-toolbar-action";
 import { cn } from "@/infra/utils";
 
 interface ToolbarProps {
@@ -24,18 +20,7 @@ interface ToolbarProps {
   mediaId: number;
   mediaLabel: string;
   unitLabelPlural: string;
-  isMonitored: boolean;
-  missingCount: number;
-  isRefreshPending: boolean;
-  isScanFolderPending: boolean;
-  isSearchMissingPending: boolean;
-  isToggleMonitorPending: boolean;
-  onToggleMonitor: () => void;
-  onRefreshEpisodes: () => void;
-  onSearchMissing: () => void;
-  onScanFolder: () => void;
-  onRenameFiles: () => void;
-  onOpenBulkMapping: () => void;
+  actions: MediaToolbarAction[];
   onDeleteMedia: () => void;
 }
 
@@ -51,39 +36,28 @@ function ToolbarButton(props: { tooltip: string; children: React.ReactNode }) {
 export function MediaDetailsToolbar(props: ToolbarProps) {
   return (
     <div className="flex items-center gap-2 overflow-x-auto pb-2 -mb-2 no-scrollbar md:flex-wrap md:overflow-visible md:pb-0 md:mb-0">
-      <ToolbarButton
-        tooltip={
-          props.isMonitored ? `Unmonitor ${props.mediaLabel}` : `Monitor ${props.mediaLabel}`
-        }
-      >
-        <Button
-          variant={props.isMonitored ? "default" : "outline"}
-          size="sm"
-          onPress={props.onToggleMonitor}
-          isDisabled={props.isToggleMonitorPending}
-          aria-label={
-            props.isMonitored ? `Unmonitor ${props.mediaLabel}` : `Monitor ${props.mediaLabel}`
-          }
-          className={cn("shrink-0", !props.isMonitored && "text-muted-foreground bg-muted")}
-        >
-          <RiBookmarkLine className={cn("h-4 w-4", props.isMonitored && "fill-current")} />
-        </Button>
-      </ToolbarButton>
-
-      <ToolbarButton tooltip="Refresh Metadata">
-        <Button
-          variant="outline"
-          size="sm"
-          onPress={props.onRefreshEpisodes}
-          isDisabled={props.isRefreshPending}
-          className="shrink-0"
-        >
-          <RiRefreshLine
-            className={cn("lg:mr-2 h-4 w-4", props.isRefreshPending && "animate-spin")}
-          />
-          <span className="hidden lg:inline">Refresh</span>
-        </Button>
-      </ToolbarButton>
+      {props.actions.map((action) => (
+        <ToolbarButton key={action.key} tooltip={action.tooltip}>
+          <Button
+            variant={action.variant ?? "outline"}
+            size="sm"
+            onPress={action.onPress}
+            isDisabled={Boolean(action.pending || action.disabled)}
+            aria-label={action.tooltip}
+            className="shrink-0"
+          >
+            <span
+              className={cn(
+                "lg:mr-2 h-4 w-4 flex items-center justify-center",
+                action.pending && "animate-spin",
+              )}
+            >
+              {action.icon}
+            </span>
+            {action.label && <span className="hidden lg:inline">{action.label}</span>}
+          </Button>
+        </ToolbarButton>
+      ))}
 
       <SearchDialog
         mediaId={props.mediaId}
@@ -98,43 +72,6 @@ export function MediaDetailsToolbar(props: ToolbarProps) {
         }
       />
 
-      <ToolbarButton tooltip={`Search Missing ${props.unitLabelPlural}`}>
-        <Button
-          variant="outline"
-          size="sm"
-          onPress={props.onSearchMissing}
-          isDisabled={
-            props.isSearchMissingPending || !props.isMonitored || props.missingCount === 0
-          }
-          className="shrink-0"
-        >
-          <RiSearchLine className="lg:mr-2 h-4 w-4" />
-          <span className="hidden lg:inline">Search Missing</span>
-        </Button>
-      </ToolbarButton>
-
-      <ToolbarButton tooltip="Scan Folder">
-        <Button
-          variant="outline"
-          size="sm"
-          onPress={props.onScanFolder}
-          isDisabled={props.isScanFolderPending}
-          className="shrink-0"
-        >
-          <RiFileDownloadLine
-            className={cn("lg:mr-2 h-4 w-4", props.isScanFolderPending && "animate-spin")}
-          />
-          <span className="hidden lg:inline">Scan Folder</span>
-        </Button>
-      </ToolbarButton>
-
-      <ToolbarButton tooltip="Rename Files">
-        <Button variant="outline" size="sm" onPress={props.onRenameFiles} className="shrink-0">
-          <RiText className="lg:mr-2 h-4 w-4" />
-          <span className="hidden lg:inline">Rename</span>
-        </Button>
-      </ToolbarButton>
-
       <Link to="/media/import" search={{ mediaId: props.mediaId }} className="shrink-0">
         <Button variant="outline" size="sm">
           <RiFolderOpenLine className="lg:mr-2 h-4 w-4" />
@@ -143,8 +80,8 @@ export function MediaDetailsToolbar(props: ToolbarProps) {
       </Link>
 
       <ToolbarButton tooltip={`Manual Map ${props.unitLabelPlural}`}>
-        <Button variant="outline" size="sm" onPress={props.onOpenBulkMapping} className="shrink-0">
-          <RiLink className="lg:mr-2 h-4 w-4" />
+        <Button variant="outline" size="sm" className="shrink-0">
+          <RiLink className="h-4 w-4" />
           <span className="hidden lg:inline">Map {props.unitLabelPlural}</span>
         </Button>
       </ToolbarButton>
@@ -168,13 +105,9 @@ export function MediaDetailsToolbar(props: ToolbarProps) {
         onConfirm={props.onDeleteMedia}
         trigger={
           <ToolbarButton tooltip={`Delete ${props.mediaLabel}`}>
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label={`Delete ${props.mediaLabel}`}
-              className="text-muted-foreground hover:text-destructive shrink-0"
-            >
+            <Button variant="outline" size="sm" className="shrink-0">
               <RiDeleteBinLine className="h-4 w-4" />
+              <span className="hidden lg:inline">Delete</span>
             </Button>
           </ToolbarButton>
         }

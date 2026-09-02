@@ -4,9 +4,9 @@ import { toast } from "sonner";
 import type { MediaId, MediaSearchResult, ImportFileRequest, ScannedFile } from "@/api/contracts";
 import { mediaListQueryOptions } from "@/api/media";
 import {
-  useImportCandidateSelectionMutation,
   useImportFilesMutation,
-  useScanImportPathMutation,
+  usePreviewImportPathMutation,
+  usePreviewImportSelectionMutation,
 } from "@/api/system-library";
 import { buildImportFileRequest, findMissingImportCandidates } from "./import-flow";
 import { createImportDropzoneHandlers } from "./import-dropzone";
@@ -162,11 +162,15 @@ export function useImportFlow(options: ImportFlowOptions = {}) {
   }, [state]);
   // Serializes candidate toggles: each request builds on the previous
   // response's selection, so concurrent toggles cannot overwrite each other.
-  const toggleChainRef = useRef<Promise<void>>(Promise.resolve());
+  const toggleChainRef = useRef<Promise<void> | null>(null);
+  const toggleChain = () => {
+    toggleChainRef.current ??= Promise.resolve();
+    return toggleChainRef.current;
+  };
 
-  const scanMutation = useScanImportPathMutation();
+  const scanMutation = usePreviewImportPathMutation();
   const importMutation = useImportFilesMutation();
-  const importSelectionMutation = useImportCandidateSelectionMutation();
+  const importSelectionMutation = usePreviewImportSelectionMutation();
   const { data: animeList } = useSuspenseQuery(mediaListQueryOptions());
 
   const scannedFiles = [...(scanMutation.data?.files ?? [])].toSorted((a, b) => {
@@ -199,7 +203,7 @@ export function useImportFlow(options: ImportFlowOptions = {}) {
 
   const toggleCandidate = useCallback(
     (candidate: MediaSearchResult, forceSelect = false) => {
-      const run = toggleChainRef.current.then(() => {
+      const run = toggleChain().then(() => {
         const latest = stateRef.current;
         return new Promise<void>((resolve) => {
           importSelectionMutation.mutate(

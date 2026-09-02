@@ -13,17 +13,6 @@ import {
 
 export type { AuthState } from "@/app/auth-state";
 
-export {
-  getAuthState,
-  getAuthHeaders,
-  loginSuccess,
-  syncAuthenticatedUser,
-  clearAuthState,
-  logout,
-  logoutLocal,
-  replaceApiKey,
-};
-
 // Create the auth context
 interface AuthContextValue {
   auth: ReturnType<typeof getAuthState>;

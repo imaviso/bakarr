@@ -176,7 +176,7 @@ export function ManualSearchCore(props: ManualSearchCoreProps) {
                             {animeSearchSubtitle(media)}
                           </span>
                         )}
-                        {media.genres?.length && (
+                        {(media.genres?.length ?? 0) > 0 && (
                           <span>{media.genres?.slice(0, 2).join(" / ")}</span>
                         )}
                       </div>
@@ -185,12 +185,12 @@ export function ManualSearchCore(props: ManualSearchCoreProps) {
                           {media.description}
                         </p>
                       )}
-                      {media.synonyms?.length && (
+                      {(media.synonyms?.length ?? 0) > 0 && (
                         <p className="mt-1 text-xs text-muted-foreground line-clamp-2">
                           Also known as {media.synonyms?.slice(0, 3).join(" • ")}
                         </p>
                       )}
-                      {media.related_media?.length && (
+                      {(media.related_media?.length ?? 0) > 0 && (
                         <div className="mt-1 space-y-1">
                           {media.related_media?.slice(0, 2).map((related) => (
                             <MediaDiscoveryRow
@@ -202,7 +202,7 @@ export function ManualSearchCore(props: ManualSearchCoreProps) {
                           ))}
                         </div>
                       )}
-                      {media.recommended_media?.length && (
+                      {(media.recommended_media?.length ?? 0) > 0 && (
                         <div className="mt-1 space-y-1">
                           {media.recommended_media?.slice(0, 2).map((recommended) => (
                             <MediaDiscoveryRow

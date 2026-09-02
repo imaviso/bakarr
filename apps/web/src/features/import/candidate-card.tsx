@@ -11,8 +11,8 @@ interface CandidateCardProps {
   candidate: MediaSearchResult;
   libraryIds: ReadonlySet<number>;
   isSelected: boolean;
-  isLocal: boolean;
-  isManual: boolean;
+  /** Origin badges for the candidate: "new" (not yet in library) and/or "manual" (hand-added). */
+  badges?: readonly ("new" | "manual")[];
   isToggling?: boolean;
   onToggle: () => void;
   className?: string;
@@ -68,8 +68,8 @@ export function CandidateCard(props: CandidateCardProps) {
           </TooltipTrigger>
 
           <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-            {!props.isLocal && <Badge>New</Badge>}
-            {props.isManual && (
+            {props.badges?.includes("new") && <Badge>New</Badge>}
+            {props.badges?.includes("manual") && (
               <Badge
                 variant="secondary"
                 className="h-4 px-1 text-xs bg-accent/10 text-accent border-accent/20"

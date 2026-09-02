@@ -132,7 +132,7 @@ export function MediaSearchResultCard(props: MediaSearchResultCardProps) {
               {animeSearchSubtitle(props.media)}
             </Badge>
           )}
-          {props.media.genres?.length && (
+          {(props.media.genres?.length ?? 0) > 0 && (
             <Badge variant="outline" className="text-xs h-5 px-1.5 font-normal">
               {props.media.genres?.slice(0, 2).join(" / ")}
             </Badge>

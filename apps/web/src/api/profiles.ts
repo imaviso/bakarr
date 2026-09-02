@@ -56,13 +56,6 @@ export function releaseProfilesQueryOptions() {
   });
 }
 
-export function useReleaseProfilesQuery(enabled: boolean = true) {
-  return useQuery({
-    ...releaseProfilesQueryOptions(),
-    enabled,
-  });
-}
-
 export function useCreateProfileMutation() {
   const queryClient = useQueryClient();
   return useMutation({

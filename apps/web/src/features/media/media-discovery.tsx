@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { SectionLabel } from "@/components/shared/section-label";
-import { buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button-variants";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { Media } from "@/api/contracts";
 import { animeDiscoverySubtitle, animeDisplayTitle } from "@/domain/media/metadata";

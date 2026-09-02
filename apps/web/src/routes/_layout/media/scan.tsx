@@ -1,40 +1,21 @@
-import {
-  RiDeleteBinLine,
-  RiPauseLine,
-  RiPlayLine,
-  RiRefreshLine,
-  RiSparkling2Line,
-} from "@remixicon/react";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { SectionLabel } from "@/components/shared/section-label";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { GeneralError } from "@/components/shared/general-error";
 import { PageShell } from "@/app/layout/page-shell";
-import { BackgroundMatchingCard } from "@/features/scan/background-matching-card";
 import { runBulkBackgroundMatchAction } from "@/features/scan/background-matching-actions";
 import { isBackgroundMatchingRunning } from "@/features/scan/background-matching-state";
-import { EmptyScanState } from "@/features/scan/empty-scan-state";
-import { FolderItem } from "@/features/scan/folder-item";
-import { ManualMatchSearch } from "@/features/scan/manual-match-search";
-import { StatChip } from "@/features/scan/stat-chip";
-import { ConfirmDialog } from "@/components/shared/confirm-dialog";
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ScanContent } from "@/features/scan/sections/scan-content";
+import { ScanDialogs } from "@/features/scan/sections/scan-dialogs";
+import { ScanPageHeader } from "@/features/scan/sections/scan-page-header";
 import {
   useBulkControlUnmappedFoldersMutation,
   useScanLibraryMutation,
   unmappedFoldersQueryOptions,
 } from "@/api/system-library";
 import { systemJobsQueryOptions } from "@/api/system-config";
-import type {
-  MediaSearchResult,
-  BackgroundJobStatus,
-  ScannerMatchStatus,
-  UnmappedFolder,
-} from "@/api/contracts";
+import type { MediaSearchResult, UnmappedFolder } from "@/api/contracts";
 import { usePageTitle } from "@/app/page-title";
-import { cn } from "@/infra/utils";
 
 export const Route = createFileRoute("/_layout/media/scan")({
   loader: async ({ context: { queryClient } }) => {
@@ -176,236 +157,6 @@ function LibraryScanPage() {
         onOpenManualMatch={(dialogState) => setManualMatchDialog(dialogState)}
       />
     </PageShell>
-  );
-}
-
-interface ScanPageHeaderProps {
-  foldersCount: number;
-  counts: {
-    exact: number;
-    queued: number;
-    matching: number;
-    matched: number;
-    failed: number;
-    paused: number;
-  };
-  isRescanning: boolean;
-  bulkControlPending: boolean;
-  onRescan: () => void;
-  onPauseQueued: () => void;
-  onResumePaused: () => void;
-  onRetryFailed: () => void;
-  onResetFailed: () => void;
-  onBack: () => void;
-}
-
-function ScanPageHeader(props: ScanPageHeaderProps) {
-  return (
-    <div className="sticky top-0 z-10 shrink-0 border-b bg-background">
-      <div className="px-6 py-5">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div className="space-y-3">
-            <SectionLabel className="inline-flex items-center gap-2 border border-border bg-background/80 px-3 py-1">
-              <RiSparkling2Line className="h-3.5 w-3.5 text-info" />
-              Library Scan
-            </SectionLabel>
-            <div>
-              <h1 className="text-2xl font-medium tracking-tight text-foreground md:text-3xl">
-                Import folders
-              </h1>
-              <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground md:text-base">
-                Map existing folders to anime, manga, or light novels and import units.
-              </p>
-              <SectionLabel as="div" className="mt-1 max-w-3xl leading-5">
-                Start a background pass to work through queued folders one by one. It stops
-                automatically when the queue is empty.
-              </SectionLabel>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-            <StatChip label="Unmapped" value={String(props.foldersCount)} />
-            <StatChip label="Queued" value={String(props.counts.queued + props.counts.matching)} />
-            <StatChip label="Paused" value={String(props.counts.paused)} />
-            <StatChip label="Already in library" value={String(props.counts.exact)} tone="info" />
-            <Button
-              variant="outline"
-              size="sm"
-              isDisabled={props.isRescanning}
-              onPress={props.onRescan}
-            >
-              <RiRefreshLine className={cn("mr-2 h-4 w-4", props.isRescanning && "animate-spin")} />
-              {props.isRescanning ? "Scanning..." : "Rescan"}
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              isDisabled={props.bulkControlPending || props.counts.queued === 0}
-              onPress={props.onPauseQueued}
-            >
-              <RiPauseLine className="mr-2 h-4 w-4" />
-              Pause Queued
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              isDisabled={props.bulkControlPending || props.counts.paused === 0}
-              onPress={props.onResumePaused}
-            >
-              <RiPlayLine className="mr-2 h-4 w-4" />
-              Start Paused
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              isDisabled={props.bulkControlPending || props.counts.failed === 0}
-              onPress={props.onRetryFailed}
-            >
-              <RiRefreshLine className="mr-2 h-4 w-4" />
-              Retry Failed
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              isDisabled={props.bulkControlPending || props.counts.failed === 0}
-              onPress={props.onResetFailed}
-            >
-              <RiDeleteBinLine className="mr-2 h-4 w-4" />
-              Reset Failed
-            </Button>
-            <Button variant="ghost" size="sm" onPress={props.onBack}>
-              Back
-            </Button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-interface ScanDialogsProps {
-  confirmBulkAction: string | null;
-  confirmBulkMeta: {
-    actionLabel: string;
-    description: string;
-    title: string;
-  } | null;
-  onConfirmBulkAction: () => void;
-  onCancelBulkAction: () => void;
-  manualMatchDialog: {
-    folder: UnmappedFolder;
-    onSelect: (anime: MediaSearchResult) => void;
-  } | null;
-  onCloseManualMatch: () => void;
-  onManualMatchSelect: (anime: MediaSearchResult) => void;
-}
-
-function ScanDialogs(props: ScanDialogsProps) {
-  return (
-    <>
-      <ConfirmDialog
-        title={props.confirmBulkMeta?.title ?? ""}
-        description={props.confirmBulkMeta?.description ?? ""}
-        confirmLabel={props.confirmBulkMeta?.actionLabel ?? "Confirm"}
-        destructive={props.confirmBulkAction === "reset_failed"}
-        isOpen={props.confirmBulkAction !== null}
-        onOpenChange={(open) => {
-          if (!open) {
-            props.onCancelBulkAction();
-          }
-        }}
-        onConfirm={props.onConfirmBulkAction}
-      />
-
-      <Dialog
-        isOpen={props.manualMatchDialog !== null}
-        onOpenChange={(open) => {
-          if (!open) {
-            props.onCloseManualMatch();
-          }
-        }}
-        className="sm:max-w-md"
-      >
-        <DialogHeader>
-          <DialogTitle>Match folder to anime</DialogTitle>
-          <DialogDescription>
-            Search for the anime to associate with{" "}
-            <span className="font-mono text-xs">{props.manualMatchDialog?.folder.name ?? ""}</span>
-          </DialogDescription>
-        </DialogHeader>
-        <ManualMatchSearch
-          key={props.manualMatchDialog?.folder.path ?? "closed"}
-          initialMediaKind={props.manualMatchDialog?.folder.media_kind}
-          onSelect={props.onManualMatchSelect}
-        />
-      </Dialog>
-    </>
-  );
-}
-
-interface ScanContentProps {
-  foldersLength: number;
-  unmappedJob: BackgroundJobStatus | undefined;
-  counts: {
-    exact: number;
-    queued: number;
-    matching: number;
-    matched: number;
-    failed: number;
-    paused: number;
-  };
-  hasOutstandingMatches: boolean;
-  isWorkerRunning: boolean;
-  isScanning: boolean;
-  matchStatus: ScannerMatchStatus | undefined;
-  folderPaths: readonly string[];
-  foldersByPath: Map<string, UnmappedFolder>;
-  onOpenManualMatch: (dialogState: {
-    folder: UnmappedFolder;
-    onSelect: (anime: MediaSearchResult) => void;
-  }) => void;
-}
-
-function ScanContent(props: ScanContentProps) {
-  return (
-    <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-6 py-6">
-      {props.foldersLength > 0 ? (
-        <div className="space-y-4">
-          {(props.foldersLength > 0 || props.unmappedJob) && (
-            <BackgroundMatchingCard
-              job={props.unmappedJob}
-              failedCount={props.counts.failed}
-              hasOutstandingWork={props.hasOutstandingMatches}
-              isRunning={props.isWorkerRunning}
-              status={props.matchStatus}
-              matchedCount={props.counts.matched}
-              matchingCount={props.counts.matching}
-              pausedCount={props.counts.paused}
-              queuedCount={props.counts.queued}
-              totalCount={props.foldersLength}
-            />
-          )}
-          <ul role="list" className="space-y-3">
-            {props.folderPaths.map((path) => {
-              const folder = props.foldersByPath.get(path);
-
-              return (
-                folder && (
-                  <li key={path}>
-                    <FolderItem folder={folder} onOpenManualMatch={props.onOpenManualMatch} />
-                  </li>
-                )
-              );
-            })}
-          </ul>
-        </div>
-      ) : (
-        <EmptyScanState
-          hasOutstandingMatches={props.hasOutstandingMatches}
-          isScanning={props.isScanning}
-        />
-      )}
-    </div>
   );
 }
 

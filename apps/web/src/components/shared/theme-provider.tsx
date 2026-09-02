@@ -2,9 +2,9 @@
 import {
   useCallback,
   useEffect,
+  useEffectEvent,
   useLayoutEffect,
   useMemo,
-  useRef,
   useState,
   useSyncExternalStore,
   createContext,
@@ -147,8 +147,17 @@ export function ThemeProvider({
     return applyTheme(resolvedTheme);
   }, [resolvedTheme, applyTheme]);
 
-  const themeRef = useRef(theme);
-  themeRef.current = theme;
+  const setThemeOnKeydown = useEffectEvent(() => {
+    const nextTheme: Theme =
+      theme === "dark"
+        ? "light"
+        : theme === "light"
+          ? "dark"
+          : systemTheme === "dark"
+            ? "light"
+            : "dark";
+    setTheme(nextTheme);
+  });
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -165,21 +174,12 @@ export function ThemeProvider({
       }
       if (event.key.toLowerCase() !== "d") return;
 
-      const current = themeRef.current;
-      const nextTheme: Theme =
-        current === "dark"
-          ? "light"
-          : current === "light"
-            ? "dark"
-            : systemTheme === "dark"
-              ? "light"
-              : "dark";
-      setTheme(nextTheme);
+      setThemeOnKeydown();
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [setTheme, systemTheme]);
+  }, []);
 
   useEffect(() => {
     const handleStorageChange = (event: StorageEvent) => {
