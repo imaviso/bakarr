@@ -1172,6 +1172,12 @@ it("shared config and notification schemas reject invalid payloads", () => {
       filter_remakes: true,
       min_seeders: 5,
     },
+    rtorrent: {
+      enabled: false,
+      save_path: null,
+      trusted_local: true,
+      url: "scgi://localhost:5000",
+    },
     profiles: [],
     qbittorrent: {
       default_category: "anime",

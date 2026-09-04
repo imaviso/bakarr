@@ -37,8 +37,6 @@ import { BackgroundSearchQueueServiceLive } from "@/features/operations/backgrou
 import { BackgroundSearchRssFeedServiceLive } from "@/features/operations/background-search/background-search-rss-feed-service.ts";
 import { SearchBackgroundRssServiceLive } from "@/features/operations/background-search/background-search-rss-service.ts";
 import { BackgroundSearchRssWorkerServiceLive } from "@/features/operations/background-search/background-search-rss-worker-service.ts";
-import { CatalogDownloadReadServiceLive } from "@/features/operations/catalog/catalog-download-read-service.ts";
-import { CatalogLibraryReadServiceLive } from "@/features/operations/catalog/catalog-library-read-service.ts";
 import { CatalogLibraryScanServiceLive } from "@/features/operations/catalog/catalog-library-scan-service.ts";
 import { CatalogLibraryWriteServiceLive } from "@/features/operations/catalog/catalog-library-write-service.ts";
 import { CatalogRssServiceLive } from "@/features/operations/catalog/catalog-rss-service.ts";
@@ -62,7 +60,6 @@ import {
 import { UnmappedControlServiceLive } from "@/features/operations/unmapped/unmapped-control-service.ts";
 import { UnmappedImportServiceLive } from "@/features/operations/unmapped/unmapped-orchestration-import.ts";
 import { UnmappedScanServiceLive } from "@/features/operations/unmapped/unmapped-scan-service.ts";
-import { BackgroundJobStatusServiceLive } from "@/features/system/background-job-status-service.ts";
 import { ImageAssetServiceLive } from "@/features/system/image-asset-service.ts";
 import { QualityProfileServiceLive } from "@/features/system/quality-profile-service.ts";
 import { ReleaseProfileServiceLive } from "@/features/system/release-profile-service.ts";
@@ -168,9 +165,6 @@ export function makeApiLifecycleLayers(
     AuthBootstrapServiceLive,
     AuthCredentialServiceLive,
     AuthSessionServiceLive,
-    BackgroundJobStatusServiceLive,
-    CatalogDownloadReadServiceLive,
-    CatalogLibraryReadServiceLive,
     CatalogLibraryScanServiceLive,
     CatalogRssServiceLive,
     DownloadReconciliationServiceLive,

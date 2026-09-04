@@ -5,7 +5,6 @@ import { RuntimeLogLevelState } from "@/infra/logging.ts";
 import { DEFAULT_PROFILES, makeDefaultConfig } from "@/features/system/defaults.ts";
 import { decodeConfigCore, encodeConfigCore } from "@/features/system/config-codec.ts";
 import { encodeQualityProfileRow } from "@/features/system/profile-codec.ts";
-import { applyRuntimeLogLevelFromConfig } from "@/features/system/runtime-config.ts";
 import { SystemConfigRepository } from "@/features/system/repository/system-config-repository.ts";
 import { Context, Effect, Layer } from "effect";
 
@@ -51,7 +50,7 @@ const makeSystemBootstrapService = Effect.fn("SystemBootstrapService.make")(func
       const decoded = yield* decodeConfigCore(storedConfig.data).pipe(Effect.result);
 
       if (decoded._tag === "Success") {
-        yield* applyRuntimeLogLevelFromConfig(runtimeLogLevelState, decoded.success);
+        yield* runtimeLogLevelState.set(decoded.success.general.log_level);
       }
     }
   });

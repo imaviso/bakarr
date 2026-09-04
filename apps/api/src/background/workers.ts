@@ -1,14 +1,11 @@
 // oxlint-disable typescript/no-restricted-types -- `unknown` is the honest type at error/cause boundaries (Effect error channels, try/catch causes, Logger messages)
 
-import { Cause, Duration, Effect, Exit, Option, Record, Schedule, Schema, Scope } from "effect";
+import { Cause, Duration, Effect, Exit, Option, Schedule, Schema, Scope } from "effect";
 import type { Config } from "@packages/shared/index.ts";
 import type { BackgroundWorkerSpawner } from "@/background/controller-core.ts";
 import { buildBackgroundSchedule, resolveBackgroundWorkerLoopPlan } from "@/background/schedule.ts";
 import { BackgroundWorkerTimeouts } from "@/background/worker-timeouts.ts";
-import type {
-  BackgroundTaskRunnerError,
-  BackgroundTaskRunnerShape,
-} from "@/background/task-runner.ts";
+import type { BackgroundTaskRunnerShape } from "@/background/task-runner.ts";
 import type { BackgroundWorkerMonitorShape } from "@/background/monitor.ts";
 import { BACKGROUND_WORKER_NAMES, type BackgroundWorkerName } from "@/background/worker-model.ts";
 import { makeSerializedDropEffectRunner } from "@/infra/effect/serialized-runner.ts";
@@ -103,11 +100,11 @@ export function makeBackgroundWorkerPolicy(): BackgroundWorkerPolicy {
 }
 
 export function makeBackgroundWorkerSpawner(input: {
-  readonly taskRunner: BackgroundTaskRunnerShape;
+  readonly taskRunner: Pick<BackgroundTaskRunnerShape, "workerTask">;
   readonly monitor: BackgroundWorkerMonitorShape;
   readonly policy?: BackgroundWorkerPolicy;
 }): BackgroundWorkerSpawner {
-  const { taskRunner, monitor } = input;
+  const { monitor } = input;
   const policy = input.policy ?? makeBackgroundWorkerPolicy();
 
   return Effect.fn("Background.spawnWorkersFromConfig")(function* (
@@ -115,16 +112,6 @@ export function makeBackgroundWorkerSpawner(input: {
     config: Config,
   ) {
     const schedule = buildBackgroundSchedule(config);
-    const workerTaskByName: Record<
-      BackgroundWorkerName,
-      () => Effect.Effect<void, BackgroundTaskRunnerError>
-    > = {
-      download_sync: taskRunner.runDownloadSyncWorkerTask,
-      library_scan: taskRunner.runLibraryScanWorkerTask,
-      manami_refresh: taskRunner.runManamiRefreshWorkerTask,
-      metadata_refresh: taskRunner.runMetadataRefreshWorkerTask,
-      rss: taskRunner.runRssWorkerTask,
-    };
 
     for (const workerName of BACKGROUND_WORKER_NAMES) {
       const loopPlan = resolveBackgroundWorkerLoopPlan(schedule, workerName);
@@ -133,7 +120,7 @@ export function makeBackgroundWorkerSpawner(input: {
         continue;
       }
 
-      const loop = policy.resilientRun(workerName, workerTaskByName[workerName]());
+      const loop = policy.resilientRun(workerName, input.taskRunner.workerTask(workerName));
 
       yield* forkSupervisedWorker(workerScope, workerName, repeatWorker(loop, loopPlan), monitor);
     }
@@ -151,7 +138,7 @@ export const withLockEffectOrFail = Effect.fn("Background.withLockEffectOrFail")
   timeoutMs?: number,
 ) {
   // Explicit timeouts (tests) skip the config-backed service entirely.
-  const effectiveTimeout = timeoutMs ?? (yield* BackgroundWorkerTimeouts)[workerName];
+  const effectiveTimeout = timeoutMs ?? (yield* BackgroundWorkerTimeouts).get(workerName);
   // Caveat: the interrupt is delivered at Effect checkpoints only. Drizzle
   // transactions run under an uninterruptible mask and single statements are
   // `Effect.sync`, so a worker stuck inside a long SQLite transaction exceeds

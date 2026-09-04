@@ -4,6 +4,11 @@ export const PositiveIntSchema = Schema.Number.pipe(
   Schema.check(Schema.isInt(), Schema.isGreaterThan(0)),
 );
 
+/** Env-config variant: decodes a numeric string, validates positive int. */
+export const PositiveIntConfigSchema = Schema.NumberFromString.pipe(
+  Schema.decodeTo(PositiveIntSchema),
+);
+
 export const PositiveIntFromStringSchema = Schema.NumberFromString.pipe(
   Schema.check(Schema.isInt()),
   Schema.check(Schema.isGreaterThan(0)),

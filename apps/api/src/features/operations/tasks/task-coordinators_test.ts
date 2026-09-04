@@ -1,6 +1,6 @@
 import { assert, describe, it } from "@effect/vitest";
 
-import { Effect } from "effect";
+import { Deferred, Effect, Fiber } from "effect";
 import {
   UnmappedScanCoordinator,
   UnmappedScanCoordinatorLive,
@@ -106,6 +106,30 @@ describe("UnmappedScanCoordinator", () => {
         }),
       );
       assert.deepStrictEqual(exit._tag, "Failure");
+      const started = yield* tryBegin(coordinator);
+      assert.deepStrictEqual(started, true);
+    }).pipe(Effect.provide(UnmappedScanCoordinatorLive)),
+  );
+
+  it.effect("withUnmappedScanLease releases the lease when interrupted mid-run", () =>
+    Effect.gen(function* () {
+      const coordinator = yield* UnmappedScanCoordinator;
+      const entered = yield* Deferred.make<void>();
+      const release = yield* Deferred.make<void>();
+
+      const fiber = yield* Effect.forkChild(
+        coordinator.withUnmappedScanLease({
+          whenAcquired: Effect.gen(function* () {
+            yield* Deferred.succeed(entered, void 0);
+            yield* Deferred.await(release);
+            return { value: 1 };
+          }),
+          whenBusy: Effect.succeed(0),
+        }),
+      );
+      yield* Deferred.await(entered);
+      yield* Fiber.interrupt(fiber);
+
       const started = yield* tryBegin(coordinator);
       assert.deepStrictEqual(started, true);
     }).pipe(Effect.provide(UnmappedScanCoordinatorLive)),

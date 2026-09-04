@@ -7,7 +7,6 @@ import {
   DownloadStatusSchema,
 } from "@packages/shared/index.ts";
 
-import { CatalogDownloadReadService } from "@/features/operations/catalog/catalog-download-read-service.ts";
 import { DownloadReconciliationService } from "@/features/operations/download/download-reconciliation-service.ts";
 import { DownloadTorrentActionService } from "@/features/operations/download/download-torrent-action-service.ts";
 import { DownloadTorrentSyncService } from "@/features/operations/download/download-torrent-sync-service.ts";
@@ -20,6 +19,15 @@ import {
   toDownloadEventsExportQueryParams,
   toDownloadEventsQueryParams,
 } from "@/features/operations/request-schemas.ts";
+import { DownloadRepository } from "@/features/operations/repository/download-repository.ts";
+import {
+  renderDownloadEventsExportCsv,
+  renderDownloadEventsExportJson,
+  type DownloadEventCsvExportStreamShape,
+  type DownloadEventExportStreamShape,
+} from "@/features/operations/catalog/catalog-download-event-render-support.ts";
+import { OperationsProgress } from "@/features/operations/tasks/operations-progress-service.ts";
+import { nowIso } from "@/infra/time.ts";
 import {
   authedRouteResponse,
   decodePathParams,
@@ -34,7 +42,7 @@ export const downloadsRouter = Layer.mergeAll(
     "GET",
     "/downloads/queue",
     authedRouteResponse(
-      Effect.flatMap(CatalogDownloadReadService, (service) => service.listDownloadQueue()),
+      Effect.flatMap(OperationsProgress, (progress) => progress.getDownloadProgress()),
       schemaJsonResponse(Schema.Array(DownloadStatusSchema)),
     ),
   ),
@@ -42,7 +50,9 @@ export const downloadsRouter = Layer.mergeAll(
     "GET",
     "/downloads/history",
     authedRouteResponse(
-      Effect.flatMap(CatalogDownloadReadService, (service) => service.listDownloadHistory()),
+      Effect.flatMap(DownloadRepository, (repository) =>
+        Effect.map(repository.listDownloadHistory(), (page) => page.downloads),
+      ),
       schemaJsonResponse(Schema.Array(DownloadSchema)),
     ),
   ),
@@ -52,9 +62,8 @@ export const downloadsRouter = Layer.mergeAll(
     authedRouteResponse(
       Effect.gen(function* () {
         const query = yield* decodeQueryWithLabel(DownloadEventsQuerySchema, "download events");
-        return yield* (yield* CatalogDownloadReadService).listDownloadEvents(
-          toDownloadEventsQueryParams(query),
-        );
+        const repository = yield* DownloadRepository;
+        return yield* repository.listDownloadEvents(toDownloadEventsQueryParams(query));
       }),
       schemaJsonResponse(DownloadEventsPageSchema),
     ),
@@ -68,32 +77,31 @@ export const downloadsRouter = Layer.mergeAll(
           DownloadEventsExportQuerySchema,
           "download events export",
         );
-        const service = yield* CatalogDownloadReadService;
+        const repository = yield* DownloadRepository;
         const input = toDownloadEventsExportQueryParams(query);
+        const generatedAt = yield* nowIso();
 
         if ((query.format ?? "json") === "csv") {
-          const streamed = yield* service.streamDownloadEventsExportCsv(input);
-          const result: {
-            format: "csv";
-            header: typeof streamed.header;
-            stream: typeof streamed.stream;
-          } = {
+          const header = yield* repository.loadDownloadEventExportHeader(input, generatedAt);
+          const streamed: DownloadEventCsvExportStreamShape = {
+            header,
+            stream: renderDownloadEventsExportCsv(repository.streamDownloadEvents(input)),
+          };
+          const result: { format: "csv" } & DownloadEventCsvExportStreamShape = {
             format: "csv",
-            header: streamed.header,
-            stream: streamed.stream,
+            ...streamed,
           };
           return result;
         }
 
-        const streamed = yield* service.streamDownloadEventsExportJson(input);
-        const result: {
-          format: "json";
-          header: typeof streamed.header;
-          stream: typeof streamed.stream;
-        } = {
+        const header = yield* repository.loadDownloadEventExportHeader(input, generatedAt);
+        const streamed: DownloadEventExportStreamShape = {
+          header,
+          stream: renderDownloadEventsExportJson(repository.streamDownloadEvents(input), header),
+        };
+        const result: { format: "json" } & DownloadEventExportStreamShape = {
           format: "json",
-          header: streamed.header,
-          stream: streamed.stream,
+          ...streamed,
         };
         return result;
       }),

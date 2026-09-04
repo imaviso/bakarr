@@ -1,29 +1,26 @@
-import { Config, Context, Effect, Layer, Record, Schema } from "effect";
+import { Config, Context, Effect, Layer } from "effect";
 
-import { PositiveIntSchema } from "@/infra/schema.ts";
+import { PositiveIntConfigSchema } from "@/infra/schema.ts";
 import {
+  BACKGROUND_WORKER_NAMES,
   BACKGROUND_WORKER_TIMEOUT_MS,
   type BackgroundWorkerName,
 } from "@/background/worker-model.ts";
-
-const PositiveIntConfigSchema = Schema.NumberFromString.pipe(Schema.decodeTo(PositiveIntSchema));
 
 const timeoutMsConfig = (key: string, fallback: number) =>
   Config.schema(PositiveIntConfigSchema, key).pipe(Config.withDefault(fallback));
 
 export interface BackgroundWorkerTimeoutsShape {
-  readonly download_sync: number;
-  readonly library_scan: number;
-  readonly manami_refresh: number;
-  readonly metadata_refresh: number;
-  readonly rss: number;
+  readonly get: (workerName: BackgroundWorkerName) => number;
 }
+
+type MutableTimeoutByName = { -readonly [workerName in BackgroundWorkerName]: number };
 
 /**
  * Per-worker run timeouts, resolved once at layer construction from env
- * (BAKARR_<WORKER>_TIMEOUT_MS). Defaults keep the historical values; raise
- * them (e.g. BAKARR_LIBRARY_SCAN_TIMEOUT_MS) when long library scans are
- * killed every cycle by the hardcoded caps.
+ * (BAKARR_<WORKER>_TIMEOUT_MS, key derived from the worker name). Defaults
+ * keep the historical values; raise them (e.g. BAKARR_LIBRARY_SCAN_TIMEOUT_MS)
+ * when long library scans are killed every cycle by the hardcoded caps.
  */
 export class BackgroundWorkerTimeouts extends Context.Service<
   BackgroundWorkerTimeouts,
@@ -32,25 +29,20 @@ export class BackgroundWorkerTimeouts extends Context.Service<
   static readonly layer = Layer.effect(
     BackgroundWorkerTimeouts,
     Effect.gen(function* () {
+      // Start from the defaults table so the accumulator is complete without
+      // a cast; each configured value overwrites its default below.
+      const byName: MutableTimeoutByName = { ...BACKGROUND_WORKER_TIMEOUT_MS };
+
+      for (const workerName of BACKGROUND_WORKER_NAMES) {
+        byName[workerName] = yield* timeoutMsConfig(
+          `BAKARR_${workerName.toUpperCase()}_TIMEOUT_MS`,
+          BACKGROUND_WORKER_TIMEOUT_MS[workerName],
+        );
+      }
+
       return {
-        download_sync: yield* timeoutMsConfig(
-          "BAKARR_DOWNLOAD_SYNC_TIMEOUT_MS",
-          BACKGROUND_WORKER_TIMEOUT_MS.download_sync,
-        ),
-        library_scan: yield* timeoutMsConfig(
-          "BAKARR_LIBRARY_SCAN_TIMEOUT_MS",
-          BACKGROUND_WORKER_TIMEOUT_MS.library_scan,
-        ),
-        manami_refresh: yield* timeoutMsConfig(
-          "BAKARR_MANAMI_REFRESH_TIMEOUT_MS",
-          BACKGROUND_WORKER_TIMEOUT_MS.manami_refresh,
-        ),
-        metadata_refresh: yield* timeoutMsConfig(
-          "BAKARR_METADATA_REFRESH_TIMEOUT_MS",
-          BACKGROUND_WORKER_TIMEOUT_MS.metadata_refresh,
-        ),
-        rss: yield* timeoutMsConfig("BAKARR_RSS_TIMEOUT_MS", BACKGROUND_WORKER_TIMEOUT_MS.rss),
-      } satisfies Record<BackgroundWorkerName, number>;
+        get: (workerName) => byName[workerName],
+      } satisfies BackgroundWorkerTimeoutsShape;
     }),
   );
 }

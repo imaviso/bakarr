@@ -1,7 +1,9 @@
-import { Config as EffectConfig, Context, Effect, Layer, Redacted, Schema } from "effect";
+import { Context, Effect, Layer, Record, Redacted, Schema } from "effect";
+import * as EffectConfig from "effect/Config";
+import type { ConfigError } from "effect/Config";
 
 import { AppConfig } from "@/app/config/schema.ts";
-import { PositiveIntSchema } from "@/infra/schema.ts";
+import { PositiveIntConfigSchema, PositiveIntSchema } from "@/infra/schema.ts";
 
 export class ObservabilityConfigModel extends Schema.Class<ObservabilityConfigModel>(
   "ObservabilityConfigModel",
@@ -41,8 +43,6 @@ export interface ObservabilityConfigOverrides {
   readonly victoriaMetricsUrl?: string | null;
 }
 
-const PositiveIntConfigSchema = Schema.NumberFromString.pipe(Schema.decodeTo(PositiveIntSchema));
-
 export function makeDefaultObservabilityConfig(appVersion: string) {
   return new ObservabilityConfigModel({
     deploymentEnvironment: null,
@@ -62,6 +62,119 @@ export function makeDefaultObservabilityConfig(appVersion: string) {
   });
 }
 
+const stringField = (key: string, fallback: string) =>
+  EffectConfig.schema(Schema.String, key).pipe(EffectConfig.withDefault(fallback));
+
+const nullableStringField = (key: string, fallback: string | null) =>
+  EffectConfig.schema(Schema.String, key).pipe(EffectConfig.withDefault(fallback));
+
+const positiveIntField = (key: string, fallback: number) =>
+  EffectConfig.schema(PositiveIntConfigSchema, key).pipe(EffectConfig.withDefault(fallback));
+
+const nullableStringOverrides = {
+  deploymentEnvironment: "OTEL_DEPLOYMENT_ENVIRONMENT",
+  grafanaUrl: "BAKARR_GRAFANA_URL",
+  lokiUrl: "BAKARR_LOKI_URL",
+  otlpEndpoint: "OTEL_EXPORTER_OTLP_ENDPOINT",
+  tempoUrl: "BAKARR_TEMPO_URL",
+  victoriaMetricsUrl: "BAKARR_VICTORIAMETRICS_URL",
+} satisfies Partial<Record<keyof ObservabilityConfigOverrides, string>>;
+
+const requiredStringOverrides = {
+  resourceAttributes: "OTEL_RESOURCE_ATTRIBUTES",
+  serviceName: "OTEL_SERVICE_NAME",
+  serviceVersion: "OTEL_SERVICE_VERSION",
+} satisfies Partial<Record<keyof ObservabilityConfigOverrides, string>>;
+
+const positiveIntOverrides = {
+  metricsExportIntervalMs: "OTEL_METRICS_EXPORT_INTERVAL_MS",
+  shutdownTimeoutMs: "OTEL_SHUTDOWN_TIMEOUT_MS",
+  tracerExportIntervalMs: "OTEL_TRACES_EXPORT_INTERVAL_MS",
+} satisfies Partial<Record<keyof ObservabilityConfigOverrides, string>>;
+
+const resolveNullableStringOverrides = Effect.fn(
+  "ObservabilityConfig.resolveNullableStringOverrides",
+)(function* (
+  overrides: ObservabilityConfigOverrides,
+  defaults: ObservabilityConfigShape,
+): Generator<
+  Effect.Effect<string | null, ConfigError>,
+  {
+    readonly [field in keyof typeof nullableStringOverrides]: string | null;
+  }
+> {
+  const resolved: { [field in keyof typeof nullableStringOverrides]: string | null } = {
+    deploymentEnvironment: null,
+    grafanaUrl: null,
+    lokiUrl: null,
+    otlpEndpoint: null,
+    tempoUrl: null,
+    victoriaMetricsUrl: null,
+  };
+
+  for (const field of Record.keys(nullableStringOverrides)) {
+    const override = overrides[field];
+    resolved[field] =
+      override !== undefined
+        ? override
+        : yield* nullableStringField(nullableStringOverrides[field], defaults[field]);
+  }
+
+  return resolved;
+});
+
+const resolveRequiredStringOverrides = Effect.fn(
+  "ObservabilityConfig.resolveRequiredStringOverrides",
+)(function* (
+  overrides: ObservabilityConfigOverrides,
+  defaults: ObservabilityConfigShape,
+): Generator<
+  Effect.Effect<string, ConfigError>,
+  {
+    readonly [field in keyof typeof requiredStringOverrides]: string;
+  }
+> {
+  const resolved: { [field in keyof typeof requiredStringOverrides]: string } = {
+    resourceAttributes: "",
+    serviceName: "",
+    serviceVersion: "",
+  };
+
+  for (const field of Record.keys(requiredStringOverrides)) {
+    const override = overrides[field];
+    resolved[field] =
+      override !== undefined
+        ? override
+        : yield* stringField(requiredStringOverrides[field], defaults[field]);
+  }
+
+  return resolved;
+});
+
+const resolvePositiveIntOverrides = Effect.fn("ObservabilityConfig.resolvePositiveIntOverrides")(
+  function* (
+    overrides: ObservabilityConfigOverrides,
+    defaults: ObservabilityConfigShape,
+  ): Generator<
+    Effect.Effect<number, ConfigError>,
+    { readonly [field in keyof typeof positiveIntOverrides]: number }
+  > {
+    const resolved: { [field in keyof typeof positiveIntOverrides]: number } = {
+      metricsExportIntervalMs: 0,
+      shutdownTimeoutMs: 0,
+      tracerExportIntervalMs: 0,
+    };
+
+    for (const field of Record.keys(positiveIntOverrides)) {
+      const override = overrides[field];
+      resolved[field] =
+        override ?? (yield* positiveIntField(positiveIntOverrides[field], defaults[field]));
+    }
+
+    return resolved;
+  },
+);
+
 export class ObservabilityConfig extends Context.Service<
   ObservabilityConfig,
   ObservabilityConfigShape
@@ -77,57 +190,16 @@ export class ObservabilityConfig extends Context.Service<
         const appConfig = yield* AppConfig;
         const defaults = makeDefaultObservabilityConfig(appConfig.appVersion);
 
-        const otlpEndpoint =
-          overrides.otlpEndpoint !== undefined
-            ? overrides.otlpEndpoint
-            : yield* EffectConfig.schema(Schema.String, "OTEL_EXPORTER_OTLP_ENDPOINT").pipe(
-                EffectConfig.withDefault(defaults.otlpEndpoint),
-              );
-        const serviceName =
-          overrides.serviceName ??
-          (yield* EffectConfig.schema(Schema.String, "OTEL_SERVICE_NAME").pipe(
-            EffectConfig.withDefault(defaults.serviceName),
+        const nullableStrings = yield* resolveNullableStringOverrides(overrides, defaults);
+        const requiredStrings = yield* resolveRequiredStringOverrides(overrides, defaults);
+        const intervals = yield* resolvePositiveIntOverrides(overrides, defaults);
+
+        const metricsRequireAuth =
+          overrides.metricsRequireAuth ??
+          (yield* EffectConfig.boolean("BAKARR_METRICS_REQUIRE_AUTH").pipe(
+            EffectConfig.withDefault(defaults.metricsRequireAuth),
           ));
-        const serviceVersion =
-          overrides.serviceVersion ??
-          (yield* EffectConfig.schema(Schema.String, "OTEL_SERVICE_VERSION").pipe(
-            EffectConfig.withDefault(defaults.serviceVersion),
-          ));
-        const deploymentEnvironment =
-          overrides.deploymentEnvironment !== undefined
-            ? overrides.deploymentEnvironment
-            : yield* EffectConfig.schema(Schema.String, "OTEL_DEPLOYMENT_ENVIRONMENT").pipe(
-                EffectConfig.withDefault(defaults.deploymentEnvironment),
-              );
-        const resourceAttributes =
-          overrides.resourceAttributes ??
-          (yield* EffectConfig.schema(Schema.String, "OTEL_RESOURCE_ATTRIBUTES").pipe(
-            EffectConfig.withDefault(defaults.resourceAttributes),
-          ));
-        const grafanaUrl =
-          overrides.grafanaUrl !== undefined
-            ? overrides.grafanaUrl
-            : yield* EffectConfig.schema(Schema.String, "BAKARR_GRAFANA_URL").pipe(
-                EffectConfig.withDefault(defaults.grafanaUrl),
-              );
-        const victoriaMetricsUrl =
-          overrides.victoriaMetricsUrl !== undefined
-            ? overrides.victoriaMetricsUrl
-            : yield* EffectConfig.schema(Schema.String, "BAKARR_VICTORIAMETRICS_URL").pipe(
-                EffectConfig.withDefault(defaults.victoriaMetricsUrl),
-              );
-        const tempoUrl =
-          overrides.tempoUrl !== undefined
-            ? overrides.tempoUrl
-            : yield* EffectConfig.schema(Schema.String, "BAKARR_TEMPO_URL").pipe(
-                EffectConfig.withDefault(defaults.tempoUrl),
-              );
-        const lokiUrl =
-          overrides.lokiUrl !== undefined
-            ? overrides.lokiUrl
-            : yield* EffectConfig.schema(Schema.String, "BAKARR_LOKI_URL").pipe(
-                EffectConfig.withDefault(defaults.lokiUrl),
-              );
+
         const otlpHeaders =
           overrides.otlpHeaders === undefined
             ? yield* EffectConfig.schema(
@@ -135,44 +207,22 @@ export class ObservabilityConfig extends Context.Service<
                 "OTEL_EXPORTER_OTLP_HEADERS",
               ).pipe(EffectConfig.withDefault(defaults.otlpHeaders))
             : Redacted.make(overrides.otlpHeaders);
-        const metricsExportIntervalMs =
-          overrides.metricsExportIntervalMs ??
-          (yield* EffectConfig.schema(
-            PositiveIntConfigSchema,
-            "OTEL_METRICS_EXPORT_INTERVAL_MS",
-          ).pipe(EffectConfig.withDefault(defaults.metricsExportIntervalMs)));
-        const tracerExportIntervalMs =
-          overrides.tracerExportIntervalMs ??
-          (yield* EffectConfig.schema(
-            PositiveIntConfigSchema,
-            "OTEL_TRACES_EXPORT_INTERVAL_MS",
-          ).pipe(EffectConfig.withDefault(defaults.tracerExportIntervalMs)));
-        const shutdownTimeoutMs =
-          overrides.shutdownTimeoutMs ??
-          (yield* EffectConfig.schema(PositiveIntConfigSchema, "OTEL_SHUTDOWN_TIMEOUT_MS").pipe(
-            EffectConfig.withDefault(defaults.shutdownTimeoutMs),
-          ));
-        const metricsRequireAuth =
-          overrides.metricsRequireAuth ??
-          (yield* EffectConfig.boolean("BAKARR_METRICS_REQUIRE_AUTH").pipe(
-            EffectConfig.withDefault(defaults.metricsRequireAuth),
-          ));
 
         return new ObservabilityConfigModel({
-          deploymentEnvironment: normalizeNullableString(deploymentEnvironment),
-          grafanaUrl: normalizeNullableString(grafanaUrl),
-          lokiUrl: normalizeNullableString(lokiUrl),
-          metricsExportIntervalMs,
+          deploymentEnvironment: normalizeNullableString(nullableStrings.deploymentEnvironment),
+          grafanaUrl: normalizeNullableString(nullableStrings.grafanaUrl),
+          lokiUrl: normalizeNullableString(nullableStrings.lokiUrl),
+          metricsExportIntervalMs: intervals.metricsExportIntervalMs,
           metricsRequireAuth,
-          otlpEndpoint: normalizeNullableString(otlpEndpoint),
+          otlpEndpoint: normalizeNullableString(nullableStrings.otlpEndpoint),
           otlpHeaders,
-          resourceAttributes,
-          serviceName,
-          serviceVersion,
-          shutdownTimeoutMs,
-          tempoUrl: normalizeNullableString(tempoUrl),
-          tracerExportIntervalMs,
-          victoriaMetricsUrl: normalizeNullableString(victoriaMetricsUrl),
+          resourceAttributes: requiredStrings.resourceAttributes,
+          serviceName: requiredStrings.serviceName,
+          serviceVersion: requiredStrings.serviceVersion,
+          shutdownTimeoutMs: intervals.shutdownTimeoutMs,
+          tempoUrl: normalizeNullableString(nullableStrings.tempoUrl),
+          tracerExportIntervalMs: intervals.tracerExportIntervalMs,
+          victoriaMetricsUrl: normalizeNullableString(nullableStrings.victoriaMetricsUrl),
         });
       }),
     );

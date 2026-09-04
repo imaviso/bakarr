@@ -1,6 +1,6 @@
 // oxlint-disable typescript/no-restricted-types -- `unknown` is the honest type at error/cause boundaries (Effect error channels, try/catch causes, Logger messages)
 
-import { Cause, Context, Effect, Layer, Ref, Semaphore } from "effect";
+import { Cause, Context, Effect, Layer, Option } from "effect";
 import type { DatabaseError } from "@/db/database.ts";
 import type { BackgroundJobName } from "@/background/worker-model.ts";
 import { nowIso } from "@/infra/time.ts";
@@ -8,6 +8,7 @@ import {
   markJobFailureOrFailWithCause,
   markJobFailureOrFailWithError,
 } from "@/background/job-failure-support.ts";
+import { makeKeyedLocks, type KeyedLocks } from "@/infra/effect/keyed-lock.ts";
 
 import {
   BackgroundJobRepository,
@@ -51,7 +52,7 @@ export interface BackgroundJobRunnerShape {
  */
 export function makeBackgroundJobRunnerShape(
   repository: BackgroundJobRepositoryShape,
-  input?: { readonly lock?: JobRunLock },
+  input?: { readonly lock?: KeyedLocks },
 ): BackgroundJobRunnerShape {
   const lock = input?.lock ?? makeNoopJobRunLock();
 
@@ -108,7 +109,7 @@ export function makeBackgroundJobRunnerShape(
     effect: Effect.Effect<A, E, R>,
     onSuccessMessage: (value: A) => string,
   ) {
-    return yield* lock.around(
+    return yield* lock.serialize(
       name,
       Effect.gen(function* () {
         yield* markStarted(name);
@@ -147,7 +148,7 @@ export class BackgroundJobRunner extends Context.Service<
     BackgroundJobRunner,
     Effect.gen(function* () {
       const repository = yield* BackgroundJobRepository;
-      const lock = yield* makePerNameJobRunLock();
+      const lock = makeKeyedLocks();
       return makeBackgroundJobRunnerShape(repository, { lock });
     }),
   );
@@ -168,46 +169,11 @@ function describeFailure(cause: unknown): string {
 }
 
 /**
- * Serializes runs per job name. `around` runs the effect only when no other
- * run for the same name is in-flight; overlapping runs wait for the in-flight
- * run to settle. `Effect.Service` construction supplies the live lock; tests
- * and the pure shape factory default to no locking.
+ * Tests and the pure shape factory default to no locking; the live layer
+ * supplies keyed single-flight serialization.
  */
-export interface JobRunLock {
-  readonly around: <A, E, R>(
-    name: string,
-    effect: Effect.Effect<A, E, R>,
-  ) => Effect.Effect<A, E, R>;
-}
-
-export const makePerNameJobRunLock = Effect.fn("BackgroundJobRunner.makePerNameJobRunLock")(
-  function* () {
-    const locks = yield* Ref.make(new Map<string, Semaphore.Semaphore>());
-
-    const around = Effect.fn("BackgroundJobRunner.lockAround")(function* <A, E, R>(
-      name: string,
-      effect: Effect.Effect<A, E, R>,
-    ) {
-      const fresh = yield* Semaphore.make(1);
-
-      const semaphore = yield* Ref.modify(
-        locks,
-        (current): readonly [Semaphore.Semaphore, Map<string, Semaphore.Semaphore>] => {
-          const existing = current.get(name);
-          if (existing) {
-            return [existing, current];
-          }
-          return [fresh, new Map(current).set(name, fresh)];
-        },
-      );
-
-      return yield* semaphore.withPermits(1)(effect);
-    });
-
-    return { around } satisfies JobRunLock;
-  },
-);
-
-const makeNoopJobRunLock = (): JobRunLock => ({
-  around: <A, E, R>(_name: string, effect: Effect.Effect<A, E, R>) => effect,
+const makeNoopJobRunLock = (): KeyedLocks => ({
+  serialize: <A, E, R>(_key: string, effect: Effect.Effect<A, E, R>) => effect,
+  skipIfBusy: <A, E, R>(_key: string, effect: Effect.Effect<A, E, R>) =>
+    Effect.map(effect, Option.some),
 });

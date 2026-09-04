@@ -39,6 +39,7 @@ it.effect("health router ready endpoint maps system status failure to not-ready"
   Effect.gen(function* () {
     const failingReadService: SystemReadServiceShape = {
       getActivity: () => Effect.die(new Error("unused system read service")),
+      getBackgroundJobStatuses: () => Effect.die(new Error("unused system read service")),
       getDashboard: () => Effect.die(new Error("unused system read service")),
       getLibraryStats: () => Effect.die(new Error("unused system read service")),
       getSystemStatus: () =>
@@ -67,6 +68,7 @@ it.effect("health router ready endpoint maps system status failure to not-ready"
 function makeUnusedSystemReadService(): SystemReadServiceShape {
   return SystemReadService.of({
     getActivity: () => Effect.die(new Error("unused system read service")),
+    getBackgroundJobStatuses: () => Effect.die(new Error("unused system read service")),
     getDashboard: () => Effect.die(new Error("unused system read service")),
     getLibraryStats: () => Effect.die(new Error("unused system read service")),
     getSystemStatus: () => Effect.die(new Error("unused system status service")),

@@ -1,16 +1,16 @@
 import { AppRuntime } from "@/app/runtime.ts";
 import { AppConfig } from "@/app/config/schema.ts";
 import type { DatabaseError } from "@/db/database.ts";
+import { BackgroundWorkerMonitor } from "@/background/monitor.ts";
 import { toDownloadEvent } from "@/features/operations/download/download-event-presentations.ts";
 import { DownloadRepository } from "@/features/operations/repository/download-repository.ts";
 import {
-  type BackgroundJobStatusError,
-  BackgroundJobStatusService,
-} from "@/features/system/background-job-status-service.ts";
-import {
+  composeBackgroundJobStatuses,
   countRunningBackgroundJobStatuses,
   findBackgroundJobStatus,
+  type BackgroundJobHistoryRow,
 } from "@/features/system/background-status.ts";
+import type { BackgroundJobStatus } from "@packages/shared/index.ts";
 import {
   DiskSpaceError,
   DiskSpaceInspector,
@@ -18,7 +18,10 @@ import {
 } from "@/features/system/disk-space.ts";
 import { StoredConfigCorruptError, StoredConfigMissingError } from "@/features/system/errors.ts";
 import { SystemStatsRepository } from "@/features/system/repository/stats-repository.ts";
-import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
+import {
+  RuntimeConfigSnapshotService,
+  type RuntimeConfigSnapshotError,
+} from "@/features/system/runtime-config-snapshot-service.ts";
 import { currentTimeMillis } from "@/infra/time.ts";
 import {
   brandActivityId,
@@ -32,29 +35,44 @@ import type { StoredDataError } from "@/features/errors.ts";
 import { Context, Effect, Layer } from "effect";
 
 export type SystemReadStatusError =
-  | BackgroundJobStatusError
   | DatabaseError
   | DiskSpaceError
+  | RuntimeConfigSnapshotError
   | StoredConfigCorruptError
   | StoredConfigMissingError;
 
-export type SystemReadDashboardError = BackgroundJobStatusError | StoredDataError;
+export type SystemReadDashboardError = DatabaseError | RuntimeConfigSnapshotError | StoredDataError;
 
 export interface SystemReadServiceShape {
   readonly getActivity: () => Effect.Effect<ActivityItem[], DatabaseError>;
   readonly getDashboard: () => Effect.Effect<OpsDashboard, SystemReadDashboardError>;
   readonly getLibraryStats: () => Effect.Effect<LibraryStats, DatabaseError>;
+  readonly getBackgroundJobStatuses: () => Effect.Effect<
+    BackgroundJobStatus[],
+    SystemReadDashboardError | RuntimeConfigSnapshotError
+  >;
   readonly getSystemStatus: () => Effect.Effect<SystemStatus, SystemReadStatusError>;
 }
 
 const makeSystemReadService = Effect.fn("SystemReadService.make")(function* () {
   const appConfig = yield* AppConfig;
   const runtime = yield* AppRuntime;
+  const backgroundWorkerMonitor = yield* BackgroundWorkerMonitor;
   const diskSpaceInspector = yield* DiskSpaceInspector;
-  const backgroundJobStatusService = yield* BackgroundJobStatusService;
   const downloadRepository = yield* DownloadRepository;
-  const systemStatsRepository = yield* SystemStatsRepository;
   const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
+  const systemStatsRepository = yield* SystemStatsRepository;
+
+  const getBackgroundJobStatuses = Effect.fn("SystemReadService.getBackgroundJobStatuses")(
+    function* () {
+      const currentConfig = yield* runtimeConfigSnapshot.getRuntimeConfig();
+      const jobRows: ReadonlyArray<BackgroundJobHistoryRow> =
+        yield* systemStatsRepository.listBackgroundJobRows();
+      const liveSnapshot = yield* backgroundWorkerMonitor.snapshot();
+
+      return composeBackgroundJobStatuses(currentConfig, liveSnapshot, jobRows);
+    },
+  );
 
   const getActivity = Effect.fn("SystemReadService.getActivity")(function* () {
     const rows = yield* systemStatsRepository.listRecentSystemLogRows(20);
@@ -74,7 +92,7 @@ const makeSystemReadService = Effect.fn("SystemReadService.make")(function* () {
 
   const getDashboard = Effect.fn("SystemReadService.getDashboard")(function* () {
     const downloadStats = yield* downloadRepository.loadDownloadStatusStats();
-    const snapshot = yield* backgroundJobStatusService.getSnapshot();
+    const jobs = yield* getBackgroundJobStatuses();
     const events = yield* downloadRepository.listRecentDownloadEventRows(12);
     const eventContexts = yield* downloadRepository.loadEventPresentationContexts(events);
     const recentDownloadEvents = yield* Effect.forEach(events, (row) =>
@@ -85,10 +103,10 @@ const makeSystemReadService = Effect.fn("SystemReadService.make")(function* () {
       active_downloads: downloadStats.activeDownloads,
       failed_downloads: downloadStats.failedDownloads,
       imported_downloads: downloadStats.importedDownloads,
-      jobs: snapshot.jobs,
+      jobs,
       queued_downloads: downloadStats.queuedDownloads,
       recent_download_events: recentDownloadEvents,
-      running_jobs: countRunningBackgroundJobStatuses(snapshot.jobs),
+      running_jobs: countRunningBackgroundJobStatuses(jobs),
     } satisfies OpsDashboard;
   });
 
@@ -122,10 +140,10 @@ const makeSystemReadService = Effect.fn("SystemReadService.make")(function* () {
     const storagePath = selectStoragePath(currentConfig, appConfig.databaseFile);
     const diskSpace = yield* diskSpaceInspector.getDiskSpaceSafe(storagePath);
     const downloadStats = yield* downloadRepository.loadDownloadStatusStats();
-    const snapshot = yield* backgroundJobStatusService.getSnapshot();
-    const rssJob = findBackgroundJobStatus(snapshot.jobs, "rss");
-    const scanJob = findBackgroundJobStatus(snapshot.jobs, "library_scan");
-    const metadataRefreshJob = findBackgroundJobStatus(snapshot.jobs, "metadata_refresh");
+    const jobs = yield* getBackgroundJobStatuses();
+    const rssJob = findBackgroundJobStatus(jobs, "rss");
+    const scanJob = findBackgroundJobStatus(jobs, "library_scan");
+    const metadataRefreshJob = findBackgroundJobStatus(jobs, "metadata_refresh");
     const now = yield* currentTimeMillis;
 
     return {
@@ -157,6 +175,7 @@ const makeSystemReadService = Effect.fn("SystemReadService.make")(function* () {
 
   const service: SystemReadServiceShape = {
     getActivity,
+    getBackgroundJobStatuses,
     getDashboard,
     getLibraryStats,
     getSystemStatus,

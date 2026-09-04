@@ -9,23 +9,46 @@ import { persistAndActivateConfig } from "@/features/system/config-activation.ts
 import { validateConfigUpdate } from "@/features/system/config-update-validation.ts";
 import {
   decodeStoredConfigRow,
+  encodeConfigCore,
   normalizeConfig,
   toConfigCore,
   type ConfigCore,
 } from "@/features/system/config-codec.ts";
 import { ConfigValidationError, StoredConfigCorruptError } from "@/features/system/errors.ts";
 import { SystemLogRepository } from "@/features/system/repository/log-repository.ts";
-import { applyRuntimeLogLevelFromConfig } from "@/features/system/runtime-config.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
-import { buildPersistedConfigStates } from "@/features/system/system-config-update-support.ts";
+import { encodeQualityProfileRow } from "@/features/system/profile-codec.ts";
 import { makeDefaultConfig } from "@/features/system/defaults.ts";
 import { QualityProfileRepository } from "@/features/system/repository/quality-profile-repository.ts";
 import { SystemConfigRepository } from "@/features/system/repository/system-config-repository.ts";
-import { Context, Effect, Layer, Option, Semaphore } from "effect";
+import { Context, Effect, Layer, Option, Semaphore, Schema } from "effect";
 import {
   applyPasswordPreservation,
   validateCorruptStatePasswords,
 } from "@/features/system/config-password-policy.ts";
+
+type PersistedSystemConfigState = Schema.Schema.Type<typeof PersistedSystemConfigStateSchema>;
+
+const PersistedSystemConfigCoreRowSchema = Schema.Struct({
+  data: Schema.String,
+  id: Schema.Number,
+  updatedAt: Schema.String,
+});
+
+const QualityProfileInsertRowSchema = Schema.Struct({
+  allowedQualities: Schema.String,
+  cutoff: Schema.String,
+  maxSize: Schema.NullOr(Schema.String),
+  minSize: Schema.NullOr(Schema.String),
+  name: Schema.String,
+  seadexPreferred: Schema.Boolean,
+  upgradeAllowed: Schema.Boolean,
+});
+
+const PersistedSystemConfigStateSchema = Schema.Struct({
+  coreRow: PersistedSystemConfigCoreRowSchema,
+  profileRows: Schema.Array(QualityProfileInsertRowSchema),
+});
 
 export interface SystemConfigUpdateServiceShape {
   readonly updateConfig: (
@@ -71,11 +94,14 @@ const makeSystemConfigUpdateService = Effect.fn("SystemConfigUpdateService.make"
 
         const updatedAt = yield* nowIso();
         const normalizedCore = yield* toConfigCore(normalizedConfig);
-        const { nextState, previousState } = yield* buildPersistedConfigStates({
-          appDatabaseFile: appConfig.databaseFile,
+        const nextState = yield* buildNextPersistedState({
           existingProfileRows,
           normalizedConfig,
           normalizedCore,
+          updatedAt,
+        });
+        const previousState = buildPreviousPersistedState({
+          existingProfileRows,
           previousConfigRow,
           updatedAt,
         });
@@ -97,7 +123,7 @@ const makeSystemConfigUpdateService = Effect.fn("SystemConfigUpdateService.make"
           previousState,
         });
 
-        yield* applyRuntimeLogLevelFromConfig(runtimeLogLevelState, normalizedConfig);
+        yield* runtimeLogLevelState.set(normalizedConfig.general.log_level);
 
         yield* systemLogRepository.appendLog(
           "system.config.updated",
@@ -165,3 +191,60 @@ const preserveStoredPasswords = Effect.fn("SystemConfigUpdateService.preserveSto
     return applyPasswordPreservation(storedConfigResult.storedConfig, input.nextConfig);
   },
 );
+
+const buildNextPersistedState = Effect.fn("SystemConfigUpdateService.buildNextPersistedState")(
+  function* (input: {
+    readonly existingProfileRows: readonly {
+      readonly allowedQualities: string;
+      readonly cutoff: string;
+      readonly maxSize: string | null;
+      readonly minSize: string | null;
+      readonly name: string;
+      readonly seadexPreferred: boolean;
+      readonly upgradeAllowed: boolean;
+    }[];
+    readonly normalizedConfig: Config;
+    readonly normalizedCore: ConfigCore;
+    readonly updatedAt: string;
+  }) {
+    const nextConfigData = yield* encodeConfigCore(input.normalizedCore);
+    const nextProfileRows = yield* Effect.forEach(
+      input.normalizedConfig.profiles,
+      encodeQualityProfileRow,
+    );
+
+    return {
+      coreRow: { data: nextConfigData, id: 1, updatedAt: input.updatedAt },
+      profileRows: nextProfileRows,
+    } satisfies PersistedSystemConfigState;
+  },
+);
+
+const buildPreviousPersistedState = (input: {
+  readonly existingProfileRows: readonly {
+    readonly allowedQualities: string;
+    readonly cutoff: string;
+    readonly maxSize: string | null;
+    readonly minSize: string | null;
+    readonly name: string;
+    readonly seadexPreferred: boolean;
+    readonly upgradeAllowed: boolean;
+  }[];
+  readonly previousConfigRow:
+    | {
+        readonly data: string;
+        readonly id: number;
+        readonly updatedAt: string;
+      }
+    | undefined;
+  readonly updatedAt: string;
+}): PersistedSystemConfigState => ({
+  coreRow: input.previousConfigRow
+    ? {
+        data: input.previousConfigRow.data,
+        id: input.previousConfigRow.id,
+        updatedAt: input.previousConfigRow.updatedAt,
+      }
+    : { data: "", id: 1, updatedAt: input.updatedAt },
+  profileRows: input.existingProfileRows,
+});

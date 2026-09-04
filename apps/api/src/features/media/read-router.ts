@@ -18,8 +18,10 @@ import { MediaFileService } from "@/features/media/files/media-file-service.ts";
 import { MediaQueryService } from "@/features/media/query/query-service.ts";
 import { MediaStreamService } from "@/features/media/stream/media-stream-service.ts";
 import { MediaReaderService } from "@/features/media/reader/media-reader-service.ts";
-import { CatalogLibraryReadService } from "@/features/operations/catalog/catalog-library-read-service.ts";
 import { CatalogRssService } from "@/features/operations/catalog/catalog-rss-service.ts";
+import { MediaRepository } from "@/features/media/shared/media-repository.ts";
+import { buildRenamePreview } from "@/features/operations/library/library-import.ts";
+import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 import {
   ListMediaQuerySchema,
   MediaUnitPageParamsSchema,
@@ -174,7 +176,8 @@ export const mediaReadRouter = Layer.mergeAll(
     authedRouteResponse(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
-        return yield* (yield* CatalogLibraryReadService).getRenamePreview(params.id);
+        const runtimeConfig = yield* (yield* RuntimeConfigSnapshotService).getRuntimeConfig();
+        return yield* buildRenamePreview(params.id, runtimeConfig, yield* MediaRepository);
       }),
       schemaJsonResponse(Schema.Array(RenamePreviewItemSchema)),
     ),

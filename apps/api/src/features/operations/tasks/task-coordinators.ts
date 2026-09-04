@@ -66,18 +66,34 @@ const makeUnmappedScanCoordinator = Effect.fn("RuntimeCoordinator.makeUnmappedSc
             return yield* input.whenBusy;
           }
 
-          const exit = yield* Effect.exit(input.whenAcquired);
+          // The lease release must survive every exit path, including an
+          // interrupt landing between acquisition and the guarded effect: the
+          // release runs as an onExit finalizer over the whole held-lease span
+          // (same shape as the drain runner in infra/effect/serialized-runner.ts).
+          // keepLease short-circuits the finalizer instead of returning early,
+          // so no interrupt window can strand the lease in the running state.
+          const keepLeaseRef = yield* Ref.make(false);
 
-          if (Exit.isSuccess(exit)) {
-            if (!exit.value.keepLease) {
-              yield* finish;
-            }
+          return yield* Effect.onExit(
+            Effect.gen(function* () {
+              const exit = yield* Effect.exit(input.whenAcquired);
 
-            return exit.value.value;
-          }
+              if (Exit.isSuccess(exit)) {
+                if (exit.value.keepLease) {
+                  yield* Ref.set(keepLeaseRef, true);
+                }
 
-          yield* finish;
-          return yield* Effect.failCause(exit.cause);
+                return exit.value.value;
+              }
+
+              return yield* Effect.failCause(exit.cause);
+            }),
+            () =>
+              Ref.get(keepLeaseRef).pipe(
+                Effect.flatMap((kept) => (kept ? Effect.void : finish)),
+                Effect.asVoid,
+              ),
+          );
         }),
     );
 

@@ -9,7 +9,6 @@ import {
   OpsDashboardSchema,
 } from "@packages/shared/index.ts";
 
-import { BackgroundJobStatusService } from "@/features/system/background-job-status-service.ts";
 import { ObservabilityConfig } from "@/app/config/observability.ts";
 import {
   decodeOperationsTaskQuery,
@@ -51,9 +50,7 @@ export const infoRouter = Layer.mergeAll(
     "GET",
     "/api/system/jobs",
     authedRouteResponse(
-      Effect.flatMap(BackgroundJobStatusService, (service) =>
-        service.getSnapshot().pipe(Effect.map((snapshot) => snapshot.jobs)),
-      ),
+      Effect.flatMap(SystemReadService, (service) => service.getBackgroundJobStatuses()),
       schemaJsonResponse(Schema.Array(BackgroundJobStatusSchema)),
     ),
   ),

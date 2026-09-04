@@ -12,17 +12,16 @@ import { MediaMaintenanceService } from "@/features/media/metadata/media-mainten
 import { ManamiCacheRefreshClient } from "@/features/media/metadata/manami.ts";
 import { BackgroundSearchRssWorkerService } from "@/features/operations/background-search/background-search-rss-worker-service.ts";
 import { OperationsTaskLauncherService } from "@/features/operations/tasks/operations-task-launcher-service.ts";
+import type { BackgroundWorkerName } from "@/background/worker-model.ts";
 import { Context, Effect, Layer } from "effect";
 
 /** Job edge only — domain/infra tags mapped into InfrastructureError; timeout stays typed. */
 export type BackgroundTaskRunnerError = WorkerTimeoutError | InfrastructureError;
 
 export interface BackgroundTaskRunnerShape {
-  readonly runDownloadSyncWorkerTask: () => Effect.Effect<void, BackgroundTaskRunnerError>;
-  readonly runLibraryScanWorkerTask: () => Effect.Effect<void, BackgroundTaskRunnerError>;
-  readonly runManamiRefreshWorkerTask: () => Effect.Effect<void, BackgroundTaskRunnerError>;
-  readonly runMetadataRefreshWorkerTask: () => Effect.Effect<void, BackgroundTaskRunnerError>;
-  readonly runRssWorkerTask: () => Effect.Effect<void, BackgroundTaskRunnerError>;
+  readonly workerTask: (
+    workerName: BackgroundWorkerName,
+  ) => Effect.Effect<void, BackgroundTaskRunnerError>;
   readonly startLibraryScan: () => Effect.Effect<
     AsyncOperationAccepted,
     DatabaseError | InfrastructureError
@@ -84,46 +83,31 @@ const makeBackgroundTaskRunner = Effect.fn("BackgroundTaskRunner.make")(function
       .pipe(Effect.mapError(mapWorkerFailure("rss")));
   });
 
-  const downloadSyncWorkerTask = yield* withLockEffectOrFail(
-    "download_sync",
-    runDownloadSyncTask(),
-    monitor,
-  );
-  const libraryScanWorkerTask = yield* withLockEffectOrFail(
-    "library_scan",
-    runLibraryScanTask(),
-    monitor,
-  );
-  const metadataRefreshWorkerTask = yield* withLockEffectOrFail(
-    "metadata_refresh",
-    runMetadataRefreshTask(),
-    monitor,
-  );
-  const manamiRefreshWorkerTask = yield* withLockEffectOrFail(
-    "manami_refresh",
-    runManamiRefreshTask(),
-    monitor,
-  );
-  const rssWorkerTask = yield* withLockEffectOrFail("rss", runRssTask(), monitor);
+  // One descriptor per worker: the locked effect is built once at construction
+  // so overlapping triggers coalesce through the same drop-runner.
+  const workerTaskByName: Record<
+    BackgroundWorkerName,
+    Effect.Effect<void, BackgroundTaskRunnerError>
+  > = {
+    download_sync: yield* withLockEffectOrFail("download_sync", runDownloadSyncTask(), monitor),
+    library_scan: yield* withLockEffectOrFail("library_scan", runLibraryScanTask(), monitor),
+    manami_refresh: yield* withLockEffectOrFail("manami_refresh", runManamiRefreshTask(), monitor),
+    metadata_refresh: yield* withLockEffectOrFail(
+      "metadata_refresh",
+      runMetadataRefreshTask(),
+      monitor,
+    ),
+    rss: yield* withLockEffectOrFail("rss", runRssTask(), monitor),
+  };
 
-  const runDownloadSyncWorkerTask = Effect.fn("BackgroundTaskRunner.runDownloadSyncWorkerTask")(
-    () => downloadSyncWorkerTask,
+  const workerTask = Effect.fn("BackgroundTaskRunner.workerTask")(
+    (workerName: BackgroundWorkerName) => workerTaskByName[workerName],
   );
-  const runLibraryScanWorkerTask = Effect.fn("BackgroundTaskRunner.runLibraryScanWorkerTask")(
-    () => libraryScanWorkerTask,
-  );
-  const runMetadataRefreshWorkerTask = Effect.fn(
-    "BackgroundTaskRunner.runMetadataRefreshWorkerTask",
-  )(() => metadataRefreshWorkerTask);
-  const runManamiRefreshWorkerTask = Effect.fn("BackgroundTaskRunner.runManamiRefreshWorkerTask")(
-    () => manamiRefreshWorkerTask,
-  );
-  const runRssWorkerTask = Effect.fn("BackgroundTaskRunner.runRssWorkerTask")(() => rssWorkerTask);
 
   const startLibraryScan = Effect.fn("BackgroundTaskRunner.startLibraryScan")(function* () {
     return yield* taskLauncher.launch({
       failureMessage: "Manual system scan task failed",
-      operation: () => runLibraryScanWorkerTask(),
+      operation: () => workerTask("library_scan"),
       queuedMessage: "Queued manual system scan task",
       runningMessage: "Running manual system scan task",
       successMessage: () => "Manual system scan task finished",
@@ -134,7 +118,7 @@ const makeBackgroundTaskRunner = Effect.fn("BackgroundTaskRunner.make")(function
   const startRssProcessing = Effect.fn("BackgroundTaskRunner.startRssProcessing")(function* () {
     return yield* taskLauncher.launch({
       failureMessage: "Manual RSS task failed",
-      operation: () => runRssWorkerTask(),
+      operation: () => workerTask("rss"),
       queuedMessage: "Queued manual RSS task",
       runningMessage: "Running manual RSS task",
       successMessage: () => "Manual RSS task finished",
@@ -145,7 +129,7 @@ const makeBackgroundTaskRunner = Effect.fn("BackgroundTaskRunner.make")(function
   const startMetadataRefresh = Effect.fn("BackgroundTaskRunner.startMetadataRefresh")(function* () {
     return yield* taskLauncher.launch({
       failureMessage: "Manual metadata refresh task failed",
-      operation: () => runMetadataRefreshWorkerTask(),
+      operation: () => workerTask("metadata_refresh"),
       queuedMessage: "Queued manual metadata refresh task",
       runningMessage: "Running manual metadata refresh task",
       successMessage: () => "Manual metadata refresh task finished",
@@ -154,14 +138,10 @@ const makeBackgroundTaskRunner = Effect.fn("BackgroundTaskRunner.make")(function
   });
 
   return {
-    runDownloadSyncWorkerTask,
-    runLibraryScanWorkerTask,
-    runManamiRefreshWorkerTask,
-    runMetadataRefreshWorkerTask,
-    runRssWorkerTask,
     startLibraryScan,
     startMetadataRefresh,
     startRssProcessing,
+    workerTask,
   } satisfies BackgroundTaskRunnerShape;
 });
 

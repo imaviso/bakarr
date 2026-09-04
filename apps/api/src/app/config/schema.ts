@@ -1,6 +1,6 @@
 import { Config, Context, Effect, Layer, Option, Redacted, Schema } from "effect";
 
-import { PositiveIntSchema } from "@/infra/schema.ts";
+import { PositiveIntConfigSchema, PositiveIntSchema } from "@/infra/schema.ts";
 import { randomHex } from "@/infra/random.ts";
 
 const PortSchema = Schema.Number.pipe(
@@ -46,8 +46,6 @@ export interface BootstrapConfigOverrides {
 }
 
 const PortConfigSchema = Schema.NumberFromString.pipe(Schema.decodeTo(PortSchema));
-
-const PositiveIntConfigSchema = Schema.NumberFromString.pipe(Schema.decodeTo(PositiveIntSchema));
 
 const GENERATED_BOOTSTRAP_PASSWORD_BYTES = 18;
 
