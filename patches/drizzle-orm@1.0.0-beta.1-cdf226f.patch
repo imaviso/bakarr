@@ -1,0 +1,92 @@
+diff --git a/effect/sqlite/session.cjs b/effect/sqlite/session.cjs
+index b64343ddf112007a5d2cd3a895a1421bdc8a131a..de8c773889d3398b96ad18ba613c9598a5327719 100644
+--- a/effect/sqlite/session.cjs
++++ b/effect/sqlite/session.cjs
+@@ -149,7 +149,7 @@ class EffectSQLitePreparedQuery extends import_session.SQLitePreparedQuery {
+     return import_effect.Effect.flatMap(import_SqliteClient.SqliteClient, (client) => {
+       logger.logQuery(query.sql, params);
+       return client.unsafe(query.sql, params).values;
+-    }).pipe(import_effect.Effect.andThen(
++    }).pipe(import_effect.Effect.map(
+       (rows) => {
+         return rows.map(
+           (row) => (0, import_utils.mapResultRow)(
+@@ -167,7 +167,7 @@ class EffectSQLitePreparedQuery extends import_session.SQLitePreparedQuery {
+     return import_effect.Effect.flatMap(import_SqliteClient.SqliteClient, (client) => {
+       logger.logQuery(query.sql, params);
+       return client.unsafe(query.sql, params).withoutTransform;
+-    }).pipe(import_effect.Effect.andThen(
++    }).pipe(import_effect.Effect.map(
+       (v) => customResultMapper(v)
+     ));
+   }
+@@ -179,12 +179,12 @@ class EffectSQLitePreparedQuery extends import_session.SQLitePreparedQuery {
+       return import_effect.Effect.flatMap(import_SqliteClient.SqliteClient, (client) => {
+         logger.logQuery(query.sql, params);
+         return client.unsafe(query.sql, params).withoutTransform;
+-      }).pipe(import_effect.Effect.andThen((v) => v[0]));
++      }).pipe(import_effect.Effect.map((v) => v[0]));
+     }
+     return import_effect.Effect.flatMap(import_SqliteClient.SqliteClient, (client) => {
+       logger.logQuery(query.sql, params);
+       return client.unsafe(query.sql, params).values;
+-    }).pipe(import_effect.Effect.andThen(
++    }).pipe(import_effect.Effect.map(
+       (v) => {
+         const row = v[0];
+         if (row === void 0) return row;
+@@ -202,7 +202,7 @@ class EffectSQLitePreparedQuery extends import_session.SQLitePreparedQuery {
+     return import_effect.Effect.flatMap(import_SqliteClient.SqliteClient, (client) => {
+       logger.logQuery(query.sql, params);
+       return client.unsafe(query.sql, params).withoutTransform;
+-    }).pipe(import_effect.Effect.andThen(
++    }).pipe(import_effect.Effect.map(
+       (v) => {
+         const row = v[0];
+         if (row === void 0) return row;
+diff --git a/effect/sqlite/session.js b/effect/sqlite/session.js
+index 1b5496f121be31efc400f75da1c1f04808b591c1..3bcfe57b9d8fb66f68140625903be31ab2ed6d5a 100644
+--- a/effect/sqlite/session.js
++++ b/effect/sqlite/session.js
+@@ -125,7 +125,7 @@ class EffectSQLitePreparedQuery extends SQLitePreparedQuery {
+     return Effect.flatMap(SqliteClient, (client) => {
+       logger.logQuery(query.sql, params);
+       return client.unsafe(query.sql, params).values;
+-    }).pipe(Effect.andThen(
++    }).pipe(Effect.map(
+       (rows) => {
+         return rows.map(
+           (row) => mapResultRow(
+@@ -143,7 +143,7 @@ class EffectSQLitePreparedQuery extends SQLitePreparedQuery {
+     return Effect.flatMap(SqliteClient, (client) => {
+       logger.logQuery(query.sql, params);
+       return client.unsafe(query.sql, params).withoutTransform;
+-    }).pipe(Effect.andThen(
++    }).pipe(Effect.map(
+       (v) => customResultMapper(v)
+     ));
+   }
+@@ -155,12 +155,12 @@ class EffectSQLitePreparedQuery extends SQLitePreparedQuery {
+       return Effect.flatMap(SqliteClient, (client) => {
+         logger.logQuery(query.sql, params);
+         return client.unsafe(query.sql, params).withoutTransform;
+-      }).pipe(Effect.andThen((v) => v[0]));
++      }).pipe(Effect.map((v) => v[0]));
+     }
+     return Effect.flatMap(SqliteClient, (client) => {
+       logger.logQuery(query.sql, params);
+       return client.unsafe(query.sql, params).values;
+-    }).pipe(Effect.andThen(
++    }).pipe(Effect.map(
+       (v) => {
+         const row = v[0];
+         if (row === void 0) return row;
+@@ -178,7 +178,7 @@ class EffectSQLitePreparedQuery extends SQLitePreparedQuery {
+     return Effect.flatMap(SqliteClient, (client) => {
+       logger.logQuery(query.sql, params);
+       return client.unsafe(query.sql, params).withoutTransform;
+-    }).pipe(Effect.andThen(
++    }).pipe(Effect.map(
+       (v) => {
+         const row = v[0];
+         if (row === void 0) return row;
