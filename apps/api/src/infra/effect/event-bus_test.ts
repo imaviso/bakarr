@@ -1,10 +1,11 @@
+import * as TestClock from "effect/testing/TestClock";
+import { Cause, Deferred, Effect, Exit, Fiber, Stream } from "effect";
 import { assert, it } from "@effect/vitest";
-import { Deferred, Effect, Exit, Fiber, Stream, TestClock } from "effect";
 
 import type { NotificationEvent } from "@packages/shared/index.ts";
 import { type EventSubscription, makeEventBus } from "@/infra/effect/event-bus.ts";
 
-it.scoped("event bus fans out events to active subscribers", () =>
+it.effect("event bus fans out events to active subscribers", () =>
   Effect.gen(function* () {
     const eventBus = yield* makeEventBus({ capacity: 8 });
     const firstReady = yield* Deferred.make<void>();
@@ -17,8 +18,8 @@ it.scoped("event bus fans out events to active subscribers", () =>
     );
     const event: NotificationEvent = { type: "Info", payload: { message: "hello" } };
 
-    const firstFiber = yield* Effect.fork(takeNextEvent(firstStream));
-    const secondFiber = yield* Effect.fork(takeNextEvent(secondStream));
+    const firstFiber = yield* Effect.forkChild(takeNextEvent(firstStream));
+    const secondFiber = yield* Effect.forkChild(takeNextEvent(secondStream));
     yield* Deferred.await(firstReady);
     yield* Deferred.await(secondReady);
 
@@ -37,7 +38,7 @@ it.scoped("event bus fans out events to active subscribers", () =>
   }),
 );
 
-it.scoped("event bus uses sliding backpressure for slow subscribers", () =>
+it.effect("event bus uses sliding backpressure for slow subscribers", () =>
   Effect.gen(function* () {
     const eventBus = yield* makeEventBus({ capacity: 2 });
     const ready = yield* Deferred.make<void>();
@@ -45,12 +46,12 @@ it.scoped("event bus uses sliding backpressure for slow subscribers", () =>
     const stream = eventBus.withSubscriptionStream((subscription: EventSubscription) =>
       Stream.unwrap(
         Deferred.succeed(ready, void 0).pipe(
-          Effect.zipRight(Deferred.await(release)),
+          Effect.andThen(Deferred.await(release)),
           Effect.as(subscription.stream),
         ),
       ),
     );
-    const eventsFiber = yield* Effect.fork(Stream.runCollect(stream.pipe(Stream.take(2))));
+    const eventsFiber = yield* Effect.forkChild(Stream.runCollect(stream.pipe(Stream.take(2))));
     yield* Deferred.await(ready);
 
     yield* eventBus.publish({ type: "Info", payload: { message: "one" } });
@@ -67,14 +68,14 @@ it.scoped("event bus uses sliding backpressure for slow subscribers", () =>
   }),
 );
 
-it.scoped("event bus subscriptions expose a stream view", () =>
+it.effect("event bus subscriptions expose a stream view", () =>
   Effect.gen(function* () {
     const eventBus = yield* makeEventBus({ capacity: 8 });
     const ready = yield* Deferred.make<void>();
     const stream = eventBus.withSubscriptionStream((subscription: EventSubscription) =>
       Stream.unwrap(Deferred.succeed(ready, void 0).pipe(Effect.as(subscription.stream))),
     );
-    const eventsFiber = yield* Effect.fork(Stream.runCollect(stream.pipe(Stream.take(2))));
+    const eventsFiber = yield* Effect.forkChild(Stream.runCollect(stream.pipe(Stream.take(2))));
     yield* Deferred.await(ready);
 
     yield* eventBus.publish({ type: "Info", payload: { message: "one" } });
@@ -99,23 +100,23 @@ it.effect("event bus subscriptions are interrupted when the scope closes", () =>
       Stream.runCollect(stream.pipe(Stream.take(1))).pipe(Effect.forkScoped),
     );
 
-    const timed = yield* Fiber.await(waiting).pipe(Effect.timeout("1 second"), Effect.fork);
+    const timed = yield* Fiber.await(waiting).pipe(Effect.timeout("1 second"), Effect.forkChild);
     yield* TestClock.adjust("1 second");
     const exit = yield* Fiber.join(timed);
 
     assert.ok(exit);
-    assert.ok(Exit.isInterrupted(exit));
+    assert.ok(Exit.isFailure(exit) && Cause.hasInterruptsOnly(exit.cause));
   }),
 );
 
-it.scoped("event bus does not replay events published before subscription", () =>
+it.effect("event bus does not replay events published before subscription", () =>
   Effect.gen(function* () {
     const eventBus = yield* makeEventBus({ capacity: 8 });
     yield* eventBus.publish({ type: "Info", payload: { message: "old" } });
 
     const ready = yield* Deferred.make<void>();
     const stream = eventBus.withSubscriptionStream((subscription: EventSubscription) =>
-      Stream.unwrapScoped(
+      Stream.unwrap(
         Effect.gen(function* () {
           const bufferedEvents = yield* subscription.takeBufferedOnce;
           assert.deepStrictEqual(bufferedEvents, []);
@@ -125,7 +126,7 @@ it.scoped("event bus does not replay events published before subscription", () =
       ),
     );
 
-    const fiber = yield* Effect.fork(Stream.runCollect(stream.pipe(Stream.take(1))));
+    const fiber = yield* Effect.forkChild(Stream.runCollect(stream.pipe(Stream.take(1))));
     yield* Deferred.await(ready);
 
     const liveEvent: NotificationEvent = { type: "Info", payload: { message: "live" } };
@@ -137,7 +138,7 @@ it.scoped("event bus does not replay events published before subscription", () =
   }),
 );
 
-it.scoped("event bus buffers events published during subscription bootstrap", () =>
+it.effect("event bus buffers events published during subscription bootstrap", () =>
   Effect.gen(function* () {
     const eventBus = yield* makeEventBus({ capacity: 8 });
     const subscribed = yield* Deferred.make<void>();
@@ -149,7 +150,7 @@ it.scoped("event bus buffers events published during subscription bootstrap", ()
     };
 
     const stream = eventBus.withSubscriptionStream((subscription: EventSubscription) =>
-      Stream.unwrapScoped(
+      Stream.unwrap(
         Effect.gen(function* () {
           yield* Deferred.succeed(subscribed, void 0);
           yield* Deferred.await(releaseBootstrap);
@@ -161,7 +162,7 @@ it.scoped("event bus buffers events published during subscription bootstrap", ()
       ),
     );
 
-    const fiber = yield* Effect.fork(Stream.runCollect(stream.pipe(Stream.take(1))));
+    const fiber = yield* Effect.forkChild(Stream.runCollect(stream.pipe(Stream.take(1))));
     yield* Deferred.await(subscribed);
     yield* eventBus.publish(bootstrapEvent);
     yield* Deferred.succeed(releaseBootstrap, void 0);
@@ -180,6 +181,6 @@ const takeNextEvent = <A>(stream: Stream.Stream<A>) =>
   Stream.runCollect(stream.pipe(Stream.take(1))).pipe(
     Effect.map((events) => Array.from(events)[0]),
     Effect.flatMap((event) =>
-      event === undefined ? Effect.dieMessage("expected one event") : Effect.succeed(event),
+      event === undefined ? Effect.die(new Error("expected one event")) : Effect.succeed(event),
     ),
   );

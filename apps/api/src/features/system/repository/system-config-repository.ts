@@ -1,10 +1,10 @@
-// oxlint-disable oxc/no-async-await -- async/await required by transaction callbacks, test callbacks, and tryPromise wrappers
 import { eq } from "drizzle-orm";
-import { Effect, Option } from "effect";
+import * as NodeSqliteClient from "@effect/sql-sqlite-node/SqliteClient";
 
 import { AppDrizzleDatabase, type AppDatabase, type DatabaseError } from "@/db/database.ts";
 import { appConfig, qualityProfiles } from "@/db/schema.ts";
-import { queryFirst, tryDatabasePromise } from "@/infra/effect/db.ts";
+import { makeDbExecutor, type DbExecutor } from "@/infra/effect/db.ts";
+import { Context, Effect, Layer, Option } from "effect";
 
 export interface SystemConfigRepositoryShape {
   readonly loadSystemConfigRow: () => Effect.Effect<
@@ -21,21 +21,25 @@ export interface SystemConfigRepositoryShape {
   ) => Effect.Effect<void, DatabaseError>;
 }
 
-export class SystemConfigRepository extends Effect.Service<SystemConfigRepository>()(
-  "@bakarr/api/SystemConfigRepository",
-  {
-    effect: Effect.gen(function* () {
+export class SystemConfigRepository extends Context.Service<
+  SystemConfigRepository,
+  SystemConfigRepositoryShape
+>()("@bakarr/api/SystemConfigRepository") {
+  static readonly layer = Layer.effect(
+    SystemConfigRepository,
+    Effect.gen(function* () {
       const db = yield* AppDrizzleDatabase;
-      return makeSystemConfigRepositoryShape(db);
+      const sqlClient = yield* NodeSqliteClient.SqliteClient;
+      return makeSystemConfigRepositoryShape(db, sqlClient);
     }),
-    dependencies: [AppDrizzleDatabase.Default],
-  },
-) {}
+  );
+}
 
 export const loadSystemConfigRow = Effect.fn("SystemConfigRepository.loadSystemConfigRow")(
-  function* (db: AppDatabase) {
-    const row = yield* queryFirst("Failed to load system config", () =>
-      db.select().from(appConfig).where(eq(appConfig.id, 1)).limit(1),
+  function* (db: AppDatabase, exec: DbExecutor) {
+    const row = yield* exec.queryFirst(
+      "Failed to load system config",
+      db.select().from(appConfig).where(eq(appConfig.id, 1)).limit(1).prepare().effect(),
     );
 
     return Option.getOrUndefined(row);
@@ -46,23 +50,31 @@ export const updateSystemConfigAtomic = Effect.fn(
   "SystemConfigRepository.updateSystemConfigAtomic",
 )(function* (
   db: AppDatabase,
+  exec: DbExecutor,
   coreInput: typeof appConfig.$inferInsert,
   profileRows: readonly (typeof qualityProfiles.$inferInsert)[],
 ) {
-  yield* tryDatabasePromise("Failed to update system config", () =>
-    db.transaction(async (tx) => {
-      await tx
+  yield* exec.runTransaction(
+    "Failed to update system config",
+    Effect.gen(function* () {
+      yield* db
         .insert(appConfig)
         .values(coreInput)
         .onConflictDoUpdate({
           target: appConfig.id,
           set: { data: coreInput.data, updatedAt: coreInput.updatedAt },
-        });
+        })
+        .prepare()
+        .effect();
 
-      await tx.delete(qualityProfiles);
+      yield* db.delete(qualityProfiles).prepare().effect();
 
       if (profileRows.length > 0) {
-        await tx.insert(qualityProfiles).values([...profileRows]);
+        yield* db
+          .insert(qualityProfiles)
+          .values([...profileRows])
+          .prepare()
+          .effect();
       }
     }),
   );
@@ -72,32 +84,48 @@ export const ensureBootstrapSystemState = Effect.fn(
   "SystemConfigRepository.ensureBootstrapSystemState",
 )(function* (
   db: AppDatabase,
+  exec: DbExecutor,
   coreInput: typeof appConfig.$inferInsert,
   profileRows: readonly (typeof qualityProfiles.$inferInsert)[],
 ) {
-  yield* tryDatabasePromise("Failed to ensure bootstrap system state", () =>
-    db.transaction(async (tx) => {
-      const configRows = await tx.select().from(appConfig).where(eq(appConfig.id, 1)).limit(1);
+  yield* exec.runTransaction(
+    "Failed to ensure bootstrap system state",
+    Effect.gen(function* () {
+      const configRows = yield* db
+        .select()
+        .from(appConfig)
+        .where(eq(appConfig.id, 1))
+        .limit(1)
+        .prepare()
+        .effect();
 
       if (configRows.length === 0) {
-        await tx.insert(appConfig).values(coreInput);
+        yield* db.insert(appConfig).values(coreInput).prepare().effect();
       }
 
-      const existingProfiles = await tx.select().from(qualityProfiles).limit(1);
+      const existingProfiles = yield* db.select().from(qualityProfiles).limit(1).prepare().effect();
 
       if (existingProfiles.length === 0) {
-        await tx.insert(qualityProfiles).values([...profileRows]);
+        yield* db
+          .insert(qualityProfiles)
+          .values([...profileRows])
+          .prepare()
+          .effect();
       }
     }),
   );
 });
 
-export function makeSystemConfigRepositoryShape(db: AppDatabase): SystemConfigRepositoryShape {
+export function makeSystemConfigRepositoryShape(
+  db: AppDatabase,
+  sqlClient: NodeSqliteClient.SqliteClient,
+): SystemConfigRepositoryShape {
+  const exec = makeDbExecutor(sqlClient);
   return {
     ensureBootstrapSystemState: (coreInput, profileRows) =>
-      ensureBootstrapSystemState(db, coreInput, profileRows),
-    loadSystemConfigRow: () => loadSystemConfigRow(db),
+      ensureBootstrapSystemState(db, exec, coreInput, profileRows),
+    loadSystemConfigRow: () => loadSystemConfigRow(db, exec),
     updateSystemConfigAtomic: (coreInput, profileRows) =>
-      updateSystemConfigAtomic(db, coreInput, profileRows),
+      updateSystemConfigAtomic(db, exec, coreInput, profileRows),
   } satisfies SystemConfigRepositoryShape;
 }

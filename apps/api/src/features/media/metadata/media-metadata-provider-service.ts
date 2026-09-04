@@ -1,5 +1,3 @@
-import { Effect, Option } from "effect";
-
 import {
   brandMediaId,
   type MediaKind,
@@ -24,6 +22,7 @@ import { ManamiClient } from "@/features/media/metadata/manami.ts";
 import { mergeAnimeMetadata } from "@/features/media/metadata/metadata-merge.ts";
 import { mediaKindFromAniListFormat } from "@/features/media/shared/media-kind.ts";
 import type { ExternalCallError } from "@/infra/effect/retry.ts";
+import { Context, Effect, Layer, Option } from "effect";
 
 export function toMediaSearchResult(entry: ProviderMediaSearchResult): MediaSearchResult {
   return {
@@ -114,27 +113,27 @@ export const seasonalWithFallback = Effect.fn("MediaMetadata.seasonalWithFallbac
         year: input.year,
         limit: input.limit,
       })
-      .pipe(Effect.either);
+      .pipe(Effect.result);
 
-    if (anilistAttempt._tag === "Right") {
+    if (anilistAttempt._tag === "Success") {
       return {
         degraded: false,
-        hasMore: anilistAttempt.right.length === input.limit,
+        hasMore: anilistAttempt.success.length === input.limit,
         provider: "anilist",
-        results: anilistAttempt.right.map(toMediaSearchResult),
+        results: anilistAttempt.success.map(toMediaSearchResult),
         season: input.season,
         year: input.year,
       } satisfies MediaSeasonalResult;
     }
 
-    if (!shouldFallbackToJikan(anilistAttempt.left)) {
-      return yield* anilistAttempt.left;
+    if (!shouldFallbackToJikan(anilistAttempt.failure)) {
+      return yield* anilistAttempt.failure;
     }
 
     yield* Effect.logWarning("AniList seasonal request failed; using Jikan fallback").pipe(
       Effect.annotateLogs({
-        causeTag: anilistAttempt.left._tag,
-        operation: anilistAttempt.left.operation,
+        causeTag: anilistAttempt.failure._tag,
+        operation: anilistAttempt.failure.operation,
         season: input.season,
         year: input.year,
       }),
@@ -149,7 +148,7 @@ export const seasonalWithFallback = Effect.fn("MediaMetadata.seasonalWithFallbac
 
     const mappedEntries = yield* Effect.forEach(jikanEntries, (entry) =>
       input.manami.resolveAniListIdFromMalId(entry.malId).pipe(
-        Effect.catchAll((error) =>
+        Effect.catch((error) =>
           Effect.logWarning("Manami seasonal mapping degraded").pipe(
             Effect.annotateLogs({
               malId: entry.malId,
@@ -423,16 +422,17 @@ const makeMediaMetadataProviderService = Effect.fn("MediaMetadataProviderService
   },
 );
 
-export class MediaMetadataProviderService extends Effect.Service<MediaMetadataProviderService>()(
-  "@bakarr/api/MediaMetadataProviderService",
-  {
-    // AniList/Jikan/Manami clients come from the lifecycle layer.
-    dependencies: [MediaMetadataEnrichmentService.Default],
-    effect: makeMediaMetadataProviderService(),
-  },
-) {}
+export class MediaMetadataProviderService extends Context.Service<
+  MediaMetadataProviderService,
+  MediaMetadataProviderServiceShape
+>()("@bakarr/api/MediaMetadataProviderService") {
+  static readonly layer = Layer.effect(
+    MediaMetadataProviderService,
+    makeMediaMetadataProviderService(),
+  );
+}
 
-export const MediaMetadataProviderServiceLive = MediaMetadataProviderService.Default;
+export const MediaMetadataProviderServiceLive = MediaMetadataProviderService.layer;
 
 const toFreshLookupResult = Effect.fn("MediaMetadataProviderService.toFreshLookupResult")(
   function* (
@@ -552,7 +552,7 @@ function optionalExternalMetadataLookup<A>(
   annotations: ExternalMetadataLookupAnnotations,
 ): Effect.Effect<Option.Option<A>> {
   return effect.pipe(
-    Effect.catchAll((error) =>
+    Effect.catch((error) =>
       Effect.logWarning(`${annotations.provider} lookup degraded`).pipe(
         Effect.annotateLogs({
           ...annotations,

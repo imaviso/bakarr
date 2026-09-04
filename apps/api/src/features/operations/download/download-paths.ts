@@ -1,12 +1,14 @@
-import { Effect, Option, Stream } from "effect";
-
+import { Array, Effect, Option, Stream } from "effect";
 import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import { isNotFoundError } from "@/infra/filesystem/fs-errors.ts";
 import {
   classifyMediaArtifact,
   parseFileSourceIdentity,
 } from "@/features/media/identity/identity.ts";
-import { scanVideoFilesStream } from "@/features/operations/import-scan/file-scanner.ts";
+import {
+  scanVideoFilesStream,
+  type ScannedVideoFile,
+} from "@/features/operations/import-scan/file-scanner.ts";
 
 export function parseMagnetInfoHash(magnet: string | null | undefined): Option.Option<string> {
   if (!magnet) {
@@ -16,6 +18,12 @@ export function parseMagnetInfoHash(magnet: string | null | undefined): Option.O
   const match = magnet.match(/xt=urn:btih:([^&]+)/i);
 
   return match?.[1] ? Option.some(match[1].toLowerCase()) : Option.none();
+}
+
+interface CompletedDownloadScanState {
+  readonly candidateCount: number;
+  readonly firstCandidatePath: Option.Option<string>;
+  readonly matchingPath: Option.Option<string>;
 }
 
 export const resolveCompletedContentPath = Effect.fn("Operations.resolveCompletedContentPath")(
@@ -41,35 +49,36 @@ export const resolveCompletedContentPath = Effect.fn("Operations.resolveComplete
       return Option.none();
     }
 
-    const scanState = yield* Stream.runFold(
-      scanVideoFilesStream(fs, contentPath),
-      {
-        candidateCount: 0,
-        firstCandidatePath: Option.none<string>(),
-        matchingPath: Option.none<string>(),
-      },
-      (state, file) => {
-        const classification = classifyMediaArtifact(file.path, file.name);
+    const scanState = yield* scanVideoFilesStream(fs, contentPath).pipe(
+      Stream.runFold<CompletedDownloadScanState, ScannedVideoFile>(
+        () => ({
+          candidateCount: 0,
+          firstCandidatePath: Option.none<string>(),
+          matchingPath: Option.none<string>(),
+        }),
+        (state, file) => {
+          const classification = classifyMediaArtifact(file.path, file.name);
 
-        if (classification.kind === "extra" || classification.kind === "sample") {
-          return state;
-        }
+          if (classification.kind === "extra" || classification.kind === "sample") {
+            return state;
+          }
 
-        const candidateCount = state.candidateCount + 1;
-        const firstCandidatePath =
-          candidateCount === 1 ? Option.some(file.path) : state.firstCandidatePath;
-        const matchingPath = Option.isSome(state.matchingPath)
-          ? state.matchingPath
-          : matchesCompletedDownloadFile(file.path, unitNumber, options?.expectedAirDate)
-            ? Option.some(file.path)
-            : Option.none<string>();
+          const candidateCount = state.candidateCount + 1;
+          const firstCandidatePath =
+            candidateCount === 1 ? Option.some(file.path) : state.firstCandidatePath;
+          const matchingPath = Option.isSome(state.matchingPath)
+            ? state.matchingPath
+            : matchesCompletedDownloadFile(file.path, unitNumber, options?.expectedAirDate)
+              ? Option.some(file.path)
+              : Option.none<string>();
 
-        return {
-          candidateCount,
-          firstCandidatePath,
-          matchingPath,
-        };
-      },
+          return {
+            candidateCount,
+            firstCandidatePath,
+            matchingPath,
+          };
+        },
+      ),
     );
 
     if (Option.isSome(scanState.matchingPath)) {
@@ -104,15 +113,16 @@ export const resolveBatchContentPaths = Effect.fn("Operations.resolveBatchConten
     return [];
   }
 
-  return yield* Stream.runFold(
-    scanVideoFilesStream(fs, contentPath),
-    Array<string>(),
-    (acc, file) => {
-      const classification = classifyMediaArtifact(file.path, file.name);
-      return classification.kind === "extra" || classification.kind === "sample"
-        ? acc
-        : [...acc, file.path];
-    },
+  return yield* scanVideoFilesStream(fs, contentPath).pipe(
+    Stream.runFold(
+      () => Array.empty<string>(),
+      (acc, file) => {
+        const classification = classifyMediaArtifact(file.path, file.name);
+        return classification.kind === "extra" || classification.kind === "sample"
+          ? acc
+          : [...acc, file.path];
+      },
+    ),
   );
 });
 

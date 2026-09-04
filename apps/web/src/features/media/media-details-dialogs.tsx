@@ -16,7 +16,7 @@ export function AnimeDetailsDialogs() {
         mediaId={ctx.mediaId}
         unitNumber={ctx.searchModalState.unitNumber}
         unitKind={ctx.searchModalState.unitKind}
-        {...(ctx.searchModalState.unitTitle === undefined
+        {...(ctx.searchModalState.unitTitle == null
           ? {}
           : { unitTitle: ctx.searchModalState.unitTitle })}
         open={ctx.searchModalState.open}

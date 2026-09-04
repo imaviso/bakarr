@@ -1,6 +1,5 @@
 import { assert, it } from "@effect/vitest";
 import { eq } from "drizzle-orm";
-import { Effect, Option } from "effect";
 import { brandMediaId } from "@packages/shared/index.ts";
 
 import type { AppDatabase } from "@/db/database.ts";
@@ -17,13 +16,14 @@ import {
   decodeStoredDiscoveryEntriesEffect,
   decodeStoredSynonymsEffect,
 } from "@/features/media/shared/decode-support.ts";
-import { tryDatabasePromise } from "@/infra/effect/db.ts";
+import { tryDatabaseQuery } from "@/infra/effect/db.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 import { makeMediaRepository, makeSystemLogRepository } from "@/test/repository-factories.ts";
+import { Effect, Option } from "effect";
 
-it.scoped("syncMediaMetadataEffect stores locally cached image paths", () =>
+it.effect("syncMediaMetadataEffect stores locally cached image paths", () =>
   withSqliteTestDbEffect({
-    run: (db) =>
+    run: (db, _databaseFile, client, _exec) =>
       Effect.gen(function* () {
         const appDb: AppDatabase = db;
         const mediaId = 501;
@@ -44,7 +44,7 @@ it.scoped("syncMediaMetadataEffect stores locally cached image paths", () =>
         const metadata = makeMetadata(mediaId);
 
         const result = yield* syncMediaMetadataEffect({
-          imageCacheService: MediaImageCacheService.make({
+          imageCacheService: MediaImageCacheService.of({
             cacheMetadataImages: (input) => {
               cacheInput = input;
               return Effect.succeed({
@@ -53,7 +53,7 @@ it.scoped("syncMediaMetadataEffect stores locally cached image paths", () =>
               });
             },
           }),
-          metadataProvider: MediaMetadataProviderService.make({
+          metadataProvider: MediaMetadataProviderService.of({
             getAnimeMetadataById: () =>
               Effect.succeed({
                 _tag: "Found",
@@ -63,18 +63,19 @@ it.scoped("syncMediaMetadataEffect stores locally cached image paths", () =>
                 },
                 metadata,
               }),
-            getSeasonalAnime: () => Effect.dieMessage("not used in test"),
-            searchMedia: () => Effect.dieMessage("not used in test"),
+            getSeasonalAnime: () => Effect.die(new Error("not used in test")),
+            searchMedia: () => Effect.die(new Error("not used in test")),
           }),
           mediaId,
           eventPublisher: Option.none(),
-          mediaRepository: makeMediaRepository(appDb),
-          systemLogRepository: makeSystemLogRepository(appDb),
+          mediaRepository: makeMediaRepository(appDb, client),
+          systemLogRepository: makeSystemLogRepository(appDb, client),
           nowIso: () => Effect.succeed("2026-04-11T00:00:00.000Z"),
         });
 
-        const [row] = yield* tryDatabasePromise("Failed to query media for sync assertion", () =>
-          appDb.select().from(media).where(eq(media.id, mediaId)),
+        const [row] = yield* tryDatabaseQuery(
+          "Failed to query media for sync assertion",
+          appDb.select().from(media).where(eq(media.id, mediaId)).prepare().effect(),
         );
 
         assert.deepStrictEqual(cacheInput, {
@@ -91,9 +92,9 @@ it.scoped("syncMediaMetadataEffect stores locally cached image paths", () =>
   }),
 );
 
-it.scoped("syncMediaMetadataEffect keeps existing image paths if caching fails", () =>
+it.effect("syncMediaMetadataEffect keeps existing image paths if caching fails", () =>
   withSqliteTestDbEffect({
-    run: (db) =>
+    run: (db, _databaseFile, client, _exec) =>
       Effect.gen(function* () {
         const appDb: AppDatabase = db;
         const mediaId = 502;
@@ -104,7 +105,7 @@ it.scoped("syncMediaMetadataEffect keeps existing image paths if caching fails",
         });
 
         const result = yield* syncMediaMetadataEffect({
-          imageCacheService: MediaImageCacheService.make({
+          imageCacheService: MediaImageCacheService.of({
             cacheMetadataImages: () =>
               Effect.fail(
                 new ImageCacheError({
@@ -114,7 +115,7 @@ it.scoped("syncMediaMetadataEffect keeps existing image paths if caching fails",
                 }),
               ),
           }),
-          metadataProvider: MediaMetadataProviderService.make({
+          metadataProvider: MediaMetadataProviderService.of({
             getAnimeMetadataById: () =>
               Effect.succeed({
                 _tag: "Found",
@@ -124,19 +125,19 @@ it.scoped("syncMediaMetadataEffect keeps existing image paths if caching fails",
                 },
                 metadata: makeMetadata(mediaId),
               }),
-            getSeasonalAnime: () => Effect.dieMessage("not used in test"),
-            searchMedia: () => Effect.dieMessage("not used in test"),
+            getSeasonalAnime: () => Effect.die(new Error("not used in test")),
+            searchMedia: () => Effect.die(new Error("not used in test")),
           }),
           mediaId,
           eventPublisher: Option.none(),
-          mediaRepository: makeMediaRepository(appDb),
-          systemLogRepository: makeSystemLogRepository(appDb),
+          mediaRepository: makeMediaRepository(appDb, client),
+          systemLogRepository: makeSystemLogRepository(appDb, client),
           nowIso: () => Effect.succeed("2026-04-11T00:00:00.000Z"),
         });
 
-        const [row] = yield* tryDatabasePromise(
+        const [row] = yield* tryDatabaseQuery(
           "Failed to query media for image cache failure assertion",
-          () => appDb.select().from(media).where(eq(media.id, mediaId)),
+          appDb.select().from(media).where(eq(media.id, mediaId)).prepare().effect(),
         );
 
         assert.deepStrictEqual(
@@ -154,9 +155,9 @@ it.scoped("syncMediaMetadataEffect keeps existing image paths if caching fails",
   }),
 );
 
-it.scoped("syncMediaMetadataEffect persists enrichment metadata fields from provider output", () =>
+it.effect("syncMediaMetadataEffect persists enrichment metadata fields from provider output", () =>
   withSqliteTestDbEffect({
-    run: (db) =>
+    run: (db, _databaseFile, client, _exec) =>
       Effect.gen(function* () {
         const appDb: AppDatabase = db;
         const mediaId = 503;
@@ -188,14 +189,14 @@ it.scoped("syncMediaMetadataEffect persists enrichment metadata fields from prov
         };
 
         const result = yield* syncMediaMetadataEffect({
-          imageCacheService: MediaImageCacheService.make({
+          imageCacheService: MediaImageCacheService.of({
             cacheMetadataImages: () =>
               Effect.succeed({
                 bannerImage: "/api/images/media/503/banner.jpg",
                 coverImage: "/api/images/media/503/cover.jpg",
               }),
           }),
-          metadataProvider: MediaMetadataProviderService.make({
+          metadataProvider: MediaMetadataProviderService.of({
             getAnimeMetadataById: () =>
               Effect.succeed({
                 _tag: "Found",
@@ -205,19 +206,19 @@ it.scoped("syncMediaMetadataEffect persists enrichment metadata fields from prov
                 },
                 metadata,
               }),
-            getSeasonalAnime: () => Effect.dieMessage("not used in test"),
-            searchMedia: () => Effect.dieMessage("not used in test"),
+            getSeasonalAnime: () => Effect.die(new Error("not used in test")),
+            searchMedia: () => Effect.die(new Error("not used in test")),
           }),
           mediaId,
           eventPublisher: Option.none(),
-          mediaRepository: makeMediaRepository(appDb),
-          systemLogRepository: makeSystemLogRepository(appDb),
+          mediaRepository: makeMediaRepository(appDb, client),
+          systemLogRepository: makeSystemLogRepository(appDb, client),
           nowIso: () => Effect.succeed("2026-04-11T00:00:00.000Z"),
         });
 
-        const [row] = yield* tryDatabasePromise(
+        const [row] = yield* tryDatabaseQuery(
           "Failed to query media for enrichment assertion",
-          () => appDb.select().from(media).where(eq(media.id, mediaId)),
+          appDb.select().from(media).where(eq(media.id, mediaId)).prepare().effect(),
         );
         assert(row);
 
@@ -269,22 +270,27 @@ const insertAnimeRow = Effect.fn("Test.insertAnimeRow")(function* (
     readonly coverImage: string;
   },
 ) {
-  yield* tryDatabasePromise("Failed to insert test anime row for metadata sync", () =>
-    db.insert(media).values({
-      id,
-      titleRomaji: `Media ${id}`,
-      format: "TV",
-      status: "RELEASING",
-      genres: "[]",
-      studios: "[]",
-      profileName: "Default",
-      rootFolder: `/library/media-${id}`,
-      addedAt: "2026-04-10T00:00:00.000Z",
-      releaseProfileIds: "[]",
-      monitored: true,
-      bannerImage: input.bannerImage,
-      coverImage: input.coverImage,
-    }),
+  yield* tryDatabaseQuery(
+    "Failed to insert test anime row for metadata sync",
+    db
+      .insert(media)
+      .values({
+        id,
+        titleRomaji: `Media ${id}`,
+        format: "TV",
+        status: "RELEASING",
+        genres: "[]",
+        studios: "[]",
+        profileName: "Default",
+        rootFolder: `/library/media-${id}`,
+        addedAt: "2026-04-10T00:00:00.000Z",
+        releaseProfileIds: "[]",
+        monitored: true,
+        bannerImage: input.bannerImage,
+        coverImage: input.coverImage,
+      })
+      .prepare()
+      .effect(),
   );
 });
 

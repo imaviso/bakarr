@@ -1,5 +1,5 @@
-import { HttpRouter } from "@effect/platform";
-import { Effect, Schema } from "effect";
+import * as HttpRouter from "effect/unstable/http/HttpRouter";
+import { Effect, Layer, Schema } from "effect";
 import {
   AsyncOperationAcceptedSchema,
   CalendarEventSchema,
@@ -34,8 +34,9 @@ import { SearchUnitParamsSchema } from "@/infra/http/common-request-schemas.ts";
 
 const acceptedOperationResponse = schemaAcceptedResponse(AsyncOperationAcceptedSchema);
 
-export const searchRouter = HttpRouter.empty.pipe(
-  HttpRouter.get(
+export const searchRouter = Layer.mergeAll(
+  HttpRouter.add(
+    "GET",
     "/wanted/missing",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -45,7 +46,8 @@ export const searchRouter = HttpRouter.empty.pipe(
       schemaJsonResponse(Schema.Array(MissingUnitSchema)),
     ),
   ),
-  HttpRouter.get(
+  HttpRouter.add(
+    "GET",
     "/calendar",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -55,7 +57,8 @@ export const searchRouter = HttpRouter.empty.pipe(
       schemaJsonResponse(Schema.Array(CalendarEventSchema)),
     ),
   ),
-  HttpRouter.get(
+  HttpRouter.add(
+    "GET",
     "/search/releases",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -70,7 +73,8 @@ export const searchRouter = HttpRouter.empty.pipe(
       schemaJsonResponse(SearchResultsSchema),
     ),
   ),
-  HttpRouter.get(
+  HttpRouter.add(
+    "GET",
     "/search/units/:mediaId/:unitNumber",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -80,7 +84,8 @@ export const searchRouter = HttpRouter.empty.pipe(
       schemaJsonResponse(Schema.Array(UnitSearchResultSchema)),
     ),
   ),
-  HttpRouter.post(
+  HttpRouter.add(
+    "POST",
     "/search/download",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -97,7 +102,8 @@ export const searchRouter = HttpRouter.empty.pipe(
       successResponse,
     ),
   ),
-  HttpRouter.post(
+  HttpRouter.add(
+    "POST",
     "/downloads/search-missing",
     authedRouteResponse(
       Effect.gen(function* () {

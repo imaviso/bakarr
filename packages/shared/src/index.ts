@@ -1,30 +1,28 @@
-import { Schema } from "effect";
+import { Schema, Struct } from "effect";
 
 export const RULE_TYPE_VALUES = ["preferred", "must", "must_not"] as const;
 export type RuleType = (typeof RULE_TYPE_VALUES)[number];
-export const RuleTypeSchema: Schema.Schema<RuleType> = Schema.Literal(...RULE_TYPE_VALUES);
+export const RuleTypeSchema = Schema.Literals([...RULE_TYPE_VALUES]);
 
 export const IMPORT_MODE_VALUES = ["copy", "move"] as const;
 export type ImportMode = (typeof IMPORT_MODE_VALUES)[number];
-export const ImportModeSchema: Schema.Schema<ImportMode> = Schema.Literal(...IMPORT_MODE_VALUES);
+export const ImportModeSchema = Schema.Literals([...IMPORT_MODE_VALUES]);
 
 export const PREFERRED_TITLE_VALUES = ["romaji", "english", "native"] as const;
 export type PreferredTitle = (typeof PREFERRED_TITLE_VALUES)[number];
-export const PreferredTitleSchema: Schema.Schema<PreferredTitle> = Schema.Literal(
-  ...PREFERRED_TITLE_VALUES,
-);
+export const PreferredTitleSchema = Schema.Literals([...PREFERRED_TITLE_VALUES]);
 
 export const MEDIA_KIND_VALUES = ["anime", "manga", "light_novel"] as const;
 export type MediaKind = (typeof MEDIA_KIND_VALUES)[number];
-export const MediaKindSchema: Schema.Schema<MediaKind> = Schema.Literal(...MEDIA_KIND_VALUES);
+export const MediaKindSchema = Schema.Literals([...MEDIA_KIND_VALUES]);
 
 export const MEDIA_UNIT_KIND_VALUES = ["episode", "volume"] as const;
 export type MediaUnitKind = (typeof MEDIA_UNIT_KIND_VALUES)[number];
-export const MediaUnitKindSchema: Schema.Schema<MediaUnitKind> = Schema.Literal(
-  ...MEDIA_UNIT_KIND_VALUES,
-);
+export const MediaUnitKindSchema = Schema.Literals([...MEDIA_UNIT_KIND_VALUES]);
 
-const PositiveEntityIdSchema = Schema.Number.pipe(Schema.int(), Schema.greaterThan(0));
+const PositiveEntityIdSchema = Schema.Number.pipe(
+  Schema.check(Schema.isInt(), Schema.isGreaterThan(0)),
+);
 
 export const MediaIdSchema = PositiveEntityIdSchema.pipe(Schema.brand("MediaId"));
 export type MediaId = Schema.Schema.Type<typeof MediaIdSchema>;
@@ -89,9 +87,9 @@ export type ApiResult<T> =
     };
 
 export function ApiResultSchema<A, I, R>(
-  data: Schema.Schema<A, I, R>,
-): Schema.Schema<ApiResult<A>, ApiResult<I>, R> {
-  return Schema.Union(
+  data: Schema.Codec<A, I, R>,
+): Schema.Codec<ApiResult<A>, ApiResult<I>, R> {
+  return Schema.Union([
     Schema.Struct({
       ok: Schema.Literal(true),
       data,
@@ -100,14 +98,14 @@ export function ApiResultSchema<A, I, R>(
       ok: Schema.Literal(false),
       error: Schema.String,
     }),
-  );
+  ]);
 }
 
 export interface HealthStatus {
   status: "ok";
 }
 
-export const HealthStatusSchema: Schema.Schema<HealthStatus> = Schema.Struct({
+export const HealthStatusSchema = Schema.Struct({
   status: Schema.Literal("ok"),
 });
 
@@ -132,15 +130,21 @@ export interface LoginRequest {
   password: string;
 }
 
-const AuthUsernameSchema = Schema.String.pipe(Schema.minLength(1), Schema.maxLength(128));
-const AuthPasswordSchema = Schema.String.pipe(Schema.minLength(1), Schema.maxLength(256));
+const AuthUsernameSchema = Schema.String.pipe(
+  Schema.check(Schema.isMinLength(1)),
+  Schema.check(Schema.isMaxLength(128)),
+);
+const AuthPasswordSchema = Schema.String.pipe(
+  Schema.check(Schema.isMinLength(1)),
+  Schema.check(Schema.isMaxLength(256)),
+);
 const ApiKeyStringSchema = Schema.String.pipe(
-  Schema.minLength(1),
-  Schema.maxLength(128),
-  Schema.pattern(/^[a-fA-F0-9]+$/),
+  Schema.check(Schema.isMinLength(1)),
+  Schema.check(Schema.isMaxLength(128)),
+  Schema.check(Schema.isPattern(/^[a-fA-F0-9]+$/)),
 );
 
-export const LoginRequestSchema: Schema.Schema<LoginRequest> = Schema.Struct({
+export const LoginRequestSchema = Schema.Struct({
   username: AuthUsernameSchema,
   password: AuthPasswordSchema,
 });
@@ -149,7 +153,7 @@ export interface ApiKeyLoginRequest {
   api_key: string;
 }
 
-export const ApiKeyLoginRequestSchema: Schema.Schema<ApiKeyLoginRequest> = Schema.Struct({
+export const ApiKeyLoginRequestSchema = Schema.Struct({
   api_key: ApiKeyStringSchema,
 });
 
@@ -160,7 +164,7 @@ export interface LoginResponse {
   must_change_password: boolean;
 }
 
-export const LoginResponseSchema: Schema.Schema<LoginResponse> = Schema.Struct({
+export const LoginResponseSchema = Schema.Struct({
   username: Schema.String,
   api_key: Schema.String,
   api_key_masked: Schema.Boolean,
@@ -172,7 +176,7 @@ export interface ChangePasswordRequest {
   new_password: string;
 }
 
-export const ChangePasswordRequestSchema: Schema.Schema<ChangePasswordRequest> = Schema.Struct({
+export const ChangePasswordRequestSchema = Schema.Struct({
   current_password: AuthPasswordSchema,
   new_password: AuthPasswordSchema,
 });
@@ -182,7 +186,7 @@ export interface ApiKeyResponse {
   api_key_masked: boolean;
 }
 
-export const ApiKeyResponseSchema: Schema.Schema<ApiKeyResponse> = Schema.Struct({
+export const ApiKeyResponseSchema = Schema.Struct({
   api_key: Schema.String,
   api_key_masked: Schema.Boolean,
 });
@@ -197,28 +201,21 @@ export interface MediaUnitProgress {
   next_missing_unit?: number | undefined;
 }
 
-export const MediaUnitProgressSchema: Schema.Schema<MediaUnitProgress> = Schema.mutable(
-  Schema.Struct({
-    downloaded: Schema.Number,
-    downloaded_percent: Schema.optional(Schema.Number),
-    is_up_to_date: Schema.optional(Schema.Boolean),
-    latest_downloaded_unit: Schema.optional(Schema.Number),
-    total: Schema.optional(Schema.Number),
-    missing: Schema.mutable(Schema.Array(Schema.Number)),
-    next_missing_unit: Schema.optional(Schema.Number),
-  }),
-);
+export const MediaUnitProgressSchema = Schema.Struct({
+  downloaded: Schema.Number,
+  downloaded_percent: Schema.optional(Schema.Number),
+  is_up_to_date: Schema.optional(Schema.Boolean),
+  latest_downloaded_unit: Schema.optional(Schema.Number),
+  total: Schema.optional(Schema.Number),
+  missing: Schema.mutable(Schema.Array(Schema.Number)),
+  next_missing_unit: Schema.optional(Schema.Number),
+}).mapFields(Struct.map(Schema.mutableKey));
 
 export type MediaSeason = "winter" | "spring" | "summer" | "fall";
 
-export const MediaSeasonSchema: Schema.Schema<MediaSeason> = Schema.Literal(
-  "winter",
-  "spring",
-  "summer",
-  "fall",
-);
+export const MediaSeasonSchema = Schema.Literals(["winter", "spring", "summer", "fall"]);
 
-export const MediaTitleSchema: Schema.Schema<Media["title"]> = Schema.Struct({
+export const MediaTitleSchema = Schema.Struct({
   romaji: Schema.String,
   english: Schema.optional(Schema.String),
   native: Schema.optional(Schema.String),
@@ -229,7 +226,7 @@ export interface NextAiringUnit {
   airing_at: string;
 }
 
-export const NextAiringUnitSchema: Schema.Schema<NextAiringUnit> = Schema.Struct({
+export const NextAiringUnitSchema = Schema.Struct({
   unit_number: Schema.Number,
   airing_at: Schema.String,
 });
@@ -270,11 +267,7 @@ export const MediaDiscoveryEntrySchema = Schema.Struct({
 
 export type UnitAiringStatus = "aired" | "future" | "unknown";
 
-export const UnitAiringStatusSchema: Schema.Schema<UnitAiringStatus> = Schema.Literal(
-  "aired",
-  "future",
-  "unknown",
-);
+export const UnitAiringStatusSchema = Schema.Literals(["aired", "future", "unknown"]);
 
 export interface Media {
   id: MediaId;
@@ -320,47 +313,45 @@ export interface Media {
   progress: MediaUnitProgress;
 }
 
-export const MediaSchema = Schema.mutable(
-  Schema.Struct({
-    id: MediaIdSchema,
-    media_kind: MediaKindSchema,
-    mal_id: Schema.optional(Schema.Number),
-    title: MediaTitleSchema,
-    format: Schema.String,
-    source: Schema.optional(Schema.String),
-    description: Schema.optional(Schema.String),
-    background: Schema.optional(Schema.String),
-    duration: Schema.optional(Schema.String),
-    rating: Schema.optional(Schema.String),
-    rank: Schema.optional(Schema.Number),
-    popularity: Schema.optional(Schema.Number),
-    members: Schema.optional(Schema.Number),
-    favorites: Schema.optional(Schema.Number),
-    score: Schema.optional(Schema.Number),
-    genres: Schema.optional(Schema.mutable(Schema.Array(Schema.String))),
-    studios: Schema.optional(Schema.mutable(Schema.Array(Schema.String))),
-    cover_image: Schema.optional(Schema.String),
-    banner_image: Schema.optional(Schema.String),
-    status: Schema.String,
-    unit_count: Schema.optional(Schema.Number),
-    start_date: Schema.optional(Schema.String),
-    end_date: Schema.optional(Schema.String),
-    start_year: Schema.optional(Schema.Number),
-    end_year: Schema.optional(Schema.Number),
-    synonyms: Schema.optional(Schema.mutable(Schema.Array(Schema.String))),
-    related_media: Schema.optional(Schema.mutable(Schema.Array(MediaDiscoveryEntrySchema))),
-    recommended_media: Schema.optional(Schema.mutable(Schema.Array(MediaDiscoveryEntrySchema))),
-    next_airing_unit: Schema.optional(NextAiringUnitSchema),
-    season: Schema.optional(MediaSeasonSchema),
-    season_year: Schema.optional(Schema.Number),
-    profile_name: Schema.String,
-    root_folder: Schema.String,
-    added_at: Schema.String,
-    monitored: Schema.Boolean,
-    release_profile_ids: Schema.mutable(Schema.Array(ReleaseProfileIdSchema)),
-    progress: MediaUnitProgressSchema,
-  }),
-);
+export const MediaSchema = Schema.Struct({
+  id: MediaIdSchema,
+  media_kind: MediaKindSchema,
+  mal_id: Schema.optional(Schema.Number),
+  title: MediaTitleSchema,
+  format: Schema.String,
+  source: Schema.optional(Schema.String),
+  description: Schema.optional(Schema.String),
+  background: Schema.optional(Schema.String),
+  duration: Schema.optional(Schema.String),
+  rating: Schema.optional(Schema.String),
+  rank: Schema.optional(Schema.Number),
+  popularity: Schema.optional(Schema.Number),
+  members: Schema.optional(Schema.Number),
+  favorites: Schema.optional(Schema.Number),
+  score: Schema.optional(Schema.Number),
+  genres: Schema.optional(Schema.mutable(Schema.Array(Schema.String))),
+  studios: Schema.optional(Schema.mutable(Schema.Array(Schema.String))),
+  cover_image: Schema.optional(Schema.String),
+  banner_image: Schema.optional(Schema.String),
+  status: Schema.String,
+  unit_count: Schema.optional(Schema.Number),
+  start_date: Schema.optional(Schema.String),
+  end_date: Schema.optional(Schema.String),
+  start_year: Schema.optional(Schema.Number),
+  end_year: Schema.optional(Schema.Number),
+  synonyms: Schema.optional(Schema.mutable(Schema.Array(Schema.String))),
+  related_media: Schema.optional(Schema.mutable(Schema.Array(MediaDiscoveryEntrySchema))),
+  recommended_media: Schema.optional(Schema.mutable(Schema.Array(MediaDiscoveryEntrySchema))),
+  next_airing_unit: Schema.optional(NextAiringUnitSchema),
+  season: Schema.optional(MediaSeasonSchema),
+  season_year: Schema.optional(Schema.Number),
+  profile_name: Schema.String,
+  root_folder: Schema.String,
+  added_at: Schema.String,
+  monitored: Schema.Boolean,
+  release_profile_ids: Schema.mutable(Schema.Array(ReleaseProfileIdSchema)),
+  progress: MediaUnitProgressSchema,
+}).mapFields(Struct.map(Schema.mutableKey));
 
 export interface MediaListQueryParams {
   limit?: number | undefined;
@@ -368,9 +359,11 @@ export interface MediaListQueryParams {
   monitored?: boolean | undefined;
 }
 
-export const MediaListQueryParamsSchema: Schema.Schema<MediaListQueryParams> = Schema.Struct({
-  limit: Schema.optional(Schema.Number.pipe(Schema.between(1, 500))),
-  offset: Schema.optional(Schema.Number.pipe(Schema.nonNegative())),
+export const MediaListQueryParamsSchema = Schema.Struct({
+  limit: Schema.optional(
+    Schema.Number.pipe(Schema.check(Schema.isBetween({ minimum: 1, maximum: 500 }))),
+  ),
+  offset: Schema.optional(Schema.Number.pipe(Schema.check(Schema.isGreaterThanOrEqualTo(0)))),
   monitored: Schema.optional(Schema.Boolean),
 });
 
@@ -391,41 +384,41 @@ export const MediaListResponseSchema = Schema.Struct({
 });
 
 export interface MediaUnit {
-  unit_kind?: MediaUnitKind | undefined;
+  unit_kind?: MediaUnitKind | null | undefined;
   number: number;
-  title?: string | undefined;
-  aired?: string | undefined;
-  is_future?: boolean | undefined;
-  airing_status?: UnitAiringStatus | undefined;
+  title?: string | null | undefined;
+  aired?: string | null | undefined;
+  is_future?: boolean | null | undefined;
+  airing_status?: UnitAiringStatus | null | undefined;
   downloaded: boolean;
-  file_path?: string | undefined;
-  file_size?: number | undefined;
-  duration_seconds?: number | undefined;
-  group?: string | undefined;
-  resolution?: string | undefined;
-  quality?: string | undefined;
-  video_codec?: string | undefined;
-  audio_codec?: string | undefined;
-  audio_channels?: string | undefined;
+  file_path?: string | null | undefined;
+  file_size?: number | null | undefined;
+  duration_seconds?: number | null | undefined;
+  group?: string | null | undefined;
+  resolution?: string | null | undefined;
+  quality?: string | null | undefined;
+  video_codec?: string | null | undefined;
+  audio_codec?: string | null | undefined;
+  audio_channels?: string | null | undefined;
 }
 
-export const MediaUnitSchema: Schema.Schema<MediaUnit> = Schema.Struct({
-  unit_kind: Schema.optional(MediaUnitKindSchema),
+export const MediaUnitSchema = Schema.Struct({
+  unit_kind: Schema.optional(Schema.NullishOr(MediaUnitKindSchema)),
   number: Schema.Number,
-  title: Schema.optional(Schema.String),
-  aired: Schema.optional(Schema.String),
-  is_future: Schema.optional(Schema.Boolean),
-  airing_status: Schema.optional(UnitAiringStatusSchema),
+  title: Schema.optional(Schema.NullishOr(Schema.String)),
+  aired: Schema.optional(Schema.NullishOr(Schema.String)),
+  is_future: Schema.optional(Schema.NullishOr(Schema.Boolean)),
+  airing_status: Schema.optional(Schema.NullishOr(UnitAiringStatusSchema)),
   downloaded: Schema.Boolean,
-  file_path: Schema.optional(Schema.String),
-  file_size: Schema.optional(Schema.Number),
-  duration_seconds: Schema.optional(Schema.Number),
-  group: Schema.optional(Schema.String),
-  resolution: Schema.optional(Schema.String),
-  quality: Schema.optional(Schema.String),
-  video_codec: Schema.optional(Schema.String),
-  audio_codec: Schema.optional(Schema.String),
-  audio_channels: Schema.optional(Schema.String),
+  file_path: Schema.optional(Schema.NullishOr(Schema.String)),
+  file_size: Schema.optional(Schema.NullishOr(Schema.Number)),
+  duration_seconds: Schema.optional(Schema.NullishOr(Schema.Number)),
+  group: Schema.optional(Schema.NullishOr(Schema.String)),
+  resolution: Schema.optional(Schema.NullishOr(Schema.String)),
+  quality: Schema.optional(Schema.NullishOr(Schema.String)),
+  video_codec: Schema.optional(Schema.NullishOr(Schema.String)),
+  audio_codec: Schema.optional(Schema.NullishOr(Schema.String)),
+  audio_channels: Schema.optional(Schema.NullishOr(Schema.String)),
 });
 
 export interface ReaderPage {
@@ -435,7 +428,7 @@ export interface ReaderPage {
   media_type?: string | undefined;
 }
 
-export const ReaderPageSchema: Schema.Schema<ReaderPage> = Schema.Struct({
+export const ReaderPageSchema = Schema.Struct({
   index: Schema.Number,
   page_number: Schema.Number,
   url: Schema.String,
@@ -446,7 +439,7 @@ export interface ReaderPagesResponse {
   pages: ReaderPage[];
 }
 
-export const ReaderPagesResponseSchema: Schema.Schema<ReaderPagesResponse> = Schema.Struct({
+export const ReaderPagesResponseSchema = Schema.Struct({
   pages: Schema.mutable(Schema.Array(ReaderPageSchema)),
 });
 
@@ -469,7 +462,7 @@ export interface VideoFile {
   audio_channels?: string | undefined;
 }
 
-export const VideoFileSchema: Schema.Schema<VideoFile> = Schema.Struct({
+export const VideoFileSchema = Schema.Struct({
   name: Schema.String,
   path: Schema.String,
   size: Schema.Number,
@@ -517,26 +510,26 @@ export interface CalendarEvent {
   extended_props: {
     media_id: MediaId;
     media_title: string;
-    unit_kind?: MediaUnitKind | undefined;
+    unit_kind?: MediaUnitKind | null | undefined;
     unit_number: number;
-    unit_title?: string | undefined;
-    airing_status?: UnitAiringStatus | undefined;
+    unit_title?: string | null | undefined;
+    airing_status?: UnitAiringStatus | null | undefined;
     downloaded: boolean;
-    is_future?: boolean | undefined;
-    media_image?: string | undefined;
+    is_future?: boolean | null | undefined;
+    media_image?: string | null | undefined;
   };
 }
 
 export const CalendarEventExtendedPropsSchema = Schema.Struct({
   media_id: MediaIdSchema,
   media_title: Schema.String,
-  unit_kind: Schema.optional(MediaUnitKindSchema),
+  unit_kind: Schema.optional(Schema.NullishOr(MediaUnitKindSchema)),
   unit_number: Schema.Number,
-  unit_title: Schema.optional(Schema.String),
-  airing_status: Schema.optional(UnitAiringStatusSchema),
+  unit_title: Schema.optional(Schema.NullishOr(Schema.String)),
+  airing_status: Schema.optional(Schema.NullishOr(UnitAiringStatusSchema)),
   downloaded: Schema.Boolean,
-  is_future: Schema.optional(Schema.Boolean),
-  media_image: Schema.optional(Schema.String),
+  is_future: Schema.optional(Schema.NullishOr(Schema.Boolean)),
+  media_image: Schema.optional(Schema.NullishOr(Schema.String)),
 });
 
 export const CalendarEventSchema = Schema.Struct({
@@ -591,51 +584,47 @@ export const DOWNLOAD_ALLOWED_ACTION_VALUES = [
 
 export type DownloadAllowedAction = (typeof DOWNLOAD_ALLOWED_ACTION_VALUES)[number];
 
-export const DownloadAllowedActionSchema: Schema.Schema<DownloadAllowedAction> = Schema.Literal(
-  ...DOWNLOAD_ALLOWED_ACTION_VALUES,
-);
+export const DownloadAllowedActionSchema = Schema.Literals([...DOWNLOAD_ALLOWED_ACTION_VALUES]);
 
-export const DownloadSchema = Schema.mutable(
-  Schema.Struct({
-    id: DownloadIdSchema,
-    media_id: MediaIdSchema,
-    media_title: Schema.String,
-    media_image: Schema.optional(Schema.String),
-    unit_number: Schema.Number,
-    torrent_name: Schema.String,
-    is_batch: Schema.optional(Schema.Boolean),
-    covered_units: Schema.optional(Schema.mutable(Schema.Array(Schema.Number))),
-    coverage_pending: Schema.optional(Schema.Boolean),
-    decision_reason: Schema.optional(Schema.String),
-    imported_path: Schema.optional(Schema.String),
-    status: Schema.optional(Schema.String),
-    progress: Schema.optional(Schema.Number),
-    added_at: Schema.optional(Schema.String),
-    download_date: Schema.optional(Schema.String),
-    group_name: Schema.optional(Schema.String),
-    external_state: Schema.optional(Schema.String),
-    error_message: Schema.optional(Schema.String),
-    save_path: Schema.optional(Schema.String),
-    content_path: Schema.optional(Schema.String),
-    total_bytes: Schema.optional(Schema.Number),
-    downloaded_bytes: Schema.optional(Schema.Number),
-    speed_bytes: Schema.optional(Schema.Number),
-    eta_seconds: Schema.optional(Schema.Number),
-    last_synced_at: Schema.optional(Schema.String),
-    retry_count: Schema.optional(Schema.Number),
-    last_error_at: Schema.optional(Schema.String),
-    reconciled_at: Schema.optional(Schema.String),
-    source_metadata: Schema.optional(Schema.suspend(() => DownloadSourceMetadataSchema)),
-    allowed_actions: Schema.optional(Schema.mutable(Schema.Array(DownloadAllowedActionSchema))),
-  }),
-);
+export const DownloadSchema = Schema.Struct({
+  id: DownloadIdSchema,
+  media_id: MediaIdSchema,
+  media_title: Schema.String,
+  media_image: Schema.optional(Schema.String),
+  unit_number: Schema.Number,
+  torrent_name: Schema.String,
+  is_batch: Schema.optional(Schema.Boolean),
+  covered_units: Schema.optional(Schema.mutable(Schema.Array(Schema.Number))),
+  coverage_pending: Schema.optional(Schema.Boolean),
+  decision_reason: Schema.optional(Schema.String),
+  imported_path: Schema.optional(Schema.String),
+  status: Schema.optional(Schema.String),
+  progress: Schema.optional(Schema.Number),
+  added_at: Schema.optional(Schema.String),
+  download_date: Schema.optional(Schema.String),
+  group_name: Schema.optional(Schema.String),
+  external_state: Schema.optional(Schema.String),
+  error_message: Schema.optional(Schema.String),
+  save_path: Schema.optional(Schema.String),
+  content_path: Schema.optional(Schema.String),
+  total_bytes: Schema.optional(Schema.Number),
+  downloaded_bytes: Schema.optional(Schema.Number),
+  speed_bytes: Schema.optional(Schema.Number),
+  eta_seconds: Schema.optional(Schema.Number),
+  last_synced_at: Schema.optional(Schema.String),
+  retry_count: Schema.optional(Schema.Number),
+  last_error_at: Schema.optional(Schema.String),
+  reconciled_at: Schema.optional(Schema.String),
+  source_metadata: Schema.optional(Schema.suspend(() => DownloadSourceMetadataSchema)),
+  allowed_actions: Schema.optional(Schema.mutable(Schema.Array(DownloadAllowedActionSchema))),
+}).mapFields(Struct.map(Schema.mutableKey));
 
 export interface DownloadHistoryPage {
   downloads: Download[];
   limit: number;
   total: number;
   has_more: boolean;
-  next_cursor?: string | undefined;
+  next_cursor?: string | null | undefined;
 }
 
 export const DownloadHistoryPageSchema = Schema.Struct({
@@ -643,7 +632,7 @@ export const DownloadHistoryPageSchema = Schema.Struct({
   limit: Schema.Number,
   total: Schema.Number,
   has_more: Schema.Boolean,
-  next_cursor: Schema.optional(Schema.String),
+  next_cursor: Schema.optional(Schema.NullishOr(Schema.String)),
 });
 
 export interface LibraryRoot {
@@ -670,7 +659,7 @@ export interface LibraryStats {
   recent_downloads: number;
 }
 
-export const LibraryStatsSchema: Schema.Schema<LibraryStats> = Schema.Struct({
+export const LibraryStatsSchema = Schema.Struct({
   total_media: Schema.Number,
   monitored_media: Schema.Number,
   up_to_date_media: Schema.Number,
@@ -730,14 +719,12 @@ export interface SystemStatus {
   last_metadata_refresh?: string | null | undefined;
 }
 
-export const DiskSpaceSchema: Schema.Schema<SystemStatus["disk_space"]> = Schema.Struct({
+export const DiskSpaceSchema = Schema.Struct({
   free: Schema.Number,
   total: Schema.Number,
 });
 
-export const SystemStatusMetadataProvidersSchema: Schema.Schema<
-  SystemStatus["metadata_providers"]
-> = Schema.Struct({
+export const SystemStatusMetadataProvidersSchema = Schema.Struct({
   anidb: Schema.Struct({
     enabled: Schema.Boolean,
     configured: Schema.Boolean,
@@ -752,7 +739,7 @@ export const SystemStatusMetadataProvidersSchema: Schema.Schema<
   }),
 });
 
-export const SystemStatusSchema: Schema.Schema<SystemStatus> = Schema.Struct({
+export const SystemStatusSchema = Schema.Struct({
   version: Schema.String,
   uptime: Schema.Number,
   active_torrents: Schema.Number,
@@ -780,14 +767,14 @@ export interface ObservabilityStatus {
   service_version: string;
 }
 
-export const ObservabilityLinksSchema: Schema.Schema<ObservabilityStatus["links"]> = Schema.Struct({
+export const ObservabilityLinksSchema = Schema.Struct({
   grafana: Schema.optional(Schema.NullOr(Schema.String)),
   loki: Schema.optional(Schema.NullOr(Schema.String)),
   tempo: Schema.optional(Schema.NullOr(Schema.String)),
   victoriametrics: Schema.optional(Schema.NullOr(Schema.String)),
 });
 
-export const ObservabilityStatusSchema: Schema.Schema<ObservabilityStatus> = Schema.Struct({
+export const ObservabilityStatusSchema = Schema.Struct({
   environment: Schema.optional(Schema.NullOr(Schema.String)),
   links: ObservabilityLinksSchema,
   metrics_endpoint: Schema.String,
@@ -814,33 +801,19 @@ export const QualitySchema = Schema.Struct({
   rank: Schema.Number,
 });
 
-export const QualityProfileSchema: Schema.Schema<{
-  cutoff: string;
-  upgrade_allowed: boolean;
-  seadex_preferred: boolean;
-  allowed_qualities: string[];
-  name: string;
-  min_size?: string | null | undefined;
-  max_size?: string | null | undefined;
-}> = Schema.mutable(
-  Schema.Struct({
-    cutoff: Schema.String,
-    upgrade_allowed: Schema.Boolean,
-    seadex_preferred: Schema.Boolean,
-    allowed_qualities: Schema.mutable(Schema.Array(Schema.String)),
-    name: Schema.String,
-    min_size: Schema.optional(Schema.NullOr(Schema.String)),
-    max_size: Schema.optional(Schema.NullOr(Schema.String)),
-  }),
-);
+export const QualityProfileSchema = Schema.Struct({
+  cutoff: Schema.String,
+  upgrade_allowed: Schema.Boolean,
+  seadex_preferred: Schema.Boolean,
+  allowed_qualities: Schema.mutable(Schema.Array(Schema.String)),
+  name: Schema.String,
+  min_size: Schema.optional(Schema.NullOr(Schema.String)),
+  max_size: Schema.optional(Schema.NullOr(Schema.String)),
+}).mapFields(Struct.map(Schema.mutableKey));
 
 export type QualityProfile = Schema.Schema.Type<typeof QualityProfileSchema>;
 
-export const ReleaseProfileRuleSchema: Schema.Schema<{
-  term: string;
-  score: number;
-  rule_type: RuleType;
-}> = Schema.Struct({
+export const ReleaseProfileRuleSchema = Schema.Struct({
   term: Schema.String,
   score: Schema.Number,
   rule_type: RuleTypeSchema,
@@ -848,35 +821,23 @@ export const ReleaseProfileRuleSchema: Schema.Schema<{
 
 export type ReleaseProfileRule = Schema.Schema.Type<typeof ReleaseProfileRuleSchema>;
 
-export const ReleaseProfileSchema = Schema.mutable(
-  Schema.Struct({
-    id: ReleaseProfileIdSchema,
-    name: Schema.String,
-    enabled: Schema.Boolean,
-    is_global: Schema.Boolean,
-    rules: Schema.mutable(Schema.Array(ReleaseProfileRuleSchema)),
-  }),
-);
+export const ReleaseProfileSchema = Schema.Struct({
+  id: ReleaseProfileIdSchema,
+  name: Schema.String,
+  enabled: Schema.Boolean,
+  is_global: Schema.Boolean,
+  rules: Schema.mutable(Schema.Array(ReleaseProfileRuleSchema)),
+}).mapFields(Struct.map(Schema.mutableKey));
 
 export type ReleaseProfile = Schema.Schema.Type<typeof ReleaseProfileSchema>;
 
-export const StringListSchema: Schema.Schema<string[]> = Schema.mutable(
-  Schema.Array(Schema.String),
+export const StringListSchema = Schema.mutable(Schema.Array(Schema.String));
+
+export const RemotePathMappingSchema = Schema.mutable(
+  Schema.Array(Schema.String).pipe(Schema.check(Schema.isLengthBetween(2, 2))),
 );
 
-export const RemotePathMappingSchema: Schema.Schema<string[]> = Schema.mutable(
-  Schema.Array(Schema.String).pipe(Schema.itemsCount(2)),
-);
-
-export const GeneralConfigSchema: Schema.Schema<{
-  database_path: string;
-  log_level: string;
-  images_path: string;
-  suppress_connection_errors: boolean;
-  worker_threads: number;
-  max_db_connections: number;
-  min_db_connections: number;
-}> = Schema.Struct({
+export const GeneralConfigSchema = Schema.Struct({
   database_path: Schema.String,
   log_level: Schema.String,
   images_path: Schema.String,
@@ -886,16 +847,7 @@ export const GeneralConfigSchema: Schema.Schema<{
   min_db_connections: Schema.Number,
 });
 
-export const QbittorrentConfigSchema: Schema.Schema<{
-  default_category: string;
-  enabled: boolean;
-  password?: string | null | undefined;
-  ratio_limit?: number | null | undefined;
-  save_path?: string | null | undefined;
-  trusted_local?: boolean | undefined;
-  url: string;
-  username: string;
-}> = Schema.Struct({
+export const QbittorrentConfigSchema = Schema.Struct({
   default_category: Schema.String,
   enabled: Schema.Boolean,
   password: Schema.optional(Schema.NullOr(Schema.String)),
@@ -906,25 +858,14 @@ export const QbittorrentConfigSchema: Schema.Schema<{
   username: Schema.String,
 });
 
-export const RtorrentConfigSchema: Schema.Schema<{
-  enabled: boolean;
-  save_path?: string | null | undefined;
-  trusted_local?: boolean | undefined;
-  url: string;
-}> = Schema.Struct({
+export const RtorrentConfigSchema = Schema.Struct({
   enabled: Schema.Boolean,
   save_path: Schema.optional(Schema.NullOr(Schema.String)),
   trusted_local: Schema.optional(Schema.Boolean),
   url: Schema.String,
 });
 
-export const NyaaConfigSchema: Schema.Schema<{
-  base_url: string;
-  default_category: string;
-  filter_remakes: boolean;
-  preferred_resolution?: string | null | undefined;
-  min_seeders: number;
-}> = Schema.Struct({
+export const NyaaConfigSchema = Schema.Struct({
   base_url: Schema.String,
   default_category: Schema.String,
   filter_remakes: Schema.Boolean,
@@ -932,14 +873,7 @@ export const NyaaConfigSchema: Schema.Schema<{
   min_seeders: Schema.Number,
 });
 
-export const SchedulerConfigSchema: Schema.Schema<{
-  enabled: boolean;
-  check_interval_minutes: number;
-  cron_expression?: string | null | undefined;
-  max_concurrent_checks: number;
-  check_delay_seconds: number;
-  metadata_refresh_hours: number;
-}> = Schema.Struct({
+export const SchedulerConfigSchema = Schema.Struct({
   enabled: Schema.Boolean,
   check_interval_minutes: Schema.Number,
   cron_expression: Schema.optional(Schema.NullOr(Schema.String)),
@@ -948,15 +882,7 @@ export const SchedulerConfigSchema: Schema.Schema<{
   metadata_refresh_hours: Schema.Number,
 });
 
-export const AniDbMetadataConfigSchema: Schema.Schema<{
-  enabled: boolean;
-  username?: string | null | undefined;
-  password?: string | null | undefined;
-  client: string;
-  client_version: number;
-  local_port: number;
-  episode_limit: number;
-}> = Schema.Struct({
+export const AniDbMetadataConfigSchema = Schema.Struct({
   enabled: Schema.Boolean,
   username: Schema.optional(Schema.NullOr(Schema.String)),
   password: Schema.optional(Schema.NullOr(Schema.String)),
@@ -966,44 +892,20 @@ export const AniDbMetadataConfigSchema: Schema.Schema<{
   episode_limit: Schema.Number,
 });
 
-export const MetadataProvidersConfigSchema: Schema.Schema<{
-  anidb: Schema.Schema.Type<typeof AniDbMetadataConfigSchema>;
-}> = Schema.Struct({
+export const MetadataProvidersConfigSchema = Schema.Struct({
   anidb: AniDbMetadataConfigSchema,
 });
 
-export const DownloadsConfigSchema: Schema.Schema<{
-  root_path: string;
-  create_media_folders: boolean;
-  remote_path_mappings: string[][];
-  reconcile_completed_downloads?: boolean | undefined;
-  remove_torrent_on_import?: boolean | undefined;
-  delete_download_files_after_import?: boolean | undefined;
-}> = Schema.mutable(
-  Schema.Struct({
-    root_path: Schema.String,
-    create_media_folders: Schema.Boolean,
-    remote_path_mappings: Schema.mutable(Schema.Array(RemotePathMappingSchema)),
-    reconcile_completed_downloads: Schema.optional(Schema.Boolean),
-    remove_torrent_on_import: Schema.optional(Schema.Boolean),
-    delete_download_files_after_import: Schema.optional(Schema.Boolean),
-  }),
-);
+export const DownloadsConfigSchema = Schema.Struct({
+  root_path: Schema.String,
+  create_media_folders: Schema.Boolean,
+  remote_path_mappings: Schema.mutable(Schema.Array(RemotePathMappingSchema)),
+  reconcile_completed_downloads: Schema.optional(Schema.Boolean),
+  remove_torrent_on_import: Schema.optional(Schema.Boolean),
+  delete_download_files_after_import: Schema.optional(Schema.Boolean),
+}).mapFields(Struct.map(Schema.mutableKey));
 
-export const LibraryConfigSchema: Schema.Schema<{
-  anime_path: string;
-  manga_path: string;
-  light_novel_path: string;
-  recycle_path: string;
-  recycle_cleanup_days: number;
-  naming_format: string;
-  import_mode: ImportMode;
-  movie_naming_format: string;
-  auto_scan_interval_hours: number;
-  preferred_title: PreferredTitle;
-  airing_timezone?: string | undefined;
-  airing_day_start_hour?: number | undefined;
-}> = Schema.Struct({
+export const LibraryConfigSchema = Schema.Struct({
   anime_path: Schema.String,
   manga_path: Schema.String,
   light_novel_path: Schema.String,
@@ -1018,29 +920,17 @@ export const LibraryConfigSchema: Schema.Schema<{
   airing_day_start_hour: Schema.optional(Schema.Number),
 });
 
-export const ConfigSchema: Schema.Schema<{
-  general: Schema.Schema.Type<typeof GeneralConfigSchema>;
-  qbittorrent: Schema.Schema.Type<typeof QbittorrentConfigSchema>;
-  rtorrent: Schema.Schema.Type<typeof RtorrentConfigSchema>;
-  nyaa: Schema.Schema.Type<typeof NyaaConfigSchema>;
-  scheduler: Schema.Schema.Type<typeof SchedulerConfigSchema>;
-  downloads: Schema.Schema.Type<typeof DownloadsConfigSchema>;
-  library: Schema.Schema.Type<typeof LibraryConfigSchema>;
-  metadata?: Schema.Schema.Type<typeof MetadataProvidersConfigSchema> | undefined;
-  profiles: Array<Schema.Schema.Type<typeof QualityProfileSchema>>;
-}> = Schema.mutable(
-  Schema.Struct({
-    general: GeneralConfigSchema,
-    qbittorrent: QbittorrentConfigSchema,
-    rtorrent: RtorrentConfigSchema,
-    nyaa: NyaaConfigSchema,
-    scheduler: SchedulerConfigSchema,
-    downloads: DownloadsConfigSchema,
-    library: LibraryConfigSchema,
-    metadata: Schema.optional(MetadataProvidersConfigSchema),
-    profiles: Schema.mutable(Schema.Array(Schema.suspend(() => QualityProfileSchema))),
-  }),
-);
+export const ConfigSchema = Schema.Struct({
+  general: GeneralConfigSchema,
+  qbittorrent: QbittorrentConfigSchema,
+  rtorrent: RtorrentConfigSchema,
+  nyaa: NyaaConfigSchema,
+  scheduler: SchedulerConfigSchema,
+  downloads: DownloadsConfigSchema,
+  library: LibraryConfigSchema,
+  metadata: Schema.optional(MetadataProvidersConfigSchema),
+  profiles: Schema.mutable(Schema.Array(Schema.suspend(() => QualityProfileSchema))),
+}).mapFields(Struct.map(Schema.mutableKey));
 
 export type Config = Schema.Schema.Type<typeof ConfigSchema>;
 
@@ -1055,9 +945,7 @@ export interface SystemLog {
 
 export const SYSTEM_LOG_LEVEL_VALUES = ["info", "warn", "error", "success"] as const;
 export type SystemLogLevel = (typeof SYSTEM_LOG_LEVEL_VALUES)[number];
-export const SystemLogLevelSchema: Schema.Schema<SystemLogLevel> = Schema.Literal(
-  ...SYSTEM_LOG_LEVEL_VALUES,
-);
+export const SystemLogLevelSchema = Schema.Literals([...SYSTEM_LOG_LEVEL_VALUES]);
 
 export const SystemLogSchema = Schema.Struct({
   id: SystemLogIdSchema,
@@ -1073,12 +961,10 @@ export interface SystemLogsResponse {
   total_pages: number;
 }
 
-export const SystemLogsResponseSchema = Schema.mutable(
-  Schema.Struct({
-    logs: Schema.mutable(Schema.Array(SystemLogSchema)),
-    total_pages: Schema.Number,
-  }),
-);
+export const SystemLogsResponseSchema = Schema.Struct({
+  logs: Schema.mutable(Schema.Array(SystemLogSchema)),
+  total_pages: Schema.Number,
+}).mapFields(Struct.map(Schema.mutableKey));
 
 export interface BackgroundJobStatus {
   name: string;
@@ -1101,10 +987,11 @@ export const BACKGROUND_JOB_SCHEDULE_MODE_VALUES = [
   "disabled",
 ] as const;
 export type BackgroundJobScheduleMode = (typeof BACKGROUND_JOB_SCHEDULE_MODE_VALUES)[number];
-export const BackgroundJobScheduleModeSchema: Schema.Schema<BackgroundJobScheduleMode> =
-  Schema.Literal(...BACKGROUND_JOB_SCHEDULE_MODE_VALUES);
+export const BackgroundJobScheduleModeSchema = Schema.Literals([
+  ...BACKGROUND_JOB_SCHEDULE_MODE_VALUES,
+]);
 
-export const BackgroundJobStatusSchema: Schema.Schema<BackgroundJobStatus> = Schema.Struct({
+export const BackgroundJobStatusSchema = Schema.Struct({
   name: Schema.String,
   is_running: Schema.Boolean,
   last_run_at: Schema.optional(Schema.String),
@@ -1130,15 +1017,11 @@ export const OPERATION_TASK_KEY_VALUES = [
   "unmapped_scan_manual",
 ] as const;
 export type OperationTaskKey = (typeof OPERATION_TASK_KEY_VALUES)[number];
-export const OperationTaskKeySchema: Schema.Schema<OperationTaskKey> = Schema.Literal(
-  ...OPERATION_TASK_KEY_VALUES,
-);
+export const OperationTaskKeySchema = Schema.Literals([...OPERATION_TASK_KEY_VALUES]);
 
 export const OPERATION_TASK_STATUS_VALUES = ["queued", "running", "succeeded", "failed"] as const;
 export type OperationTaskStatus = (typeof OPERATION_TASK_STATUS_VALUES)[number];
-export const OperationTaskStatusSchema: Schema.Schema<OperationTaskStatus> = Schema.Literal(
-  ...OPERATION_TASK_STATUS_VALUES,
-);
+export const OperationTaskStatusSchema = Schema.Literals([...OPERATION_TASK_STATUS_VALUES]);
 
 export interface OperationTaskPayload {
   media_id?: MediaId | undefined;
@@ -1162,29 +1045,30 @@ export interface OperationTask {
   id: OperationTaskId;
   task_key: OperationTaskKey;
   status: OperationTaskStatus;
-  progress_current?: number | undefined;
-  progress_total?: number | undefined;
-  message?: string | undefined;
+  progress_current?: number | null | undefined;
+  progress_total?: number | null | undefined;
+  message?: string | null | undefined;
   created_at: string;
-  started_at?: string | undefined;
-  finished_at?: string | undefined;
+  started_at?: string | null | undefined;
+  finished_at?: string | null | undefined;
   updated_at: string;
-  media_id?: MediaId | undefined;
+  media_id?: MediaId | null | undefined;
   payload?: OperationTaskPayload | undefined;
 }
 
+// v4 HTTP JSON encodes absent optionals as null, so optional fields are NullishOr.
 export const OperationTaskSchema = Schema.Struct({
   id: OperationTaskIdSchema,
   task_key: OperationTaskKeySchema,
   status: OperationTaskStatusSchema,
-  progress_current: Schema.optional(Schema.Number),
-  progress_total: Schema.optional(Schema.Number),
-  message: Schema.optional(Schema.String),
+  progress_current: Schema.optional(Schema.NullishOr(Schema.Number)),
+  progress_total: Schema.optional(Schema.NullishOr(Schema.Number)),
+  message: Schema.optional(Schema.NullishOr(Schema.String)),
   created_at: Schema.String,
-  started_at: Schema.optional(Schema.String),
-  finished_at: Schema.optional(Schema.String),
+  started_at: Schema.optional(Schema.NullishOr(Schema.String)),
+  finished_at: Schema.optional(Schema.NullishOr(Schema.String)),
   updated_at: Schema.String,
-  media_id: Schema.optional(MediaIdSchema),
+  media_id: Schema.optional(Schema.NullishOr(MediaIdSchema)),
   payload: Schema.optional(OperationTaskPayloadSchema),
 });
 
@@ -1226,7 +1110,7 @@ export interface DownloadEvent {
   created_at: string;
 }
 
-export const DownloadEventMetadataSchema: Schema.Schema<DownloadEventMetadata> = Schema.Struct({
+export const DownloadEventMetadataSchema = Schema.Struct({
   covered_units: Schema.optional(Schema.mutable(Schema.Array(Schema.Number))),
   imported_path: Schema.optional(Schema.String),
   source_metadata: Schema.optional(Schema.suspend(() => DownloadSourceMetadataSchema)),
@@ -1253,8 +1137,8 @@ export interface DownloadEventsPage {
   limit: number;
   total: number;
   has_more: boolean;
-  next_cursor?: string | undefined;
-  prev_cursor?: string | undefined;
+  next_cursor?: string | null | undefined;
+  prev_cursor?: string | null | undefined;
 }
 
 export const DownloadEventsPageSchema = Schema.Struct({
@@ -1262,14 +1146,13 @@ export const DownloadEventsPageSchema = Schema.Struct({
   limit: Schema.Number,
   total: Schema.Number,
   has_more: Schema.Boolean,
-  next_cursor: Schema.optional(Schema.String),
-  prev_cursor: Schema.optional(Schema.String),
+  next_cursor: Schema.optional(Schema.NullishOr(Schema.String)),
+  prev_cursor: Schema.optional(Schema.NullishOr(Schema.String)),
 });
 
 export type DownloadEventsExportOrder = "asc" | "desc";
 
-export const DownloadEventsExportOrderSchema: Schema.Schema<DownloadEventsExportOrder> =
-  Schema.Literal("asc", "desc");
+export const DownloadEventsExportOrderSchema = Schema.Literals(["asc", "desc"]);
 
 export interface DownloadEventsExport {
   events: DownloadEvent[];
@@ -1309,7 +1192,7 @@ export const OpsDashboardSchema = Schema.Struct({
   running_jobs: Schema.Number,
   recent_download_events: Schema.mutable(Schema.Array(DownloadEventSchema)),
   jobs: Schema.mutable(Schema.Array(BackgroundJobStatusSchema)),
-}).pipe(Schema.mutable);
+});
 
 export interface BrowseEntry {
   name: string;
@@ -1318,7 +1201,7 @@ export interface BrowseEntry {
   size?: number | undefined;
 }
 
-export const BrowseEntrySchema: Schema.Schema<BrowseEntry> = Schema.Struct({
+export const BrowseEntrySchema = Schema.Struct({
   name: Schema.String,
   path: Schema.String,
   is_directory: Schema.Boolean,
@@ -1335,41 +1218,39 @@ export interface BrowseResult {
   has_more: boolean;
 }
 
-export const BrowseResultSchema: Schema.Schema<BrowseResult> = Schema.mutable(
-  Schema.Struct({
-    current_path: Schema.String,
-    parent_path: Schema.optional(Schema.String),
-    entries: Schema.mutable(Schema.Array(BrowseEntrySchema)),
-    total: Schema.Number,
-    limit: Schema.Number,
-    offset: Schema.Number,
-    has_more: Schema.Boolean,
-  }),
-);
+export const BrowseResultSchema = Schema.Struct({
+  current_path: Schema.String,
+  parent_path: Schema.optional(Schema.String),
+  entries: Schema.mutable(Schema.Array(BrowseEntrySchema)),
+  total: Schema.Number,
+  limit: Schema.Number,
+  offset: Schema.Number,
+  has_more: Schema.Boolean,
+}).mapFields(Struct.map(Schema.mutableKey));
 
 export interface MissingUnit {
   media_id: MediaId;
   media_title: string;
-  unit_kind?: MediaUnitKind | undefined;
+  unit_kind?: MediaUnitKind | null | undefined;
   unit_number: number;
-  unit_title?: string | undefined;
-  aired?: string | undefined;
-  airing_status?: UnitAiringStatus | undefined;
-  media_image?: string | undefined;
-  is_future?: boolean | undefined;
+  unit_title?: string | null | undefined;
+  aired?: string | null | undefined;
+  airing_status?: UnitAiringStatus | null | undefined;
+  media_image?: string | null | undefined;
+  is_future?: boolean | null | undefined;
   next_airing_unit?: NextAiringUnit | undefined;
 }
 
 export const MissingUnitSchema = Schema.Struct({
   media_id: MediaIdSchema,
   media_title: Schema.String,
-  unit_kind: Schema.optional(MediaUnitKindSchema),
+  unit_kind: Schema.optional(Schema.NullishOr(MediaUnitKindSchema)),
   unit_number: Schema.Number,
-  unit_title: Schema.optional(Schema.String),
-  aired: Schema.optional(Schema.String),
-  airing_status: Schema.optional(UnitAiringStatusSchema),
-  media_image: Schema.optional(Schema.String),
-  is_future: Schema.optional(Schema.Boolean),
+  unit_title: Schema.optional(Schema.NullishOr(Schema.String)),
+  aired: Schema.optional(Schema.NullishOr(Schema.String)),
+  airing_status: Schema.optional(Schema.NullishOr(UnitAiringStatusSchema)),
+  media_image: Schema.optional(Schema.NullishOr(Schema.String)),
+  is_future: Schema.optional(Schema.NullishOr(Schema.Boolean)),
   next_airing_unit: Schema.optional(NextAiringUnitSchema),
 });
 
@@ -1381,14 +1262,14 @@ export type NamingTitleSource =
   | "fallback_native"
   | "fallback_romaji";
 
-export const NamingTitleSourceSchema: Schema.Schema<NamingTitleSource> = Schema.Literal(
+export const NamingTitleSourceSchema = Schema.Literals([
   "preferred_english",
   "preferred_native",
   "preferred_romaji",
   "fallback_english",
   "fallback_native",
   "fallback_romaji",
-);
+]);
 
 export interface RenamePreviewMetadataSnapshot {
   title: string;
@@ -1406,22 +1287,21 @@ export interface RenamePreviewMetadataSnapshot {
   source_identity?: ParsedUnitIdentity | undefined;
 }
 
-export const RenamePreviewMetadataSnapshotSchema: Schema.Schema<RenamePreviewMetadataSnapshot> =
-  Schema.Struct({
-    title: Schema.String,
-    title_source: Schema.optional(NamingTitleSourceSchema),
-    season: Schema.optional(Schema.Number),
-    year: Schema.optional(Schema.Number),
-    unit_title: Schema.optional(Schema.String),
-    air_date: Schema.optional(Schema.String),
-    group: Schema.optional(Schema.String),
-    resolution: Schema.optional(Schema.String),
-    quality: Schema.optional(Schema.String),
-    video_codec: Schema.optional(Schema.String),
-    audio_codec: Schema.optional(Schema.String),
-    audio_channels: Schema.optional(Schema.String),
-    source_identity: Schema.optional(Schema.suspend(() => ParsedUnitIdentitySchema)),
-  });
+export const RenamePreviewMetadataSnapshotSchema = Schema.Struct({
+  title: Schema.String,
+  title_source: Schema.optional(NamingTitleSourceSchema),
+  season: Schema.optional(Schema.Number),
+  year: Schema.optional(Schema.Number),
+  unit_title: Schema.optional(Schema.String),
+  air_date: Schema.optional(Schema.String),
+  group: Schema.optional(Schema.String),
+  resolution: Schema.optional(Schema.String),
+  quality: Schema.optional(Schema.String),
+  video_codec: Schema.optional(Schema.String),
+  audio_codec: Schema.optional(Schema.String),
+  audio_channels: Schema.optional(Schema.String),
+  source_identity: Schema.optional(Schema.suspend(() => ParsedUnitIdentitySchema)),
+});
 
 export interface RenamePreviewItem {
   unit_number: number;
@@ -1436,7 +1316,7 @@ export interface RenamePreviewItem {
   metadata_snapshot?: RenamePreviewMetadataSnapshot | undefined;
 }
 
-export const RenamePreviewItemSchema: Schema.Schema<RenamePreviewItem> = Schema.Struct({
+export const RenamePreviewItemSchema = Schema.Struct({
   unit_number: Schema.Number,
   unit_numbers: Schema.optional(Schema.mutable(Schema.Array(Schema.Number))),
   current_path: Schema.String,
@@ -1455,13 +1335,11 @@ export interface RenameResult {
   failures: string[];
 }
 
-export const RenameResultSchema: Schema.Schema<RenameResult> = Schema.mutable(
-  Schema.Struct({
-    renamed: Schema.Number,
-    failed: Schema.Number,
-    failures: StringListSchema,
-  }),
-);
+export const RenameResultSchema = Schema.Struct({
+  renamed: Schema.Number,
+  failed: Schema.Number,
+  failures: StringListSchema,
+}).mapFields(Struct.map(Schema.mutableKey));
 
 export interface ParsedUnitIdentity {
   scheme: "season" | "absolute" | "daily";
@@ -1471,8 +1349,8 @@ export interface ParsedUnitIdentity {
   label: string;
 }
 
-export const ParsedUnitIdentitySchema: Schema.Schema<ParsedUnitIdentity> = Schema.Struct({
-  scheme: Schema.Literal("season", "absolute", "daily"),
+export const ParsedUnitIdentitySchema = Schema.Struct({
+  scheme: Schema.Literals(["season", "absolute", "daily"]),
   season: Schema.optional(Schema.Number),
   unit_numbers: Schema.optional(Schema.mutable(Schema.Array(Schema.Number))),
   air_dates: Schema.optional(Schema.mutable(Schema.Array(Schema.String))),
@@ -1481,11 +1359,7 @@ export const ParsedUnitIdentitySchema: Schema.Schema<ParsedUnitIdentity> = Schem
 
 export type DownloadSelectionKind = "manual" | "accept" | "upgrade";
 
-export const DownloadSelectionKindSchema: Schema.Schema<DownloadSelectionKind> = Schema.Literal(
-  "manual",
-  "accept",
-  "upgrade",
-);
+export const DownloadSelectionKindSchema = Schema.Literals(["manual", "accept", "upgrade"]);
 
 export interface DownloadSourceMetadata {
   parsed_title?: string | undefined;
@@ -1517,7 +1391,7 @@ export interface DownloadSourceMetadata {
   seadex_dual_audio?: boolean | undefined;
 }
 
-export const DownloadSourceMetadataSchema: Schema.Schema<DownloadSourceMetadata> = Schema.Struct({
+export const DownloadSourceMetadataSchema = Schema.Struct({
   parsed_title: Schema.optional(Schema.String),
   source_identity: Schema.optional(ParsedUnitIdentitySchema),
   decision_reason: Schema.optional(Schema.String),
@@ -1648,7 +1522,7 @@ export interface SkippedFile {
   reason: string;
 }
 
-export const SkippedFileSchema: Schema.Schema<SkippedFile> = Schema.Struct({
+export const SkippedFileSchema = Schema.Struct({
   path: Schema.String,
   reason: Schema.String,
 });
@@ -1661,15 +1535,13 @@ export interface ScanResult {
   total_scanned?: number | undefined;
 }
 
-export const ScanResultSchema = Schema.mutable(
-  Schema.Struct({
-    files: Schema.mutable(Schema.Array(ScannedFileSchema)),
-    skipped: Schema.mutable(Schema.Array(SkippedFileSchema)),
-    candidates: Schema.mutable(Schema.Array(Schema.suspend(() => MediaSearchResultSchema))),
-    truncated: Schema.optional(Schema.Boolean),
-    total_scanned: Schema.optional(Schema.Number),
-  }),
-);
+export const ScanResultSchema = Schema.Struct({
+  files: Schema.mutable(Schema.Array(ScannedFileSchema)),
+  skipped: Schema.mutable(Schema.Array(SkippedFileSchema)),
+  candidates: Schema.mutable(Schema.Array(Schema.suspend(() => MediaSearchResultSchema))),
+  truncated: Schema.optional(Schema.Boolean),
+  total_scanned: Schema.optional(Schema.Number),
+}).mapFields(Struct.map(Schema.mutableKey));
 
 export interface ImportedFile {
   source_path: string;
@@ -1702,7 +1574,7 @@ export interface FailedImport {
   error: string;
 }
 
-export const FailedImportSchema: Schema.Schema<FailedImport> = Schema.Struct({
+export const FailedImportSchema = Schema.Struct({
   source_path: Schema.String,
   error: Schema.String,
 });
@@ -1714,14 +1586,12 @@ export interface ImportResult {
   failed_files: FailedImport[];
 }
 
-export const ImportResultSchema = Schema.mutable(
-  Schema.Struct({
-    imported: Schema.Number,
-    failed: Schema.Number,
-    imported_files: Schema.mutable(Schema.Array(ImportedFileSchema)),
-    failed_files: Schema.mutable(Schema.Array(FailedImportSchema)),
-  }),
-);
+export const ImportResultSchema = Schema.Struct({
+  imported: Schema.Number,
+  failed: Schema.Number,
+  imported_files: Schema.mutable(Schema.Array(ImportedFileSchema)),
+  failed_files: Schema.mutable(Schema.Array(FailedImportSchema)),
+}).mapFields(Struct.map(Schema.mutableKey));
 
 export interface ImportFileSelection {
   media_id: MediaId;
@@ -1811,10 +1681,9 @@ export const DownloadActionUpgradeSchema = Schema.Struct({
   old_score: Schema.optional(Schema.Number),
 });
 
-export const DownloadActionRejectSchema: Schema.Schema<NonNullable<DownloadAction["Reject"]>> =
-  Schema.Struct({
-    reason: Schema.String,
-  });
+export const DownloadActionRejectSchema = Schema.Struct({
+  reason: Schema.String,
+});
 
 export const DownloadActionSchema = Schema.Struct({
   Accept: Schema.optional(DownloadActionAcceptSchema),
@@ -1904,7 +1773,7 @@ export interface NyaaSearchResult {
   remake: boolean;
 }
 
-export const NyaaSearchResultSchema: Schema.Schema<NyaaSearchResult> = Schema.Struct({
+export const NyaaSearchResultSchema = Schema.Struct({
   title: Schema.String,
   indexer: Schema.String,
   magnet: Schema.String,
@@ -2044,12 +1913,10 @@ export const DOWNLOAD_EVENT_TYPE_FILTER_OPTIONS = [
 
 export type DownloadEventTypeFilterOption = (typeof DOWNLOAD_EVENT_TYPE_FILTER_OPTIONS)[number];
 
-export const SearchResultsSchema: Schema.Schema<SearchResults> = Schema.mutable(
-  Schema.Struct({
-    results: Schema.mutable(Schema.Array(NyaaSearchResultSchema)),
-    seadex_groups: StringListSchema,
-  }),
-);
+export const SearchResultsSchema = Schema.Struct({
+  results: Schema.mutable(Schema.Array(NyaaSearchResultSchema)),
+  seadex_groups: StringListSchema,
+}).mapFields(Struct.map(Schema.mutableKey));
 
 export interface MediaSearchResult {
   id: MediaId;
@@ -2089,12 +1956,11 @@ export interface MediaSearchResult {
   already_in_library?: boolean | undefined;
 }
 
-export const MediaSearchResultTitleSchema: Schema.Schema<MediaSearchResult["title"]> =
-  Schema.Struct({
-    romaji: Schema.optional(Schema.String),
-    english: Schema.optional(Schema.String),
-    native: Schema.optional(Schema.String),
-  });
+export const MediaSearchResultTitleSchema = Schema.Struct({
+  romaji: Schema.optional(Schema.String),
+  english: Schema.optional(Schema.String),
+  native: Schema.optional(Schema.String),
+});
 
 export const MediaSearchResultSchema = Schema.Struct({
   id: MediaIdSchema,
@@ -2135,12 +2001,10 @@ export interface MediaSearchResponse {
   degraded: boolean;
 }
 
-export const MediaSearchResponseSchema = Schema.mutable(
-  Schema.Struct({
-    degraded: Schema.Boolean,
-    results: Schema.mutable(Schema.Array(MediaSearchResultSchema)),
-  }),
-);
+export const MediaSearchResponseSchema = Schema.Struct({
+  degraded: Schema.Boolean,
+  results: Schema.mutable(Schema.Array(MediaSearchResultSchema)),
+}).mapFields(Struct.map(Schema.mutableKey));
 
 export interface SeasonalMediaQueryParams {
   season?: MediaSeason | undefined;
@@ -2149,21 +2013,24 @@ export interface SeasonalMediaQueryParams {
   page?: number | undefined;
 }
 
-export const SeasonalMediaQueryParamsSchema: Schema.Schema<SeasonalMediaQueryParams> =
-  Schema.Struct({
-    season: Schema.optional(MediaSeasonSchema),
-    year: Schema.optional(Schema.Number.pipe(Schema.int(), Schema.between(1970, 2100))),
-    limit: Schema.optional(Schema.Number.pipe(Schema.int(), Schema.between(1, 50))),
-    page: Schema.optional(Schema.Number.pipe(Schema.int(), Schema.positive())),
-  });
+export const SeasonalMediaQueryParamsSchema = Schema.Struct({
+  season: Schema.optional(MediaSeasonSchema),
+  year: Schema.optional(
+    Schema.Number.pipe(
+      Schema.check(Schema.isInt(), Schema.isBetween({ minimum: 1970, maximum: 2100 })),
+    ),
+  ),
+  limit: Schema.optional(
+    Schema.Number.pipe(Schema.check(Schema.isInt(), Schema.isBetween({ minimum: 1, maximum: 50 }))),
+  ),
+  page: Schema.optional(Schema.Number.pipe(Schema.check(Schema.isInt(), Schema.isGreaterThan(0)))),
+});
 
 export const SEASONAL_ANIME_PROVIDER_VALUES = ["anilist", "jikan_fallback"] as const;
 
 export type SeasonalMediaProvider = (typeof SEASONAL_ANIME_PROVIDER_VALUES)[number];
 
-export const SeasonalMediaProviderSchema: Schema.Schema<SeasonalMediaProvider> = Schema.Literal(
-  ...SEASONAL_ANIME_PROVIDER_VALUES,
-);
+export const SeasonalMediaProviderSchema = Schema.Literals([...SEASONAL_ANIME_PROVIDER_VALUES]);
 
 export interface SeasonalMediaResponse {
   season: MediaSeason;
@@ -2210,18 +2077,18 @@ export function resolveSeasonWindowFromDate(now: Date = new Date()): MediaSeason
   };
 }
 
-export const SeasonalMediaResponseSchema = Schema.mutable(
-  Schema.Struct({
-    season: MediaSeasonSchema,
-    year: Schema.Number,
-    page: Schema.Number.pipe(Schema.int(), Schema.positive()),
-    limit: Schema.Number.pipe(Schema.int(), Schema.between(1, 50)),
-    has_more: Schema.Boolean,
-    provider: SeasonalMediaProviderSchema,
-    degraded: Schema.Boolean,
-    results: Schema.mutable(Schema.Array(MediaSearchResultSchema)),
-  }),
-);
+export const SeasonalMediaResponseSchema = Schema.Struct({
+  season: MediaSeasonSchema,
+  year: Schema.Number,
+  page: Schema.Number.pipe(Schema.check(Schema.isInt(), Schema.isGreaterThan(0))),
+  limit: Schema.Number.pipe(
+    Schema.check(Schema.isInt(), Schema.isBetween({ minimum: 1, maximum: 50 })),
+  ),
+  has_more: Schema.Boolean,
+  provider: SeasonalMediaProviderSchema,
+  degraded: Schema.Boolean,
+  results: Schema.mutable(Schema.Array(MediaSearchResultSchema)),
+}).mapFields(Struct.map(Schema.mutableKey));
 
 export const UNMAPPED_FOLDER_MATCH_STATUS_VALUES = [
   "pending",
@@ -2233,8 +2100,9 @@ export const UNMAPPED_FOLDER_MATCH_STATUS_VALUES = [
 
 export type UnmappedFolderMatchStatus = (typeof UNMAPPED_FOLDER_MATCH_STATUS_VALUES)[number];
 
-export const UnmappedFolderMatchStatusSchema: Schema.Schema<UnmappedFolderMatchStatus> =
-  Schema.Literal(...UNMAPPED_FOLDER_MATCH_STATUS_VALUES);
+export const UnmappedFolderMatchStatusSchema = Schema.Literals([
+  ...UNMAPPED_FOLDER_MATCH_STATUS_VALUES,
+]);
 
 export const MAX_UNMAPPED_FOLDER_MATCH_ATTEMPTS = 3;
 
@@ -2251,20 +2119,18 @@ export interface UnmappedFolder {
   suggested_matches: MediaSearchResult[];
 }
 
-export const UnmappedFolderSchema = Schema.mutable(
-  Schema.Struct({
-    match_attempts: Schema.optional(Schema.Number),
-    last_match_error: Schema.optional(Schema.String),
-    last_matched_at: Schema.optional(Schema.String),
-    match_status: Schema.optional(UnmappedFolderMatchStatusSchema),
-    media_kind: Schema.optional(MediaKindSchema),
-    name: Schema.String,
-    path: Schema.String,
-    search_queries: Schema.optional(Schema.mutable(Schema.Array(Schema.String))),
-    size: Schema.Number,
-    suggested_matches: Schema.mutable(Schema.Array(MediaSearchResultSchema)),
-  }),
-);
+export const UnmappedFolderSchema = Schema.Struct({
+  match_attempts: Schema.optional(Schema.Number),
+  last_match_error: Schema.optional(Schema.String),
+  last_matched_at: Schema.optional(Schema.String),
+  match_status: Schema.optional(UnmappedFolderMatchStatusSchema),
+  media_kind: Schema.optional(MediaKindSchema),
+  name: Schema.String,
+  path: Schema.String,
+  search_queries: Schema.optional(Schema.mutable(Schema.Array(Schema.String))),
+  size: Schema.Number,
+  suggested_matches: Schema.mutable(Schema.Array(MediaSearchResultSchema)),
+}).mapFields(Struct.map(Schema.mutableKey));
 
 export interface ScannerState {
   has_outstanding_matches: boolean;
@@ -2277,14 +2143,14 @@ export interface ScannerState {
 
 export type ScannerMatchStatus = "running" | "retrying" | "queued" | "paused" | "failed" | "idle";
 
-export const ScannerMatchStatusSchema: Schema.Schema<ScannerMatchStatus> = Schema.Literal(
+export const ScannerMatchStatusSchema = Schema.Literals([
   "running",
   "retrying",
   "queued",
   "paused",
   "failed",
   "idle",
-);
+]);
 
 export interface ScannerMatchCounts {
   exact: number;
@@ -2295,7 +2161,7 @@ export interface ScannerMatchCounts {
   paused: number;
 }
 
-export const ScannerMatchCountsSchema: Schema.Schema<ScannerMatchCounts> = Schema.Struct({
+export const ScannerMatchCountsSchema = Schema.Struct({
   exact: Schema.Number,
   queued: Schema.Number,
   matching: Schema.Number,
@@ -2304,16 +2170,14 @@ export const ScannerMatchCountsSchema: Schema.Schema<ScannerMatchCounts> = Schem
   paused: Schema.Number,
 });
 
-export const ScannerStateSchema = Schema.mutable(
-  Schema.Struct({
-    has_outstanding_matches: Schema.Boolean,
-    is_scanning: Schema.Boolean,
-    folders: Schema.mutable(Schema.Array(UnmappedFolderSchema)),
-    last_updated: Schema.optional(Schema.String),
-    match_status: ScannerMatchStatusSchema,
-    match_counts: ScannerMatchCountsSchema,
-  }),
-);
+export const ScannerStateSchema = Schema.Struct({
+  has_outstanding_matches: Schema.Boolean,
+  is_scanning: Schema.Boolean,
+  folders: Schema.mutable(Schema.Array(UnmappedFolderSchema)),
+  last_updated: Schema.optional(Schema.String),
+  match_status: ScannerMatchStatusSchema,
+  match_counts: ScannerMatchCountsSchema,
+}).mapFields(Struct.map(Schema.mutableKey));
 
 export interface DownloadStatus {
   media_id?: MediaId | undefined;
@@ -2429,160 +2293,157 @@ export type NotificationEvent =
   | { type: "DownloadProgress"; payload: { downloads: DownloadStatus[] } }
   | { type: "SystemStatus"; payload: SystemStatus };
 
-export const NotificationEventSchema = Schema.mutable(
-  Schema.Union(
-    Schema.Struct({ type: Schema.Literal("ScanStarted") }),
-    Schema.Struct({ type: Schema.Literal("ScanFinished") }),
-    Schema.Struct({
-      type: Schema.Literal("ScanProgress"),
-      payload: Schema.Struct({
-        current: Schema.Number,
-        total: Schema.Number,
-      }),
+export const NotificationEventSchema = Schema.Union([
+  Schema.Struct({ type: Schema.Literal("ScanStarted") }),
+  Schema.Struct({ type: Schema.Literal("ScanFinished") }),
+  Schema.Struct({
+    type: Schema.Literal("ScanProgress"),
+    payload: Schema.Struct({
+      current: Schema.Number,
+      total: Schema.Number,
     }),
-    Schema.Struct({
-      type: Schema.Literal("DownloadStarted"),
-      payload: Schema.Struct({
-        title: Schema.String,
-        media_id: Schema.optional(MediaIdSchema),
-        source_metadata: Schema.optional(Schema.suspend(() => DownloadSourceMetadataSchema)),
-      }),
+  }),
+  Schema.Struct({
+    type: Schema.Literal("DownloadStarted"),
+    payload: Schema.Struct({
+      title: Schema.String,
+      media_id: Schema.optional(MediaIdSchema),
+      source_metadata: Schema.optional(Schema.suspend(() => DownloadSourceMetadataSchema)),
     }),
-    Schema.Struct({
-      type: Schema.Literal("DownloadFinished"),
-      payload: Schema.Struct({
-        title: Schema.String,
-        media_id: Schema.optional(MediaIdSchema),
-        imported_path: Schema.optional(Schema.String),
-        source_metadata: Schema.optional(Schema.suspend(() => DownloadSourceMetadataSchema)),
-      }),
+  }),
+  Schema.Struct({
+    type: Schema.Literal("DownloadFinished"),
+    payload: Schema.Struct({
+      title: Schema.String,
+      media_id: Schema.optional(MediaIdSchema),
+      imported_path: Schema.optional(Schema.String),
+      source_metadata: Schema.optional(Schema.suspend(() => DownloadSourceMetadataSchema)),
     }),
-    Schema.Struct({
-      type: Schema.Literal("RefreshStarted"),
-      payload: Schema.Struct({
-        media_id: MediaIdSchema,
-        title: Schema.String,
-      }),
+  }),
+  Schema.Struct({
+    type: Schema.Literal("RefreshStarted"),
+    payload: Schema.Struct({
+      media_id: MediaIdSchema,
+      title: Schema.String,
     }),
-    Schema.Struct({
-      type: Schema.Literal("RefreshFinished"),
-      payload: Schema.Struct({
-        media_id: MediaIdSchema,
-        title: Schema.String,
-      }),
+  }),
+  Schema.Struct({
+    type: Schema.Literal("RefreshFinished"),
+    payload: Schema.Struct({
+      media_id: MediaIdSchema,
+      title: Schema.String,
     }),
-    Schema.Struct({
-      type: Schema.Literal("SearchMissingStarted"),
-      payload: Schema.Struct({
-        media_id: Schema.optional(MediaIdSchema),
-        title: Schema.String,
-      }),
+  }),
+  Schema.Struct({
+    type: Schema.Literal("SearchMissingStarted"),
+    payload: Schema.Struct({
+      media_id: Schema.optional(MediaIdSchema),
+      title: Schema.String,
     }),
-    Schema.Struct({
-      type: Schema.Literal("SearchMissingFinished"),
-      payload: Schema.Struct({
-        media_id: Schema.optional(MediaIdSchema),
-        title: Schema.String,
-        count: Schema.Number,
-      }),
+  }),
+  Schema.Struct({
+    type: Schema.Literal("SearchMissingFinished"),
+    payload: Schema.Struct({
+      media_id: Schema.optional(MediaIdSchema),
+      title: Schema.String,
+      count: Schema.Number,
     }),
-    Schema.Struct({
-      type: Schema.Literal("ScanFolderStarted"),
-      payload: Schema.Struct({
-        media_id: MediaIdSchema,
-        title: Schema.String,
-      }),
+  }),
+  Schema.Struct({
+    type: Schema.Literal("ScanFolderStarted"),
+    payload: Schema.Struct({
+      media_id: MediaIdSchema,
+      title: Schema.String,
     }),
-    Schema.Struct({
-      type: Schema.Literal("ScanFolderFinished"),
-      payload: Schema.Struct({
-        media_id: MediaIdSchema,
-        title: Schema.String,
-        found: Schema.Number,
-      }),
+  }),
+  Schema.Struct({
+    type: Schema.Literal("ScanFolderFinished"),
+    payload: Schema.Struct({
+      media_id: MediaIdSchema,
+      title: Schema.String,
+      found: Schema.Number,
     }),
-    Schema.Struct({
-      type: Schema.Literal("RenameStarted"),
-      payload: Schema.Struct({
-        media_id: MediaIdSchema,
-        title: Schema.String,
-      }),
+  }),
+  Schema.Struct({
+    type: Schema.Literal("RenameStarted"),
+    payload: Schema.Struct({
+      media_id: MediaIdSchema,
+      title: Schema.String,
     }),
-    Schema.Struct({
-      type: Schema.Literal("RenameFinished"),
-      payload: Schema.Struct({
-        media_id: MediaIdSchema,
-        title: Schema.String,
-        count: Schema.Number,
-      }),
+  }),
+  Schema.Struct({
+    type: Schema.Literal("RenameFinished"),
+    payload: Schema.Struct({
+      media_id: MediaIdSchema,
+      title: Schema.String,
+      count: Schema.Number,
     }),
-    Schema.Struct({
-      type: Schema.Literal("ImportStarted"),
-      payload: Schema.Struct({ count: Schema.Number }),
+  }),
+  Schema.Struct({
+    type: Schema.Literal("ImportStarted"),
+    payload: Schema.Struct({ count: Schema.Number }),
+  }),
+  Schema.Struct({
+    type: Schema.Literal("ImportFinished"),
+    payload: Schema.Struct({
+      count: Schema.Number,
+      imported: Schema.Number,
+      failed: Schema.Number,
     }),
-    Schema.Struct({
-      type: Schema.Literal("ImportFinished"),
-      payload: Schema.Struct({
-        count: Schema.Number,
-        imported: Schema.Number,
-        failed: Schema.Number,
-      }),
+  }),
+  Schema.Struct({ type: Schema.Literal("LibraryScanStarted") }),
+  Schema.Struct({
+    type: Schema.Literal("LibraryScanFinished"),
+    payload: Schema.Struct({
+      scanned: Schema.Number,
+      matched: Schema.Number,
+      updated: Schema.optional(Schema.Number),
     }),
-    Schema.Struct({ type: Schema.Literal("LibraryScanStarted") }),
-    Schema.Struct({
-      type: Schema.Literal("LibraryScanFinished"),
-      payload: Schema.Struct({
-        scanned: Schema.Number,
-        matched: Schema.Number,
-        updated: Schema.optional(Schema.Number),
-      }),
+  }),
+  Schema.Struct({
+    type: Schema.Literal("LibraryScanProgress"),
+    payload: Schema.Struct({ scanned: Schema.Number }),
+  }),
+  Schema.Struct({ type: Schema.Literal("RssCheckStarted") }),
+  Schema.Struct({
+    type: Schema.Literal("RssCheckFinished"),
+    payload: Schema.Struct({
+      total_feeds: Schema.optional(Schema.Number),
+      new_items: Schema.Number,
     }),
-    Schema.Struct({
-      type: Schema.Literal("LibraryScanProgress"),
-      payload: Schema.Struct({ scanned: Schema.Number }),
+  }),
+  Schema.Struct({
+    type: Schema.Literal("RssCheckProgress"),
+    payload: Schema.Struct({
+      current: Schema.Number,
+      total: Schema.Number,
+      feed_name: Schema.String,
     }),
-    Schema.Struct({ type: Schema.Literal("RssCheckStarted") }),
-    Schema.Struct({
-      type: Schema.Literal("RssCheckFinished"),
-      payload: Schema.Struct({
-        total_feeds: Schema.optional(Schema.Number),
-        new_items: Schema.Number,
-      }),
+  }),
+  Schema.Struct({ type: Schema.Literal("PasswordChanged") }),
+  Schema.Struct({ type: Schema.Literal("ApiKeyRegenerated") }),
+  Schema.Struct({
+    type: Schema.Literal("Error"),
+    payload: Schema.Struct({ message: Schema.String }),
+  }),
+  Schema.Struct({
+    type: Schema.Literal("Info"),
+    payload: Schema.Struct({ message: Schema.String }),
+  }),
+  Schema.Struct({
+    type: Schema.Literal("DownloadProgress"),
+    payload: Schema.Struct({
+      downloads: Schema.mutable(Schema.Array(DownloadStatusSchema)),
     }),
-    Schema.Struct({
-      type: Schema.Literal("RssCheckProgress"),
-      payload: Schema.Struct({
-        current: Schema.Number,
-        total: Schema.Number,
-        feed_name: Schema.String,
-      }),
-    }),
-    Schema.Struct({ type: Schema.Literal("PasswordChanged") }),
-    Schema.Struct({ type: Schema.Literal("ApiKeyRegenerated") }),
-    Schema.Struct({
-      type: Schema.Literal("Error"),
-      payload: Schema.Struct({ message: Schema.String }),
-    }),
-    Schema.Struct({
-      type: Schema.Literal("Info"),
-      payload: Schema.Struct({ message: Schema.String }),
-    }),
-    Schema.Struct({
-      type: Schema.Literal("DownloadProgress"),
-      payload: Schema.Struct({
-        downloads: Schema.mutable(Schema.Array(DownloadStatusSchema)),
-      }),
-    }),
-    Schema.Struct({
-      type: Schema.Literal("SystemStatus"),
-      payload: SystemStatusSchema,
-    }),
-  ),
-);
+  }),
+  Schema.Struct({
+    type: Schema.Literal("SystemStatus"),
+    payload: SystemStatusSchema,
+  }),
+]);
 
-export const NotificationEventWireSchema: Schema.Schema<NotificationEvent, string> =
-  Schema.parseJson(NotificationEventSchema);
+export const NotificationEventWireSchema = Schema.fromJsonString(NotificationEventSchema);
 
-export const decodeNotificationEventWire = Schema.decodeUnknownEither(NotificationEventWireSchema);
+export const decodeNotificationEventWire = Schema.decodeUnknownResult(NotificationEventWireSchema);
 
-export const encodeNotificationEventWire = Schema.encode(NotificationEventWireSchema);
+export const encodeNotificationEventWire = Schema.encodeEffect(NotificationEventWireSchema);

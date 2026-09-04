@@ -1,7 +1,7 @@
-import { Effect } from "effect";
 import type { MediaKind } from "@packages/shared/index.ts";
 
 import { StoredDataError } from "@/features/errors.ts";
+import { Effect } from "effect";
 
 const MEDIA_KINDS: readonly MediaKind[] = ["anime", "manga", "light_novel"];
 

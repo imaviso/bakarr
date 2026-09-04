@@ -1,4 +1,4 @@
-import { Effect, Either, Option, Schema } from "effect";
+import { Context, Effect, Layer, Option, Result, Schema } from "effect";
 
 import type { Config, SearchResults } from "@packages/shared/index.ts";
 import { DatabaseError } from "@/db/database.ts";
@@ -48,7 +48,7 @@ type SearchNyaaReleases = (
 ) => Effect.Effect<readonly ParsedRelease[], SearchReleaseSourceError>;
 type UnitSearchCategory = string | undefined;
 
-const AnimeSynonymsJsonSchema = Schema.parseJson(Schema.Array(Schema.String));
+const AnimeSynonymsJsonSchema = Schema.fromJsonString(Schema.Array(Schema.String));
 
 export interface SearchReleaseServiceShape {
   readonly enrichSeaDexReleases: (
@@ -76,7 +76,7 @@ function buildNyaaSearchUrl(query: string, category: string, filter: string) {
 }
 
 function buildUnitSearchQueries(animeRow: typeof media.$inferSelect, unitNumber: number) {
-  const paddedEpisode = String(unitNumber).padStart(2, "0");
+  const paddedEpisode = globalThis.String(unitNumber).padStart(2, "0");
   const seasonEpisode = `S01E${paddedEpisode}`;
   const aliases = buildAnimeSearchAliases(animeRow);
 
@@ -90,7 +90,7 @@ function buildUnitSearchQueries(animeRow: typeof media.$inferSelect, unitNumber:
 }
 
 function buildVolumeSearchQueries(animeRow: typeof media.$inferSelect, volumeNumber: number) {
-  const paddedVolume = String(volumeNumber).padStart(2, "0");
+  const paddedVolume = globalThis.String(volumeNumber).padStart(2, "0");
   const aliases = buildAnimeSearchAliases(animeRow);
 
   return uniqueStrings(
@@ -142,8 +142,8 @@ function decodeAnimeSynonyms(value: string | null) {
     return [];
   }
 
-  const result = Schema.decodeUnknownEither(AnimeSynonymsJsonSchema)(value);
-  return Either.isRight(result) ? result.right.filter((entry) => entry.trim().length > 0) : [];
+  const result = Schema.decodeUnknownResult(AnimeSynonymsJsonSchema)(value);
+  return Result.isSuccess(result) ? result.success.filter((entry) => entry.trim().length > 0) : [];
 }
 
 function normalizeSearchAlias(value: string) {
@@ -332,10 +332,13 @@ function resolveSearchCategoryForMediaKind(
   return mapSearchCategoryForMediaKind(category, config.nyaa.default_category || "1_2", mediaKind);
 }
 
-export class SearchReleaseService extends Effect.Service<SearchReleaseService>()(
-  "@bakarr/api/SearchReleaseService",
-  {
-    effect: Effect.gen(function* () {
+export class SearchReleaseService extends Context.Service<
+  SearchReleaseService,
+  SearchReleaseServiceShape
+>()("@bakarr/api/SearchReleaseService") {
+  static readonly layer = Layer.effect(
+    SearchReleaseService,
+    Effect.gen(function* () {
       const rssClient = yield* RssClient;
       const seadexClient = yield* SeaDexClient;
       const mediaRepository = yield* MediaRepository;
@@ -453,7 +456,7 @@ export class SearchReleaseService extends Effect.Service<SearchReleaseService>()
               enrichedResults
                 .filter((item) => item.isSeaDex)
                 .map((item) => item.seaDexReleaseGroup ?? item.group)
-                .filter((value): value is string => Boolean(value)),
+                .filter((value): value is string => globalThis.Boolean(value)),
             ),
           ],
         } satisfies SearchResults;
@@ -466,8 +469,7 @@ export class SearchReleaseService extends Effect.Service<SearchReleaseService>()
         searchReleases,
       } satisfies SearchReleaseServiceShape;
     }),
-    dependencies: [MediaRepository.Default],
-  },
-) {}
+  );
+}
 
-export const SearchReleaseServiceLive = SearchReleaseService.Default;
+export const SearchReleaseServiceLive = SearchReleaseService.layer;

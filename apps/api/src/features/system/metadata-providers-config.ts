@@ -1,7 +1,6 @@
-import { Effect } from "effect";
-
 import type { Config } from "@packages/shared/index.ts";
 import { ConfigValidationError } from "@/features/system/errors.ts";
+import { Effect } from "effect";
 
 export const DEFAULT_ANIDB_METADATA_CONFIG: AniDbMetadataConfig = {
   client: "bakarr",
@@ -30,14 +29,14 @@ export const normalizeMetadataProvidersConfig = Effect.fn(
     });
   }
 
-  if (!Number.isInteger(normalized.client_version) || normalized.client_version <= 0) {
+  if (!globalThis.Number.isInteger(normalized.client_version) || normalized.client_version <= 0) {
     return yield* new ConfigValidationError({
       message: "AniDB client version must be a positive integer",
     });
   }
 
   if (
-    !Number.isInteger(normalized.local_port) ||
+    !globalThis.Number.isInteger(normalized.local_port) ||
     normalized.local_port <= 1024 ||
     normalized.local_port > 65535
   ) {
@@ -46,7 +45,7 @@ export const normalizeMetadataProvidersConfig = Effect.fn(
     });
   }
 
-  if (!Number.isInteger(normalized.episode_limit) || normalized.episode_limit <= 0) {
+  if (!globalThis.Number.isInteger(normalized.episode_limit) || normalized.episode_limit <= 0) {
     return yield* new ConfigValidationError({
       message: "AniDB episode limit must be a positive integer",
     });

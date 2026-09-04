@@ -1,5 +1,15 @@
-import { Cause, DateTime, Duration, Effect, HashSet, Option, Queue, Ref } from "effect";
-
+import {
+  Cause,
+  Context,
+  DateTime,
+  Duration,
+  Effect,
+  HashSet,
+  Layer,
+  Option,
+  Queue,
+  Ref,
+} from "effect";
 import type { DatabaseError } from "@/db/database.ts";
 import { AniDbClient } from "@/features/media/metadata/anidb.ts";
 import { AniDbUnitCacheRepository } from "@/features/media/units/anidb-unit-cache-repository.ts";
@@ -90,7 +100,7 @@ const makeMediaMetadataEnrichmentService = Effect.fn("MediaMetadataEnrichmentSer
     yield* Queue.take(queue).pipe(
       Effect.flatMap((request) =>
         runAniDbRefresh(request).pipe(
-          Effect.catchAllCause((cause) =>
+          Effect.catchCause((cause) =>
             Effect.logWarning("AniDB background refresh failed").pipe(
               Effect.annotateLogs({
                 mediaId: request.mediaId,
@@ -121,10 +131,10 @@ const makeMediaMetadataEnrichmentService = Effect.fn("MediaMetadataEnrichmentSer
 
         const cacheEntry = cacheEntryOption.value;
         const now = yield* DateTime.now;
-        const updatedAt = DateTime.unsafeFromDate(new Date(cacheEntry.updatedAt));
-        const staleFor = DateTime.distanceDuration(now, updatedAt);
+        const updatedAt = DateTime.makeUnsafe(new Date(cacheEntry.updatedAt));
+        const staleFor = DateTime.distance(now, updatedAt);
 
-        if (Duration.greaterThan(staleFor, ANIDB_CACHE_STALE_AFTER)) {
+        if (Duration.isGreaterThan(staleFor, ANIDB_CACHE_STALE_AFTER)) {
           return {
             _tag: "Stale",
             updatedAt: cacheEntry.updatedAt,
@@ -182,16 +192,14 @@ const makeMediaMetadataEnrichmentService = Effect.fn("MediaMetadataEnrichmentSer
   },
 );
 
-export class MediaMetadataEnrichmentService extends Effect.Service<MediaMetadataEnrichmentService>()(
-  "@bakarr/api/MediaMetadataEnrichmentService",
-  {
-    scoped: makeMediaMetadataEnrichmentService(),
-    dependencies: [
-      AniDbUnitCacheRepository.Default,
-      MediaRepository.Default,
-      MediaUnitRepository.Default,
-    ],
-  },
-) {}
+export class MediaMetadataEnrichmentService extends Context.Service<
+  MediaMetadataEnrichmentService,
+  MediaMetadataEnrichmentServiceShape
+>()("@bakarr/api/MediaMetadataEnrichmentService") {
+  static readonly layer = Layer.effect(
+    MediaMetadataEnrichmentService,
+    makeMediaMetadataEnrichmentService(),
+  );
+}
 
-export const MediaMetadataEnrichmentServiceLive = MediaMetadataEnrichmentService.Default;
+export const MediaMetadataEnrichmentServiceLive = MediaMetadataEnrichmentService.layer;

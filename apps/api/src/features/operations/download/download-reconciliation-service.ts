@@ -1,5 +1,4 @@
-import { Cause, Effect, Option, Ref } from "effect";
-
+import { Cause, Context, Effect, Layer, Option, Ref } from "effect";
 import type { Config } from "@packages/shared/index.ts";
 import { EventBus } from "@/infra/effect/event-bus.ts";
 import { nowIso as currentNowIso } from "@/infra/time.ts";
@@ -45,18 +44,13 @@ export interface DownloadReconciliationServiceShape {
   readonly reconcileDownloadByIdEffect: (id: number) => Effect.Effect<void, ReconcileByIdError>;
 }
 
-export class DownloadReconciliationService extends Effect.Service<DownloadReconciliationService>()(
-  "@bakarr/api/DownloadReconciliationService",
-  {
-    // Platform/FS/torrent/progress provided by ops feature layer; list pure leaves only.
-    dependencies: [
-      DownloadRepository.Default,
-      EventBus.Default,
-      MediaRepository.Default,
-      MediaUnitRepository.Default,
-      RandomService.Default,
-    ],
-    effect: Effect.gen(function* () {
+export class DownloadReconciliationService extends Context.Service<
+  DownloadReconciliationService,
+  DownloadReconciliationServiceShape
+>()("@bakarr/api/DownloadReconciliationService") {
+  static readonly layer = Layer.effect(
+    DownloadReconciliationService,
+    Effect.gen(function* () {
       const repo = yield* DownloadRepository;
       const eventBus = yield* EventBus;
       const fs = yield* FileSystem;
@@ -93,7 +87,7 @@ export class DownloadReconciliationService extends Effect.Service<DownloadReconc
                 ? Effect.logDebug("Skipped torrent client cleanup because it is disabled")
                 : Effect.void,
             ),
-            Effect.catchAllCause((cause) =>
+            Effect.catchCause((cause) =>
               Effect.logWarning("Failed to delete imported torrent").pipe(
                 Effect.annotateLogs({
                   infoHash,
@@ -136,13 +130,13 @@ export class DownloadReconciliationService extends Effect.Service<DownloadReconc
         // stale claim until restart. Losing the claim race removes the mark
         // inline; a won claim stays (the import block below owns its release).
         const claimed = yield* Ref.update(liveClaimIds, (ids) => new Set(ids).add(row.id)).pipe(
-          Effect.zipRight(repo.claimDownloadReconciliation(row.id, claimToken)),
+          Effect.andThen(repo.claimDownloadReconciliation(row.id, claimToken)),
           Effect.onExit((exit) =>
-            exit._tag === "Failure" ? unmarkLiveSet.pipe(Effect.ignoreLogged) : Effect.void,
+            exit._tag === "Failure" ? unmarkLiveSet.pipe(Effect.ignore) : Effect.void,
           ),
         );
         if (!claimed) {
-          yield* unmarkLiveSet.pipe(Effect.ignoreLogged);
+          yield* unmarkLiveSet.pipe(Effect.ignore);
           return;
         }
 
@@ -178,10 +172,10 @@ export class DownloadReconciliationService extends Effect.Service<DownloadReconc
         }).pipe(
           Effect.onExit(() =>
             unmarkLiveSet.pipe(
-              Effect.zipRight(
+              Effect.andThen(
                 repo.releaseDownloadReconciliationClaim({ downloadId: row.id, claimToken }),
               ),
-              Effect.ignoreLogged,
+              Effect.ignore,
             ),
           ),
         );
@@ -220,7 +214,7 @@ export class DownloadReconciliationService extends Effect.Service<DownloadReconc
         reconcileDownloadByIdEffect,
       } satisfies DownloadReconciliationServiceShape;
     }),
-  },
-) {}
+  );
+}
 
-export const DownloadReconciliationServiceLive = DownloadReconciliationService.Default;
+export const DownloadReconciliationServiceLive = DownloadReconciliationService.layer;

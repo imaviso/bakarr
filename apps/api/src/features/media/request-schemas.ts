@@ -1,4 +1,4 @@
-import { Schema } from "effect";
+import { Schema, SchemaTransformation } from "effect";
 
 import {
   MediaIdFromStringSchema,
@@ -18,9 +18,9 @@ export { AddMediaInput as AddMediaInputSchema } from "@/features/media/add/add-m
 
 const ReleaseProfileIdArraySchema = Schema.Array(ReleaseProfileIdSchema);
 
-const ProfileNameStringSchema = Schema.String.pipe(Schema.minLength(1));
-const MediaSearchQueryStringSchema = Schema.String.pipe(Schema.minLength(1));
-const StreamSignatureStringSchema = Schema.String.pipe(Schema.minLength(1));
+const ProfileNameStringSchema = Schema.String.pipe(Schema.check(Schema.isMinLength(1)));
+const MediaSearchQueryStringSchema = Schema.String.pipe(Schema.check(Schema.isMinLength(1)));
+const StreamSignatureStringSchema = Schema.String.pipe(Schema.check(Schema.isMinLength(1)));
 
 export class MonitoredBodySchema extends Schema.Class<MonitoredBodySchema>("MonitoredBodySchema")({
   monitored: Schema.Boolean,
@@ -64,12 +64,24 @@ export class SearchMediaQuerySchema extends Schema.Class<SearchMediaQuerySchema>
   q: Schema.optional(MediaSearchQueryStringSchema),
 }) {}
 
+const BooleanFromStringParamSchema = Schema.Literals(["true", "false"]).pipe(
+  Schema.decodeTo(
+    Schema.Boolean,
+    SchemaTransformation.transform({
+      decode: (value) => value === "true",
+      encode: (value) => (value ? "true" : "false"),
+    }),
+  ),
+);
+
 export class ListMediaQuerySchema extends Schema.Class<ListMediaQuerySchema>(
   "ListMediaQuerySchema",
 )({
-  limit: Schema.optional(PositiveIntFromStringSchema.pipe(Schema.lessThanOrEqualTo(500))),
+  limit: Schema.optional(
+    PositiveIntFromStringSchema.pipe(Schema.check(Schema.isLessThanOrEqualTo(500))),
+  ),
   offset: Schema.optional(NonNegativeIntFromStringSchema),
-  monitored: Schema.optional(Schema.BooleanFromString),
+  monitored: Schema.optional(BooleanFromStringParamSchema),
 }) {}
 
 export class MediaUnitParamsSchema extends Schema.Class<MediaUnitParamsSchema>(
@@ -88,12 +100,12 @@ export class MediaUnitPageParamsSchema extends Schema.Class<MediaUnitPageParamsS
 }) {}
 
 class StreamQuerySchema extends Schema.Class<StreamQuerySchema>("StreamQuerySchema")({
-  exp: Schema.NumberFromString.pipe(Schema.int(), Schema.positive()),
+  exp: Schema.NumberFromString.pipe(Schema.check(Schema.isInt(), Schema.isGreaterThan(0))),
   sig: StreamSignatureStringSchema,
 }) {}
 
 class StreamUrlQuerySchema extends Schema.Class<StreamUrlQuerySchema>("StreamUrlQuerySchema")({
-  unitNumber: Schema.NumberFromString.pipe(Schema.int(), Schema.positive()),
+  unitNumber: Schema.NumberFromString.pipe(Schema.check(Schema.isInt(), Schema.isGreaterThan(0))),
 }) {}
 
 export { StreamQuerySchema, StreamUrlQuerySchema };
@@ -102,9 +114,19 @@ export class SeasonalMediaQuerySchema extends Schema.Class<SeasonalMediaQuerySch
   "SeasonalMediaQuerySchema",
 )({
   season: Schema.optional(MediaSeasonSchema),
-  year: Schema.optional(Schema.NumberFromString.pipe(Schema.int(), Schema.between(1970, 2100))),
-  limit: Schema.optional(Schema.NumberFromString.pipe(Schema.int(), Schema.between(1, 50))),
-  page: Schema.optional(Schema.NumberFromString.pipe(Schema.int(), Schema.positive())),
+  year: Schema.optional(
+    Schema.NumberFromString.pipe(
+      Schema.check(Schema.isInt(), Schema.isBetween({ minimum: 1970, maximum: 2100 })),
+    ),
+  ),
+  limit: Schema.optional(
+    Schema.NumberFromString.pipe(
+      Schema.check(Schema.isInt(), Schema.isBetween({ minimum: 1, maximum: 50 })),
+    ),
+  ),
+  page: Schema.optional(
+    Schema.NumberFromString.pipe(Schema.check(Schema.isInt(), Schema.isGreaterThan(0))),
+  ),
 }) {}
 
 export class OperationsTaskIdParamsSchema extends Schema.Class<OperationsTaskIdParamsSchema>(
@@ -125,6 +147,10 @@ export class OperationsTaskQuerySchema extends Schema.Class<OperationsTaskQueryS
 )({
   media_id: Schema.optional(PositiveIntFromStringSchema),
   task_key: Schema.optional(OperationTaskKeySchema),
-  limit: Schema.optional(Schema.NumberFromString.pipe(Schema.int(), Schema.between(1, 500))),
+  limit: Schema.optional(
+    Schema.NumberFromString.pipe(
+      Schema.check(Schema.isInt(), Schema.isBetween({ minimum: 1, maximum: 500 })),
+    ),
+  ),
   offset: Schema.optional(NonNegativeIntFromStringSchema),
 }) {}

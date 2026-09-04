@@ -10,8 +10,11 @@ it("clampInferredEpisodeUpperBound returns undefined for non-positive-integer", 
   assert.deepStrictEqual(clampInferredEpisodeUpperBound(0), undefined);
   assert.deepStrictEqual(clampInferredEpisodeUpperBound(-1), undefined);
   assert.deepStrictEqual(clampInferredEpisodeUpperBound(1.5), undefined);
-  assert.deepStrictEqual(clampInferredEpisodeUpperBound(Number.NaN), undefined);
-  assert.deepStrictEqual(clampInferredEpisodeUpperBound(Number.POSITIVE_INFINITY), undefined);
+  assert.deepStrictEqual(clampInferredEpisodeUpperBound(globalThis.Number.NaN), undefined);
+  assert.deepStrictEqual(
+    clampInferredEpisodeUpperBound(globalThis.Number.POSITIVE_INFINITY),
+    undefined,
+  );
 });
 
 it("clampInferredEpisodeUpperBound passes values within bound", () => {

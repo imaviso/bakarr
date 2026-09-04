@@ -1,37 +1,38 @@
-import { Effect, Either, Option } from "effect";
-
 import type { DownloadAction, UnitSearchResult, QualityProfile } from "@packages/shared/index.ts";
 
 export { decideDownloadAction } from "@/features/operations/search/release-ranking-action.ts";
 import { DomainInputError } from "@/features/errors.ts";
 import { parseSizeLabelToBytes } from "@/features/operations/search/release-ranking-size.ts";
+import { Effect, Option, Result } from "effect";
 
 export const validateQualityProfileSizeLabels = Effect.fn(
   "Operations.validateQualityProfileSizeLabels",
 )(function* (profile: QualityProfile) {
   const minSizeBytesResult = parseSizeLabelToBytes(profile.min_size);
 
-  if (Either.isLeft(minSizeBytesResult)) {
-    return yield* minSizeBytesResult.left;
+  if (Result.isFailure(minSizeBytesResult)) {
+    return yield* Effect.fail(minSizeBytesResult.failure);
   }
 
   const maxSizeBytesResult = parseSizeLabelToBytes(profile.max_size);
 
-  if (Either.isLeft(maxSizeBytesResult)) {
-    return yield* maxSizeBytesResult.left;
+  if (Result.isFailure(maxSizeBytesResult)) {
+    return yield* Effect.fail(maxSizeBytesResult.failure);
   }
 
-  const minSizeOption = minSizeBytesResult.right;
-  const maxSizeOption = maxSizeBytesResult.right;
+  const minSizeOption = minSizeBytesResult.success;
+  const maxSizeOption = maxSizeBytesResult.success;
 
   if (
     Option.isSome(minSizeOption) &&
     Option.isSome(maxSizeOption) &&
     minSizeOption.value > maxSizeOption.value
   ) {
-    return yield* new DomainInputError({
-      message: "Quality profile min_size cannot exceed max_size",
-    });
+    return yield* Effect.fail(
+      new DomainInputError({
+        message: "Quality profile min_size cannot exceed max_size",
+      }),
+    );
   }
 
   return undefined;
@@ -54,9 +55,13 @@ function actionWeight(action: DownloadAction): number {
 }
 
 function actionScore(action: DownloadAction): number {
-  return action.Accept?.score ?? action.Upgrade?.score ?? Number.NEGATIVE_INFINITY;
+  return action.Accept?.score ?? action.Upgrade?.score ?? globalThis.Number.NEGATIVE_INFINITY;
 }
 
 function actionQualityRank(action: DownloadAction): number {
-  return action.Accept?.quality.rank ?? action.Upgrade?.quality.rank ?? Number.POSITIVE_INFINITY;
+  return (
+    action.Accept?.quality.rank ??
+    action.Upgrade?.quality.rank ??
+    globalThis.Number.POSITIVE_INFINITY
+  );
 }

@@ -1,4 +1,3 @@
-import { Effect } from "effect";
 import {
   brandMediaId,
   brandReleaseProfileId,
@@ -14,6 +13,7 @@ import {
   decodeStoredSynonymsEffect,
 } from "@/features/media/shared/decode-support.ts";
 import { decodeStoredMediaKindEffect } from "@/features/media/shared/media-kind.ts";
+import { Effect } from "effect";
 
 export type MediaDtoProgress = Media["progress"];
 

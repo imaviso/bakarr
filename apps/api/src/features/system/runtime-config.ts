@@ -1,7 +1,6 @@
-import { Effect } from "effect";
-
 import type { Config } from "@packages/shared/index.ts";
 import type { RuntimeLogLevelStateShape } from "@/infra/logging.ts";
+import { Effect } from "effect";
 
 export const applyRuntimeLogLevelFromConfig = Effect.fn(
   "SystemConfigService.applyRuntimeLogLevelFromConfig",

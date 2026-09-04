@@ -1,6 +1,9 @@
 // oxlint-disable typescript/no-restricted-types -- `unknown` is the honest type at error/cause boundaries (Effect error channels, try/catch causes, Logger messages)
-import { HttpRouter, HttpServerRequest, HttpServerResponse, Socket } from "@effect/platform";
-import { Effect, Stream } from "effect";
+import * as HttpRouter from "effect/unstable/http/HttpRouter";
+import * as HttpServerRequest from "effect/unstable/http/HttpServerRequest";
+import * as HttpServerResponse from "effect/unstable/http/HttpServerResponse";
+import * as Socket from "effect/unstable/socket/Socket";
+import { Effect, Layer, Stream } from "effect";
 
 import type { NotificationEvent } from "@packages/shared/index.ts";
 import { SystemEventsService } from "@/features/system/system-events-service.ts";
@@ -27,13 +30,14 @@ export const buildSystemEventsResponse = Effect.fn("Http.buildSystemEventsRespon
     Stream.timeout(EVENT_SOCKET_IDLE_TIMEOUT),
     Stream.pipeThroughChannel(HttpServerRequest.upgradeChannel()),
     Stream.runDrain,
-    Effect.catchAll((error) => (isExpectedSocketClose(error) ? Effect.void : Effect.fail(error))),
+    Effect.catch((error) => (isExpectedSocketClose(error) ? Effect.void : Effect.fail(error))),
     Effect.as(HttpServerResponse.empty()),
   );
 });
 
-export const systemEventsRouter = HttpRouter.empty.pipe(
-  HttpRouter.get(
+export const systemEventsRouter = Layer.mergeAll(
+  HttpRouter.add(
+    "GET",
     "/api/events",
     authedRouteResponse(
       Effect.map(SystemEventsService, (service) => service.buildEventsStream()),
@@ -69,5 +73,9 @@ function isWebSocketUpgradeRequest(request: HttpServerRequest.HttpServerRequest)
 }
 
 function isExpectedSocketClose(error: unknown) {
-  return Socket.SocketCloseError.is(error) && (error.code === 1000 || error.code === 1001);
+  // v4 wraps close failures in SocketError with the close error as `reason`.
+  if (error instanceof Socket.SocketError) {
+    error = error.reason;
+  }
+  return error instanceof Socket.SocketCloseError && (error.code === 1000 || error.code === 1001);
 }

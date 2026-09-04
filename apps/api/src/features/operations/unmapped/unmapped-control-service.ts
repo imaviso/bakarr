@@ -1,5 +1,4 @@
 // oxlint-disable typescript/no-restricted-types -- `unknown` is the honest type at error/cause boundaries (Effect error channels, try/catch causes, Logger messages)
-import { Effect } from "effect";
 
 import type { DatabaseError } from "@/db/database.ts";
 import { nowIso as currentNowIso } from "@/infra/time.ts";
@@ -30,6 +29,7 @@ import type { UnmappedFolder } from "@packages/shared/index.ts";
 import { MEDIA_KIND_VALUES } from "@packages/shared/index.ts";
 import { getLibraryPathForMediaKind } from "@/features/media/shared/config-support.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
+import { Context, Effect, Layer } from "effect";
 
 const toStoredDataError = (error: { cause?: unknown; message: string }) =>
   new StoredDataError({
@@ -228,18 +228,11 @@ const makeUnmappedControlService = Effect.fn("UnmappedControlService.make")(func
   } satisfies UnmappedControlServiceShape;
 });
 
-export class UnmappedControlService extends Effect.Service<UnmappedControlService>()(
-  "@bakarr/api/UnmappedControlService",
-  {
-    // RuntimeConfigSnapshotService comes from the lifecycle layer.
-    dependencies: [
-      MediaRepository.Default,
-      SystemLogRepository.Default,
-      SystemUnmappedRepository.Default,
-      UnmappedScanService.Default,
-    ],
-    effect: makeUnmappedControlService(),
-  },
-) {}
+export class UnmappedControlService extends Context.Service<
+  UnmappedControlService,
+  UnmappedControlServiceShape
+>()("@bakarr/api/UnmappedControlService") {
+  static readonly layer = Layer.effect(UnmappedControlService, makeUnmappedControlService());
+}
 
-export const UnmappedControlServiceLive = UnmappedControlService.Default;
+export const UnmappedControlServiceLive = UnmappedControlService.layer;

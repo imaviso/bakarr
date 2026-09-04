@@ -153,7 +153,7 @@ export function formatEpisodeStatusTooltip(input: {
 }
 
 export function formatAiringDateWithPreferences(
-  value?: string,
+  value?: string | null,
   preferences?: AiringDisplayPreferences,
 ) {
   if (!value) {

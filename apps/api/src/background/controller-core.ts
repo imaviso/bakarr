@@ -1,5 +1,4 @@
-import { Effect, Exit, Ref, Scope } from "effect";
-
+import { Context, Effect, Exit, Layer, Ref, Scope, Semaphore } from "effect";
 import type { Config } from "@packages/shared/index.ts";
 import { BackgroundTaskRunner } from "@/background/task-runner.ts";
 import { makeBackgroundWorkerSpawner } from "@/background/workers.ts";
@@ -19,8 +18,8 @@ export interface BackgroundWorkerControllerShape {
 export const makeBackgroundWorkerController = Effect.fn(
   "Background.makeBackgroundWorkerController",
 )(function* (options: { readonly spawnWorkers: BackgroundWorkerSpawner }) {
-  const scopeRef = yield* Ref.make<Scope.CloseableScope | null>(null);
-  const lifecycleSemaphore = yield* Effect.makeSemaphore(1);
+  const scopeRef = yield* Ref.make<Scope.Scope | null>(null);
+  const lifecycleSemaphore = yield* Semaphore.make(1);
 
   const isStarted = Effect.fn("BackgroundWorkerController.isStarted")(function* () {
     return (yield* Ref.get(scopeRef)) !== null;
@@ -110,11 +109,14 @@ const makeBackgroundWorkerControllerLive = Effect.fn("BackgroundWorkerController
   },
 );
 
-export class BackgroundWorkerController extends Effect.Service<BackgroundWorkerController>()(
-  "@bakarr/api/BackgroundWorkerController",
-  {
-    scoped: makeBackgroundWorkerControllerLive(),
-  },
-) {}
+export class BackgroundWorkerController extends Context.Service<
+  BackgroundWorkerController,
+  BackgroundWorkerControllerShape
+>()("@bakarr/api/BackgroundWorkerController") {
+  static readonly layer = Layer.effect(
+    BackgroundWorkerController,
+    makeBackgroundWorkerControllerLive(),
+  );
+}
 
-export const BackgroundWorkerControllerLive = BackgroundWorkerController.Default;
+export const BackgroundWorkerControllerLive = BackgroundWorkerController.layer;

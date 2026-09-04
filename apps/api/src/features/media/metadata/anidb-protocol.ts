@@ -93,8 +93,8 @@ export function parseAid(line: string | undefined): number | undefined {
     return undefined;
   }
 
-  const aid = Number.parseInt(line.split("|")[0] ?? "", 10);
-  return Number.isFinite(aid) && aid > 0 ? aid : undefined;
+  const aid = globalThis.Number.parseInt(line.split("|")[0] ?? "", 10);
+  return globalThis.Number.isFinite(aid) && aid > 0 ? aid : undefined;
 }
 
 export function parseAnimeLookupMatch(line: string | undefined): AniDbAnimeLookupMatch | undefined {
@@ -124,9 +124,9 @@ export function parseEpisodeResponse(
   }
 
   const fields = line.split("|");
-  const type = Number.parseInt(fields[10] ?? "1", 10);
+  const type = globalThis.Number.parseInt(fields[10] ?? "1", 10);
 
-  if (Number.isFinite(type) && type !== 1) {
+  if (globalThis.Number.isFinite(type) && type !== 1) {
     return undefined;
   }
 
@@ -216,7 +216,7 @@ function parseAniDbHeader(
 
   if (withTag) {
     return {
-      code: Number.parseInt(withTag[2] ?? "", 10),
+      code: globalThis.Number.parseInt(withTag[2] ?? "", 10),
       rest: withTag[3] ?? "",
       tag: withTag[1],
     };
@@ -229,7 +229,7 @@ function parseAniDbHeader(
   }
 
   return {
-    code: Number.parseInt(withoutTag[1] ?? "", 10),
+    code: globalThis.Number.parseInt(withoutTag[1] ?? "", 10),
     rest: withoutTag[2] ?? "",
     tag: undefined,
   };
@@ -246,8 +246,8 @@ function parseEpisodeNumber(value: string | undefined): number | undefined {
     return undefined;
   }
 
-  const number = Number.parseInt(normalized, 10);
-  return Number.isFinite(number) && number > 0 ? number : undefined;
+  const number = globalThis.Number.parseInt(normalized, 10);
+  return globalThis.Number.isFinite(number) && number > 0 ? number : undefined;
 }
 
 function toIsoFromUnix(value: string | undefined): string | undefined {
@@ -255,9 +255,9 @@ function toIsoFromUnix(value: string | undefined): string | undefined {
     return undefined;
   }
 
-  const unixSeconds = Number.parseInt(value, 10);
+  const unixSeconds = globalThis.Number.parseInt(value, 10);
 
-  if (!Number.isFinite(unixSeconds) || unixSeconds <= 0) {
+  if (!globalThis.Number.isFinite(unixSeconds) || unixSeconds <= 0) {
     return undefined;
   }
 

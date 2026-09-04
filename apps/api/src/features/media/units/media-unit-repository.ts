@@ -1,7 +1,7 @@
-// oxlint-disable oxc/no-async-await -- drizzle transaction callbacks require async/await
 import { and, eq, gte, inArray, isNotNull, isNull, lte, sql } from "drizzle-orm";
+import * as NodeSqliteClient from "@effect/sql-sqlite-node/SqliteClient";
 import type { SQL } from "drizzle-orm";
-import { Effect, Schema } from "effect";
+import { Context, Effect, Layer, Record, Schema } from "effect";
 
 import { AppDrizzleDatabase, type AppDatabase, type DatabaseError } from "@/db/database.ts";
 import { media, mediaUnits } from "@/db/schema.ts";
@@ -15,7 +15,7 @@ import {
   clampInferredEpisodeUpperBound,
   MAX_INFERRED_EPISODE_NUMBER,
 } from "@/features/media/units/unit-backfill-policy.ts";
-import { tryDatabasePromise } from "@/infra/effect/db.ts";
+import { makeDbExecutor, type DbExecutor } from "@/infra/effect/db.ts";
 
 export type UpsertUnitPatch = {
   aired?: string | null;
@@ -50,7 +50,7 @@ export class UpsertUnitFileError extends Schema.TaggedError<UpsertUnitFileError>
     media_id: Schema.Number,
     unit_number: Schema.Number,
     message: Schema.String,
-    cause: Schema.optional(Schema.Defect),
+    cause: Schema.optional(Schema.Defect()),
   },
 ) {}
 
@@ -136,32 +136,49 @@ export interface MediaUnitRepositoryShape {
   ) => Effect.Effect<void, DatabaseError>;
 }
 
-export class MediaUnitRepository extends Effect.Service<MediaUnitRepository>()(
-  "@bakarr/api/MediaUnitRepository",
-  {
-    effect: Effect.gen(function* () {
+export class MediaUnitRepository extends Context.Service<
+  MediaUnitRepository,
+  MediaUnitRepositoryShape
+>()("@bakarr/api/MediaUnitRepository") {
+  static readonly layer = Layer.effect(
+    MediaUnitRepository,
+    Effect.gen(function* () {
       const db = yield* AppDrizzleDatabase;
-      return makeMediaUnitRepositoryShape(db);
+      const sqlClient = yield* NodeSqliteClient.SqliteClient;
+      return makeMediaUnitRepositoryShape(db, sqlClient);
     }),
-    dependencies: [AppDrizzleDatabase.Default],
-  },
-) {}
+  );
+}
 
-export function makeMediaUnitRepositoryShape(db: AppDatabase): MediaUnitRepositoryShape {
+export function makeMediaUnitRepositoryShape(
+  db: AppDatabase,
+  sqlClient: NodeSqliteClient.SqliteClient,
+): MediaUnitRepositoryShape {
+  const exec = makeDbExecutor(sqlClient);
   return {
-    upsertUnit: (mediaId, unitNumber, patch) => upsertUnit(db, mediaId, unitNumber, patch),
-    clearUnitMapping: (mediaId, unitNumber) => clearUnitMapping(db, mediaId, unitNumber),
-    bulkMapUnitFiles: (mediaId, mappings) => bulkMapUnitFiles(db, mediaId, mappings),
+    upsertUnit: (mediaId, unitNumber, patch) => upsertUnit(db, exec, mediaId, unitNumber, patch),
+    clearUnitMapping: (mediaId, unitNumber) => clearUnitMapping(db, exec, mediaId, unitNumber),
+    bulkMapUnitFiles: (mediaId, mappings) => bulkMapUnitFiles(db, exec, mediaId, mappings),
     upsertUnitFiles: (mediaId, unitNumbers, destination) =>
-      upsertUnitFiles(db, mediaId, unitNumbers, destination),
+      upsertUnitFiles(db, exec, mediaId, unitNumbers, destination),
     updateUnitFilePaths: (mediaId, unitNumbers, filePath) =>
-      updateUnitFilePaths(db, mediaId, unitNumbers, filePath),
-    upsertUnitMappings: (mediaId, mappings) => upsertUnitMappings(db, mediaId, mappings),
-    patchUnitProbeMetadata: (unitId, patch) => patchUnitProbeMetadata(db, unitId, patch),
+      updateUnitFilePaths(db, exec, mediaId, unitNumbers, filePath),
+    upsertUnitMappings: (mediaId, mappings) => upsertUnitMappings(db, exec, mediaId, mappings),
+    patchUnitProbeMetadata: (unitId, patch) => patchUnitProbeMetadata(db, exec, unitId, patch),
     setMediaRootAndMapUnits: (mediaId, patch, mappings) =>
-      setMediaRootAndMapUnits(db, mediaId, patch, mappings),
+      setMediaRootAndMapUnits(db, exec, mediaId, patch, mappings),
     ensureUnits: (mediaId, unitCount, status, startDate, endDate, futureAiringSchedule, nowIso) =>
-      ensureUnits(db, mediaId, unitCount, status, startDate, endDate, futureAiringSchedule, nowIso),
+      ensureUnits(
+        db,
+        exec,
+        mediaId,
+        unitCount,
+        status,
+        startDate,
+        endDate,
+        futureAiringSchedule,
+        nowIso,
+      ),
     updateUnitAirDates: (
       mediaId,
       unitCount,
@@ -173,6 +190,7 @@ export function makeMediaUnitRepositoryShape(db: AppDatabase): MediaUnitReposito
     ) =>
       updateUnitAirDates(
         db,
+        exec,
         mediaId,
         unitCount,
         status,
@@ -181,15 +199,17 @@ export function makeMediaUnitRepositoryShape(db: AppDatabase): MediaUnitReposito
         futureAiringSchedule,
         nowIso,
       ),
-    syncUnitMetadata: (mediaId, episodeMetadata) => syncUnitMetadata(db, mediaId, episodeMetadata),
+    syncUnitMetadata: (mediaId, episodeMetadata) =>
+      syncUnitMetadata(db, exec, mediaId, episodeMetadata),
     syncUnitSchedule: (mediaId, nextMediaRow, futureAiringSchedule, nowIso) =>
-      syncUnitSchedule(db, mediaId, nextMediaRow, futureAiringSchedule, nowIso),
-    backfillFromNextAiring: (input) => backfillFromNextAiring(db, input),
+      syncUnitSchedule(db, exec, mediaId, nextMediaRow, futureAiringSchedule, nowIso),
+    backfillFromNextAiring: (input) => backfillFromNextAiring(db, exec, input),
   } satisfies MediaUnitRepositoryShape;
 }
 
 const upsertUnit = Effect.fn("MediaUnitRepository.upsertUnit")(function* (
   db: AppDatabase,
+  exec: DbExecutor,
   mediaId: number,
   unitNumber: number,
   patch: UpsertUnitPatch,
@@ -198,34 +218,42 @@ const upsertUnit = Effect.fn("MediaUnitRepository.upsertUnit")(function* (
   const conflictSet = buildEpisodeConflictSet(patch);
 
   if (Object.keys(conflictSet).length === 0) {
-    yield* tryDatabasePromise("Failed to upsert episode", () =>
+    yield* exec.runQuery(
+      "Failed to upsert episode",
       db
         .insert(mediaUnits)
         .values(values)
         .onConflictDoNothing({
           target: [mediaUnits.mediaId, mediaUnits.number],
-        }),
+        })
+        .prepare()
+        .effect(),
     );
     return;
   }
 
-  yield* tryDatabasePromise("Failed to upsert episode", () =>
+  yield* exec.runQuery(
+    "Failed to upsert episode",
     db
       .insert(mediaUnits)
       .values(values)
       .onConflictDoUpdate({
         target: [mediaUnits.mediaId, mediaUnits.number],
         set: conflictSet,
-      }),
+      })
+      .prepare()
+      .effect(),
   );
 });
 
 const clearUnitMapping = Effect.fn("MediaUnitRepository.clearUnitMapping")(function* (
   db: AppDatabase,
+  exec: DbExecutor,
   mediaId: number,
   unitNumber: number,
 ) {
-  yield* tryDatabasePromise("Failed to clear episode mapping", () =>
+  yield* exec.runQuery(
+    "Failed to clear episode mapping",
     db
       .update(mediaUnits)
       .set({
@@ -240,12 +268,15 @@ const clearUnitMapping = Effect.fn("MediaUnitRepository.clearUnitMapping")(funct
         audioCodec: null,
         audioChannels: null,
       })
-      .where(and(eq(mediaUnits.mediaId, mediaId), eq(mediaUnits.number, unitNumber))),
+      .where(and(eq(mediaUnits.mediaId, mediaId), eq(mediaUnits.number, unitNumber)))
+      .prepare()
+      .effect(),
   );
 });
 
 const patchUnitProbeMetadata = Effect.fn("MediaUnitRepository.patchUnitProbeMetadata")(function* (
   db: AppDatabase,
+  exec: DbExecutor,
   unitId: number,
   patch: {
     readonly audioChannels?: string | null | undefined;
@@ -255,7 +286,8 @@ const patchUnitProbeMetadata = Effect.fn("MediaUnitRepository.patchUnitProbeMeta
     readonly videoCodec?: string | null | undefined;
   },
 ) {
-  yield* tryDatabasePromise("Failed to cache probed media metadata", () =>
+  yield* exec.runQuery(
+    "Failed to cache probed media metadata",
     db
       .update(mediaUnits)
       .set({
@@ -265,20 +297,24 @@ const patchUnitProbeMetadata = Effect.fn("MediaUnitRepository.patchUnitProbeMeta
         ...(patch.resolution === undefined ? {} : { resolution: patch.resolution }),
         ...(patch.videoCodec === undefined ? {} : { videoCodec: patch.videoCodec }),
       })
-      .where(eq(mediaUnits.id, unitId)),
+      .where(eq(mediaUnits.id, unitId))
+      .prepare()
+      .effect(),
   );
 });
 
 const bulkMapUnitFiles = Effect.fn("MediaUnitRepository.bulkMapUnitFiles")(function* (
   db: AppDatabase,
+  exec: DbExecutor,
   mediaId: number,
   mappings: readonly BulkMapUnitEntry[],
 ) {
-  yield* tryDatabasePromise("Failed to bulk-map episode files", () =>
-    db.transaction(async (tx) => {
+  yield* exec.runTransaction(
+    "Failed to bulk-map episode files",
+    Effect.gen(function* () {
       for (const entry of mappings) {
         if (entry.clear) {
-          await tx
+          yield* db
             .update(mediaUnits)
             .set({
               downloaded: false,
@@ -292,11 +328,13 @@ const bulkMapUnitFiles = Effect.fn("MediaUnitRepository.bulkMapUnitFiles")(funct
               audioCodec: null,
               audioChannels: null,
             })
-            .where(and(eq(mediaUnits.mediaId, mediaId), eq(mediaUnits.number, entry.unit_number)));
+            .where(and(eq(mediaUnits.mediaId, mediaId), eq(mediaUnits.number, entry.unit_number)))
+            .prepare()
+            .effect();
           continue;
         }
 
-        await tx
+        yield* db
           .insert(mediaUnits)
           .values({
             aired: null,
@@ -314,7 +352,9 @@ const bulkMapUnitFiles = Effect.fn("MediaUnitRepository.bulkMapUnitFiles")(funct
               // Remapping to a different file invalidates cached probe data.
               ...probeResetOnFilePathChange(),
             },
-          });
+          })
+          .prepare()
+          .effect();
       }
     }),
   );
@@ -322,6 +362,7 @@ const bulkMapUnitFiles = Effect.fn("MediaUnitRepository.bulkMapUnitFiles")(funct
 
 const upsertUnitFiles = Effect.fn("MediaUnitRepository.upsertUnitFiles")(function* (
   db: AppDatabase,
+  exec: DbExecutor,
   mediaId: number,
   unitNumbers: readonly number[],
   destination: string,
@@ -330,70 +371,84 @@ const upsertUnitFiles = Effect.fn("MediaUnitRepository.upsertUnitFiles")(functio
     return;
   }
 
-  yield* tryDatabasePromise("Failed to upsert episode files", () =>
-    db.transaction(async (tx) => {
-      const episodeNumbersArr = [...unitNumbers];
+  yield* exec
+    .runTransaction(
+      "Failed to upsert episode files",
+      Effect.gen(function* () {
+        const episodeNumbersArr = [...unitNumbers];
 
-      const existingRows = await tx
-        .select()
-        .from(mediaUnits)
-        .where(and(eq(mediaUnits.mediaId, mediaId), inArray(mediaUnits.number, episodeNumbersArr)));
-
-      const existingEpisodeNumbers = new Set(existingRows.map((r) => r.number));
-      const missingEpisodeNumbers = episodeNumbersArr.filter((n) => !existingEpisodeNumbers.has(n));
-
-      if (existingEpisodeNumbers.size > 0) {
-        await tx
-          .update(mediaUnits)
-          .set({
-            downloaded: true,
-            filePath: destination,
-          })
+        const existingRows = yield* db
+          .select()
+          .from(mediaUnits)
           .where(
-            and(
-              eq(mediaUnits.mediaId, mediaId),
-              inArray(mediaUnits.number, [...existingEpisodeNumbers]),
-            ),
-          );
-      }
+            and(eq(mediaUnits.mediaId, mediaId), inArray(mediaUnits.number, episodeNumbersArr)),
+          )
+          .prepare()
+          .effect();
 
-      if (missingEpisodeNumbers.length > 0) {
-        const valuesToInsert = missingEpisodeNumbers.map((num) => ({
-          aired: null,
-          mediaId,
-          downloaded: true,
-          filePath: destination,
-          number: num,
-          title: null,
-        }));
+        const existingEpisodeNumbers = new Set(existingRows.map((r) => r.number));
+        const missingEpisodeNumbers = episodeNumbersArr.filter(
+          (n) => !existingEpisodeNumbers.has(n),
+        );
 
-        await tx
-          .insert(mediaUnits)
-          .values(valuesToInsert)
-          .onConflictDoUpdate({
-            target: [mediaUnits.mediaId, mediaUnits.number],
-            set: {
+        if (existingEpisodeNumbers.size > 0) {
+          yield* db
+            .update(mediaUnits)
+            .set({
               downloaded: true,
               filePath: destination,
-            },
-          });
-      }
-    }),
-  ).pipe(
-    Effect.mapError(
-      (cause) =>
-        new UpsertUnitFileError({
-          media_id: mediaId,
-          unit_number: unitNumbers[0] ?? 0,
-          message: cause.message,
-          cause,
-        }),
-    ),
-  );
+            })
+            .where(
+              and(
+                eq(mediaUnits.mediaId, mediaId),
+                inArray(mediaUnits.number, [...existingEpisodeNumbers]),
+              ),
+            )
+            .prepare()
+            .effect();
+        }
+
+        if (missingEpisodeNumbers.length > 0) {
+          const valuesToInsert = missingEpisodeNumbers.map((num) => ({
+            aired: null,
+            mediaId,
+            downloaded: true,
+            filePath: destination,
+            number: num,
+            title: null,
+          }));
+
+          yield* db
+            .insert(mediaUnits)
+            .values(valuesToInsert)
+            .onConflictDoUpdate({
+              target: [mediaUnits.mediaId, mediaUnits.number],
+              set: {
+                downloaded: true,
+                filePath: destination,
+              },
+            })
+            .prepare()
+            .effect();
+        }
+      }),
+    )
+    .pipe(
+      Effect.mapError(
+        (cause) =>
+          new UpsertUnitFileError({
+            media_id: mediaId,
+            unit_number: unitNumbers[0] ?? 0,
+            message: cause.message,
+            cause,
+          }),
+      ),
+    );
 });
 
 const updateUnitFilePaths = Effect.fn("MediaUnitRepository.updateUnitFilePaths")(function* (
   db: AppDatabase,
+  exec: DbExecutor,
   mediaId: number,
   unitNumbers: readonly number[],
   filePath: string,
@@ -402,7 +457,8 @@ const updateUnitFilePaths = Effect.fn("MediaUnitRepository.updateUnitFilePaths")
     return;
   }
 
-  yield* tryDatabasePromise("Failed to update unit file paths", () =>
+  yield* exec.runQuery(
+    "Failed to update unit file paths",
     db
       .update(mediaUnits)
       .set({ filePath })
@@ -413,12 +469,15 @@ const updateUnitFilePaths = Effect.fn("MediaUnitRepository.updateUnitFilePaths")
             ? eq(mediaUnits.number, unitNumbers[0]!)
             : inArray(mediaUnits.number, [...unitNumbers]),
         ),
-      ),
+      )
+      .prepare()
+      .effect(),
   );
 });
 
 const upsertUnitMappings = Effect.fn("MediaUnitRepository.upsertUnitMappings")(function* (
   db: AppDatabase,
+  exec: DbExecutor,
   mediaId: number,
   mappings: readonly UnitFileMapping[],
 ) {
@@ -426,10 +485,11 @@ const upsertUnitMappings = Effect.fn("MediaUnitRepository.upsertUnitMappings")(f
     return;
   }
 
-  yield* tryDatabasePromise("Failed to upsert unit mappings", () =>
-    db.transaction(async (tx) => {
+  yield* exec.runTransaction(
+    "Failed to upsert unit mappings",
+    Effect.gen(function* () {
       for (const mapping of mappings) {
-        await writeUnitMapping(tx, mediaId, mapping);
+        yield* writeUnitMapping(db, exec, mediaId, mapping);
       }
     }),
   );
@@ -437,55 +497,66 @@ const upsertUnitMappings = Effect.fn("MediaUnitRepository.upsertUnitMappings")(f
 
 const setMediaRootAndMapUnits = Effect.fn("MediaUnitRepository.setMediaRootAndMapUnits")(function* (
   db: AppDatabase,
+  exec: DbExecutor,
   mediaId: number,
   patch: { readonly profileName: string; readonly rootFolder: string },
   mappings: readonly UnitFileMapping[],
 ) {
-  yield* tryDatabasePromise("Failed to import unmapped folder", () =>
-    db.transaction(async (tx) => {
-      await tx
+  yield* exec.runTransaction(
+    "Failed to import unmapped folder",
+    Effect.gen(function* () {
+      yield* db
         .update(media)
         .set({
           profileName: patch.profileName,
           rootFolder: patch.rootFolder,
         })
-        .where(eq(media.id, mediaId));
+        .where(eq(media.id, mediaId))
+        .prepare()
+        .effect();
 
       for (const mapping of mappings) {
-        await writeUnitMapping(tx, mediaId, mapping);
+        yield* writeUnitMapping(db, exec, mediaId, mapping);
       }
     }),
   );
 });
 
-async function writeUnitMapping(
-  tx: Pick<AppDatabase, "insert">,
+const writeUnitMapping = Effect.fn("MediaUnitRepository.writeUnitMapping")(function* (
+  db: AppDatabase,
+  exec: DbExecutor,
   mediaId: number,
   mapping: UnitFileMapping,
 ) {
-  await tx
-    .insert(mediaUnits)
-    .values({
-      aired: mapping.aired ?? null,
-      mediaId,
-      downloaded: true,
-      filePath: mapping.filePath,
-      number: mapping.unitNumber,
-      title: null,
-    })
-    .onConflictDoUpdate({
-      target: [mediaUnits.mediaId, mediaUnits.number],
-      set: {
+  yield* exec.runQuery(
+    "Failed to write unit mapping",
+    db
+      .insert(mediaUnits)
+      .values({
+        aired: mapping.aired ?? null,
+        mediaId,
         downloaded: true,
         filePath: mapping.filePath,
-        // Remapping to a different file invalidates cached probe data.
-        ...probeResetOnFilePathChange(),
-      },
-    });
-}
+        number: mapping.unitNumber,
+        title: null,
+      })
+      .onConflictDoUpdate({
+        target: [mediaUnits.mediaId, mediaUnits.number],
+        set: {
+          downloaded: true,
+          filePath: mapping.filePath,
+          // Remapping to a different file invalidates cached probe data.
+          ...probeResetOnFilePathChange(),
+        },
+      })
+      .prepare()
+      .effect(),
+  );
+});
 
 const ensureUnits = Effect.fn("MediaUnitRepository.ensureUnits")(function* <E>(
   db: AppDatabase,
+  exec: DbExecutor,
   mediaId: number,
   unitCount: number | undefined,
   status: string,
@@ -499,8 +570,9 @@ const ensureUnits = Effect.fn("MediaUnitRepository.ensureUnits")(function* <E>(
   const existingRows =
     (!unitCount || unitCount <= 0) && !hasFutureSchedule
       ? []
-      : yield* tryDatabasePromise("Failed to ensure mediaUnits", () =>
-          db.select().from(mediaUnits).where(eq(mediaUnits.mediaId, mediaId)),
+      : yield* exec.runQuery(
+          "Failed to ensure mediaUnits",
+          db.select().from(mediaUnits).where(eq(mediaUnits.mediaId, mediaId)).prepare().effect(),
         );
 
   if (unitCount !== undefined && unitCount > 0 && existingRows.length > 0) {
@@ -511,10 +583,13 @@ const ensureUnits = Effect.fn("MediaUnitRepository.ensureUnits")(function* <E>(
       .filter((row) => row.number > unitCount && !row.downloaded && row.filePath === null)
       .map((row) => row.number);
     if (extraNumbers.length > 0) {
-      yield* tryDatabasePromise("Failed to prune extra mediaUnits", () =>
+      yield* exec.runQuery(
+        "Failed to prune extra mediaUnits",
         db
           .delete(mediaUnits)
-          .where(and(eq(mediaUnits.mediaId, mediaId), inArray(mediaUnits.number, extraNumbers))),
+          .where(and(eq(mediaUnits.mediaId, mediaId), inArray(mediaUnits.number, extraNumbers)))
+          .prepare()
+          .effect(),
       );
     }
   }
@@ -534,16 +609,20 @@ const ensureUnits = Effect.fn("MediaUnitRepository.ensureUnits")(function* <E>(
     return;
   }
 
-  yield* tryDatabasePromise("Failed to ensure mediaUnits", () =>
+  yield* exec.runQuery(
+    "Failed to ensure mediaUnits",
     db
       .insert(mediaUnits)
       .values(missingRows)
-      .onConflictDoNothing({ target: [mediaUnits.mediaId, mediaUnits.number] }),
+      .onConflictDoNothing({ target: [mediaUnits.mediaId, mediaUnits.number] })
+      .prepare()
+      .effect(),
   );
 });
 
 const updateUnitAirDates = Effect.fn("MediaUnitRepository.updateUnitAirDates")(function* <E>(
   db: AppDatabase,
+  exec: DbExecutor,
   mediaId: number,
   unitCount: number | undefined,
   status: string,
@@ -561,8 +640,9 @@ const updateUnitAirDates = Effect.fn("MediaUnitRepository.updateUnitAirDates")(f
     return;
   }
 
-  const existingRows = yield* tryDatabasePromise("Failed to update media episode air dates", () =>
-    db.select().from(mediaUnits).where(eq(mediaUnits.mediaId, mediaId)),
+  const existingRows = yield* exec.runQuery(
+    "Failed to update media episode air dates",
+    db.select().from(mediaUnits).where(eq(mediaUnits.mediaId, mediaId)).prepare().effect(),
   );
   const now = yield* nowIso();
 
@@ -597,13 +677,16 @@ const updateUnitAirDates = Effect.fn("MediaUnitRepository.updateUnitAirDates")(f
     return;
   }
 
-  yield* tryDatabasePromise("Failed to update media episode air dates", () =>
-    db.transaction(async (tx) => {
+  yield* exec.runTransaction(
+    "Failed to update media episode air dates",
+    Effect.gen(function* () {
       for (const update of updates) {
-        await tx
+        yield* db
           .update(mediaUnits)
           .set({ aired: update.aired })
-          .where(eq(mediaUnits.id, update.id));
+          .where(eq(mediaUnits.id, update.id))
+          .prepare()
+          .effect();
       }
     }),
   );
@@ -611,6 +694,7 @@ const updateUnitAirDates = Effect.fn("MediaUnitRepository.updateUnitAirDates")(f
 
 const syncUnitMetadata = Effect.fn("MediaUnitRepository.syncUnitMetadata")(function* (
   db: AppDatabase,
+  exec: DbExecutor,
   mediaId: number,
   episodeMetadata: ReadonlyArray<AnimeMetadataEpisode> | undefined,
 ) {
@@ -618,8 +702,9 @@ const syncUnitMetadata = Effect.fn("MediaUnitRepository.syncUnitMetadata")(funct
     return;
   }
 
-  yield* tryDatabasePromise("Failed to sync episode metadata", () =>
-    db.transaction(async (tx) => {
+  yield* exec.runTransaction(
+    "Failed to sync episode metadata",
+    Effect.gen(function* () {
       for (const entry of episodeMetadata) {
         const updateSet = {
           ...(entry.aired === undefined ? {} : { aired: entry.aired }),
@@ -638,17 +723,19 @@ const syncUnitMetadata = Effect.fn("MediaUnitRepository.syncUnitMetadata")(funct
         };
 
         if (Object.keys(updateSet).length === 0) {
-          await tx.insert(mediaUnits).values(insertBase).onConflictDoNothing();
+          yield* db.insert(mediaUnits).values(insertBase).onConflictDoNothing().prepare().effect();
           continue;
         }
 
-        await tx
+        yield* db
           .insert(mediaUnits)
           .values(insertBase)
           .onConflictDoUpdate({
             target: [mediaUnits.mediaId, mediaUnits.number],
             set: updateSet,
-          });
+          })
+          .prepare()
+          .effect();
       }
     }),
   );
@@ -656,6 +743,7 @@ const syncUnitMetadata = Effect.fn("MediaUnitRepository.syncUnitMetadata")(funct
 
 const syncUnitSchedule = Effect.fn("MediaUnitRepository.syncUnitSchedule")(function* <E>(
   db: AppDatabase,
+  exec: DbExecutor,
   mediaId: number,
   nextMediaRow: {
     readonly unitCount: number | null;
@@ -668,6 +756,7 @@ const syncUnitSchedule = Effect.fn("MediaUnitRepository.syncUnitSchedule")(funct
 ) {
   yield* ensureUnits(
     db,
+    exec,
     mediaId,
     nextMediaRow.unitCount ?? undefined,
     nextMediaRow.status,
@@ -678,6 +767,7 @@ const syncUnitSchedule = Effect.fn("MediaUnitRepository.syncUnitSchedule")(funct
   );
   yield* updateUnitAirDates(
     db,
+    exec,
     mediaId,
     nextMediaRow.unitCount ?? undefined,
     nextMediaRow.status,
@@ -690,6 +780,7 @@ const syncUnitSchedule = Effect.fn("MediaUnitRepository.syncUnitSchedule")(funct
 
 const backfillFromNextAiring = Effect.fn("MediaUnitRepository.backfillFromNextAiring")(function* (
   db: AppDatabase,
+  exec: DbExecutor,
   input: {
     readonly mediaId?: number;
     readonly monitoredOnly: boolean;
@@ -704,17 +795,18 @@ const backfillFromNextAiring = Effect.fn("MediaUnitRepository.backfillFromNextAi
     sql`${media.nextAiringUnit} > 1`,
   );
 
-  const candidates = yield* tryDatabasePromise(
+  const candidates = yield* exec.runQuery(
     "Failed to load next-airing backfill candidates",
-    () =>
-      db
-        .select({
-          id: media.id,
-          nextAiringAt: media.nextAiringAt,
-          nextAiringUnit: media.nextAiringUnit,
-        })
-        .from(media)
-        .where(whereClause),
+    db
+      .select({
+        id: media.id,
+        nextAiringAt: media.nextAiringAt,
+        nextAiringUnit: media.nextAiringUnit,
+      })
+      .from(media)
+      .where(whereClause)
+      .prepare()
+      .effect(),
   );
 
   if (candidates.length === 0) {
@@ -722,22 +814,23 @@ const backfillFromNextAiring = Effect.fn("MediaUnitRepository.backfillFromNextAi
   }
 
   const candidateIds = candidates.map((candidate) => candidate.id);
-  const existingRows = yield* tryDatabasePromise(
+  const existingRows = yield* exec.runQuery(
     "Failed to load existing mediaUnits for backfill",
-    () =>
-      db
-        .select({
-          mediaId: mediaUnits.mediaId,
-          number: mediaUnits.number,
-        })
-        .from(mediaUnits)
-        .where(
-          and(
-            inArray(mediaUnits.mediaId, candidateIds),
-            gte(mediaUnits.number, 1),
-            lte(mediaUnits.number, MAX_INFERRED_EPISODE_NUMBER),
-          ),
+    db
+      .select({
+        mediaId: mediaUnits.mediaId,
+        number: mediaUnits.number,
+      })
+      .from(mediaUnits)
+      .where(
+        and(
+          inArray(mediaUnits.mediaId, candidateIds),
+          gte(mediaUnits.number, 1),
+          lte(mediaUnits.number, MAX_INFERRED_EPISODE_NUMBER),
         ),
+      )
+      .prepare()
+      .effect(),
   );
 
   const existingByMediaId = new Map<number, Set<number>>();
@@ -813,8 +906,9 @@ const backfillFromNextAiring = Effect.fn("MediaUnitRepository.backfillFromNextAi
     return;
   }
 
-  yield* tryDatabasePromise("Failed to backfill mediaUnits from next airing", () =>
-    db.insert(mediaUnits).values(rowsToInsert).onConflictDoNothing(),
+  yield* exec.runQuery(
+    "Failed to backfill mediaUnits from next airing",
+    db.insert(mediaUnits).values(rowsToInsert).onConflictDoNothing().prepare().effect(),
   );
 });
 

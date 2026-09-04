@@ -84,7 +84,9 @@ function AddAnimePage() {
   const { data: animeList = [] } = useMediaListQuery();
   const libraryIds = new Set(animeList.map((media) => media.id));
 
-  const updateSearch = (patch: Partial<AddMediaSearch>) => {
+  const updateSearch = (
+    patch: Partial<{ -readonly [K in keyof AddMediaSearch]: AddMediaSearch[K] | undefined }>,
+  ) => {
     const mergedSearch = { ...search, ...patch };
     void navigate({
       to: ".",
@@ -101,7 +103,7 @@ function AddAnimePage() {
   };
 
   const clearSelectedAnime = () => {
-    updateSearch({ id: undefined });
+    updateSearch({ id: search.id });
   };
 
   const handleSelectAnime = (anime: MediaSearchResult) => {
@@ -137,7 +139,7 @@ function AddAnimePage() {
           selectedKey={mediaKind}
           onSelectionChange={(value) =>
             updateSearch({
-              id: undefined,
+              id: search.id,
               media_kind:
                 value === "manga" || value === "light_novel" || value === "anime" ? value : "anime",
             })
@@ -176,7 +178,7 @@ function AddAnimePage() {
 
         <TabsContent id="search" className="mt-6 flex flex-1 min-h-0 flex-col">
           <SearchResults
-            active={activeTab === "search"}
+            key={debouncedQuery}
             canSearch={canSearch}
             searchQuery={searchQuery}
             searchResults={searchResults}
@@ -191,7 +193,7 @@ function AddAnimePage() {
           {activeTab === "seasonal" && (
             <Suspense fallback={null}>
               <SeasonalAnimeSectionLazy
-                active
+                key={`${selectedSeason}-${selectedYear}`}
                 seasonWindow={{ season: selectedSeason, year: selectedYear }}
                 onPrevious={() => {
                   const previous = shiftSeasonWindow(

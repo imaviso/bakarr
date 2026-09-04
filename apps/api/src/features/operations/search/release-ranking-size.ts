@@ -1,17 +1,16 @@
-import { Either, Option } from "effect";
-
 import { DomainInputError } from "@/features/errors.ts";
+import { Option, Result } from "effect";
 
 export function parseSizeLabelToBytes(
   value: string | null | undefined,
-): Either.Either<Option.Option<number>, DomainInputError> {
+): Result.Result<Option.Option<number>, DomainInputError> {
   if (!value || value.trim().length === 0) {
-    return Either.right(Option.none());
+    return Result.succeed(Option.none());
   }
 
   const match = value.trim().match(/^(\d+(?:\.\d+)?)\s*(KiB|MiB|GiB|TiB|KB|MB|GB|TB|B)$/i);
   if (!match) {
-    return Either.left(
+    return Result.fail(
       new DomainInputError({
         message: `Invalid quality profile size label: ${value}`,
       }),
@@ -22,18 +21,18 @@ export function parseSizeLabelToBytes(
   const unitRaw = match[2];
 
   if (!amountRaw || !unitRaw) {
-    return Either.left(
+    return Result.fail(
       new DomainInputError({
         message: `Invalid quality profile size label: ${value}`,
       }),
     );
   }
 
-  const amount = Number.parseFloat(amountRaw);
+  const amount = globalThis.Number.parseFloat(amountRaw);
   const unit = unitRaw.toUpperCase();
 
-  if (!Number.isFinite(amount) || amount < 0) {
-    return Either.left(
+  if (!globalThis.Number.isFinite(amount) || amount < 0) {
+    return Result.fail(
       new DomainInputError({
         message: `Invalid quality profile size label: ${value}`,
       }),
@@ -52,5 +51,5 @@ export function parseSizeLabelToBytes(
     multiplier = 1024 ** 3;
   }
 
-  return Either.right(Option.some(Math.round(amount * multiplier)));
+  return Result.succeed(Option.some(Math.round(amount * multiplier)));
 }

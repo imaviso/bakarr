@@ -1,6 +1,8 @@
 // oxlint-disable typescript/no-restricted-types -- `unknown` is the honest type at error/cause boundaries (Effect error channels, try/catch causes, Logger messages)
 import { assert, it } from "@effect/vitest";
-import { HttpClient, HttpClientRequest, HttpClientResponse } from "@effect/platform";
+import * as HttpClient from "effect/unstable/http/HttpClient";
+import * as HttpClientRequest from "effect/unstable/http/HttpClientRequest";
+import * as HttpClientResponse from "effect/unstable/http/HttpClientResponse";
 import { Effect, Layer, Option, Schema } from "effect";
 
 import { AniListClient, AniListClientLive } from "@/features/media/metadata/anilist.ts";
@@ -9,10 +11,10 @@ import { ExternalCallLive } from "@/infra/effect/retry.ts";
 const ExternalCallTestLayer = ExternalCallLive;
 const AniListRequestBodySchema = Schema.Struct({
   query: Schema.String,
-  variables: Schema.Record({ key: Schema.String, value: Schema.Unknown }),
+  variables: Schema.Record(Schema.String, Schema.Unknown),
 });
 
-it.scoped("AniListClient decodes search responses from the provided HttpClient", () =>
+it.effect("AniListClient decodes search responses from the provided HttpClient", () =>
   Effect.gen(function* () {
     let requestCount = 0;
 
@@ -137,7 +139,7 @@ it.scoped("AniListClient decodes search responses from the provided HttpClient",
   }),
 );
 
-it.scoped("AniListClient decodes detail responses from the provided HttpClient", () =>
+it.effect("AniListClient decodes detail responses from the provided HttpClient", () =>
   Effect.gen(function* () {
     let requestCount = 0;
 
@@ -295,7 +297,7 @@ it.scoped("AniListClient decodes detail responses from the provided HttpClient",
   }),
 );
 
-it.scoped("AniListClient detail lookup omits media type when kind is unknown", () =>
+it.effect("AniListClient detail lookup omits media type when kind is unknown", () =>
   Effect.gen(function* () {
     let requestBody: Schema.Schema.Type<typeof AniListRequestBodySchema> | undefined;
     const clientLayer = AniListClientLive.pipe(
@@ -337,7 +339,7 @@ it.scoped("AniListClient detail lookup omits media type when kind is unknown", (
   }),
 );
 
-it.scoped("AniListClient keeps next airing as future schedule fallback", () =>
+it.effect("AniListClient keeps next airing as future schedule fallback", () =>
   Effect.gen(function* () {
     const clientLayer = AniListClientLive.pipe(
       Layer.provide(
@@ -377,7 +379,7 @@ it.scoped("AniListClient keeps next airing as future schedule fallback", () =>
   }),
 );
 
-it.scoped("AniListClient decodes seasonal responses and backfills missing season/year", () =>
+it.effect("AniListClient decodes seasonal responses and backfills missing season/year", () =>
   Effect.gen(function* () {
     let requestCount = 0;
 
@@ -452,7 +454,7 @@ function makeAniListClient(
   searchMedia: ReadonlyArray<unknown>,
   detailMedia: unknown,
 ) {
-  return HttpClient.make((request) =>
+  return HttpClient.make((request, _url, _signal, _fiber) =>
     Effect.sync(() => {
       onRequest(request);
 

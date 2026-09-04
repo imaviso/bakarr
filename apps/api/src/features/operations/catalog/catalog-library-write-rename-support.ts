@@ -1,5 +1,3 @@
-import { Cause, Effect, Either } from "effect";
-
 import { brandMediaId, type Config } from "@packages/shared/index.ts";
 import type { DatabaseError } from "@/db/database.ts";
 import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
@@ -10,6 +8,7 @@ import { DomainPathError } from "@/features/errors.ts";
 import type { MediaNotFoundError } from "@/features/media/errors.ts";
 import { MediaRepository } from "@/features/media/shared/media-repository.ts";
 import type { MediaUnitRepositoryShape } from "@/features/media/units/media-unit-repository.ts";
+import { Cause, Effect, Result } from "effect";
 
 const fileExists = Effect.fn("Operations.renameFileExists")(function* (
   fs: FileSystemShape,
@@ -104,28 +103,28 @@ export const renameLibraryFiles = Effect.fn("Operations.renameLibraryFiles")((
         continue;
       }
 
-      const destinationExists = yield* fileExists(fs, item.new_path).pipe(Effect.either);
+      const destinationExists = yield* fileExists(fs, item.new_path).pipe(Effect.result);
 
-      if (Either.isLeft(destinationExists)) {
+      if (Result.isFailure(destinationExists)) {
         failures.push(
           `Cannot inspect destination ${item.new_path}: ${
-            destinationExists.left instanceof Error
-              ? destinationExists.left.message
-              : String(destinationExists.left)
+            destinationExists.failure instanceof Error
+              ? destinationExists.failure.message
+              : globalThis.String(destinationExists.failure)
           }`,
         );
         continue;
       }
 
-      if (destinationExists.right) {
+      if (destinationExists.success) {
         failures.push(`Destination already exists: ${item.new_path}`);
         continue;
       }
 
-      const claimResult = yield* claimDestination(fs, item.new_path).pipe(Effect.either);
+      const claimResult = yield* claimDestination(fs, item.new_path).pipe(Effect.result);
 
-      if (Either.isLeft(claimResult)) {
-        failures.push(claimResult.left.message);
+      if (Result.isFailure(claimResult)) {
+        failures.push(claimResult.failure.message);
         continue;
       }
 
@@ -137,7 +136,7 @@ export const renameLibraryFiles = Effect.fn("Operations.renameLibraryFiles")((
               message: `Failed to rename file ${item.current_path}`,
             }),
         ),
-        Effect.zipRight(
+        Effect.andThen(
           mediaUnitRepository.updateUnitFilePaths(mediaId, unitNumbers, item.new_path).pipe(
             Effect.catchTag("DatabaseError", (error) =>
               fs.rename(item.new_path, item.current_path).pipe(
@@ -145,21 +144,21 @@ export const renameLibraryFiles = Effect.fn("Operations.renameLibraryFiles")((
                   Effect.logWarning("Failed to rollback rename after DB error").pipe(
                     Effect.annotateLogs({
                       current_path: item.current_path,
-                      error: String(fsError),
+                      error: globalThis.String(fsError),
                       new_path: item.new_path,
                     }),
                     Effect.asVoid,
                   ),
                 ),
-                Effect.zipRight(Effect.fail(error)),
+                Effect.andThen(Effect.fail(error)),
               ),
             ),
           ),
         ),
-        Effect.either,
+        Effect.result,
       );
 
-      if (Either.isRight(result)) {
+      if (Result.isSuccess(result)) {
         renamed += 1;
       } else {
         // Claim left an empty file at destination; remove it so future
@@ -167,7 +166,7 @@ export const renameLibraryFiles = Effect.fn("Operations.renameLibraryFiles")((
         // Best-effort: a failed removal would permanently block renames of
         // this unit, so surface the cause in logs instead of swallowing it.
         yield* fs.remove(item.new_path).pipe(
-          Effect.catchAllCause((cause) =>
+          Effect.catchCause((cause) =>
             Effect.logWarning("Failed to remove claimed rename destination").pipe(
               Effect.annotateLogs({
                 path: item.new_path,
@@ -176,7 +175,11 @@ export const renameLibraryFiles = Effect.fn("Operations.renameLibraryFiles")((
             ),
           ),
         );
-        failures.push(result.left instanceof Error ? result.left.message : String(result.left));
+        failures.push(
+          result.failure instanceof Error
+            ? result.failure.message
+            : globalThis.String(result.failure),
+        );
       }
     }
 

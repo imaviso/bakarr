@@ -6,7 +6,7 @@ import { withFileSystemSandboxEffect } from "@/test/filesystem-test.ts";
 import { withSqliteRawClientEffect } from "@/test/database-test.ts";
 import { assert, it } from "@effect/vitest";
 
-it.scoped("migrateDatabase applies embedded migrations idempotently", () =>
+it.effect("migrateDatabase applies embedded migrations idempotently", () =>
   withFileSystemSandboxEffect(({ root }) =>
     Effect.scoped(
       Effect.gen(function* () {
@@ -15,7 +15,7 @@ it.scoped("migrateDatabase applies embedded migrations idempotently", () =>
           databaseFile,
           run: (client) =>
             Effect.gen(function* () {
-              const databaseLayer = Layer.succeed(AppSqlClient, AppSqlClient.make(client));
+              const databaseLayer = Layer.succeed(AppSqlClient, AppSqlClient.of(client));
 
               const first = yield* Effect.exit(
                 migrateDatabase().pipe(Effect.provide(databaseLayer)),

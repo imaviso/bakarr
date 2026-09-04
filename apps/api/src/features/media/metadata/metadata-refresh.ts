@@ -1,4 +1,4 @@
-import { Config as EffectConfig, Effect, Schema } from "effect";
+import { Config, Effect } from "effect";
 
 import { PositiveIntFromStringSchema } from "@/infra/schema.ts";
 import { makeSerializedShareEffectRunner } from "@/infra/effect/serialized-runner.ts";
@@ -20,10 +20,10 @@ export const makeMetadataRefreshRunner = Effect.fn("MediaMetadataRefresh.makeRun
   const mediaRepository = yield* MediaRepository;
   const mediaUnitRepository = yield* MediaUnitRepository;
   const systemLogRepository = yield* SystemLogRepository;
-  const refreshConcurrency = yield* Schema.Config(
-    "BAKARR_METADATA_REFRESH_CONCURRENCY",
+  const refreshConcurrency = yield* Config.schema(
     PositiveIntFromStringSchema,
-  ).pipe(EffectConfig.withDefault(DEFAULT_METADATA_REFRESH_CONCURRENCY));
+    "BAKARR_METADATA_REFRESH_CONCURRENCY",
+  ).pipe(Config.withDefault(DEFAULT_METADATA_REFRESH_CONCURRENCY));
 
   return yield* makeSerializedShareEffectRunner(
     refreshMetadataForMonitoredMediaEffect({

@@ -9,13 +9,13 @@ interface SystemSettingsDownloadsSectionProps {
   form: SettingsFormApi;
 }
 
-const RatioLimitInputSchema = Schema.Union(Schema.Literal(""), Schema.NumberFromString);
+const RatioLimitInputSchema = Schema.Union([Schema.Literals([""]), Schema.NumberFromString]);
 
 function decodeRatioLimitInput(value: string, fallback: number | null | undefined): number | null {
-  const decoded = Schema.decodeUnknownEither(RatioLimitInputSchema)(value);
-  if (decoded._tag === "Left") return fallback ?? null;
+  const decoded = Schema.decodeUnknownResult(RatioLimitInputSchema)(value);
+  if (decoded._tag === "Failure") return fallback ?? null;
 
-  return decoded.right === "" ? null : decoded.right;
+  return decoded.success === "" ? null : decoded.success;
 }
 
 export function SystemSettingsDownloadsSection(props: SystemSettingsDownloadsSectionProps) {

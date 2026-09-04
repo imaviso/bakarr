@@ -1,5 +1,4 @@
-import { HttpServer } from "@effect/platform";
-import { DateTime, Effect } from "effect";
+import * as HttpServer from "effect/unstable/http/HttpServer";
 
 import { BackgroundWorkerController } from "@/background/controller-core.ts";
 import { initializeBackgroundWorkerMetrics } from "@/background/monitor.ts";
@@ -14,6 +13,7 @@ import { SystemConfigService } from "@/features/system/system-config-service.ts"
 import { makeDefaultConfig, DEFAULT_PROFILES } from "@/features/system/defaults.ts";
 import { composeConfig } from "@/features/system/config-codec.ts";
 import { compactLogAnnotations, errorLogAnnotations } from "@/infra/logging.ts";
+import { DateTime, Effect } from "effect";
 
 export const bootstrapProgram = Effect.fn("api.bootstrap")(function* () {
   yield* migrateDatabase();
@@ -47,9 +47,9 @@ const pruneOldSystemLogs = Effect.fn("api.bootstrap.pruneSystemLogs")(function* 
   const pruned = yield* systemLogRepository
     .deleteLogsOlderThan(cutoffIso)
     .pipe(
-      Effect.catchAll((cause) =>
+      Effect.catch((cause) =>
         Effect.logWarning("Failed to prune old system logs").pipe(
-          Effect.annotateLogs({ cause: String(cause) }),
+          Effect.annotateLogs({ cause: globalThis.String(cause) }),
           Effect.as(0),
         ),
       ),
@@ -85,7 +85,7 @@ export const startBackgroundWorkers = Effect.fn("api.background.start")(function
         Effect.annotateLogs(errorLogAnnotations(error)),
         // Hardcoded defaults cannot fail to compose; a failure here would be
         // an invariant violation, hence the defect.
-        Effect.zipRight(
+        Effect.andThen(
           composeConfig(makeDefaultConfig(appConfig.databaseFile), DEFAULT_PROFILES).pipe(
             Effect.orDie,
           ),

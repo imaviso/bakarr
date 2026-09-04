@@ -1,7 +1,5 @@
 import { type Socket } from "node:dgram";
 
-import { Effect, Option, Ref, Scope } from "effect";
-
 import type { Config } from "@packages/shared/index.ts";
 import { type DatabaseError } from "@/db/database.ts";
 import {
@@ -30,6 +28,7 @@ import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-s
 import { StoredConfigCorruptError } from "@/features/system/errors.ts";
 import { DEFAULT_ANIDB_METADATA_CONFIG } from "@/features/system/metadata-providers-config.ts";
 import { ExternalCallError } from "@/infra/effect/retry.ts";
+import { Context, Effect, Layer, Option, Ref, Scope, Semaphore } from "effect";
 
 const ANIDB_MIN_ANIME_MATCH_SCORE = 70;
 const ANIDB_STRONG_ANIME_MATCH_SCORE = 90;
@@ -71,7 +70,7 @@ function resolveAniDbRuntimeConfig(config: Config): AniDbRuntimeConfig {
 }
 
 export function normalizeEpisodeCount(unitCount: number | undefined, episodeLimit: number) {
-  if (!Number.isFinite(unitCount) || unitCount === undefined) {
+  if (!globalThis.Number.isFinite(unitCount) || unitCount === undefined) {
     return episodeLimit;
   }
 
@@ -89,7 +88,7 @@ const makeAniDbClient = Effect.fn("AniDbClient.make")(function* () {
   const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
   // Serializes every socket interaction (AUTH, ANIME, EPISODE, LOGOUT) so a
   // scope-finalizer LOGOUT can never interleave with an in-flight lookup.
-  const requestSemaphore = yield* Effect.makeSemaphore(1);
+  const requestSemaphore = yield* Semaphore.make(1);
   const requestContext: AniDbRequestContext = {
     lastPacketAtRef: yield* Ref.make(0),
     nextTagRef: yield* Ref.make(1),
@@ -109,7 +108,7 @@ const makeAniDbClient = Effect.fn("AniDbClient.make")(function* () {
     yield* logoutAniDbEffect(session.socket, session.sessionToken, requestContext).pipe(
       Effect.timeout(ANIDB_CLOSE_SESSION_TIMEOUT),
       Effect.catchTag("ExternalCallError", () => Effect.void),
-      Effect.catchTag("TimeoutException", () => Effect.void),
+      Effect.catchTag("TimeoutError", () => Effect.void),
     );
     yield* closeAniDbSocketEffect(session.socket);
   });
@@ -245,7 +244,7 @@ const makeAniDbClient = Effect.fn("AniDbClient.make")(function* () {
           titleCandidates,
         }).pipe(
           Effect.catchTag("ExternalCallError", (error) =>
-            logoutAndCloseSession().pipe(Effect.zipRight(Effect.fail(error))),
+            logoutAndCloseSession().pipe(Effect.andThen(Effect.fail(error))),
           ),
         );
       }),
@@ -255,11 +254,13 @@ const makeAniDbClient = Effect.fn("AniDbClient.make")(function* () {
   return { getEpisodeMetadata } satisfies AniDbClientShape;
 });
 
-export class AniDbClient extends Effect.Service<AniDbClient>()("@bakarr/api/AniDbClient", {
-  scoped: makeAniDbClient(),
-}) {}
+export class AniDbClient extends Context.Service<AniDbClient, AniDbClientShape>()(
+  "@bakarr/api/AniDbClient",
+) {
+  static readonly layer = Layer.effect(AniDbClient, makeAniDbClient());
+}
 
-export const AniDbClientLive = AniDbClient.Default;
+export const AniDbClientLive = AniDbClient.layer;
 
 function toAniDbSessionConfigKey(config: {
   readonly client: string;
@@ -280,7 +281,7 @@ function toAniDbSessionConfigKey(config: {
 const logRuntimeConfigError = (error: DatabaseError | StoredConfigCorruptError, reason: string) =>
   Effect.logWarning("AniDB metadata lookup failed due to runtime config load failure").pipe(
     Effect.annotateLogs({
-      cause: String(error.cause),
+      cause: globalThis.String(error.cause),
       error: error.message,
       reason,
     }),
@@ -288,7 +289,7 @@ const logRuntimeConfigError = (error: DatabaseError | StoredConfigCorruptError, 
 
 const failRuntimeConfigLoad = (error: DatabaseError | StoredConfigCorruptError, reason: string) =>
   logRuntimeConfigError(error, reason).pipe(
-    Effect.zipRight(
+    Effect.andThen(
       AniDbRuntimeConfigError.make({
         cause: error.cause ?? error,
         message: `AniDB lookup failed while loading runtime config: ${error.message}`,
@@ -349,7 +350,7 @@ const fetchAniDbEpisodesEffect = Effect.fn("AniDbClient.fetchEpisodes")(function
           });
         }
 
-        return Option.fromNullable(parseEpisodeResponse(response.lines[0], unitNumber));
+        return Option.fromNullishOr(parseEpisodeResponse(response.lines[0], unitNumber));
       }),
     { concurrency: 1 },
   );

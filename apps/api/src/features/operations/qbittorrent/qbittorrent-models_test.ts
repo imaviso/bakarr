@@ -1,5 +1,5 @@
-import { assert, it } from "@effect/vitest";
 import { Redacted } from "effect";
+import { assert, it } from "@effect/vitest";
 
 import {
   qbitPasswordValue,

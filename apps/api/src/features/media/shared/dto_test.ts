@@ -1,5 +1,5 @@
-import { assert, it } from "@effect/vitest";
 import { Cause, Effect, Exit } from "effect";
+import { assert, it } from "@effect/vitest";
 
 import { media, mediaUnits } from "@/db/schema.ts";
 import { StoredDataError } from "@/features/errors.ts";
@@ -243,7 +243,7 @@ it.effect("toMediaDto fails with typed stored-data errors for corrupt persisted 
 
     assert.deepStrictEqual(Exit.isFailure(exit), true);
     if (Exit.isFailure(exit)) {
-      const failure = Cause.failureOption(exit.cause);
+      const failure = Cause.findErrorOption(exit.cause);
       assert.deepStrictEqual(failure._tag, "Some");
       if (failure._tag === "Some") {
         assert.deepStrictEqual(failure.value instanceof StoredDataError, true);

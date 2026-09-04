@@ -1,6 +1,7 @@
-import { HttpClient, HttpClientResponse } from "@effect/platform";
+import * as HttpClient from "effect/unstable/http/HttpClient";
+import * as HttpClientResponse from "effect/unstable/http/HttpClientResponse";
 import { Effect, Schema } from "effect";
-import type { HttpClientRequest } from "@effect/platform";
+import * as HttpClientRequest from "effect/unstable/http/HttpClientRequest";
 
 import { ExternalCallError, type ExternalCallShape } from "@/infra/effect/retry.ts";
 
@@ -52,7 +53,7 @@ export const executeProviderRequest = (
   );
 
 export interface ProviderJsonCallInput<A, I> extends ProviderHttpRequestInput {
-  readonly schema: Schema.Schema<A, I>;
+  readonly schema: Schema.Codec<A, I, never, unknown>;
 }
 
 export const callProviderJson = <A, I>(

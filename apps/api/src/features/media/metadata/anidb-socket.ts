@@ -2,10 +2,9 @@
 import { createSocket, type Socket } from "node:dgram";
 import { resolve4 } from "node:dns/promises";
 
-import { Cause, Data, Effect } from "effect";
-
 import { ExternalCallError } from "@/infra/effect/retry.ts";
 import { parseAniDbResponseTag } from "@/features/media/metadata/anidb-protocol.ts";
+import { Cause, Data, Effect } from "effect";
 
 export const ANIDB_HOST = "api.anidb.net";
 export const ANIDB_PORT = 9000;
@@ -60,7 +59,7 @@ export const openAniDbSocketEffect = Effect.fn("AniDbClient.openSocket")(functio
   localPort: number,
   options: OpenAniDbSocketOptions = {},
 ) {
-  return yield* Effect.async<Socket, ExternalCallError>((resume) => {
+  return yield* Effect.callback<Socket, ExternalCallError>((resume) => {
     const socket = createSocket("udp4");
 
     const closeSocket = () => {
@@ -117,7 +116,7 @@ export const closeAniDbSocketEffect = Effect.fn("AniDbClient.closeSocket")(funct
 
 export const sendAndReceiveAniDbPacketEffect = Effect.fn("AniDbClient.sendAndReceivePacket")(
   function* (socket: Socket, command: string, peer: AniDbPeer, expectedTag: string) {
-    return yield* Effect.async<string, AniDbSocketPacketError>((resume) => {
+    return yield* Effect.callback<string, AniDbSocketPacketError>((resume) => {
       let done = false;
 
       const cleanup = () => {
@@ -181,7 +180,7 @@ export const sendAndReceiveAniDbPacketEffect = Effect.fn("AniDbClient.sendAndRec
       // and `Effect.timeout` interrupts the inner effect so cleanup runs.
       Effect.timeout(`${ANIDB_PACKET_TIMEOUT_MS} millis`),
       Effect.mapError((cause) =>
-        cause instanceof Cause.TimeoutException
+        cause instanceof Cause.TimeoutError
           ? new AniDbSocketPacketError({
               cause,
               message: "AniDB UDP response timed out",

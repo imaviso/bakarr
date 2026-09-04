@@ -1,5 +1,5 @@
-import { assert, describe, it } from "@effect/vitest";
 import { Deferred, Effect, Fiber } from "effect";
+import { assert, describe, it } from "@effect/vitest";
 
 import {
   makeSerializedDropEffectRunner,
@@ -37,7 +37,7 @@ describe("serialized runner: drop", () => {
           return 42;
         }),
       );
-      const firstTrigger = yield* Effect.fork(runner.trigger);
+      const firstTrigger = yield* Effect.forkChild(runner.trigger);
       yield* Deferred.await(firstRunStarted);
 
       const secondResult = yield* runner.trigger;
@@ -75,18 +75,22 @@ describe("serialized runner: share", () => {
         }),
       );
 
-      const firstTrigger = yield* Effect.fork(runner.trigger);
+      const firstTrigger = yield* Effect.forkChild(runner.trigger);
       yield* Deferred.await(firstRunStarted);
 
-      const secondTrigger = yield* Effect.fork(runner.trigger);
-      const thirdTrigger = yield* Effect.fork(runner.trigger);
+      const secondTrigger = yield* Effect.forkChild(runner.trigger);
+      const thirdTrigger = yield* Effect.forkChild(runner.trigger);
+      // Let the follower fibers reach their Ref gate before releasing the run.
+      yield* Effect.yieldNow;
+      yield* Effect.yieldNow;
       assert.deepStrictEqual(runs, 1);
 
       yield* Deferred.succeed(releaseFirstRun, void 0);
 
-      const results = yield* Effect.all([firstTrigger, secondTrigger, thirdTrigger], {
-        concurrency: "unbounded",
-      });
+      const results = yield* Effect.all(
+        [firstTrigger, secondTrigger, thirdTrigger].map((fiber) => Fiber.join(fiber)),
+        { concurrency: "unbounded" },
+      );
       assert.deepStrictEqual(results, [42, 42, 42]);
       assert.deepStrictEqual(runs, 1);
     }),
@@ -120,9 +124,9 @@ describe("serialized runner: share", () => {
         }),
       );
 
-      const firstTrigger = yield* Effect.fork(runner.trigger);
+      const firstTrigger = yield* Effect.forkChild(runner.trigger);
       yield* Deferred.await(firstRunStarted);
-      const secondTrigger = yield* Effect.fork(runner.trigger);
+      const secondTrigger = yield* Effect.forkChild(runner.trigger);
 
       yield* Deferred.succeed(releaseFirstRun, void 0);
 
@@ -177,11 +181,14 @@ describe("serialized runner: drain", () => {
         }),
       );
 
-      const firstTrigger = yield* Effect.fork(runner.trigger);
+      const firstTrigger = yield* Effect.forkChild(runner.trigger);
       yield* Deferred.await(firstRunStarted);
 
-      const secondTrigger = yield* Effect.fork(runner.trigger);
-      const thirdTrigger = yield* Effect.fork(runner.trigger);
+      const secondTrigger = yield* Effect.forkChild(runner.trigger);
+      const thirdTrigger = yield* Effect.forkChild(runner.trigger);
+      // Let the follower fibers reach their Ref gate before releasing the run.
+      yield* Effect.yieldNow;
+      yield* Effect.yieldNow;
 
       assert.deepStrictEqual(runCount.value, 1);
 
@@ -231,9 +238,12 @@ describe("serialized runner: drain", () => {
         }),
       );
 
-      const firstTrigger = yield* Effect.fork(runner.trigger);
+      const firstTrigger = yield* Effect.forkChild(runner.trigger);
       yield* Deferred.await(firstRunStarted);
-      const secondTrigger = yield* Effect.fork(runner.trigger);
+      const secondTrigger = yield* Effect.forkChild(runner.trigger);
+      // Let the follower reach its Ref gate before releasing the run.
+      yield* Effect.yieldNow;
+      yield* Effect.yieldNow;
 
       yield* Deferred.succeed(releaseFirstRun, void 0);
 
@@ -262,9 +272,12 @@ describe("serialized runner: drain", () => {
         }),
       );
 
-      const lead = yield* Effect.fork(runner.trigger);
+      const lead = yield* Effect.forkChild(runner.trigger);
       yield* Deferred.await(firstRunStarted);
-      const follower = yield* Effect.fork(runner.trigger);
+      const follower = yield* Effect.forkChild(runner.trigger);
+      // Let the follower reach its Ref gate before interrupting the lead.
+      yield* Effect.yieldNow;
+      yield* Effect.yieldNow;
 
       yield* Fiber.interrupt(lead);
 

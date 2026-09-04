@@ -1,15 +1,16 @@
 // oxlint-disable oxc/no-async-await -- async/await required by transaction callbacks, test callbacks, and tryPromise wrappers
+
+import { Context, Effect, Exit, Layer, ManagedRuntime, Option, Schema, Scope } from "effect";
 import assert from "node:assert/strict";
 import * as SqliteClient from "@effect/sql-sqlite-node/SqliteClient";
-import { it } from "@effect/vitest";
-import { CommandExecutor, FileSystem as PlatformFileSystem } from "@effect/platform";
+import * as it from "@effect/vitest";
+import * as PlatformFileSystem from "effect/FileSystem";
+import * as CommandExecutor from "effect/unstable/process/ChildProcessSpawner";
 import * as NodeFileSystem from "@effect/platform-node/NodeFileSystem";
-import { HttpApp } from "@effect/platform";
-import * as Context from "effect/Context";
-import { Effect, Layer, ManagedRuntime, Option, Predicate, Schema, Stream } from "effect";
-import * as Exit from "effect/Exit";
-import * as EffectLayer from "effect/Layer";
-import * as Scope from "effect/Scope";
+import * as HttpRouter from "effect/unstable/http/HttpRouter";
+import * as HttpServerRequest from "effect/unstable/http/HttpServerRequest";
+import * as HttpServerResponse from "effect/unstable/http/HttpServerResponse";
+
 import {
   AsyncOperationAcceptedSchema,
   brandMediaId,
@@ -21,7 +22,7 @@ import { join } from "node:path";
 import { bootstrapProgram } from "./src/app/startup.ts";
 import { makeApiLifecycleLayers } from "./src/app/lifecycle-layers.ts";
 import { createHttpApp } from "./src/app/http-app.ts";
-import { commandArgs, commandName } from "./src/test/stubs.ts";
+import { commandArgs, commandName, makeCommandExecutorStub } from "./src/test/stubs.ts";
 import { AniListClient } from "./src/features/media/metadata/anilist.ts";
 import { JikanClient } from "./src/features/media/metadata/jikan.ts";
 import { ManamiCacheRefreshClient, ManamiClient } from "./src/features/media/metadata/manami.ts";
@@ -91,7 +92,7 @@ function itWithTestContext(
   run: (ctx: TestContext) => PromiseLike<void> | void,
   options?: TestContextOptions,
 ) {
-  return it.scoped(name, () => {
+  return it.effect(name, () => {
     const input = {
       ...(options === undefined ? {} : { options }),
       run: (ctx: TestContext) => Effect.promise(() => Promise.resolve(run(ctx))),
@@ -269,10 +270,10 @@ itWithTestContext("search releases enriches SeaDex metadata using AniList ID", a
   });
 });
 
-it.scoped("search releases can match SeaDex by Nyaa URL when info hash is unavailable", () => {
+it.effect("search releases can match SeaDex by Nyaa URL when info hash is unavailable", () => {
   const seadexLayer = Layer.succeed(
     SeaDexClient,
-    SeaDexClient.make({
+    SeaDexClient.of({
       getEntryByAniListId: (_aniListId: number) =>
         Effect.succeed(
           Option.some({
@@ -298,7 +299,7 @@ it.scoped("search releases can match SeaDex by Nyaa URL when info hash is unavai
   );
   const rssLayer = Layer.succeed(
     RssClient,
-    RssClient.make({
+    RssClient.of({
       fetchItems: (_url: string) =>
         Effect.succeed([
           makeTestRelease("[MysteryGroup] Naruto - 01 (1080p)", {
@@ -357,10 +358,10 @@ it.scoped("search releases can match SeaDex by Nyaa URL when info hash is unavai
   });
 });
 
-it.scoped("search releases only marks matching groups as SeaDex in fallback matching", () => {
+it.effect("search releases only marks matching groups as SeaDex in fallback matching", () => {
   const seadexLayer = Layer.succeed(
     SeaDexClient,
-    SeaDexClient.make({
+    SeaDexClient.of({
       getEntryByAniListId: (_aniListId: number) =>
         Effect.succeed(
           Option.some({
@@ -386,7 +387,7 @@ it.scoped("search releases only marks matching groups as SeaDex in fallback matc
   );
   const rssLayer = Layer.succeed(
     RssClient,
-    RssClient.make({
+    RssClient.of({
       fetchItems: (_url: string) =>
         Effect.succeed([
           makeTestRelease("[Okay-Subs] Yofukashi no Uta S2 - 12 [1080p]", {
@@ -1153,7 +1154,7 @@ itWithTestContext("anime folder scan clears mappings for deleted files", async (
     const episodeOne = episodes.find((episode: { number: number }) => episode.number === 1);
     assert.ok(episodeOne);
     assert.deepStrictEqual(episodeOne.downloaded, false);
-    assert.deepStrictEqual(episodeOne.file_path, undefined);
+    assert.deepStrictEqual(episodeOne.file_path, null);
   });
 });
 
@@ -1679,7 +1680,7 @@ itWithTestContext(
   },
 );
 
-it.scoped("download sync auto-imports paused seeding torrents", () =>
+it.effect("download sync auto-imports paused seeding torrents", () =>
   withTempDirEffect((animeRoot) =>
     withTempDirEffect((completedRoot) =>
       Effect.gen(function* () {
@@ -1689,7 +1690,7 @@ it.scoped("download sync auto-imports paused seeding torrents", () =>
 
         const qbitLayer = Layer.succeed(
           QBitTorrentClient,
-          QBitTorrentClient.make({
+          QBitTorrentClient.of({
             addTorrentUrl: () => Effect.void,
             deleteTorrent: () => Effect.void,
             listTorrentContents: () =>
@@ -1822,11 +1823,11 @@ it.scoped("download sync auto-imports paused seeding torrents", () =>
   ),
 );
 
-it.scoped("download sync refines season-pack coverage from qBittorrent file list", () => {
+it.effect("download sync refines season-pack coverage from qBittorrent file list", () => {
   const magnetHash = "feedfeedfeedfeedfeedfeedfeedfeedfeedfeed";
   const qbitLayer = Layer.succeed(
     QBitTorrentClient,
-    QBitTorrentClient.make({
+    QBitTorrentClient.of({
       addTorrentUrl: () => Effect.void,
       deleteTorrent: () => Effect.void,
       listTorrentContents: () =>
@@ -1957,7 +1958,7 @@ it.scoped("download sync refines season-pack coverage from qBittorrent file list
           assert.deepStrictEqual(history[0].covered_units, [1, 2]);
           assert.deepStrictEqual(history[0].unit_number, 1);
           assert.deepStrictEqual(history[0].is_batch, true);
-          assert.deepStrictEqual(history[0].coverage_pending, undefined);
+          assert.deepStrictEqual(history[0].coverage_pending, null);
         });
       }),
   });
@@ -2257,7 +2258,7 @@ itWithTestContext("anime update, map, stream, and delete endpoints work", async 
       });
       const episodeRows = await episodesAfterDelete.json();
       assert.deepStrictEqual(episodeRows[0].downloaded, false);
-      assert.deepStrictEqual(episodeRows[0].file_path, undefined);
+      assert.deepStrictEqual(episodeRows[0].file_path, null);
 
       const deleteAnimeResponse = await ctx.app.request("/api/media/20", {
         headers: { Cookie: apiKeySessionCookie },
@@ -2510,7 +2511,7 @@ itWithTestContext("validation errors return 400 for malformed or invalid request
   assert.deepStrictEqual(invalidBodyResponse["status"], 400);
   assert.match(
     await invalidBodyResponse.text(),
-    /^Invalid request body for create quality profile: .*: is missing(?:; .*: is missing)*$/,
+    /^Invalid request body for create quality profile: .*: (?:is missing|Missing key)(?:; .*: (?:is missing|Missing key))*$/,
   );
 
   const invalidQueryResponse = await ctx.app.request("/api/system/logs?page=0", {
@@ -2519,7 +2520,7 @@ itWithTestContext("validation errors return 400 for malformed or invalid request
   assert.deepStrictEqual(invalidQueryResponse["status"], 400);
   assert.match(
     await invalidQueryResponse.text(),
-    /^Invalid query parameters for system logs: page: Expected a positive number, actual 0; page: Expected undefined, actual "0"$/,
+    /^Invalid query parameters for system logs: page: Expected a value greater than 0$/,
   );
 });
 
@@ -2929,7 +2930,7 @@ itWithTestContext("rss, wanted, rename, and download helper endpoints work", asy
       assert.deepStrictEqual(typeof events.total, "number");
       assert.deepStrictEqual(typeof events.has_more, "boolean");
       assert.deepStrictEqual(
-        typeof events.next_cursor === "string" || events.next_cursor === undefined,
+        typeof events.next_cursor === "string" || events.next_cursor == null,
         true,
       );
       assert.deepStrictEqual(events.events.length >= 1, true);
@@ -2995,7 +2996,7 @@ itWithTestContext("rss, wanted, rename, and download helper endpoints work", asy
       );
       assert.deepStrictEqual(
         typeof statusFilteredEvents.next_cursor === "string" ||
-          statusFilteredEvents.next_cursor === undefined,
+          statusFilteredEvents.next_cursor == null,
         true,
       );
 
@@ -4226,7 +4227,7 @@ itWithTestContext("bulk map accepts empty file path as unmap", async (ctx) => {
     });
     const episodes = await episodesResponse.json();
     assert.deepStrictEqual(episodes[0].downloaded, false);
-    assert.deepStrictEqual(episodes[0].file_path, undefined);
+    assert.deepStrictEqual(episodes[0].file_path, null);
   });
 });
 
@@ -4303,7 +4304,7 @@ function normalizeForSearch(s: string): string {
 
 const testAniListLayer = Layer.succeed(
   AniListClient,
-  AniListClient.make({
+  AniListClient.of({
     searchAnimeMetadata: (query: string) => {
       const results: MediaSearchResult[] = [];
       const normalizedQuery = normalizeForSearch(query);
@@ -4331,7 +4332,7 @@ const testAniListLayer = Layer.succeed(
       return Effect.succeed(results);
     },
     getAnimeMetadataById: (id: number) =>
-      Effect.succeed(Option.fromNullable(TEST_ANIME_METADATA.get(id))),
+      Effect.succeed(Option.fromNullishOr(TEST_ANIME_METADATA.get(id))),
     getSeasonalAnime: () => Effect.succeed([]),
   }),
 );
@@ -4392,7 +4393,7 @@ const TEST_SEADEX_ENTRIES = new Map<number, SeaDexEntry>([
 
 const testRssLayer = Layer.succeed(
   RssClient,
-  RssClient.make({
+  RssClient.of({
     fetchItems: (url: string) => {
       const query = decodeURIComponent(url).toLowerCase();
       const releases: ParsedRelease[] = [];
@@ -4411,9 +4412,9 @@ const testRssLayer = Layer.succeed(
 
 const testSeaDexLayer = Layer.succeed(
   SeaDexClient,
-  SeaDexClient.make({
+  SeaDexClient.of({
     getEntryByAniListId: (aniListId: number) =>
-      Effect.succeed(Option.fromNullable(TEST_SEADEX_ENTRIES.get(aniListId))),
+      Effect.succeed(Option.fromNullishOr(TEST_SEADEX_ENTRIES.get(aniListId))),
   }),
 );
 
@@ -4421,7 +4422,7 @@ const testSeaDexLayer = Layer.succeed(
 // iteration so 310k-iteration PBKDF2 does not dominate suite runtime.
 const testPasswordCryptoLayer = Layer.succeed(
   PasswordCrypto,
-  PasswordCrypto.make({
+  PasswordCrypto.of({
     ...WebPasswordCrypto,
     deriveBits: (keyMaterial, salt, _iterations) =>
       Effect.tryPromise({
@@ -4442,7 +4443,7 @@ const testPasswordCryptoLayer = Layer.succeed(
 
 const testJikanLayer = Layer.succeed(
   JikanClient,
-  JikanClient.make({
+  JikanClient.of({
     getAnimeByMalId: () => Effect.succeed(Option.none()),
     getSeasonalAnime: () => Effect.succeed([]),
   }),
@@ -4451,7 +4452,7 @@ const testJikanLayer = Layer.succeed(
 const testManamiLayer = Layer.mergeAll(
   Layer.succeed(
     ManamiClient,
-    ManamiClient.make({
+    ManamiClient.of({
       getByAniListId: () => Effect.succeed(Option.none()),
       getByMalId: () => Effect.succeed(Option.none()),
       resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
@@ -4461,7 +4462,7 @@ const testManamiLayer = Layer.mergeAll(
   ),
   Layer.succeed(
     ManamiCacheRefreshClient,
-    ManamiCacheRefreshClient.make({
+    ManamiCacheRefreshClient.of({
       refreshCacheIfNeeded: () => Effect.succeed(false),
     }),
   ),
@@ -4493,7 +4494,7 @@ function makeTestAppLayer(
     {
       aniListLayer: testAniListLayer,
       commandExecutorLayer: Layer.succeed(
-        CommandExecutor.CommandExecutor,
+        CommandExecutor.ChildProcessSpawner,
         makeCommandExecutorStub((command) => {
           const name = commandName(command);
           const args = commandArgs(command);
@@ -4541,10 +4542,24 @@ async function createTemplateDatabaseFile() {
 
   try {
     await runtime.runPromise(bootstrapProgram());
-    const httpApp = await runtime.runPromise(createHttpApp());
-    const webHandler = HttpApp.toWebHandlerRuntime(await runtime.runtime())(httpApp);
+    const handlerEffect = await runtime.runPromise(
+      Effect.scoped(HttpRouter.toHttpEffect(createHttpApp())),
+    );
     const request = (input: string, init?: RequestInit) =>
-      webHandler(new Request(new URL(input, "http://bakarr.local").toString(), init));
+      runtime
+        .runPromise(
+          Effect.scoped(
+            handlerEffect.pipe(
+              Effect.provideService(
+                HttpServerRequest.HttpServerRequest,
+                HttpServerRequest.fromWeb(
+                  new Request(new URL(input, "http://bakarr.local").toString(), init),
+                ),
+              ),
+            ),
+          ),
+        )
+        .then((response) => HttpServerResponse.toWeb(response));
 
     const bootstrapLoginResponse = await request("/api/auth/login", {
       body: JSON.stringify({ password: "admin", username: "admin" }),
@@ -4641,8 +4656,22 @@ async function createTestContextForDatabaseFile(
 
   const runtime = ManagedRuntime.make(makeTestAppLayer(databaseFile, options));
   await runtime.runPromise(bootstrapProgram());
-  const httpApp = await runtime.runPromise(createHttpApp());
-  const webHandler = HttpApp.toWebHandlerRuntime(await runtime.runtime())(httpApp);
+  const handlerEffect = await runtime.runPromise(
+    Effect.scoped(HttpRouter.toHttpEffect(createHttpApp())),
+  );
+  const runRequest = (request: Request) =>
+    runtime
+      .runPromise(
+        Effect.scoped(
+          handlerEffect.pipe(
+            Effect.provideService(
+              HttpServerRequest.HttpServerRequest,
+              HttpServerRequest.fromWeb(request),
+            ),
+          ),
+        ),
+      )
+      .then((response) => HttpServerResponse.toWeb(response));
   const app = {
     request: (input: string | URL | Request, init?: RequestInit) => {
       if (typeof input === "string" && input.includes("/../")) {
@@ -4659,7 +4688,7 @@ async function createTestContextForDatabaseFile(
               init,
             );
 
-      return webHandler(request);
+      return runRequest(request);
     },
   };
 
@@ -4689,8 +4718,22 @@ async function createLegacyBootstrapTestContext(
     makeTestAppLayer(databaseFile, { ...options, bootstrapPassword: "admin" }),
   );
   await runtime.runPromise(bootstrapProgram());
-  const httpApp = await runtime.runPromise(createHttpApp());
-  const webHandler = HttpApp.toWebHandlerRuntime(await runtime.runtime())(httpApp);
+  const handlerEffect = await runtime.runPromise(
+    Effect.scoped(HttpRouter.toHttpEffect(createHttpApp())),
+  );
+  const runRequest = (request: Request) =>
+    runtime
+      .runPromise(
+        Effect.scoped(
+          handlerEffect.pipe(
+            Effect.provideService(
+              HttpServerRequest.HttpServerRequest,
+              HttpServerRequest.fromWeb(request),
+            ),
+          ),
+        ),
+      )
+      .then((response) => HttpServerResponse.toWeb(response));
   const app = {
     request: (input: string | URL | Request, init?: RequestInit) => {
       if (typeof input === "string" && input.includes("/../")) {
@@ -4707,7 +4750,7 @@ async function createLegacyBootstrapTestContext(
               init,
             );
 
-      return webHandler(request);
+      return runRequest(request);
     },
   };
 
@@ -4717,25 +4760,6 @@ async function createLegacyBootstrapTestContext(
     dispose: async () => {
       await runtime.dispose();
     },
-  };
-}
-
-function makeCommandExecutorStub(
-  runAsString: (
-    command: Parameters<CommandExecutor.CommandExecutor["string"]>[0],
-  ) => Effect.Effect<string>,
-): CommandExecutor.CommandExecutor {
-  return {
-    [CommandExecutor.TypeId]: CommandExecutor.TypeId,
-    exitCode: () => Effect.die("exitCode not implemented for test"),
-    lines: (command, _encoding) =>
-      runAsString(command).pipe(
-        Effect.map((value) => value.split(/\r?\n/).filter((line) => line.length > 0)),
-      ),
-    start: () => Effect.die("start not implemented for test"),
-    stream: () => Stream.dieMessage("stream not implemented for test"),
-    streamLines: () => Stream.dieMessage("streamLines not implemented for test"),
-    string: (command, _encoding) => runAsString(command),
   };
 }
 
@@ -4763,7 +4787,7 @@ function createClient(input: { readonly url: string }) {
   const databaseFile = toDatabaseFile(input.url);
   const scope = Effect.runSync(Scope.make());
   const clientContext = Effect.runSync(
-    EffectLayer.buildWithScope(
+    Layer.buildWithScope(
       SqliteClient.layer({
         filename: databaseFile,
         readonly: false,
@@ -4804,7 +4828,8 @@ type SqlValue = string | number | null;
 // oxlint-disable-next-line typescript/no-restricted-types -- type guards must accept unknown
 function isSqlRow(value: unknown): value is SqlRow {
   return (
-    Predicate.isRecord(value) &&
+    typeof value === "object" &&
+    value !== null &&
     Object.values(value).every(
       (entry) => entry === null || typeof entry === "string" || typeof entry === "number",
     )

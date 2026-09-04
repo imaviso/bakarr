@@ -1,15 +1,4 @@
-/* eslint-disable react-refresh/only-export-components */
-import {
-  useCallback,
-  useEffect,
-  useEffectEvent,
-  useLayoutEffect,
-  useMemo,
-  useState,
-  useSyncExternalStore,
-  createContext,
-  use,
-} from "react";
+import { useEffect, useEffectEvent, useLayoutEffect, useSyncExternalStore } from "react";
 
 type Theme = "dark" | "light" | "system";
 type ResolvedTheme = "dark" | "light";
@@ -21,15 +10,19 @@ type ThemeProviderProps = {
   disableTransitionOnChange?: boolean;
 };
 
-type ThemeProviderState = {
-  theme: Theme;
-  setTheme: (theme: Theme) => void;
-};
-
-const ThemeProviderContext = createContext<ThemeProviderState | undefined>(undefined);
-
 const COLOR_SCHEME_QUERY = "(prefers-color-scheme: dark)";
 const THEME_VALUES = new Set<string>(["dark", "light", "system"]);
+
+const listeners = new Set<() => void>();
+let currentTheme: Theme = "system";
+let themeStorageKey = "theme";
+let disableTransitionsOnChange = true;
+
+function emit() {
+  for (const listener of listeners) {
+    listener();
+  }
+}
 
 function isTheme(value: string | null): value is Theme {
   if (value === null) {
@@ -38,9 +31,15 @@ function isTheme(value: string | null): value is Theme {
   return THEME_VALUES.has(value);
 }
 
-function resolveInitialTheme(storageKey: string, defaultTheme: Theme): Theme {
-  const storedTheme = localStorage.getItem(storageKey);
-  return isTheme(storedTheme) ? storedTheme : defaultTheme;
+export function getTheme(): Theme {
+  return currentTheme;
+}
+
+export function subscribeTheme(callback: () => void): () => void {
+  listeners.add(callback);
+  return () => {
+    listeners.delete(callback);
+  };
 }
 
 function resolveSystemTheme(): ResolvedTheme {
@@ -107,45 +106,44 @@ function isEditableTarget(target: EventTarget | null) {
   return false;
 }
 
+function applyThemeToDocument(nextResolvedTheme: ResolvedTheme) {
+  const root = document.documentElement;
+  const cleanupTransitions = disableTransitionsOnChange
+    ? disableTransitionsTemporarily()
+    : undefined;
+
+  root.classList.remove("light", "dark");
+  root.classList.add(nextResolvedTheme);
+  root.style.colorScheme = nextResolvedTheme;
+
+  return cleanupTransitions ?? (() => {});
+}
+
+export function setTheme(nextTheme: Theme) {
+  localStorage.setItem(themeStorageKey, nextTheme);
+  currentTheme = nextTheme;
+  emit();
+}
+
 export function ThemeProvider({
   children,
   defaultTheme = "system",
   storageKey = "theme",
   disableTransitionOnChange = true,
-  ...props
 }: ThemeProviderProps) {
-  const [theme, setThemeState] = useState<Theme>(() =>
-    resolveInitialTheme(storageKey, defaultTheme),
-  );
+  themeStorageKey = storageKey;
+  disableTransitionsOnChange = disableTransitionOnChange;
 
-  const setTheme = useCallback(
-    (nextTheme: Theme) => {
-      localStorage.setItem(storageKey, nextTheme);
-      setThemeState(nextTheme);
-    },
-    [storageKey],
-  );
+  const storedTheme = localStorage.getItem(storageKey);
+  currentTheme = isTheme(storedTheme) ? storedTheme : defaultTheme;
 
+  const theme = useSyncExternalStore(subscribeTheme, getTheme, getTheme);
   const systemTheme = useSystemTheme();
   const resolvedTheme: ResolvedTheme = theme === "system" ? systemTheme : theme;
 
-  const applyTheme = useCallback(
-    (nextResolvedTheme: ResolvedTheme) => {
-      const root = document.documentElement;
-      const cleanupTransitions = disableTransitionOnChange ? disableTransitionsTemporarily() : null;
-
-      root.classList.remove("light", "dark");
-      root.classList.add(nextResolvedTheme);
-      root.style.colorScheme = nextResolvedTheme;
-
-      return cleanupTransitions ?? (() => {});
-    },
-    [disableTransitionOnChange],
-  );
-
   useLayoutEffect(() => {
-    return applyTheme(resolvedTheme);
-  }, [resolvedTheme, applyTheme]);
+    return applyThemeToDocument(resolvedTheme);
+  }, [resolvedTheme]);
 
   const setThemeOnKeydown = useEffectEvent(() => {
     const nextTheme: Theme =
@@ -185,32 +183,17 @@ export function ThemeProvider({
     const handleStorageChange = (event: StorageEvent) => {
       if (event.storageArea !== localStorage) return;
       if (event.key !== storageKey) return;
-      setThemeState(isTheme(event.newValue) ? event.newValue : defaultTheme);
+      setTheme(isTheme(event.newValue) ? event.newValue : defaultTheme);
     };
 
     window.addEventListener("storage", handleStorageChange);
     return () => window.removeEventListener("storage", handleStorageChange);
   }, [defaultTheme, storageKey]);
 
-  const value = useMemo(
-    () => ({
-      theme,
-      setTheme,
-    }),
-    [theme, setTheme],
-  );
-
-  return (
-    <ThemeProviderContext.Provider {...props} value={value}>
-      {children}
-    </ThemeProviderContext.Provider>
-  );
+  return <>{children}</>;
 }
 
-export const useTheme = () => {
-  const context = use(ThemeProviderContext);
-  if (context === undefined) {
-    throw new Error("useTheme must be used within a ThemeProvider");
-  }
-  return context;
-};
+export function useTheme() {
+  const theme = useSyncExternalStore(subscribeTheme, getTheme, getTheme);
+  return { theme, setTheme };
+}

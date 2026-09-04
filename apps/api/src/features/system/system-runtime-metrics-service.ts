@@ -1,5 +1,4 @@
-import { Effect, Metric } from "effect";
-
+import { Context, Effect, Layer, Metric } from "effect";
 import { renderBakarrPrometheusMetrics } from "@/infra/metrics.ts";
 import {
   type SystemReadStatusError,
@@ -74,12 +73,18 @@ const makeSystemRuntimeMetricsService = Effect.fn("SystemRuntimeMetricsService.m
   };
 });
 
-export class SystemRuntimeMetricsService extends Effect.Service<SystemRuntimeMetricsService>()(
-  "@bakarr/api/SystemRuntimeMetricsService",
-  {
-    dependencies: [SystemReadService.Default],
-    effect: makeSystemRuntimeMetricsService(),
-  },
-) {}
+export type SystemRuntimeMetricsServiceShape = Effect.Success<
+  ReturnType<typeof makeSystemRuntimeMetricsService>
+>;
 
-export const SystemRuntimeMetricsServiceLive = SystemRuntimeMetricsService.Default;
+export class SystemRuntimeMetricsService extends Context.Service<
+  SystemRuntimeMetricsService,
+  SystemRuntimeMetricsServiceShape
+>()("@bakarr/api/SystemRuntimeMetricsService") {
+  static readonly layer = Layer.effect(
+    SystemRuntimeMetricsService,
+    makeSystemRuntimeMetricsService(),
+  );
+}
+
+export const SystemRuntimeMetricsServiceLive = SystemRuntimeMetricsService.layer;

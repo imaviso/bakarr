@@ -2,9 +2,9 @@
 export function deriveAnimeSeason(
   date?: string | null,
 ): "winter" | "spring" | "summer" | "fall" | undefined {
-  const month = Number.parseInt((date ?? "").split("-")[1] ?? "", 10);
+  const month = globalThis.Number.parseInt((date ?? "").split("-")[1] ?? "", 10);
 
-  if (!Number.isFinite(month) || month === 0) {
+  if (!globalThis.Number.isFinite(month) || month === 0) {
     return undefined;
   }
 
@@ -16,6 +16,6 @@ export function deriveAnimeSeason(
 
 /** Extracts the 4-digit year from an ISO date string. */
 export function extractYearFromDate(date?: string | null) {
-  const year = Number.parseInt((date ?? "").slice(0, 4), 10);
-  return Number.isFinite(year) && year > 0 ? year : undefined;
+  const year = globalThis.Number.parseInt((date ?? "").slice(0, 4), 10);
+  return globalThis.Number.isFinite(year) && year > 0 ? year : undefined;
 }

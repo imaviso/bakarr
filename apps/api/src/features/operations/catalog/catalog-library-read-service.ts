@@ -1,10 +1,9 @@
-import { Effect } from "effect";
-
 import type { RenamePreviewItem } from "@packages/shared/index.ts";
 import type { DatabaseError } from "@/db/database.ts";
 import { MediaNotFoundError } from "@/features/media/errors.ts";
 import { MediaRepository } from "@/features/media/shared/media-repository.ts";
 import { buildRenamePreview } from "@/features/operations/library/library-import.ts";
+import { Context, Effect, Layer } from "effect";
 import {
   RuntimeConfigSnapshotService,
   type RuntimeConfigSnapshotError,
@@ -20,10 +19,13 @@ export interface CatalogLibraryReadServiceShape {
   >;
 }
 
-export class CatalogLibraryReadService extends Effect.Service<CatalogLibraryReadService>()(
-  "@bakarr/api/CatalogLibraryReadService",
-  {
-    effect: Effect.gen(function* () {
+export class CatalogLibraryReadService extends Context.Service<
+  CatalogLibraryReadService,
+  CatalogLibraryReadServiceShape
+>()("@bakarr/api/CatalogLibraryReadService") {
+  static readonly layer = Layer.effect(
+    CatalogLibraryReadService,
+    Effect.gen(function* () {
       const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
       const mediaRepository = yield* MediaRepository;
 
@@ -38,8 +40,7 @@ export class CatalogLibraryReadService extends Effect.Service<CatalogLibraryRead
         getRenamePreview,
       } satisfies CatalogLibraryReadServiceShape;
     }),
-    dependencies: [MediaRepository.Default],
-  },
-) {}
+  );
+}
 
-export const CatalogLibraryReadServiceLive = CatalogLibraryReadService.Default;
+export const CatalogLibraryReadServiceLive = CatalogLibraryReadService.layer;

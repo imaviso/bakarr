@@ -1,17 +1,18 @@
-import { Effect, Schema } from "effect";
+import { Context, Effect, Layer, Schema } from "effect";
 import { eq } from "drizzle-orm";
+import * as NodeSqliteClient from "@effect/sql-sqlite-node/SqliteClient";
 
 import { AppDrizzleDatabase, DatabaseError, type AppDatabase } from "@/db/database.ts";
 import { seasonalAnimeCache } from "@/db/schema.ts";
-import { tryDatabasePromise } from "@/infra/effect/db.ts";
+import { makeDbExecutor, type DbExecutor } from "@/infra/effect/db.ts";
 import type { SeasonalMediaResponse } from "@packages/shared/index.ts";
 import { SeasonalMediaResponseSchema } from "@packages/shared/index.ts";
 
 export const SEASONAL_ANIME_CACHE_TTL_MS = 1000 * 60 * 5;
 
-const SeasonalAnimeResponseJsonSchema = Schema.parseJson(SeasonalMediaResponseSchema);
-const decodeSeasonalAnimeResponse = Schema.decodeUnknown(SeasonalAnimeResponseJsonSchema);
-const encodeSeasonalAnimeResponse = Schema.encodeUnknown(SeasonalAnimeResponseJsonSchema);
+const SeasonalAnimeResponseJsonSchema = Schema.fromJsonString(SeasonalMediaResponseSchema);
+const decodeSeasonalAnimeResponse = Schema.decodeUnknownEffect(SeasonalAnimeResponseJsonSchema);
+const encodeSeasonalAnimeResponse = Schema.encodeUnknownEffect(SeasonalAnimeResponseJsonSchema);
 
 export interface SeasonalMediaCacheRepositoryShape {
   readonly read: (
@@ -28,34 +29,40 @@ export interface SeasonalMediaCacheRepositoryShape {
   ) => Effect.Effect<void, DatabaseError>;
 }
 
-export class SeasonalMediaCacheRepository extends Effect.Service<SeasonalMediaCacheRepository>()(
-  "@bakarr/api/SeasonalMediaCacheRepository",
-  {
-    effect: Effect.gen(function* () {
+export class SeasonalMediaCacheRepository extends Context.Service<
+  SeasonalMediaCacheRepository,
+  SeasonalMediaCacheRepositoryShape
+>()("@bakarr/api/SeasonalMediaCacheRepository") {
+  static readonly layer = Layer.effect(
+    SeasonalMediaCacheRepository,
+    Effect.gen(function* () {
       const db = yield* AppDrizzleDatabase;
-      return makeSeasonalMediaCacheRepositoryShape(db);
+      const sqlClient = yield* NodeSqliteClient.SqliteClient;
+      return makeSeasonalMediaCacheRepositoryShape(db, sqlClient);
     }),
-    dependencies: [AppDrizzleDatabase.Default],
-  },
-) {}
+  );
+}
 
 export function makeSeasonalMediaCacheRepositoryShape(
   db: AppDatabase,
+  sqlClient: NodeSqliteClient.SqliteClient,
 ): SeasonalMediaCacheRepositoryShape {
+  const exec = makeDbExecutor(sqlClient);
   return {
-    read: (cacheKey, nowMs) => readSeasonalMediaCacheEffect(db, cacheKey, nowMs),
-    readStale: (cacheKey) => readStaleSeasonalMediaCacheEffect(db, cacheKey),
+    read: (cacheKey, nowMs) => readSeasonalMediaCacheEffect(db, exec, cacheKey, nowMs),
+    readStale: (cacheKey) => readStaleSeasonalMediaCacheEffect(db, exec, cacheKey),
     write: (cacheKey, response, nowMs) =>
-      writeSeasonalMediaCacheEffect(db, cacheKey, response, nowMs),
+      writeSeasonalMediaCacheEffect(db, exec, cacheKey, response, nowMs),
   } satisfies SeasonalMediaCacheRepositoryShape;
 }
 
 const readSeasonalMediaCacheEffect = Effect.fn("SeasonalMediaCacheRepository.read")(function* (
   db: AppDatabase,
+  exec: DbExecutor,
   cacheKey: string,
   nowMs: number,
 ) {
-  const cached = yield* readSeasonalMediaCacheRowEffect(db, cacheKey);
+  const cached = yield* readSeasonalMediaCacheRowEffect(db, exec, cacheKey);
 
   if (cached && nowMs - cached.fetchedAtMs < SEASONAL_ANIME_CACHE_TTL_MS) {
     return yield* decodeSeasonalAnimeCachePayloadEffect(cached.payload);
@@ -65,8 +72,8 @@ const readSeasonalMediaCacheEffect = Effect.fn("SeasonalMediaCacheRepository.rea
 });
 
 const readStaleSeasonalMediaCacheEffect = Effect.fn("SeasonalMediaCacheRepository.readStale")(
-  function* (db: AppDatabase, cacheKey: string) {
-    const cached = yield* readSeasonalMediaCacheRowEffect(db, cacheKey);
+  function* (db: AppDatabase, exec: DbExecutor, cacheKey: string) {
+    const cached = yield* readSeasonalMediaCacheRowEffect(db, exec, cacheKey);
 
     if (!cached) {
       return null;
@@ -77,8 +84,9 @@ const readStaleSeasonalMediaCacheEffect = Effect.fn("SeasonalMediaCacheRepositor
 );
 
 const readSeasonalMediaCacheRowEffect = Effect.fn("SeasonalMediaCacheRepository.readRow")(
-  function* (db: AppDatabase, cacheKey: string) {
-    const cachedRows = yield* tryDatabasePromise("Failed to load seasonal media cache", () =>
+  function* (db: AppDatabase, exec: DbExecutor, cacheKey: string) {
+    const cachedRows = yield* exec.runQuery(
+      "Failed to load seasonal media cache",
       db
         .select({
           payload: seasonalAnimeCache.payload,
@@ -86,7 +94,9 @@ const readSeasonalMediaCacheRowEffect = Effect.fn("SeasonalMediaCacheRepository.
         })
         .from(seasonalAnimeCache)
         .where(eq(seasonalAnimeCache.cacheKey, cacheKey))
-        .limit(1),
+        .limit(1)
+        .prepare()
+        .effect(),
     );
 
     return cachedRows[0] ?? null;
@@ -109,6 +119,7 @@ const decodeSeasonalAnimeCachePayloadEffect = Effect.fn(
 
 const writeSeasonalMediaCacheEffect = Effect.fn("SeasonalMediaCacheRepository.write")(function* (
   db: AppDatabase,
+  exec: DbExecutor,
   cacheKey: string,
   response: SeasonalMediaResponse,
   nowMs: number,
@@ -123,7 +134,8 @@ const writeSeasonalMediaCacheEffect = Effect.fn("SeasonalMediaCacheRepository.wr
     ),
   );
 
-  yield* tryDatabasePromise("Failed to upsert seasonal media cache", () =>
+  yield* exec.runQuery(
+    "Failed to upsert seasonal media cache",
     db
       .insert(seasonalAnimeCache)
       .values({
@@ -145,6 +157,8 @@ const writeSeasonalMediaCacheEffect = Effect.fn("SeasonalMediaCacheRepository.wr
           season: response.season,
           year: response.year,
         },
-      }),
+      })
+      .prepare()
+      .effect(),
   );
 });

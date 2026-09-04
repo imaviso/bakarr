@@ -1,5 +1,3 @@
-import { Effect, Option } from "effect";
-
 import type { UnitSearchResult } from "@packages/shared/index.ts";
 import { media } from "@/db/schema.ts";
 import type { DatabaseError } from "@/db/database.ts";
@@ -21,6 +19,7 @@ import type { StoredConfigCorruptError } from "@/features/system/errors.ts";
 import { MediaNotFoundError } from "@/features/media/errors.ts";
 import { MediaRepository } from "@/features/media/shared/media-repository.ts";
 import type { ExternalCallError } from "@/infra/effect/retry.ts";
+import { Context, Effect, Layer, Option } from "effect";
 
 export type SearchUnitMediaRow = typeof media.$inferSelect;
 
@@ -42,10 +41,12 @@ export interface SearchUnitServiceShape {
   ) => Effect.Effect<UnitSearchResult[], SearchUnitError>;
 }
 
-export class SearchUnitService extends Effect.Service<SearchUnitService>()(
+export class SearchUnitService extends Context.Service<SearchUnitService, SearchUnitServiceShape>()(
   "@bakarr/api/SearchUnitService",
-  {
-    effect: Effect.gen(function* () {
+) {
+  static readonly layer = Layer.effect(
+    SearchUnitService,
+    Effect.gen(function* () {
       const mediaRepository = yield* MediaRepository;
       const qualityProfileRepository = yield* QualityProfileRepository;
       const releaseProfileRepository = yield* ReleaseProfileRepository;
@@ -98,14 +99,7 @@ export class SearchUnitService extends Effect.Service<SearchUnitService>()(
         searchUnit,
       } satisfies SearchUnitServiceShape;
     }),
-    // RuntimeConfigSnapshotService comes from the lifecycle layer.
-    dependencies: [
-      MediaRepository.Default,
-      QualityProfileRepository.Default,
-      ReleaseProfileRepository.Default,
-      SearchReleaseService.Default,
-    ],
-  },
-) {}
+  );
+}
 
-export const SearchUnitServiceLive = SearchUnitService.Default;
+export const SearchUnitServiceLive = SearchUnitService.layer;

@@ -1,8 +1,9 @@
-import { Cause, Effect, Exit } from "effect";
+import { Cause, Effect, Exit, Option } from "effect";
 import { eq } from "drizzle-orm";
 
 import * as schema from "@/db/schema.ts";
 import type { AppDatabase } from "@/db/database.ts";
+import type { DbExecutor } from "@/infra/effect/db.ts";
 import { makeBackgroundJobRunnerShape } from "@/background/background-job-runner.ts";
 import {
   makeBackgroundJobRepositoryShape,
@@ -12,11 +13,11 @@ import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 import { assert, describe, it } from "@effect/vitest";
 
 describe("BackgroundJobRunner", () => {
-  it.scoped("runJob marks started, then succeeded with the success message", () =>
+  it.effect("runJob marks started, then succeeded with the success message", () =>
     withSqliteTestDbEffect({
-      run: (db) =>
+      run: (db, _databaseFile, client, exec) =>
         Effect.gen(function* () {
-          const runner = makeBackgroundJobRunnerShape(makeBackgroundJobRepositoryShape(db));
+          const runner = makeBackgroundJobRunnerShape(makeBackgroundJobRepositoryShape(db, client));
 
           const value = yield* runner.runJob(
             "rss",
@@ -26,7 +27,7 @@ describe("BackgroundJobRunner", () => {
 
           assert.deepStrictEqual(value, { newItems: 3 });
 
-          const job = yield* trySelectJob(db);
+          const job = yield* trySelectJob(db, exec);
           assert.deepStrictEqual(job?.lastStatus, "success");
           assert.deepStrictEqual(job?.lastMessage, "Queued 3 release(s)");
           assert.deepStrictEqual(job?.isRunning, false);
@@ -36,11 +37,11 @@ describe("BackgroundJobRunner", () => {
     }),
   );
 
-  it.scoped("runJob marks failed and re-fails with the original cause on failure", () =>
+  it.effect("runJob marks failed and re-fails with the original cause on failure", () =>
     withSqliteTestDbEffect({
-      run: (db) =>
+      run: (db, _databaseFile, client, exec) =>
         Effect.gen(function* () {
-          const runner = makeBackgroundJobRunnerShape(makeBackgroundJobRepositoryShape(db));
+          const runner = makeBackgroundJobRunnerShape(makeBackgroundJobRepositoryShape(db, client));
           const boom = new Error("boom");
 
           const exit = yield* Effect.exit(
@@ -49,7 +50,7 @@ describe("BackgroundJobRunner", () => {
 
           assert.deepStrictEqual(Exit.isFailure(exit), true);
           if (Exit.isFailure(exit)) {
-            const failure = Cause.failureOption(exit.cause);
+            const failure = Cause.findErrorOption(exit.cause);
             assert.deepStrictEqual(failure._tag, "Some");
             if (failure._tag === "Some") {
               assert.deepStrictEqual(failure.value instanceof Error, true);
@@ -57,7 +58,7 @@ describe("BackgroundJobRunner", () => {
             }
           }
 
-          const job = yield* trySelectJob(db, "library_scan");
+          const job = yield* trySelectJob(db, exec, "library_scan");
           assert.deepStrictEqual(job?.lastStatus, "failed");
           assert.deepStrictEqual(job?.isRunning, false);
         }),
@@ -65,18 +66,18 @@ describe("BackgroundJobRunner", () => {
     }),
   );
 
-  it.scoped("runJob does not mark failed for interrupted-only causes", () =>
+  it.effect("runJob does not mark failed for interrupted-only causes", () =>
     withSqliteTestDbEffect({
-      run: (db) =>
+      run: (db, _databaseFile, client, exec) =>
         Effect.gen(function* () {
-          const runner = makeBackgroundJobRunnerShape(makeBackgroundJobRepositoryShape(db));
+          const runner = makeBackgroundJobRunnerShape(makeBackgroundJobRepositoryShape(db, client));
 
           const exit = yield* Effect.exit(runner.runJob("rss", Effect.interrupt, () => "done"));
 
-          assert.deepStrictEqual(Exit.isInterrupted(exit), true);
+          assert.deepStrictEqual(Exit.isFailure(exit) && Cause.hasInterruptsOnly(exit.cause), true);
 
           // markStarted already persisted the running row; no failure mark follows.
-          const job = yield* trySelectJob(db);
+          const job = yield* trySelectJob(db, exec);
           assert.deepStrictEqual(job?.lastStatus, "running");
           assert.deepStrictEqual(job?.isRunning, true);
         }),
@@ -84,16 +85,16 @@ describe("BackgroundJobRunner", () => {
     }),
   );
 
-  it.scoped("markStarted, markSucceeded, updateProgress, markFailed compose on the journal", () =>
+  it.effect("markStarted, markSucceeded, updateProgress, markFailed compose on the journal", () =>
     withSqliteTestDbEffect({
-      run: (db) =>
+      run: (db, _databaseFile, client, exec) =>
         Effect.gen(function* () {
-          const runner = makeBackgroundJobRunnerShape(makeBackgroundJobRepositoryShape(db));
+          const runner = makeBackgroundJobRunnerShape(makeBackgroundJobRepositoryShape(db, client));
 
           yield* runner.markStarted("unmapped_scan");
           yield* runner.updateProgress("unmapped_scan", 2, 5, "Matching folder");
 
-          const inProgress = yield* trySelectJob(db, "unmapped_scan");
+          const inProgress = yield* trySelectJob(db, exec, "unmapped_scan");
           assert.deepStrictEqual(inProgress?.lastStatus, "running");
           assert.deepStrictEqual(inProgress?.isRunning, true);
           assert.deepStrictEqual(inProgress?.progressCurrent, 2);
@@ -102,14 +103,14 @@ describe("BackgroundJobRunner", () => {
 
           yield* runner.markSucceeded("unmapped_scan", "Processed 5 unmapped folder(s)");
 
-          const job = yield* trySelectJob(db, "unmapped_scan");
+          const job = yield* trySelectJob(db, exec, "unmapped_scan");
           assert.deepStrictEqual(job?.lastStatus, "success");
           assert.deepStrictEqual(job?.isRunning, false);
           assert.deepStrictEqual(job?.lastMessage, "Processed 5 unmapped folder(s)");
 
           yield* runner.markFailed("unmapped_scan", new Error("match failed"));
 
-          const afterFailure = yield* trySelectJob(db, "unmapped_scan");
+          const afterFailure = yield* trySelectJob(db, exec, "unmapped_scan");
           assert.deepStrictEqual(afterFailure?.lastStatus, "failed");
           assert.deepStrictEqual(afterFailure?.isRunning, false);
         }),
@@ -117,12 +118,12 @@ describe("BackgroundJobRunner", () => {
     }),
   );
 
-  it.scoped("markFailed accepts a Cause and swallows JobFailurePersistenceError", () =>
+  it.effect("markFailed accepts a Cause and swallows JobFailurePersistenceError", () =>
     withSqliteTestDbEffect({
-      run: (db) =>
+      run: (db, _databaseFile, client) =>
         Effect.gen(function* () {
           const failingRepository: BackgroundJobRepositoryShape = {
-            ...makeBackgroundJobRepositoryShape(db),
+            ...makeBackgroundJobRepositoryShape(db, client),
             markFailed: () => Effect.die(new Error("journal write failed")),
           };
           const runner = makeBackgroundJobRunnerShape(failingRepository);
@@ -138,8 +139,17 @@ describe("BackgroundJobRunner", () => {
   );
 });
 
-function trySelectJob(db: AppDatabase, name = "rss") {
-  return Effect.tryPromise(() =>
-    db.select().from(schema.backgroundJobs).where(eq(schema.backgroundJobs.name, name)).limit(1),
-  ).pipe(Effect.map((rows) => rows[0]));
+function trySelectJob(db: AppDatabase, exec: DbExecutor, name = "rss") {
+  return exec
+    .queryFirst(
+      "Failed to query background job",
+      db
+        .select()
+        .from(schema.backgroundJobs)
+        .where(eq(schema.backgroundJobs.name, name))
+        .limit(1)
+        .prepare()
+        .effect(),
+    )
+    .pipe(Effect.map((row) => Option.getOrUndefined(row)));
 }

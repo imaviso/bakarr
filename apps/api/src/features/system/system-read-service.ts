@@ -1,5 +1,3 @@
-import { Effect } from "effect";
-
 import { AppRuntime } from "@/app/runtime.ts";
 import { AppConfig } from "@/app/config/schema.ts";
 import type { DatabaseError } from "@/db/database.ts";
@@ -31,6 +29,7 @@ import {
   type SystemStatus,
 } from "@packages/shared/index.ts";
 import type { StoredDataError } from "@/features/errors.ts";
+import { Context, Effect, Layer } from "effect";
 
 export type SystemReadStatusError =
   | BackgroundJobStatusError
@@ -165,18 +164,10 @@ const makeSystemReadService = Effect.fn("SystemReadService.make")(function* () {
   return service;
 });
 
-export class SystemReadService extends Effect.Service<SystemReadService>()(
+export class SystemReadService extends Context.Service<SystemReadService, SystemReadServiceShape>()(
   "@bakarr/api/SystemReadService",
-  {
-    // AppConfig, AppRuntime, DiskSpaceInspector + RuntimeConfigSnapshotService
-    // come from the lifecycle layer.
-    dependencies: [
-      BackgroundJobStatusService.Default,
-      DownloadRepository.Default,
-      SystemStatsRepository.Default,
-    ],
-    effect: makeSystemReadService(),
-  },
-) {}
+) {
+  static readonly layer = Layer.effect(SystemReadService, makeSystemReadService());
+}
 
-export const SystemReadServiceLive = SystemReadService.Default;
+export const SystemReadServiceLive = SystemReadService.layer;

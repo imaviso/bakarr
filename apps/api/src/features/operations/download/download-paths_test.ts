@@ -1,6 +1,6 @@
 import { assert, it } from "@effect/vitest";
-import { Option } from "effect";
 
+import { Option } from "effect";
 import {
   applyRemotePathMappings,
   parseMagnetInfoHash,

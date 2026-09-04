@@ -1,40 +1,51 @@
 import { assert, it } from "@effect/vitest";
 import { eq } from "drizzle-orm";
-import { Effect } from "effect";
 
 import { makeMediaUnitRepository } from "@/test/repository-factories.ts";
 import * as schema from "@/db/schema.ts";
 import type { AppDatabase } from "@/db/database.ts";
-import { tryDatabasePromise } from "@/infra/effect/db.ts";
+import { tryDatabaseQuery } from "@/infra/effect/db.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
+import { Effect } from "effect";
 
-it.scoped("upsertUnitFiles inserts multiple mediaUnits atomically", () =>
+it.effect("upsertUnitFiles inserts multiple mediaUnits atomically", () =>
   withSqliteTestDbEffect({
-    run: (db) =>
+    run: (db, _databaseFile, client, _exec) =>
       Effect.gen(function* () {
         const appDb: AppDatabase = db;
-        const units = makeMediaUnitRepository(appDb);
+        const units = makeMediaUnitRepository(appDb, client);
 
-        yield* tryDatabasePromise("Failed test database setup", () =>
-          appDb.insert(schema.media).values({
-            id: 1,
-            titleRomaji: "Test Show",
-            rootFolder: "/test",
-            format: "TV",
-            status: "FINISHED",
-            genres: "[]",
-            studios: "[]",
-            profileName: "Default",
-            releaseProfileIds: "[]",
-            addedAt: "2024-01-01T00:00:00Z",
-            monitored: true,
-          }),
+        yield* tryDatabaseQuery(
+          "Failed test database setup",
+          appDb
+            .insert(schema.media)
+            .values({
+              id: 1,
+              titleRomaji: "Test Show",
+              rootFolder: "/test",
+              format: "TV",
+              status: "FINISHED",
+              genres: "[]",
+              studios: "[]",
+              profileName: "Default",
+              releaseProfileIds: "[]",
+              addedAt: "2024-01-01T00:00:00Z",
+              monitored: true,
+            })
+            .prepare()
+            .effect(),
         );
 
         yield* units.upsertUnitFiles(1, [1, 2, 3], "/test/episode.mkv");
 
-        const rows = yield* tryDatabasePromise("Failed test database assertion", () =>
-          appDb.select().from(schema.mediaUnits).where(eq(schema.mediaUnits.mediaId, 1)),
+        const rows = yield* tryDatabaseQuery(
+          "Failed test database assertion",
+          appDb
+            .select()
+            .from(schema.mediaUnits)
+            .where(eq(schema.mediaUnits.mediaId, 1))
+            .prepare()
+            .effect(),
         );
         assert.deepStrictEqual(rows.length, 3);
         const numbers = rows.map((r) => r.number).toSorted((a, b) => a - b);
@@ -49,44 +60,57 @@ it.scoped("upsertUnitFiles inserts multiple mediaUnits atomically", () =>
   }),
 );
 
-it.scoped("upsertUnitFiles updates existing mediaUnits", () =>
+it.effect("upsertUnitFiles updates existing mediaUnits", () =>
   withSqliteTestDbEffect({
-    run: (db) =>
+    run: (db, _databaseFile, client, _exec) =>
       Effect.gen(function* () {
         const appDb: AppDatabase = db;
-        const units = makeMediaUnitRepository(appDb);
+        const units = makeMediaUnitRepository(appDb, client);
 
-        yield* tryDatabasePromise("Failed test database setup", () =>
-          appDb.insert(schema.media).values({
-            id: 1,
-            titleRomaji: "Test Show",
-            rootFolder: "/test",
-            format: "TV",
-            status: "FINISHED",
-            genres: "[]",
-            studios: "[]",
-            profileName: "Default",
-            releaseProfileIds: "[]",
-            addedAt: "2024-01-01T00:00:00Z",
-            monitored: true,
-          }),
+        yield* tryDatabaseQuery(
+          "Failed test database setup",
+          appDb
+            .insert(schema.media)
+            .values({
+              id: 1,
+              titleRomaji: "Test Show",
+              rootFolder: "/test",
+              format: "TV",
+              status: "FINISHED",
+              genres: "[]",
+              studios: "[]",
+              profileName: "Default",
+              releaseProfileIds: "[]",
+              addedAt: "2024-01-01T00:00:00Z",
+              monitored: true,
+            })
+            .prepare()
+            .effect(),
         );
 
-        yield* tryDatabasePromise("Failed test database setup", () =>
-          appDb.insert(schema.mediaUnits).values([
-            { mediaId: 1, number: 1, downloaded: false, filePath: null },
-            { mediaId: 1, number: 2, downloaded: true, filePath: "/old.mkv" },
-          ]),
+        yield* tryDatabaseQuery(
+          "Failed test database setup",
+          appDb
+            .insert(schema.mediaUnits)
+            .values([
+              { mediaId: 1, number: 1, downloaded: false, filePath: null },
+              { mediaId: 1, number: 2, downloaded: true, filePath: "/old.mkv" },
+            ])
+            .prepare()
+            .effect(),
         );
 
         yield* units.upsertUnitFiles(1, [1, 2], "/new.mkv");
 
-        const rows = yield* tryDatabasePromise("Failed test database assertion", () =>
+        const rows = yield* tryDatabaseQuery(
+          "Failed test database assertion",
           appDb
             .select()
             .from(schema.mediaUnits)
             .where(eq(schema.mediaUnits.mediaId, 1))
-            .orderBy(schema.mediaUnits.number),
+            .orderBy(schema.mediaUnits.number)
+            .prepare()
+            .effect(),
         );
 
         assert.deepStrictEqual(rows.length, 2);
@@ -105,33 +129,39 @@ it.scoped("upsertUnitFiles updates existing mediaUnits", () =>
   }),
 );
 
-it.scoped("upsertUnitFiles handles empty episode list", () =>
+it.effect("upsertUnitFiles handles empty episode list", () =>
   withSqliteTestDbEffect({
-    run: (db) =>
+    run: (db, _databaseFile, client, _exec) =>
       Effect.gen(function* () {
         const appDb: AppDatabase = db;
-        const units = makeMediaUnitRepository(appDb);
+        const units = makeMediaUnitRepository(appDb, client);
 
-        yield* tryDatabasePromise("Failed test database setup", () =>
-          appDb.insert(schema.media).values({
-            id: 1,
-            titleRomaji: "Test Show",
-            rootFolder: "/test",
-            format: "TV",
-            status: "FINISHED",
-            genres: "[]",
-            studios: "[]",
-            profileName: "Default",
-            releaseProfileIds: "[]",
-            addedAt: "2024-01-01T00:00:00Z",
-            monitored: true,
-          }),
+        yield* tryDatabaseQuery(
+          "Failed test database setup",
+          appDb
+            .insert(schema.media)
+            .values({
+              id: 1,
+              titleRomaji: "Test Show",
+              rootFolder: "/test",
+              format: "TV",
+              status: "FINISHED",
+              genres: "[]",
+              studios: "[]",
+              profileName: "Default",
+              releaseProfileIds: "[]",
+              addedAt: "2024-01-01T00:00:00Z",
+              monitored: true,
+            })
+            .prepare()
+            .effect(),
         );
 
         yield* units.upsertUnitFiles(1, [], "/test/episode.mkv");
 
-        const rows = yield* tryDatabasePromise("Failed test database assertion", () =>
-          appDb.select().from(schema.mediaUnits),
+        const rows = yield* tryDatabaseQuery(
+          "Failed test database assertion",
+          appDb.select().from(schema.mediaUnits).prepare().effect(),
         );
         assert.deepStrictEqual(rows.length, 0);
       }),

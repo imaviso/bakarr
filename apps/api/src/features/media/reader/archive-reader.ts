@@ -1,8 +1,8 @@
 import { inflateRawSync } from "node:zlib";
 import { posix } from "node:path";
-import { Effect, Option } from "effect";
 
 import { ReaderAccessError } from "@/features/media/reader/media-reader-errors.ts";
+import { Effect, Option } from "effect";
 
 export interface ArchivePageEntry {
   readonly path: string;
@@ -481,10 +481,10 @@ function isJunkArchivePath(path: string) {
 function decodeXmlText(value: string) {
   return value
     .replace(/&#x([0-9a-fA-F]+);/g, (_match, codepoint: string) =>
-      String.fromCodePoint(Number.parseInt(codepoint, 16)),
+      globalThis.String.fromCodePoint(globalThis.Number.parseInt(codepoint, 16)),
     )
     .replace(/&#([0-9]+);/g, (_match, codepoint: string) =>
-      String.fromCodePoint(Number.parseInt(codepoint, 10)),
+      globalThis.String.fromCodePoint(globalThis.Number.parseInt(codepoint, 10)),
     )
     .replace(/&quot;/g, '"')
     .replace(/&apos;/g, "'")

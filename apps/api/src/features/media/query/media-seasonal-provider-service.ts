@@ -1,10 +1,9 @@
-import { Effect } from "effect";
-
 import type { MediaSeason } from "@packages/shared/index.ts";
 import { AniListClient } from "@/features/media/metadata/anilist.ts";
 import { JikanClient } from "@/features/media/metadata/jikan.ts";
 import { ManamiClient } from "@/features/media/metadata/manami.ts";
 import { ExternalCallError } from "@/infra/effect/retry.ts";
+import { Context, Effect, Layer } from "effect";
 import {
   seasonalWithFallback,
   type MediaSeasonalResult,
@@ -42,11 +41,14 @@ const makeMediaSeasonalProviderService = Effect.fn("MediaSeasonalProviderService
   },
 );
 
-export class MediaSeasonalProviderService extends Effect.Service<MediaSeasonalProviderService>()(
-  "@bakarr/api/MediaSeasonalProviderService",
-  {
-    effect: makeMediaSeasonalProviderService(),
-  },
-) {}
+export class MediaSeasonalProviderService extends Context.Service<
+  MediaSeasonalProviderService,
+  MediaSeasonalProviderServiceShape
+>()("@bakarr/api/MediaSeasonalProviderService") {
+  static readonly layer = Layer.effect(
+    MediaSeasonalProviderService,
+    makeMediaSeasonalProviderService(),
+  );
+}
 
-export const MediaSeasonalProviderServiceLive = MediaSeasonalProviderService.Default;
+export const MediaSeasonalProviderServiceLive = MediaSeasonalProviderService.layer;

@@ -1,5 +1,4 @@
 import { Cause, Effect, Exit } from "effect";
-
 import { assert, it } from "@effect/vitest";
 import { StreamRangeError } from "@/features/media/stream/media-stream-errors.ts";
 import { parseStreamRange } from "@/features/media/streaming-range.ts";
@@ -38,7 +37,7 @@ it.effect("rejects invalid stream ranges", () =>
 
     for (const failureExit of [exit, inverted, multi, nonByte]) {
       if (Exit.isFailure(failureExit)) {
-        const failure = Cause.failureOption(failureExit.cause);
+        const failure = Cause.findErrorOption(failureExit.cause);
         assert.deepStrictEqual(failure._tag, "Some");
         if (failure._tag === "Some") {
           assert.deepStrictEqual(failure.value instanceof StreamRangeError, true);

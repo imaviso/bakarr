@@ -9,8 +9,8 @@ export class StreamRangeError extends Schema.TaggedError<StreamRangeError>()("St
 export class StreamAccessError extends Schema.TaggedError<StreamAccessError>()(
   "StreamAccessError",
   {
-    cause: Schema.optional(Schema.Defect),
+    cause: Schema.optional(Schema.Defect()),
     message: Schema.String,
-    status: Schema.Literal(400, 403, 404, 500),
+    status: Schema.Literals([400, 403, 404, 500]),
   },
 ) {}

@@ -7,11 +7,11 @@ it("formatValidationErrorMessage includes parse error paths", () => {
   const schema = Schema.Struct({
     count: Schema.Number,
   });
-  const error = Schema.decodeUnknownEither(schema)({ count: "bad" });
+  const error = Schema.decodeUnknownResult(schema)({ count: "bad" });
 
-  assert.deepStrictEqual(error._tag, "Left");
-  if (error._tag === "Left") {
-    const message = formatValidationErrorMessage("Invalid request", error.left);
+  assert.deepStrictEqual(error._tag, "Failure");
+  if (error._tag === "Failure") {
+    const message = formatValidationErrorMessage("Invalid request", error.failure);
 
     assert.match(message, /^Invalid request: /);
     assert.match(message, /count:/);

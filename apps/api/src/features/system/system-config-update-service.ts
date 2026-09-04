@@ -1,5 +1,3 @@
-import { Effect, Option } from "effect";
-
 import type { Config } from "@packages/shared/index.ts";
 import { AppConfig } from "@/app/config/schema.ts";
 import { DatabaseError } from "@/db/database.ts";
@@ -23,6 +21,7 @@ import { buildPersistedConfigStates } from "@/features/system/system-config-upda
 import { makeDefaultConfig } from "@/features/system/defaults.ts";
 import { QualityProfileRepository } from "@/features/system/repository/quality-profile-repository.ts";
 import { SystemConfigRepository } from "@/features/system/repository/system-config-repository.ts";
+import { Context, Effect, Layer, Option, Semaphore } from "effect";
 import {
   applyPasswordPreservation,
   validateCorruptStatePasswords,
@@ -48,7 +47,7 @@ const makeSystemConfigUpdateService = Effect.fn("SystemConfigUpdateService.make"
   const systemLogRepository = yield* SystemLogRepository;
   const eventBus = yield* EventBus;
   const nowIso = currentNowIso;
-  const updateSemaphore = yield* Effect.makeSemaphore(1);
+  const updateSemaphore = yield* Semaphore.make(1);
 
   const updateConfig = Effect.fn("SystemConfigUpdateService.updateConfig")(function* (
     nextConfig: Config,
@@ -90,7 +89,7 @@ const makeSystemConfigUpdateService = Effect.fn("SystemConfigUpdateService.make"
           activateConfig: (value) =>
             runtimeConfigSnapshot
               .replaceRuntimeConfig(value)
-              .pipe(Effect.zipRight(runtimeControl.reload(value))),
+              .pipe(Effect.andThen(runtimeControl.reload(value))),
           nextConfig: normalizedConfig,
           nextState,
           persistState: (state) =>
@@ -116,19 +115,14 @@ const makeSystemConfigUpdateService = Effect.fn("SystemConfigUpdateService.make"
   return { updateConfig } satisfies SystemConfigUpdateServiceShape;
 });
 
-export class SystemConfigUpdateService extends Effect.Service<SystemConfigUpdateService>()(
-  "@bakarr/api/SystemConfigUpdateService",
-  {
-    dependencies: [
-      QualityProfileRepository.Default,
-      SystemConfigRepository.Default,
-      SystemLogRepository.Default,
-    ],
-    effect: makeSystemConfigUpdateService(),
-  },
-) {}
+export class SystemConfigUpdateService extends Context.Service<
+  SystemConfigUpdateService,
+  SystemConfigUpdateServiceShape
+>()("@bakarr/api/SystemConfigUpdateService") {
+  static readonly layer = Layer.effect(SystemConfigUpdateService, makeSystemConfigUpdateService());
+}
 
-export const SystemConfigUpdateServiceLive = SystemConfigUpdateService.Default;
+export const SystemConfigUpdateServiceLive = SystemConfigUpdateService.layer;
 
 const preserveStoredPasswords = Effect.fn("SystemConfigUpdateService.preserveStoredPasswords")(
   function* (input: {

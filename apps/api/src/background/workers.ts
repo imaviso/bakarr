@@ -1,8 +1,6 @@
 // oxlint-disable typescript/no-restricted-types -- `unknown` is the honest type at error/cause boundaries (Effect error channels, try/catch causes, Logger messages)
-import { Cause, Duration, Effect, Option, Schedule, Schema } from "effect";
-import { Exit } from "effect";
-import type { Scope } from "effect";
 
+import { Cause, Duration, Effect, Exit, Option, Record, Schedule, Schema, Scope } from "effect";
 import type { Config } from "@packages/shared/index.ts";
 import type { BackgroundWorkerSpawner } from "@/background/controller-core.ts";
 import { buildBackgroundSchedule, resolveBackgroundWorkerLoopPlan } from "@/background/schedule.ts";
@@ -13,7 +11,6 @@ import type {
 } from "@/background/task-runner.ts";
 import type { BackgroundWorkerMonitorShape } from "@/background/monitor.ts";
 import { BACKGROUND_WORKER_NAMES, type BackgroundWorkerName } from "@/background/worker-model.ts";
-import { currentTimeNanos } from "@/infra/time.ts";
 import { makeSerializedDropEffectRunner } from "@/infra/effect/serialized-runner.ts";
 import { compactLogAnnotations, errorLogAnnotations } from "@/infra/logging.ts";
 
@@ -68,12 +65,12 @@ export function makeBackgroundWorkerPolicy(): BackgroundWorkerPolicy {
       return undefined;
     }
 
-    if (Cause.isInterruptedOnly(exit.cause)) {
+    if (Cause.hasInterruptsOnly(exit.cause)) {
       yield* resetFailureCount(workerName);
       return undefined;
     }
 
-    const isDefect = Cause.isDie(exit.cause);
+    const isDefect = Cause.hasDies(exit.cause);
     const backoffMs = yield* nextFailureBackoffMs(workerName);
 
     yield* (
@@ -161,23 +158,23 @@ export const withLockEffectOrFail = Effect.fn("Background.withLockEffectOrFail")
   // its timeout cap arbitrarily — `WorkerTimeoutError` fires only after the
   // transaction settles. Keep transactions small in scan/sync paths.
   const taskWithTimeout = task.pipe(
-    Effect.timeoutFail({
+    Effect.timeoutOrElse({
       duration: `${effectiveTimeout} millis`,
-      onTimeout: () =>
-        new WorkerTimeoutError({
-          workerName,
-          timeoutMs: effectiveTimeout,
-          message: `Worker timed out after ${effectiveTimeout}ms`,
-        }),
+      orElse: () =>
+        Effect.fail(
+          new WorkerTimeoutError({
+            workerName,
+            timeoutMs: effectiveTimeout,
+            message: `Worker timed out after ${effectiveTimeout}ms`,
+          }),
+        ),
     }),
   );
 
   const monitoredTask = Effect.gen(function* () {
     yield* monitor.markRunStarted(workerName);
 
-    const [duration, exit] = yield* Effect.timedWith(currentTimeNanos)(
-      Effect.exit(taskWithTimeout),
-    );
+    const [duration, exit] = yield* Effect.timed(Effect.exit(taskWithTimeout));
     const durationMs = Duration.toMillis(duration);
 
     if (exit._tag === "Success") {
@@ -185,7 +182,7 @@ export const withLockEffectOrFail = Effect.fn("Background.withLockEffectOrFail")
       return undefined;
     }
 
-    if (Cause.isInterruptedOnly(exit.cause)) {
+    if (Cause.hasInterruptsOnly(exit.cause)) {
       yield* monitor.markRunInterrupted(workerName);
       return undefined;
     }
@@ -234,7 +231,7 @@ export const withLockEffectOrFail = Effect.fn("Background.withLockEffectOrFail")
 });
 
 function getWorkerTimeoutError(cause: Cause.Cause<unknown>) {
-  const failure = Cause.failureOption(cause);
+  const failure = Cause.findErrorOption(cause);
 
   if (Option.isSome(failure) && failure.value instanceof WorkerTimeoutError) {
     return Option.some(failure.value);
@@ -279,6 +276,6 @@ export function repeatWorker(
       : task.pipe(Effect.repeat(Schedule.spaced(`${options.intervalMs} millis`)), Effect.asVoid);
 
   return initialDelay > 0
-    ? Effect.sleep(`${initialDelay} millis`).pipe(Effect.zipRight(repeatedTask), Effect.asVoid)
+    ? Effect.sleep(`${initialDelay} millis`).pipe(Effect.andThen(repeatedTask), Effect.asVoid)
     : repeatedTask;
 }

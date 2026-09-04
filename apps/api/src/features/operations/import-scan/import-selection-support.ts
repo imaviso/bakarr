@@ -73,8 +73,8 @@ function inferCandidateSeason(title: string) {
     return 1;
   }
 
-  const parsed = Number.parseInt(matchedSeason, 10);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
+  const parsed = globalThis.Number.parseInt(matchedSeason, 10);
+  return globalThis.Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
 }
 
 function buildImportFileSelection(

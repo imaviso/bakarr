@@ -18,7 +18,7 @@ export function qbitPasswordValue(config: QBitConfig): string {
 export class QBitTorrentClientError extends Schema.TaggedError<QBitTorrentClientError>()(
   "QBitTorrentClientError",
   {
-    cause: Schema.optional(Schema.Defect),
+    cause: Schema.optional(Schema.Defect()),
     message: Schema.String,
   },
 ) {}

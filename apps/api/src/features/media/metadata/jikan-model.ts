@@ -1,4 +1,4 @@
-import { Schema } from "effect";
+import { Schema, SchemaGetter } from "effect";
 
 const JikanTitleVariantSchema = Schema.Struct({
   title: Schema.String,
@@ -239,12 +239,10 @@ export function normalizeJikanRecommendations(
   });
 }
 
-export const JikanNormalizedAnimeFromFullSchema = Schema.transform(
-  JikanAnimeDetailFullSchema,
-  JikanNormalizedAnimeSchema,
-  {
-    decode: (data) => normalizeJikanAnime(data),
-    encode: (normalized) => ({
+export const JikanNormalizedAnimeFromFullSchema = JikanAnimeDetailFullSchema.pipe(
+  Schema.decodeTo(JikanNormalizedAnimeSchema, {
+    decode: SchemaGetter.transform((data) => normalizeJikanAnime(data)),
+    encode: SchemaGetter.transform((normalized) => ({
       aired: {
         from: normalized.startDate,
         string: undefined,
@@ -330,16 +328,14 @@ export const JikanNormalizedAnimeFromFullSchema = Schema.transform(
       type: normalized.format,
       url: normalized.url,
       year: normalized.year,
-    }),
-  },
+    })),
+  }),
 );
 
-export const JikanNormalizedAnimeFromDetailSchema = Schema.transform(
-  JikanAnimeDetailSchema,
-  JikanNormalizedAnimeSchema,
-  {
-    decode: (data) => normalizeJikanAnime(data),
-    encode: (normalized) => ({
+export const JikanNormalizedAnimeFromDetailSchema = JikanAnimeDetailSchema.pipe(
+  Schema.decodeTo(JikanNormalizedAnimeSchema, {
+    decode: SchemaGetter.transform((data) => normalizeJikanAnime(data)),
+    encode: SchemaGetter.transform((normalized) => ({
       aired: {
         from: normalized.startDate,
         string: undefined,
@@ -414,8 +410,8 @@ export const JikanNormalizedAnimeFromDetailSchema = Schema.transform(
       type: normalized.format,
       url: normalized.url,
       year: normalized.year,
-    }),
-  },
+    })),
+  }),
 );
 
 type JikanAnimeInput =
@@ -616,7 +612,7 @@ function toIsoDate(input: string | null | undefined) {
 function toIsoYear(input: string | null | undefined) {
   const date = toIsoDate(input);
 
-  return date ? Number.parseInt(date.slice(0, 4), 10) : undefined;
+  return date ? globalThis.Number.parseInt(date.slice(0, 4), 10) : undefined;
 }
 
 // Seasonal support
@@ -652,12 +648,10 @@ export type JikanNormalizedSeasonalEntry = Schema.Schema.Type<
   typeof JikanNormalizedSeasonalEntrySchema
 >;
 
-export const JikanSeasonalEntryFromDetailSchema = Schema.transform(
-  JikanAnimeDetailBaseSchema,
-  JikanNormalizedSeasonalEntrySchema,
-  {
-    decode: (data) => normalizeJikanSeasonalEntry(data),
-    encode: (entry) => ({
+export const JikanSeasonalEntryFromDetailSchema = JikanAnimeDetailBaseSchema.pipe(
+  Schema.decodeTo(JikanNormalizedSeasonalEntrySchema, {
+    decode: SchemaGetter.transform((data) => normalizeJikanSeasonalEntry(data)),
+    encode: SchemaGetter.transform((entry) => ({
       aired: entry.seasonYear
         ? { from: `${entry.seasonYear}-01-01`, string: undefined, to: undefined }
         : undefined,
@@ -701,8 +695,8 @@ export const JikanSeasonalEntryFromDetailSchema = Schema.transform(
       type: entry.format,
       url: undefined,
       year: entry.seasonYear ?? entry.startYear,
-    }),
-  },
+    })),
+  }),
 );
 
 function normalizeJikanSeasonalEntry(

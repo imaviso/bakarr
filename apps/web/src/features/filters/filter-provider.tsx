@@ -1,24 +1,19 @@
-import { useCallback, useMemo, type ReactNode } from "react";
+import { useMemo, type ReactNode } from "react";
 import { FilterContext } from "./filter-context";
 import type { FilterColumnConfig, FilterContextValue, FilterOperator, FilterState } from "./types";
 
 interface FilterProviderProps {
   children: ReactNode;
-  /** Caller should memoize this array; `addFilter` dep on `columns` recreates otherwise. */
-  columns: FilterColumnConfig[];
   value: FilterState[];
   onChange: (filters: FilterState[]) => void;
-}
-
-function FilterContextProvider(props: { value: FilterContextValue; children: ReactNode }) {
-  return <FilterContext.Provider value={props.value}>{props.children}</FilterContext.Provider>;
+  columns: FilterColumnConfig[];
 }
 
 export function FilterProvider(props: FilterProviderProps) {
   const { columns, value: filters, onChange } = props;
 
-  const addFilter = useCallback(
-    (columnId: string) => {
+  const contextValue = useMemo<FilterContextValue>(() => {
+    const addFilter = (columnId: string) => {
       const column = columns.find((c) => c.id === columnId);
       if (!column) return;
 
@@ -46,47 +41,29 @@ export function FilterProvider(props: FilterProviderProps) {
       };
 
       onChange([...filters, newFilter]);
-    },
-    [columns, filters, onChange],
-  );
+    };
 
-  const updateFilter = useCallback(
-    (id: string, updates: Partial<FilterState>) => {
-      const newFilters = [...filters];
-      const existingIndex = newFilters.findIndex((filter) => filter.id === id);
-      const existing = existingIndex >= 0 ? newFilters[existingIndex] : undefined;
-      if (!existing) {
-        return;
-      }
-
-      newFilters[existingIndex] = { ...existing, ...updates };
-      onChange(newFilters);
-    },
-    [filters, onChange],
-  );
-
-  const removeFilter = useCallback(
-    (id: string) => {
-      onChange(filters.filter((filter) => filter.id !== id));
-    },
-    [filters, onChange],
-  );
-
-  const clearAllFilters = useCallback(() => {
-    onChange([]);
-  }, [onChange]);
-
-  const contextValue = useMemo<FilterContextValue>(
-    () => ({
+    return {
       columns,
       filters,
       addFilter,
-      updateFilter,
-      removeFilter,
-      clearAllFilters,
-    }),
-    [columns, filters, addFilter, updateFilter, removeFilter, clearAllFilters],
-  );
+      updateFilter: (id: string, updates: Partial<FilterState>) => {
+        const newFilters = [...filters];
+        const existingIndex = newFilters.findIndex((filter) => filter.id === id);
+        const existing = existingIndex >= 0 ? newFilters[existingIndex] : undefined;
+        if (!existing) {
+          return;
+        }
 
-  return <FilterContextProvider value={contextValue}>{props.children}</FilterContextProvider>;
+        newFilters[existingIndex] = { ...existing, ...updates };
+        onChange(newFilters);
+      },
+      removeFilter: (id: string) => {
+        onChange(filters.filter((filter) => filter.id !== id));
+      },
+      clearAllFilters: () => onChange([]),
+    };
+  }, [columns, filters, onChange]);
+
+  return <FilterContext.Provider value={contextValue}>{props.children}</FilterContext.Provider>;
 }

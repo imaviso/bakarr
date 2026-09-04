@@ -1,5 +1,3 @@
-import { Effect, Option } from "effect";
-
 import type { Config } from "@packages/shared/index.ts";
 import { DatabaseError } from "@/db/database.ts";
 import { rssFeeds } from "@/db/schema.ts";
@@ -18,6 +16,7 @@ import { MediaRepository } from "@/features/media/shared/media-repository.ts";
 import { RssFeedRepository } from "@/features/operations/repository/rss-feed-repository.ts";
 import { QualityProfileRepository } from "@/features/system/repository/quality-profile-repository.ts";
 import { ReleaseProfileRepository } from "@/features/system/repository/release-profile-repository.ts";
+import { Context, Effect, Layer, Option } from "effect";
 
 const RSS_FEED_ITEM_LIMIT = 10;
 
@@ -35,10 +34,13 @@ export interface BackgroundSearchRssFeedServiceShape {
   ) => Effect.Effect<number, BackgroundSearchRssFeedError>;
 }
 
-export class BackgroundSearchRssFeedService extends Effect.Service<BackgroundSearchRssFeedService>()(
-  "@bakarr/api/BackgroundSearchRssFeedService",
-  {
-    effect: Effect.gen(function* () {
+export class BackgroundSearchRssFeedService extends Context.Service<
+  BackgroundSearchRssFeedService,
+  BackgroundSearchRssFeedServiceShape
+>()("@bakarr/api/BackgroundSearchRssFeedService") {
+  static readonly layer = Layer.effect(
+    BackgroundSearchRssFeedService,
+    Effect.gen(function* () {
       const rssClient = yield* RssClient;
       const queueService = yield* BackgroundSearchQueueService;
       const mediaRepository = yield* MediaRepository;
@@ -245,16 +247,7 @@ export class BackgroundSearchRssFeedService extends Effect.Service<BackgroundSea
 
       return { processFeed } satisfies BackgroundSearchRssFeedServiceShape;
     }),
-    // RssClient + RuntimeConfigSnapshotService come from the lifecycle layer.
-    dependencies: [
-      BackgroundSearchQueueService.Default,
-      DownloadRepository.Default,
-      MediaRepository.Default,
-      QualityProfileRepository.Default,
-      ReleaseProfileRepository.Default,
-      RssFeedRepository.Default,
-    ],
-  },
-) {}
+  );
+}
 
-export const BackgroundSearchRssFeedServiceLive = BackgroundSearchRssFeedService.Default;
+export const BackgroundSearchRssFeedServiceLive = BackgroundSearchRssFeedService.layer;

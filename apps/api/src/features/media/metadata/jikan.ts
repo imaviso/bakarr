@@ -1,5 +1,6 @@
-import { HttpClient, HttpClientRequest, HttpClientResponse } from "@effect/platform";
-import { Effect, Option, Schema } from "effect";
+import * as HttpClient from "effect/unstable/http/HttpClient";
+import * as HttpClientRequest from "effect/unstable/http/HttpClientRequest";
+import * as HttpClientResponse from "effect/unstable/http/HttpClientResponse";
 import type { MediaSeason } from "@packages/shared/index.ts";
 
 import {
@@ -16,6 +17,7 @@ import {
 } from "@/features/media/metadata/jikan-model.ts";
 import { ExternalCall, ExternalCallError, type ExternalCallShape } from "@/infra/effect/retry.ts";
 import { executeProviderRequest } from "@/infra/effect/provider-http.ts";
+import { Context, Effect, Layer, Option, Schema } from "effect";
 
 const JIKAN_URL = "https://api.jikan.moe/v4";
 
@@ -80,7 +82,7 @@ const makeJikanClient = Effect.fn("JikanClient.make")(function* () {
     );
 
     const entries = yield* Effect.forEach(payload.data, (entry) =>
-      Schema.decodeUnknown(JikanSeasonalEntryFromDetailSchema)(entry).pipe(
+      Schema.decodeUnknownEffect(JikanSeasonalEntryFromDetailSchema)(entry).pipe(
         Effect.mapError((cause) =>
           ExternalCallError.make({
             cause,
@@ -97,11 +99,13 @@ const makeJikanClient = Effect.fn("JikanClient.make")(function* () {
   return { getAnimeByMalId, getSeasonalAnime } satisfies JikanClientShape;
 });
 
-export class JikanClient extends Effect.Service<JikanClient>()("@bakarr/api/JikanClient", {
-  effect: makeJikanClient(),
-}) {}
+export class JikanClient extends Context.Service<JikanClient, JikanClientShape>()(
+  "@bakarr/api/JikanClient",
+) {
+  static readonly layer = Layer.effect(JikanClient, makeJikanClient());
+}
 
-export const JikanClientLive = JikanClient.Default;
+export const JikanClientLive = JikanClient.layer;
 
 const fetchDetail = Effect.fn("JikanClient.fetchDetail")(function* (
   client: HttpClient.HttpClient,
@@ -162,7 +166,7 @@ const decodeFullDetail = Effect.fn("JikanClient.decodeFullDetail")(function* (
     ),
   );
 
-  const normalized = yield* Schema.decodeUnknown(JikanNormalizedAnimeFromFullSchema)(
+  const normalized = yield* Schema.decodeUnknownEffect(JikanNormalizedAnimeFromFullSchema)(
     payload.data,
   ).pipe(
     Effect.mapError((cause) =>
@@ -192,7 +196,7 @@ const decodeBasicDetail = Effect.fn("JikanClient.decodeBasicDetail")(function* (
     ),
   );
 
-  const normalized = yield* Schema.decodeUnknown(JikanNormalizedAnimeFromDetailSchema)(
+  const normalized = yield* Schema.decodeUnknownEffect(JikanNormalizedAnimeFromDetailSchema)(
     payload.data,
   ).pipe(
     Effect.mapError((cause) =>

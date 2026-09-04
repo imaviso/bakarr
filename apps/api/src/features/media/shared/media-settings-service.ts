@@ -1,5 +1,3 @@
-import { Effect } from "effect";
-
 import type { DatabaseError } from "@/db/database.ts";
 import { EventBus } from "@/infra/effect/event-bus.ts";
 import { nowIso as currentNowIso } from "@/infra/time.ts";
@@ -18,6 +16,7 @@ import { StoredDataError } from "@/features/errors.ts";
 import { SystemLogRepository } from "@/features/system/repository/log-repository.ts";
 import { QualityProfileRepository } from "@/features/system/repository/quality-profile-repository.ts";
 import { SystemConfigRepository } from "@/features/system/repository/system-config-repository.ts";
+import { Context, Effect, Layer } from "effect";
 
 export interface MediaSettingsServiceShape {
   readonly setMonitored: (
@@ -176,17 +175,11 @@ const makeMediaSettingsService = Effect.fn("MediaSettingsService.make")(function
   } satisfies MediaSettingsServiceShape;
 });
 
-export class MediaSettingsService extends Effect.Service<MediaSettingsService>()(
-  "@bakarr/api/MediaSettingsService",
-  {
-    effect: makeMediaSettingsService(),
-    dependencies: [
-      MediaRepository.Default,
-      QualityProfileRepository.Default,
-      SystemConfigRepository.Default,
-      SystemLogRepository.Default,
-    ],
-  },
-) {}
+export class MediaSettingsService extends Context.Service<
+  MediaSettingsService,
+  MediaSettingsServiceShape
+>()("@bakarr/api/MediaSettingsService") {
+  static readonly layer = Layer.effect(MediaSettingsService, makeMediaSettingsService());
+}
 
-export const MediaSettingsServiceLive = MediaSettingsService.Default;
+export const MediaSettingsServiceLive = MediaSettingsService.layer;

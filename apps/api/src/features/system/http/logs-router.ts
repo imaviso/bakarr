@@ -1,5 +1,5 @@
-import { HttpRouter } from "@effect/platform";
-import { Effect } from "effect";
+import * as HttpRouter from "effect/unstable/http/HttpRouter";
+import { Effect, Layer } from "effect";
 import { SystemLogsResponseSchema } from "@packages/shared/index.ts";
 
 import { SystemLogService } from "@/features/system/system-log-service.ts";
@@ -17,8 +17,9 @@ import {
   successResponse,
 } from "@/infra/http/router-helpers.ts";
 
-export const logsRouter = HttpRouter.empty.pipe(
-  HttpRouter.get(
+export const logsRouter = Layer.mergeAll(
+  HttpRouter.add(
+    "GET",
     "/api/system/logs",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -28,14 +29,16 @@ export const logsRouter = HttpRouter.empty.pipe(
       schemaJsonResponse(SystemLogsResponseSchema),
     ),
   ),
-  HttpRouter.del(
+  HttpRouter.add(
+    "DELETE",
     "/api/system/logs",
     authedRouteResponse(
       Effect.flatMap(SystemLogService, (service) => service.clearLogs()),
       successResponse,
     ),
   ),
-  HttpRouter.get(
+  HttpRouter.add(
+    "GET",
     "/api/system/logs/export",
     authedRouteResponse(
       Effect.gen(function* () {

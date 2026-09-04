@@ -1,6 +1,8 @@
-import { HttpClient, HttpClientResponse } from "@effect/platform";
+import * as TestClock from "effect/testing/TestClock";
+import { Effect, Layer, Option, Record, Result, Schema } from "effect";
+import * as HttpClient from "effect/unstable/http/HttpClient";
+import * as HttpClientResponse from "effect/unstable/http/HttpClientResponse";
 import { assert, it } from "@effect/vitest";
-import { Effect, Either, Layer, Option, Schema, TestClock } from "effect";
 
 import { AppConfig } from "@/app/config/schema.ts";
 import {
@@ -47,41 +49,39 @@ it("manami source URL parsing extracts AniList and MAL ids", () => {
 });
 
 // Live clock: the failing status now goes through the retry schedule.
-it.scopedLive(
-  "ManamiClient maps non-2xx response as ExternalCallError with response operation",
-  () =>
-    withFileSystemSandboxEffect(({ fs, root }) =>
-      Effect.gen(function* () {
-        const clientLayer = makeManamiClientLayer({
-          fs,
-          httpClient: HttpClient.make((request) =>
-            Effect.sync(() =>
-              HttpClientResponse.fromWeb(
-                request,
-                Response.json({ message: "bad gateway" }, { status: 502 }),
-              ),
-            ),
-          ),
-          root,
-        });
-
-        const result = yield* Effect.flatMap(ManamiCacheRefreshClient, (client) =>
-          client.refreshCacheIfNeeded(),
-        ).pipe(Effect.provide(clientLayer), Effect.either);
-
-        assert.ok(Either.isLeft(result));
-        assert.ok(result.left instanceof ExternalCallError);
-        assert.deepStrictEqual(result.left.operation, "manami.dataset.download.response");
-      }),
-    ),
-);
-
-it.scoped("ManamiClient maps decode failures as ExternalCallError with json operation", () =>
+it.live("ManamiClient maps non-2xx response as ExternalCallError with response operation", () =>
   withFileSystemSandboxEffect(({ fs, root }) =>
     Effect.gen(function* () {
       const clientLayer = makeManamiClientLayer({
         fs,
-        httpClient: HttpClient.make((request) =>
+        httpClient: HttpClient.make((request, _url, _signal, _fiber) =>
+          Effect.sync(() =>
+            HttpClientResponse.fromWeb(
+              request,
+              Response.json({ message: "bad gateway" }, { status: 502 }),
+            ),
+          ),
+        ),
+        root,
+      });
+
+      const result = yield* Effect.flatMap(ManamiCacheRefreshClient, (client) =>
+        client.refreshCacheIfNeeded(),
+      ).pipe(Effect.provide(clientLayer), Effect.result);
+
+      assert.ok(Result.isFailure(result));
+      assert.ok(result.failure instanceof ExternalCallError);
+      assert.deepStrictEqual(result.failure.operation, "manami.dataset.download.response");
+    }),
+  ),
+);
+
+it.effect("ManamiClient maps decode failures as ExternalCallError with json operation", () =>
+  withFileSystemSandboxEffect(({ fs, root }) =>
+    Effect.gen(function* () {
+      const clientLayer = makeManamiClientLayer({
+        fs,
+        httpClient: HttpClient.make((request, _url, _signal, _fiber) =>
           Effect.sync(() =>
             HttpClientResponse.fromWeb(
               request,
@@ -105,22 +105,22 @@ it.scoped("ManamiClient maps decode failures as ExternalCallError with json oper
 
       const result = yield* Effect.flatMap(ManamiCacheRefreshClient, (client) =>
         client.refreshCacheIfNeeded(),
-      ).pipe(Effect.provide(clientLayer), Effect.either);
+      ).pipe(Effect.provide(clientLayer), Effect.result);
 
-      assert.ok(Either.isLeft(result));
-      assert.ok(result.left instanceof ExternalCallError);
-      assert.deepStrictEqual(result.left.operation, "manami.dataset.json");
+      assert.ok(Result.isFailure(result));
+      assert.ok(result.failure instanceof ExternalCallError);
+      assert.deepStrictEqual(result.failure.operation, "manami.dataset.json");
     }),
   ),
 );
 
-it.scoped("ManamiClient lookup does not download missing cache", () =>
+it.effect("ManamiClient lookup does not download missing cache", () =>
   withFileSystemSandboxEffect(({ fs, root }) =>
     Effect.gen(function* () {
       let requestCount = 0;
       const clientLayer = makeManamiClientLayer({
         fs,
-        httpClient: HttpClient.make((request) =>
+        httpClient: HttpClient.make((request, _url, _signal, _fiber) =>
           Effect.sync(() => {
             requestCount += 1;
             return HttpClientResponse.fromWeb(
@@ -134,23 +134,23 @@ it.scoped("ManamiClient lookup does not download missing cache", () =>
 
       const result = yield* Effect.flatMap(ManamiClient, (client) =>
         client.getByAniListId(1001),
-      ).pipe(Effect.provide(clientLayer), Effect.either);
+      ).pipe(Effect.provide(clientLayer), Effect.result);
 
-      assert.ok(Either.isLeft(result));
-      assert.ok(result.left instanceof ExternalCallError);
-      assert.deepStrictEqual(result.left.operation, "manami.sqlite.lookup.by_anilist");
+      assert.ok(Result.isFailure(result));
+      assert.ok(result.failure instanceof ExternalCallError);
+      assert.deepStrictEqual(result.failure.operation, "manami.sqlite.lookup.by_anilist");
       assert.deepStrictEqual(requestCount, 0);
     }),
   ),
 );
 
-it.scoped("ManamiClient refreshes once and serves sqlite lookups", () =>
+it.effect("ManamiClient refreshes once and serves sqlite lookups", () =>
   withFileSystemSandboxEffect(({ fs, root }) =>
     Effect.gen(function* () {
       let requestCount = 0;
       const clientLayer = makeManamiClientLayer({
         fs,
-        httpClient: HttpClient.make((request) =>
+        httpClient: HttpClient.make((request, _url, _signal, _fiber) =>
           Effect.sync(() => {
             requestCount += 1;
             return HttpClientResponse.fromWeb(
@@ -204,13 +204,13 @@ it.scoped("ManamiClient refreshes once and serves sqlite lookups", () =>
   ),
 );
 
-it.scoped("ManamiClient searches cached titles and synonyms", () =>
+it.effect("ManamiClient searches cached titles and synonyms", () =>
   withFileSystemSandboxEffect(({ fs, root }) =>
     Effect.gen(function* () {
       let requestCount = 0;
       const clientLayer = makeManamiClientLayer({
         fs,
-        httpClient: HttpClient.make((request) =>
+        httpClient: HttpClient.make((request, _url, _signal, _fiber) =>
           Effect.sync(() => {
             requestCount += 1;
             return HttpClientResponse.fromWeb(
@@ -243,14 +243,14 @@ it.scoped("ManamiClient searches cached titles and synonyms", () =>
   ),
 );
 
-it.scoped("ManamiClient reuses sqlite cache across layer restarts", () =>
+it.effect("ManamiClient reuses sqlite cache across layer restarts", () =>
   withFileSystemSandboxEffect(({ fs, root }) =>
     Effect.gen(function* () {
       let firstRunRequests = 0;
 
       const initialLayer = makeManamiClientLayer({
         fs,
-        httpClient: HttpClient.make((request) =>
+        httpClient: HttpClient.make((request, _url, _signal, _fiber) =>
           Effect.sync(() => {
             firstRunRequests += 1;
             return HttpClientResponse.fromWeb(
@@ -273,7 +273,7 @@ it.scoped("ManamiClient reuses sqlite cache across layer restarts", () =>
       let secondRunRequests = 0;
       const restartedLayer = makeManamiClientLayer({
         fs,
-        httpClient: HttpClient.make((request) =>
+        httpClient: HttpClient.make((request, _url, _signal, _fiber) =>
           Effect.sync(() => {
             secondRunRequests += 1;
             return HttpClientResponse.fromWeb(
@@ -303,7 +303,7 @@ it.scoped("ManamiClient reuses sqlite cache across layer restarts", () =>
   ),
 );
 
-it.scoped("ManamiClient rebuilds invalid sqlite cache from local dataset", () =>
+it.effect("ManamiClient rebuilds invalid sqlite cache from local dataset", () =>
   withFileSystemSandboxEffect(({ fs, root }) =>
     Effect.gen(function* () {
       const clockNow = MANAMI_CACHE_REFRESH_INTERVAL_MS / 2;
@@ -315,7 +315,7 @@ it.scoped("ManamiClient rebuilds invalid sqlite cache from local dataset", () =>
       yield* TestClock.setTime(clockNow);
       const clientLayer = makeManamiClientLayer({
         fs,
-        httpClient: HttpClient.make((request) =>
+        httpClient: HttpClient.make((request, _url, _signal, _fiber) =>
           Effect.sync(() => {
             requestCount += 1;
             return HttpClientResponse.fromWeb(
@@ -341,13 +341,13 @@ it.scoped("ManamiClient rebuilds invalid sqlite cache from local dataset", () =>
   ),
 );
 
-it.scoped("ManamiClient fills duplicate cross-id links while keeping first title rows", () =>
+it.effect("ManamiClient fills duplicate cross-id links while keeping first title rows", () =>
   withFileSystemSandboxEffect(({ fs, root }) =>
     Effect.gen(function* () {
       let requestCount = 0;
       const clientLayer = makeManamiClientLayer({
         fs,
-        httpClient: HttpClient.make((request) =>
+        httpClient: HttpClient.make((request, _url, _signal, _fiber) =>
           Effect.sync(() => {
             requestCount += 1;
             return HttpClientResponse.fromWeb(
@@ -392,7 +392,7 @@ it.scoped("ManamiClient fills duplicate cross-id links while keeping first title
   ),
 );
 
-it.scoped("ManamiClient refreshes stale sqlite cache", () =>
+it.effect("ManamiClient refreshes stale sqlite cache", () =>
   withFileSystemSandboxEffect(({ fs, root }) =>
     Effect.gen(function* () {
       const staleDataset = {
@@ -412,7 +412,7 @@ it.scoped("ManamiClient refreshes stale sqlite cache", () =>
       yield* TestClock.setTime(clockNow);
       const clientLayer = makeManamiClientLayer({
         fs,
-        httpClient: HttpClient.make((request) =>
+        httpClient: HttpClient.make((request, _url, _signal, _fiber) =>
           Effect.sync(() => {
             requestCount += 1;
             return HttpClientResponse.fromWeb(
@@ -438,14 +438,14 @@ it.scoped("ManamiClient refreshes stale sqlite cache", () =>
   ),
 );
 
-it.scoped("ManamiClient revalidates stale cache with conditional request headers", () =>
+it.effect("ManamiClient revalidates stale cache with conditional request headers", () =>
   withFileSystemSandboxEffect(({ fs, root }) =>
     Effect.gen(function* () {
       const seenHeaders: Array<Record<string, string | null>> = [];
       let requestCount = 0;
       const clientLayer = makeManamiClientLayer({
         fs,
-        httpClient: HttpClient.make((request) =>
+        httpClient: HttpClient.make((request, _url, _signal, _fiber) =>
           Effect.sync(() => {
             requestCount += 1;
             seenHeaders.push({
@@ -505,7 +505,7 @@ it.scoped("ManamiClient revalidates stale cache with conditional request headers
   ),
 );
 
-it.scoped("ManamiClient rebuilds broken sqlite when stale cache revalidates as not modified", () =>
+it.effect("ManamiClient rebuilds broken sqlite when stale cache revalidates as not modified", () =>
   withFileSystemSandboxEffect(({ fs, root }) =>
     Effect.gen(function* () {
       const staleDataset = {
@@ -520,7 +520,7 @@ it.scoped("ManamiClient rebuilds broken sqlite when stale cache revalidates as n
       yield* TestClock.setTime(MANAMI_CACHE_REFRESH_INTERVAL_MS * 2);
       const clientLayer = makeManamiClientLayer({
         fs,
-        httpClient: HttpClient.make((request) =>
+        httpClient: HttpClient.make((request, _url, _signal, _fiber) =>
           Effect.sync(() => {
             seenIfNoneMatch.push(request.headers["if-none-match"] ?? null);
             return HttpClientResponse.fromWeb(request, new Response(null, { status: 304 }));
@@ -548,7 +548,7 @@ it.scoped("ManamiClient rebuilds broken sqlite when stale cache revalidates as n
   ),
 );
 
-it.scoped("ManamiClient redownloads unconditionally when 304 cache is unusable", () =>
+it.effect("ManamiClient redownloads unconditionally when 304 cache is unusable", () =>
   withFileSystemSandboxEffect(({ fs, root }) =>
     Effect.gen(function* () {
       yield* writeCachedDataset(fs, root, SYNTHETIC_DATASET, 0, { etag: '"dataset-v1"' });
@@ -560,7 +560,7 @@ it.scoped("ManamiClient redownloads unconditionally when 304 cache is unusable",
       yield* TestClock.setTime(MANAMI_CACHE_REFRESH_INTERVAL_MS * 2);
       const clientLayer = makeManamiClientLayer({
         fs,
-        httpClient: HttpClient.make((request) =>
+        httpClient: HttpClient.make((request, _url, _signal, _fiber) =>
           Effect.sync(() => {
             seenIfNoneMatch.push(request.headers["if-none-match"] ?? null);
             if (seenIfNoneMatch.length === 1) {
@@ -606,7 +606,7 @@ function makeManamiClientLayer(input: {
       Layer.mergeAll(
         AppConfig.layerWithOverrides({ databaseFile: `${input.root}/bakarr.sqlite` }),
         externalCallLayer,
-        Layer.succeed(FileSystem, FileSystem.make(input.fs)),
+        Layer.succeed(FileSystem, FileSystem.of(input.fs)),
         Layer.succeed(HttpClient.HttpClient, input.httpClient),
       ),
     ),
@@ -620,11 +620,15 @@ const writeCachedDataset = Effect.fn("Test.writeCachedDataset")(function* (
   fetchedAtMs: number,
   validators?: { readonly etag?: string; readonly lastModified?: string },
 ) {
-  const datasetJson = yield* Schema.encode(Schema.parseJson(ManamiDatasetSchema))(dataset);
-  const metaJson = yield* Schema.encode(
-    Schema.parseJson(
+  const datasetJson = yield* Schema.encodeEffect(Schema.fromJsonString(ManamiDatasetSchema))(
+    dataset,
+  );
+  const metaJson = yield* Schema.encodeEffect(
+    Schema.fromJsonString(
       Schema.Struct({
-        fetchedAtMs: Schema.Number.pipe(Schema.int(), Schema.nonNegative()),
+        fetchedAtMs: Schema.Number.pipe(
+          Schema.check(Schema.isInt(), Schema.isGreaterThanOrEqualTo(0)),
+        ),
         etag: Schema.optional(Schema.String),
         lastModified: Schema.optional(Schema.String),
       }),

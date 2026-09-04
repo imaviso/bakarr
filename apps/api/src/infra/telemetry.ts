@@ -1,9 +1,10 @@
-import { Otlp } from "@effect/opentelemetry";
-import { Duration, Effect, Layer, Redacted } from "effect";
+import { Duration, Effect, Layer, Record, Redacted } from "effect";
+import * as FetchHttpClient from "effect/unstable/http/FetchHttpClient";
+import * as Otlp from "effect/unstable/observability/Otlp";
 
 import { ObservabilityConfig } from "@/app/config/observability.ts";
 
-export const TelemetryLayer = Layer.unwrapEffect(
+export const TelemetryLayer = Layer.unwrap(
   Effect.gen(function* () {
     const config = yield* ObservabilityConfig;
 
@@ -26,7 +27,7 @@ export const TelemetryLayer = Layer.unwrapEffect(
       },
       shutdownTimeout: Duration.millis(config.shutdownTimeoutMs),
       tracerExportInterval: Duration.millis(config.tracerExportIntervalMs),
-    });
+    }).pipe(Layer.provide(FetchHttpClient.layer));
   }),
 );
 

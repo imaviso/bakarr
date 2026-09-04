@@ -1,5 +1,6 @@
-import { HttpRouter, HttpServerResponse } from "@effect/platform";
-import { Effect, Schema } from "effect";
+import * as HttpRouter from "effect/unstable/http/HttpRouter";
+import * as HttpServerResponse from "effect/unstable/http/HttpServerResponse";
+import { Effect, Layer, Schema } from "effect";
 
 import {
   HealthStatusSchema,
@@ -18,23 +19,26 @@ const ReadyResponseSchema = Schema.Struct({
   checks: Schema.Struct({ database: Schema.Boolean }),
   ready: Schema.Boolean,
 });
-const LiveResponseSchema = Schema.Struct({ status: Schema.Literal("alive") });
+const LiveResponseSchema = Schema.Struct({ status: Schema.Literals(["alive"]) });
 
 const notReadyResponse: {
   readonly checks: { readonly database: boolean };
   readonly ready: boolean;
 } = { checks: { database: false }, ready: false };
 
-export const healthRouter = HttpRouter.empty.pipe(
-  HttpRouter.get(
+export const healthRouter = Layer.mergeAll(
+  HttpRouter.add(
+    "GET",
     "/health",
     HttpServerResponse.schemaJson(HealthStatusSchema)({ status: "ok" } satisfies HealthStatus),
   ),
-  HttpRouter.get(
+  HttpRouter.add(
+    "GET",
     "/api/system/health/live",
     HttpServerResponse.schemaJson(LiveResponseSchema)({ status: "alive" }),
   ),
-  HttpRouter.get(
+  HttpRouter.add(
+    "GET",
     "/api/system/health/ready",
     routeResponse(
       Effect.gen(function* () {
@@ -50,7 +54,8 @@ export const healthRouter = HttpRouter.empty.pipe(
         }),
     ),
   ),
-  HttpRouter.get(
+  HttpRouter.add(
+    "GET",
     "/api/system/status",
     authedRouteResponse(
       Effect.gen(function* () {

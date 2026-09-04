@@ -1,5 +1,4 @@
 import { Cause, Effect, Exit } from "effect";
-
 import { assert, it } from "@effect/vitest";
 import { makeTestConfig } from "@/test/config-fixture.ts";
 import { validateConfigUpdate } from "@/features/system/config-update-validation.ts";
@@ -24,7 +23,7 @@ it("rejects invalid scheduler cron expressions", () =>
     assert.deepStrictEqual(Exit.isFailure(exit), true);
 
     if (Exit.isFailure(exit)) {
-      const failure = Cause.failureOption(exit.cause);
+      const failure = Cause.findErrorOption(exit.cause);
       assert.deepStrictEqual(failure._tag, "Some");
       if (failure._tag === "Some") {
         assert.deepStrictEqual(failure.value._tag, "ConfigValidationError");
@@ -46,7 +45,7 @@ it("rejects removing profiles that are still referenced", () =>
     assert.deepStrictEqual(Exit.isFailure(exit), true);
 
     if (Exit.isFailure(exit)) {
-      const failure = Cause.failureOption(exit.cause);
+      const failure = Cause.findErrorOption(exit.cause);
       assert.deepStrictEqual(failure._tag, "Some");
       if (failure._tag === "Some") {
         assert.deepStrictEqual(failure.value._tag, "ConfigValidationError");
@@ -74,7 +73,7 @@ it("rejects invalid qBittorrent URLs", () =>
     assert.deepStrictEqual(Exit.isFailure(exit), true);
 
     if (Exit.isFailure(exit)) {
-      const failure = Cause.failureOption(exit.cause);
+      const failure = Cause.findErrorOption(exit.cause);
       assert.deepStrictEqual(failure._tag, "Some");
       if (failure._tag === "Some") {
         assert.deepStrictEqual(failure.value._tag, "ConfigValidationError");
@@ -103,7 +102,7 @@ it("rejects private qBittorrent URLs when trusted_local is disabled", () =>
     assert.deepStrictEqual(Exit.isFailure(exit), true);
 
     if (Exit.isFailure(exit)) {
-      const failure = Cause.failureOption(exit.cause);
+      const failure = Cause.findErrorOption(exit.cause);
       assert.deepStrictEqual(failure._tag, "Some");
       if (failure._tag === "Some") {
         assert.deepStrictEqual(failure.value._tag, "ConfigValidationError");

@@ -1,5 +1,5 @@
-import { HttpRouter } from "@effect/platform";
-import { Effect, Schema } from "effect";
+import * as HttpRouter from "effect/unstable/http/HttpRouter";
+import { Effect, Layer, Schema } from "effect";
 import {
   ActivityItemSchema,
   BackgroundJobStatusSchema,
@@ -28,8 +28,9 @@ import {
   schemaJsonResponse,
 } from "@/infra/http/router-helpers.ts";
 
-export const infoRouter = HttpRouter.empty.pipe(
-  HttpRouter.get(
+export const infoRouter = Layer.mergeAll(
+  HttpRouter.add(
+    "GET",
     "/api/system/observability",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -38,14 +39,16 @@ export const infoRouter = HttpRouter.empty.pipe(
       schemaJsonResponse(ObservabilityStatusSchema),
     ),
   ),
-  HttpRouter.get(
+  HttpRouter.add(
+    "GET",
     "/api/system/dashboard",
     authedRouteResponse(
       Effect.flatMap(SystemReadService, (service) => service.getDashboard()),
       schemaJsonResponse(OpsDashboardSchema),
     ),
   ),
-  HttpRouter.get(
+  HttpRouter.add(
+    "GET",
     "/api/system/jobs",
     authedRouteResponse(
       Effect.flatMap(BackgroundJobStatusService, (service) =>
@@ -54,7 +57,8 @@ export const infoRouter = HttpRouter.empty.pipe(
       schemaJsonResponse(Schema.Array(BackgroundJobStatusSchema)),
     ),
   ),
-  HttpRouter.get(
+  HttpRouter.add(
+    "GET",
     "/api/system/tasks",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -68,7 +72,8 @@ export const infoRouter = HttpRouter.empty.pipe(
       schemaJsonResponse(Schema.Array(OperationTaskSchema)),
     ),
   ),
-  HttpRouter.get(
+  HttpRouter.add(
+    "GET",
     "/api/system/tasks/:taskId",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -78,14 +83,16 @@ export const infoRouter = HttpRouter.empty.pipe(
       schemaJsonResponse(OperationTaskSchema),
     ),
   ),
-  HttpRouter.get(
+  HttpRouter.add(
+    "GET",
     "/api/library/stats",
     authedRouteResponse(
       Effect.flatMap(SystemReadService, (service) => service.getLibraryStats()),
       schemaJsonResponse(LibraryStatsSchema),
     ),
   ),
-  HttpRouter.get(
+  HttpRouter.add(
+    "GET",
     "/api/library/activity",
     authedRouteResponse(
       Effect.flatMap(SystemReadService, (service) => service.getActivity()),

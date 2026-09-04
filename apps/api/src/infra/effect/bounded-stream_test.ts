@@ -20,7 +20,7 @@ it("collectBoundedBytes fails when accumulated bytes exceed max", () =>
     const exit = yield* Effect.exit(collectBoundedBytes(stream, 4));
     assert.deepStrictEqual(Exit.isFailure(exit), true);
     if (Exit.isFailure(exit)) {
-      const failure = Cause.failureOption(exit.cause);
+      const failure = Cause.findErrorOption(exit.cause);
       assert.ok(Option.isSome(failure));
       assert.ok(failure.value instanceof StreamPayloadTooLargeError);
       assert.deepStrictEqual(failure.value.actualBytes, 6);
@@ -34,7 +34,7 @@ it("collectBoundedBytes reports actualBytes and maxBytes on error", () =>
     const exit = yield* Effect.exit(collectBoundedBytes(stream, 4));
     assert.deepStrictEqual(Exit.isFailure(exit), true);
     if (Exit.isFailure(exit)) {
-      const failure = Cause.failureOption(exit.cause);
+      const failure = Cause.findErrorOption(exit.cause);
       assert.ok(Option.isSome(failure));
       assert.ok(failure.value instanceof StreamPayloadTooLargeError);
       assert.deepStrictEqual(failure.value.actualBytes, 5);
@@ -64,7 +64,7 @@ it("collectBoundedText fails when text exceeds max", () =>
     const exit = yield* Effect.exit(collectBoundedText(stream, 3));
     assert.deepStrictEqual(Exit.isFailure(exit), true);
     if (Exit.isFailure(exit)) {
-      const failure = Cause.failureOption(exit.cause);
+      const failure = Cause.findErrorOption(exit.cause);
       assert.ok(Option.isSome(failure));
       assert.ok(failure.value instanceof StreamPayloadTooLargeError);
       assert.deepStrictEqual(failure.value.actualBytes, 8);

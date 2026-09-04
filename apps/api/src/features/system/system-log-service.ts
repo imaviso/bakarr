@@ -1,9 +1,8 @@
-import { Effect } from "effect";
-
 import type { SystemLogsResponse } from "@packages/shared/index.ts";
 import { nowIso as currentNowIso } from "@/infra/time.ts";
 import { EventBus } from "@/infra/effect/event-bus.ts";
 import { SystemLogRepository } from "@/features/system/repository/log-repository.ts";
+import { Context, Effect, Layer } from "effect";
 import {
   buildSystemLogExportPlan,
   type SystemLogExportStreamShape,
@@ -93,12 +92,12 @@ const makeSystemLogService = Effect.fn("SystemLogService.make")(function* () {
   };
 });
 
-export class SystemLogService extends Effect.Service<SystemLogService>()(
-  "@bakarr/api/SystemLogService",
-  {
-    effect: makeSystemLogService(),
-    dependencies: [SystemLogRepository.Default],
-  },
-) {}
+export type SystemLogServiceShape = Effect.Success<ReturnType<typeof makeSystemLogService>>;
 
-export const SystemLogServiceLive = SystemLogService.Default;
+export class SystemLogService extends Context.Service<SystemLogService, SystemLogServiceShape>()(
+  "@bakarr/api/SystemLogService",
+) {
+  static readonly layer = Layer.effect(SystemLogService, makeSystemLogService());
+}
+
+export const SystemLogServiceLive = SystemLogService.layer;

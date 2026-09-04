@@ -1,3 +1,4 @@
+import type * as NodeSqliteClient from "@effect/sql-sqlite-node/SqliteClient";
 import { Cause, Effect, Exit, Layer, Stream } from "effect";
 import { eq } from "drizzle-orm";
 
@@ -9,29 +10,30 @@ import { BackgroundSearchRssWorkerService } from "@/features/operations/backgrou
 import { SearchBackgroundRssService } from "@/features/operations/background-search/background-search-rss-service.ts";
 import { InfrastructureError } from "@/features/errors.ts";
 import { OperationsProgress } from "@/features/operations/tasks/operations-progress-service.ts";
-import { tryDatabasePromise } from "@/infra/effect/db.ts";
+import { tryDatabaseQuery } from "@/infra/effect/db.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 import { BackgroundJobRunner } from "@/background/background-job-runner.ts";
 import { makeBackgroundJobRunner } from "@/test/repository-factories.ts";
 import { assert, describe, it } from "@effect/vitest";
 
 describe("BackgroundSearchRssWorkerService", () => {
-  it.scoped("marks success when RSS and missing search both complete", () =>
+  it.effect("marks success when RSS and missing search both complete", () =>
     withSqliteTestDbEffect({
-      run: (db) =>
+      run: (db, _databaseFile, client, _exec) =>
         Effect.gen(function* () {
           const calls: string[] = [];
           const result = yield* runWorkerScenario({
             calls,
+            client,
             db,
-            missingService: SearchBackgroundMissingService.make({
-              startMissingUnitSearch: () => Effect.dieMessage("not used in test"),
+            missingService: SearchBackgroundMissingService.of({
+              startMissingUnitSearch: () => Effect.die(new Error("not used in test")),
               triggerSearchMissing: () =>
                 Effect.sync(() => {
                   calls.push("missing");
                 }),
             }),
-            rssService: SearchBackgroundRssService.make({
+            rssService: SearchBackgroundRssService.of({
               runRssCheck: () =>
                 Effect.sync(() => {
                   calls.push("rss");
@@ -40,14 +42,15 @@ describe("BackgroundSearchRssWorkerService", () => {
             }),
           });
 
-          const [job] = yield* tryDatabasePromise(
+          const [job] = yield* tryDatabaseQuery(
             "Failed to query backgroundJobs for RSS assertion",
-            () =>
-              db
-                .select()
-                .from(schema.backgroundJobs)
-                .where(eq(schema.backgroundJobs.name, "rss"))
-                .limit(1),
+            db
+              .select()
+              .from(schema.backgroundJobs)
+              .where(eq(schema.backgroundJobs.name, "rss"))
+              .limit(1)
+              .prepare()
+              .effect(),
           );
           assert.deepStrictEqual(job !== undefined, true);
           if (!job) {
@@ -66,16 +69,17 @@ describe("BackgroundSearchRssWorkerService", () => {
     }),
   );
 
-  it.scoped("marks failure when missing search fails after RSS succeeds", () =>
+  it.effect("marks failure when missing search fails after RSS succeeds", () =>
     withSqliteTestDbEffect({
-      run: (db) =>
+      run: (db, _databaseFile, client, _exec) =>
         Effect.gen(function* () {
           const calls: string[] = [];
           const result = yield* runWorkerScenario({
             calls,
+            client,
             db,
-            missingService: SearchBackgroundMissingService.make({
-              startMissingUnitSearch: () => Effect.dieMessage("not used in test"),
+            missingService: SearchBackgroundMissingService.of({
+              startMissingUnitSearch: () => Effect.die(new Error("not used in test")),
               triggerSearchMissing: () =>
                 Effect.gen(function* () {
                   calls.push("missing");
@@ -85,7 +89,7 @@ describe("BackgroundSearchRssWorkerService", () => {
                   });
                 }),
             }),
-            rssService: SearchBackgroundRssService.make({
+            rssService: SearchBackgroundRssService.of({
               runRssCheck: () =>
                 Effect.sync(() => {
                   calls.push("rss");
@@ -98,21 +102,22 @@ describe("BackgroundSearchRssWorkerService", () => {
           assert.deepStrictEqual(result.calls, ["rss", "missing"]);
           assert.deepStrictEqual(result.events, ["RssCheckStarted"]);
           if (Exit.isFailure(result.exit)) {
-            const failure = Cause.failureOption(result.exit.cause);
+            const failure = Cause.findErrorOption(result.exit.cause);
             assert.deepStrictEqual(failure._tag, "Some");
             if (failure._tag === "Some") {
               assert.deepStrictEqual(failure.value._tag, "InfrastructureError");
             }
           }
 
-          const [job] = yield* tryDatabasePromise(
+          const [job] = yield* tryDatabaseQuery(
             "Failed to query backgroundJobs for RSS assertion",
-            () =>
-              db
-                .select()
-                .from(schema.backgroundJobs)
-                .where(eq(schema.backgroundJobs.name, "rss"))
-                .limit(1),
+            db
+              .select()
+              .from(schema.backgroundJobs)
+              .where(eq(schema.backgroundJobs.name, "rss"))
+              .limit(1)
+              .prepare()
+              .effect(),
           );
           assert.deepStrictEqual(job !== undefined, true);
           if (!job) {
@@ -126,22 +131,23 @@ describe("BackgroundSearchRssWorkerService", () => {
     }),
   );
 
-  it.scoped("marks failure when RSS fails before missing search runs", () =>
+  it.effect("marks failure when RSS fails before missing search runs", () =>
     withSqliteTestDbEffect({
-      run: (db) =>
+      run: (db, _databaseFile, client, _exec) =>
         Effect.gen(function* () {
           const calls: string[] = [];
           const result = yield* runWorkerScenario({
             calls,
+            client,
             db,
-            missingService: SearchBackgroundMissingService.make({
-              startMissingUnitSearch: () => Effect.dieMessage("not used in test"),
+            missingService: SearchBackgroundMissingService.of({
+              startMissingUnitSearch: () => Effect.die(new Error("not used in test")),
               triggerSearchMissing: () =>
                 Effect.sync(() => {
                   calls.push("missing");
                 }),
             }),
-            rssService: SearchBackgroundRssService.make({
+            rssService: SearchBackgroundRssService.of({
               runRssCheck: () =>
                 Effect.gen(function* () {
                   calls.push("rss");
@@ -157,21 +163,22 @@ describe("BackgroundSearchRssWorkerService", () => {
           assert.deepStrictEqual(result.calls, ["rss"]);
           assert.deepStrictEqual(result.events, ["RssCheckStarted"]);
           if (Exit.isFailure(result.exit)) {
-            const failure = Cause.failureOption(result.exit.cause);
+            const failure = Cause.findErrorOption(result.exit.cause);
             assert.deepStrictEqual(failure._tag, "Some");
             if (failure._tag === "Some") {
               assert.deepStrictEqual(failure.value._tag, "InfrastructureError");
             }
           }
 
-          const [job] = yield* tryDatabasePromise(
+          const [job] = yield* tryDatabaseQuery(
             "Failed to query backgroundJobs for RSS assertion",
-            () =>
-              db
-                .select()
-                .from(schema.backgroundJobs)
-                .where(eq(schema.backgroundJobs.name, "rss"))
-                .limit(1),
+            db
+              .select()
+              .from(schema.backgroundJobs)
+              .where(eq(schema.backgroundJobs.name, "rss"))
+              .limit(1)
+              .prepare()
+              .effect(),
           );
           assert.deepStrictEqual(job !== undefined, true);
           if (!job) {
@@ -202,7 +209,7 @@ function makeEventBusStub(events: string[]): EventBusShape {
 }
 
 function makeOperationsProgressStub() {
-  return OperationsProgress.make({
+  return OperationsProgress.of({
     getDownloadProgress: () => Effect.succeed([]),
     getDownloadProgressBootstrap: () => Effect.succeed([]),
     getDownloadRuntimeSummary: () => Effect.succeed({ active_count: 0 }),
@@ -219,7 +226,7 @@ function makeWorkerTestLayer(input: {
   readonly rssService: typeof SearchBackgroundRssService.Service;
 }) {
   return {
-    eventBus: EventBus.make(makeEventBusStub(input.events)),
+    eventBus: EventBus.of(makeEventBusStub(input.events)),
     missingService: input.missingService,
     progress: makeOperationsProgressStub(),
     rssService: input.rssService,
@@ -229,6 +236,7 @@ function makeWorkerTestLayer(input: {
 const runWorkerScenario = Effect.fn("BackgroundSearchRssWorkerServiceTest.runWorkerScenario")(
   function* (input: {
     readonly calls: string[];
+    readonly client: NodeSqliteClient.SqliteClient;
     readonly db: AppDatabase;
     readonly missingService: typeof SearchBackgroundMissingService.Service;
     readonly rssService: typeof SearchBackgroundRssService.Service;
@@ -239,10 +247,10 @@ const runWorkerScenario = Effect.fn("BackgroundSearchRssWorkerServiceTest.runWor
       missingService: input.missingService,
       rssService: input.rssService,
     });
-    const layer = BackgroundSearchRssWorkerService.DefaultWithoutDependencies.pipe(
+    const layer = BackgroundSearchRssWorkerService.layer.pipe(
       Layer.provide(
         Layer.mergeAll(
-          Layer.succeed(BackgroundJobRunner, makeBackgroundJobRunner(input.db)),
+          Layer.succeed(BackgroundJobRunner, makeBackgroundJobRunner(input.db, input.client)),
           Layer.succeed(EventBus, deps.eventBus),
           Layer.succeed(OperationsProgress, deps.progress),
           Layer.succeed(SearchBackgroundMissingService, deps.missingService),

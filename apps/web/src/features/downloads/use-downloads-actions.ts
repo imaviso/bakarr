@@ -12,8 +12,8 @@ interface UseDownloadsActionsOptions {
   updateSearch: (patch: DownloadsSearchPatch) => void;
   eventsExportInput: DownloadEventsExportInput;
   eventsPage: {
-    nextCursor?: string | undefined;
-    prevCursor?: string | undefined;
+    nextCursor?: string | null | undefined;
+    prevCursor?: string | null | undefined;
   };
 }
 

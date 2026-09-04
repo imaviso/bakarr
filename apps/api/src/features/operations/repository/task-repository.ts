@@ -1,10 +1,11 @@
 import { and, desc, eq, notInArray } from "drizzle-orm";
-import { Effect, Schema } from "effect";
+import * as NodeSqliteClient from "@effect/sql-sqlite-node/SqliteClient";
+import { Context, Effect, Layer, Schema } from "effect";
 
 import { OperationTaskKeySchema } from "@packages/shared/index.ts";
 import { AppDrizzleDatabase, DatabaseError, type AppDatabase } from "@/db/database.ts";
 import { operationsTasks } from "@/db/schema.ts";
-import { tryDatabasePromise } from "@/infra/effect/db.ts";
+import { makeDbExecutor, type DbExecutor } from "@/infra/effect/db.ts";
 
 export type OperationsTaskKey = Schema.Schema.Type<typeof OperationTaskKeySchema>;
 
@@ -59,19 +60,23 @@ export interface OperationsTaskRepositoryShape {
   }) => Effect.Effect<void, DatabaseError>;
 }
 
-export class OperationsTaskRepository extends Effect.Service<OperationsTaskRepository>()(
-  "@bakarr/api/OperationsTaskRepository",
-  {
-    effect: Effect.gen(function* () {
+export class OperationsTaskRepository extends Context.Service<
+  OperationsTaskRepository,
+  OperationsTaskRepositoryShape
+>()("@bakarr/api/OperationsTaskRepository") {
+  static readonly layer = Layer.effect(
+    OperationsTaskRepository,
+    Effect.gen(function* () {
       const db = yield* AppDrizzleDatabase;
-      return makeOperationsTaskRepositoryShape(db);
+      const sqlClient = yield* NodeSqliteClient.SqliteClient;
+      return makeOperationsTaskRepositoryShape(db, sqlClient);
     }),
-    dependencies: [AppDrizzleDatabase.Default],
-  },
-) {}
+  );
+}
 
 export const createTaskRow = Effect.fn("OperationsTaskRepository.createTaskRow")(function* (
   db: AppDatabase,
+  exec: DbExecutor,
   input: {
     readonly createdAt: string;
     readonly mediaId?: number;
@@ -79,7 +84,8 @@ export const createTaskRow = Effect.fn("OperationsTaskRepository.createTaskRow")
     readonly taskKey: OperationsTaskKey;
   },
 ) {
-  const rows = yield* tryDatabasePromise("Failed to create operations task", () =>
+  const rows = yield* exec.runQuery(
+    "Failed to create operations task",
     db
       .insert(operationsTasks)
       .values({
@@ -95,7 +101,9 @@ export const createTaskRow = Effect.fn("OperationsTaskRepository.createTaskRow")
         taskKey: input.taskKey,
         updatedAt: input.createdAt,
       })
-      .returning({ id: operationsTasks.id }),
+      .returning({ id: operationsTasks.id })
+      .prepare()
+      .effect(),
   );
 
   const created = rows[0];
@@ -113,9 +121,11 @@ export const createTaskRow = Effect.fn("OperationsTaskRepository.createTaskRow")
 export const markRunningTaskRow = Effect.fn("OperationsTaskRepository.markRunningTaskRow")(
   function* (
     db: AppDatabase,
+    exec: DbExecutor,
     input: { readonly message: string; readonly startedAt: string; readonly taskId: number },
   ) {
-    yield* tryDatabasePromise("Failed to mark operations task running", () =>
+    yield* exec.runQuery(
+      "Failed to mark operations task running",
       db
         .update(operationsTasks)
         .set({
@@ -126,7 +136,9 @@ export const markRunningTaskRow = Effect.fn("OperationsTaskRepository.markRunnin
           status: "running",
           updatedAt: input.startedAt,
         })
-        .where(eq(operationsTasks.id, input.taskId)),
+        .where(eq(operationsTasks.id, input.taskId))
+        .prepare()
+        .effect(),
     );
   },
 );
@@ -134,6 +146,7 @@ export const markRunningTaskRow = Effect.fn("OperationsTaskRepository.markRunnin
 export const updateTaskProgressRow = Effect.fn("OperationsTaskRepository.updateTaskProgressRow")(
   function* (
     db: AppDatabase,
+    exec: DbExecutor,
     input: {
       readonly message?: string;
       readonly progressCurrent: number;
@@ -142,7 +155,8 @@ export const updateTaskProgressRow = Effect.fn("OperationsTaskRepository.updateT
       readonly updatedAt: string;
     },
   ) {
-    yield* tryDatabasePromise("Failed to update operations task progress", () =>
+    yield* exec.runQuery(
+      "Failed to update operations task progress",
       db
         .update(operationsTasks)
         .set({
@@ -152,7 +166,9 @@ export const updateTaskProgressRow = Effect.fn("OperationsTaskRepository.updateT
           status: "running",
           updatedAt: input.updatedAt,
         })
-        .where(eq(operationsTasks.id, input.taskId)),
+        .where(eq(operationsTasks.id, input.taskId))
+        .prepare()
+        .effect(),
     );
   },
 );
@@ -161,6 +177,7 @@ export const completeSucceededTaskRow = Effect.fn(
   "OperationsTaskRepository.completeSucceededTaskRow",
 )(function* (
   db: AppDatabase,
+  exec: DbExecutor,
   input: {
     readonly finishedAt: string;
     readonly message: string;
@@ -170,7 +187,8 @@ export const completeSucceededTaskRow = Effect.fn(
     readonly taskId: number;
   },
 ) {
-  yield* tryDatabasePromise("Failed to mark operations task succeeded", () =>
+  yield* exec.runQuery(
+    "Failed to mark operations task succeeded",
     db
       .update(operationsTasks)
       .set({
@@ -182,13 +200,16 @@ export const completeSucceededTaskRow = Effect.fn(
         status: "succeeded",
         updatedAt: input.finishedAt,
       })
-      .where(eq(operationsTasks.id, input.taskId)),
+      .where(eq(operationsTasks.id, input.taskId))
+      .prepare()
+      .effect(),
   );
 });
 
 export const completeFailedTaskRow = Effect.fn("OperationsTaskRepository.completeFailedTaskRow")(
   function* (
     db: AppDatabase,
+    exec: DbExecutor,
     input: {
       readonly finishedAt: string;
       readonly message: string;
@@ -196,7 +217,8 @@ export const completeFailedTaskRow = Effect.fn("OperationsTaskRepository.complet
       readonly taskId: number;
     },
   ) {
-    yield* tryDatabasePromise("Failed to mark operations task failed", () =>
+    yield* exec.runQuery(
+      "Failed to mark operations task failed",
       db
         .update(operationsTasks)
         .set({
@@ -206,23 +228,34 @@ export const completeFailedTaskRow = Effect.fn("OperationsTaskRepository.complet
           status: "failed",
           updatedAt: input.finishedAt,
         })
-        .where(eq(operationsTasks.id, input.taskId)),
+        .where(eq(operationsTasks.id, input.taskId))
+        .prepare()
+        .effect(),
     );
   },
 );
 
 export const loadTaskRow = Effect.fn("OperationsTaskRepository.loadTaskRow")(function* (
   db: AppDatabase,
+  exec: DbExecutor,
   taskId: number,
 ) {
-  const rows = yield* tryDatabasePromise("Failed to load operations task", () =>
-    db.select().from(operationsTasks).where(eq(operationsTasks.id, taskId)).limit(1),
+  const rows = yield* exec.runQuery(
+    "Failed to load operations task",
+    db
+      .select()
+      .from(operationsTasks)
+      .where(eq(operationsTasks.id, taskId))
+      .limit(1)
+      .prepare()
+      .effect(),
   );
   return rows[0];
 });
 
 export const listTaskRows = Effect.fn("OperationsTaskRepository.listTaskRows")(function* (
   db: AppDatabase,
+  exec: DbExecutor,
   input: OperationsTaskListQuery,
 ) {
   const filteredByAnimeId =
@@ -243,25 +276,30 @@ export const listTaskRows = Effect.fn("OperationsTaskRepository.listTaskRows")(f
         ? conditions[0]
         : and(...conditions);
 
-  return yield* tryDatabasePromise("Failed to list operations tasks", () => {
+  return yield* (function () {
     const stmt = db
       .select()
       .from(operationsTasks)
       .orderBy(desc(operationsTasks.id))
       .limit(input.limit)
       .offset(input.offset);
-    return whereClause ? stmt.where(whereClause) : stmt;
-  });
+    const __q = whereClause ? stmt.where(whereClause) : stmt;
+    return exec.runQuery("Failed to list operations tasks", __q.prepare().effect());
+  })();
 });
 
-export function makeOperationsTaskRepositoryShape(db: AppDatabase): OperationsTaskRepositoryShape {
+export function makeOperationsTaskRepositoryShape(
+  db: AppDatabase,
+  sqlClient: NodeSqliteClient.SqliteClient,
+): OperationsTaskRepositoryShape {
+  const exec = makeDbExecutor(sqlClient);
   return {
-    completeFailedTaskRow: (input) => completeFailedTaskRow(db, input),
-    completeSucceededTaskRow: (input) => completeSucceededTaskRow(db, input),
-    createTaskRow: (input) => createTaskRow(db, input),
-    listTaskRows: (input) => listTaskRows(db, input),
-    loadTaskRow: (taskId) => loadTaskRow(db, taskId),
-    markRunningTaskRow: (input) => markRunningTaskRow(db, input),
-    updateTaskProgressRow: (input) => updateTaskProgressRow(db, input),
+    completeFailedTaskRow: (input) => completeFailedTaskRow(db, exec, input),
+    completeSucceededTaskRow: (input) => completeSucceededTaskRow(db, exec, input),
+    createTaskRow: (input) => createTaskRow(db, exec, input),
+    listTaskRows: (input) => listTaskRows(db, exec, input),
+    loadTaskRow: (taskId) => loadTaskRow(db, exec, taskId),
+    markRunningTaskRow: (input) => markRunningTaskRow(db, exec, input),
+    updateTaskProgressRow: (input) => updateTaskProgressRow(db, exec, input),
   } satisfies OperationsTaskRepositoryShape;
 }

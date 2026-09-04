@@ -1,9 +1,10 @@
-import { assert, it } from "@effect/vitest";
-import * as PlatformError from "@effect/platform/Error";
 import { Cause, Effect, Exit } from "effect";
+import { assert, it } from "@effect/vitest";
+import * as PlatformError from "effect/PlatformError";
 
 import { makeTestConfig } from "@/test/config-fixture.ts";
 import { commandArgs, commandName, makeCommandExecutorStub } from "@/test/stubs.ts";
+
 import {
   DiskSpaceError,
   makeDiskSpaceInspector,
@@ -37,7 +38,7 @@ it.effect("mapBlockStatsToDiskSpace fails with a typed error for invalid stats",
 
     assert.deepStrictEqual(Exit.isFailure(exit), true);
     if (Exit.isFailure(exit)) {
-      const failure = Cause.failureOption(exit.cause);
+      const failure = Cause.findErrorOption(exit.cause);
       assert.deepStrictEqual(failure._tag, "Some");
       if (failure._tag === "Some") {
         assert.deepStrictEqual(failure.value instanceof DiskSpaceError, true);
@@ -82,12 +83,12 @@ it.effect("getDiskSpaceSafe fails when df fails", () =>
   Effect.gen(function* () {
     const commandExecutorStub = makeCommandExecutorStub(() =>
       Effect.fail(
-        new PlatformError.SystemError({
+        PlatformError.systemError({
+          _tag: "Unknown",
           cause: new Error("df failed"),
           description: "df failed",
           method: "string",
           module: "Command",
-          reason: "Unknown",
         }),
       ),
     );
@@ -98,7 +99,7 @@ it.effect("getDiskSpaceSafe fails when df fails", () =>
 
     assert.deepStrictEqual(Exit.isFailure(result), true);
     if (Exit.isFailure(result)) {
-      const failure = Cause.failureOption(result.cause);
+      const failure = Cause.findErrorOption(result.cause);
       assert.deepStrictEqual(failure._tag, "Some");
       if (failure._tag === "Some") {
         assert.deepStrictEqual(failure.value instanceof DiskSpaceError, true);

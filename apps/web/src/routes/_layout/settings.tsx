@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Schema } from "effect";
+import { Schema, SchemaTransformation } from "effect";
 import { AccountSettingsForm } from "@/features/settings/account-settings-form";
 import { ObservabilitySettingsPanel } from "@/features/settings/observability-settings-panel";
 import { QualityProfilesTab } from "@/features/settings/quality-profiles-tab";
@@ -17,32 +17,33 @@ import {
 import { observabilityStatusQueryOptions, systemConfigQueryOptions } from "@/api/system-config";
 import { usePageTitle } from "@/app/page-title";
 
-const SettingsTabSchema = Schema.transform(
-  Schema.String,
-  Schema.Literal(
-    "general",
-    "automation",
-    "observability",
-    "profiles",
-    "release-profiles",
-    "account",
+const SettingsTabSchema = Schema.String.pipe(
+  Schema.decodeTo(
+    Schema.Literals([
+      "general",
+      "automation",
+      "observability",
+      "profiles",
+      "release-profiles",
+      "account",
+    ]),
+    SchemaTransformation.transform({
+      decode: (s) => {
+        switch (s) {
+          case "general":
+          case "automation":
+          case "observability":
+          case "profiles":
+          case "release-profiles":
+          case "account":
+            return s;
+          default:
+            return "general";
+        }
+      },
+      encode: (s) => s,
+    }),
   ),
-  {
-    decode: (s) => {
-      switch (s) {
-        case "general":
-        case "automation":
-        case "observability":
-        case "profiles":
-        case "release-profiles":
-        case "account":
-          return s;
-        default:
-          return "general";
-      }
-    },
-    encode: (s) => s,
-  },
 );
 
 const SettingsSearchSchema = Schema.Struct({
@@ -50,7 +51,7 @@ const SettingsSearchSchema = Schema.Struct({
 });
 
 export const Route = createFileRoute("/_layout/settings")({
-  validateSearch: Schema.standardSchemaV1(SettingsSearchSchema),
+  validateSearch: Schema.toStandardSchemaV1(SettingsSearchSchema),
   loaderDeps: ({ search }) => ({ tab: search.tab ?? "general" }),
   loader: async ({ context: { queryClient }, deps }) => {
     switch (deps.tab) {

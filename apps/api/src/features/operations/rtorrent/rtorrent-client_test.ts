@@ -1,6 +1,7 @@
 // oxlint-disable oxc/no-async-await -- async/await required by transaction callbacks, test callbacks, and tryPromise wrappers
+
+import { Effect, Exit, Record } from "effect";
 import { describe, expect, it, vi } from "vitest";
-import { Effect, Exit } from "effect";
 
 import {
   encodeScgiRequest,
@@ -48,7 +49,7 @@ function makeTestClient(transport: ScgiTransportShape, options?: { savePath?: st
 
 function expectSuccess<A, E>(exit: Exit.Exit<A, E>): A {
   if (exit._tag !== "Success") {
-    throw new Error(`Expected success but failed with: ${String(exit.cause)}`);
+    throw new Error(`Expected success but failed with: ${globalThis.String(exit.cause)}`);
   }
   return exit.value;
 }

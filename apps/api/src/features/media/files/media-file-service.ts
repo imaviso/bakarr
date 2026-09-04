@@ -1,4 +1,3 @@
-import { Effect } from "effect";
 import {
   brandMediaId,
   type AsyncOperationAccepted,
@@ -44,6 +43,7 @@ import {
 } from "@/features/errors.ts";
 import type { MediaNotFoundError } from "@/features/media/errors.ts";
 import { OperationsTaskLauncherService } from "@/features/operations/tasks/operations-task-launcher-service.ts";
+import { Context, Effect, Layer } from "effect";
 
 interface EpisodeMediaCacheRow {
   readonly audioChannels: string | null;
@@ -156,7 +156,7 @@ export interface MediaFileServiceShape {
   ) => Effect.Effect<AsyncOperationAccepted, DatabaseError | InfrastructureError>;
 }
 
-const makeMediaFileService = Effect.fn("MediaFileService.make")(function* () {
+export const makeMediaFileService = Effect.fn("MediaFileService.make")(function* () {
   const eventBus = yield* EventBus;
   const fs = yield* FileSystem;
   const mediaProbe = yield* MediaProbe;
@@ -603,17 +603,10 @@ const makeMediaFileService = Effect.fn("MediaFileService.make")(function* () {
   } satisfies MediaFileServiceShape;
 });
 
-export class MediaFileService extends Effect.Service<MediaFileService>()(
+export class MediaFileService extends Context.Service<MediaFileService, MediaFileServiceShape>()(
   "@bakarr/api/MediaFileService",
-  {
-    effect: makeMediaFileService(),
-    dependencies: [
-      MediaRepository.Default,
-      MediaUnitRepository.Default,
-      OperationsTaskLauncherService.Default,
-      SystemLogRepository.Default,
-    ],
-  },
-) {}
+) {
+  static readonly layer = Layer.effect(MediaFileService, makeMediaFileService());
+}
 
-export const MediaFileServiceLive = MediaFileService.Default;
+export const MediaFileServiceLive = MediaFileService.layer;

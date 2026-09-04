@@ -1,5 +1,7 @@
-import { HttpServerRequest, HttpServerResponse, HttpRouter } from "@effect/platform";
-import { Effect } from "effect";
+import * as HttpRouter from "effect/unstable/http/HttpRouter";
+import * as HttpServerRequest from "effect/unstable/http/HttpServerRequest";
+import * as HttpServerResponse from "effect/unstable/http/HttpServerResponse";
+import { Effect, Layer, Record } from "effect";
 
 import { MediaStreamService } from "@/features/media/stream/media-stream-service.ts";
 import { FileSystem } from "@/infra/filesystem/filesystem.ts";
@@ -14,8 +16,9 @@ import {
   routeResponse,
 } from "@/infra/http/router-helpers.ts";
 
-export const mediaStreamRouter = HttpRouter.empty.pipe(
-  HttpRouter.get(
+export const mediaStreamRouter = Layer.mergeAll(
+  HttpRouter.add(
+    "GET",
     "/stream/:id/:unitNumber",
     routeResponse(
       Effect.gen(function* () {

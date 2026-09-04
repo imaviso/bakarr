@@ -1,5 +1,5 @@
-import { HttpClient } from "@effect/platform";
-import { Effect, Schema } from "effect";
+import * as HttpClient from "effect/unstable/http/HttpClient";
+import { Context, Effect, Layer, Schema } from "effect";
 
 import { FileSystem } from "@/infra/filesystem/filesystem.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
@@ -10,7 +10,7 @@ import {
 
 export class ImageCacheError extends Schema.TaggedError<ImageCacheError>()("ImageCacheError", {
   mediaId: Schema.Number,
-  cause: Schema.Defect,
+  cause: Schema.Defect(),
   message: Schema.String,
 }) {}
 
@@ -88,11 +88,11 @@ const makeMediaImageCacheService = Effect.fn("MediaImageCacheService.make")(func
   return { cacheMetadataImages } satisfies MediaImageCacheServiceShape;
 });
 
-export class MediaImageCacheService extends Effect.Service<MediaImageCacheService>()(
-  "@bakarr/api/MediaImageCacheService",
-  {
-    effect: makeMediaImageCacheService(),
-  },
-) {}
+export class MediaImageCacheService extends Context.Service<
+  MediaImageCacheService,
+  MediaImageCacheServiceShape
+>()("@bakarr/api/MediaImageCacheService") {
+  static readonly layer = Layer.effect(MediaImageCacheService, makeMediaImageCacheService());
+}
 
-export const MediaImageCacheServiceLive = MediaImageCacheService.Default;
+export const MediaImageCacheServiceLive = MediaImageCacheService.layer;

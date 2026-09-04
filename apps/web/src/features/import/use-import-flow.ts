@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
+import { useEffectEvent, useReducer, useRef, useState } from "react";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import type { MediaId, MediaSearchResult, ImportFileRequest, ScannedFile } from "@/api/contracts";
@@ -156,10 +156,10 @@ export function useImportFlow(options: ImportFlowOptions = {}) {
   const [state, dispatch] = useReducer(reducer, initialState);
   // Latest selection snapshot for async callbacks: rapid candidate toggles must
   // read the current state at execution time, not the render-time closure.
-  const stateRef = useRef(state);
-  useEffect(() => {
-    stateRef.current = state;
-  }, [state]);
+  const getLatestSelection = useEffectEvent(() => ({
+    selectedCandidateIds: state.selectedCandidateIds,
+    selectedFiles: state.selectedFiles,
+  }));
   // Serializes candidate toggles: each request builds on the previous
   // response's selection, so concurrent toggles cannot overwrite each other.
   const toggleChainRef = useRef<Promise<void> | null>(null);
@@ -167,6 +167,8 @@ export function useImportFlow(options: ImportFlowOptions = {}) {
     toggleChainRef.current ??= Promise.resolve();
     return toggleChainRef.current;
   };
+
+  const [pendingToggles, setPendingToggles] = useState(0);
 
   const scanMutation = usePreviewImportPathMutation();
   const importMutation = useImportFilesMutation();
@@ -184,70 +186,51 @@ export function useImportFlow(options: ImportFlowOptions = {}) {
 
   const skippedFiles = scanMutation.data?.skipped ?? [];
   const scanCandidates = scanMutation.data?.candidates ?? EMPTY_CANDIDATES;
-  const candidates = useMemo(
-    () => [
-      ...scanCandidates,
-      ...state.manualCandidates.filter(
-        (manualCandidate) =>
-          !scanCandidates.some((candidate) => candidate.id === manualCandidate.id),
-      ),
-    ],
-    [scanCandidates, state.manualCandidates],
-  );
-  const libraryIds = useMemo(() => new Set(animeList.map((media) => media.id)), [animeList]);
+  const candidates = [
+    ...scanCandidates,
+    ...state.manualCandidates.filter(
+      (manualCandidate) => !scanCandidates.some((candidate) => candidate.id === manualCandidate.id),
+    ),
+  ];
+  const libraryIds = new Set(animeList.map((media) => media.id));
   const activeAddCandidate = state.pendingAddCandidates[state.currentAddIndex];
 
-  const reset = useCallback(() => {
-    dispatch({ type: "reset" });
-  }, []);
-
-  const toggleCandidate = useCallback(
-    (candidate: MediaSearchResult, forceSelect = false) => {
-      const run = toggleChain().then(() => {
-        const latest = stateRef.current;
-        return new Promise<void>((resolve) => {
-          importSelectionMutation.mutate(
-            {
-              candidate_id: candidate.id,
-              candidate_title:
-                candidate.title.english || candidate.title.romaji || candidate.title.native || "",
-              force_select: forceSelect,
-              files: scanMutation.data?.files ?? [],
-              selected_candidate_ids: [...latest.selectedCandidateIds],
-              selected_files: [...latest.selectedFiles.values()],
+  const toggleCandidate = (candidate: MediaSearchResult, forceSelect = false) => {
+    const run = toggleChain().then(() => {
+      const latest = getLatestSelection();
+      return new Promise<void>((resolve) => {
+        importSelectionMutation.mutate(
+          {
+            candidate_id: candidate.id,
+            candidate_title:
+              candidate.title.english || candidate.title.romaji || candidate.title.native || "",
+            force_select: forceSelect,
+            files: scanMutation.data?.files ?? [],
+            selected_candidate_ids: [...latest.selectedCandidateIds],
+            selected_files: [...latest.selectedFiles.values()],
+          },
+          {
+            onSuccess: (next) => {
+              dispatch({
+                type: "toggleCandidateSuccess",
+                candidateIds: new Set(next.selected_candidate_ids),
+                files: new Map(next.selected_files.map((file) => [file.source_path, file])),
+              });
+              resolve();
             },
-            {
-              onSuccess: (next) => {
-                dispatch({
-                  type: "toggleCandidateSuccess",
-                  candidateIds: new Set(next.selected_candidate_ids),
-                  files: new Map(next.selected_files.map((file) => [file.source_path, file])),
-                });
-                resolve();
-              },
-              onError: () => {
-                resolve();
-              },
+            onError: () => {
+              resolve();
             },
-          );
-        });
+          },
+        );
       });
-      toggleChainRef.current = run;
-      setPendingToggles((count) => count + 1);
-      void run.finally(() => setPendingToggles((count) => count - 1));
-    },
-    [importSelectionMutation, scanMutation.data],
-  );
+    });
+    toggleChainRef.current = run;
+    setPendingToggles((count) => count + 1);
+    void run.finally(() => setPendingToggles((count) => count - 1));
+  };
 
-  const handleManualAdd = useCallback(
-    (candidate: MediaSearchResult) => {
-      dispatch({ type: "manualAdd", candidate });
-      toggleCandidate(candidate, true);
-    },
-    [toggleCandidate],
-  );
-
-  const handleScan = useCallback(() => {
+  const handleScan = () => {
     const mediaId = options.mediaId;
     scanMutation.mutate(
       {
@@ -287,44 +270,37 @@ export function useImportFlow(options: ImportFlowOptions = {}) {
         },
       },
     );
-  }, [options.mediaId, scanMutation, state.path]);
+  };
 
-  const closeAddCandidateDialog = useCallback(() => {
-    dispatch({ type: "closeAddCandidateDialog" });
-  }, []);
+  const handleImportWithLibraryIds = (localAnimeIds: ReadonlySet<MediaId>) => {
+    const files = Array.from(state.selectedFiles.values());
+    const missingCandidates = findMissingImportCandidates({
+      files,
+      localAnimeIds,
+      candidates: candidates,
+    });
 
-  const handleImportWithLibraryIds = useCallback(
-    (localAnimeIds: ReadonlySet<MediaId>) => {
-      const files = Array.from(state.selectedFiles.values());
-      const missingCandidates = findMissingImportCandidates({
-        files,
-        localAnimeIds,
-        candidates: candidates,
-      });
+    if (missingCandidates.length > 0) {
+      dispatch({ type: "startAddCandidates", candidates: missingCandidates });
+      return;
+    }
 
-      if (missingCandidates.length > 0) {
-        dispatch({ type: "startAddCandidates", candidates: missingCandidates });
-        return;
-      }
+    options.beforeImport?.();
 
-      options.beforeImport?.();
+    importMutation.mutate(files, {
+      onSuccess: (accepted) => {
+        toast.info(accepted.message);
+        options.onImportQueued?.(accepted.task_id);
+        options.onImportSuccess?.();
+      },
+    });
+  };
 
-      importMutation.mutate(files, {
-        onSuccess: (accepted) => {
-          toast.info(accepted.message);
-          options.onImportQueued?.(accepted.task_id);
-          options.onImportSuccess?.();
-        },
-      });
-    },
-    [state.selectedFiles, candidates, options, importMutation],
-  );
-
-  const handleImport = useCallback(() => {
+  const handleImport = () => {
     handleImportWithLibraryIds(libraryIds);
-  }, [handleImportWithLibraryIds, libraryIds]);
+  };
 
-  const advanceAddCandidateDialog = useCallback(() => {
+  const advanceAddCandidateDialog = () => {
     if (state.currentAddIndex + 1 >= state.pendingAddCandidates.length) {
       const nextLibraryIds = new Set(libraryIds);
       for (let index = 0; index <= state.currentAddIndex; index++) {
@@ -340,59 +316,21 @@ export function useImportFlow(options: ImportFlowOptions = {}) {
     }
 
     dispatch({ type: "advanceAddCandidate" });
-  }, [
-    state.currentAddIndex,
-    state.pendingAddCandidates,
-    libraryIds,
-    options.autoImportAfterMissingCandidatesResolved,
-    handleImportWithLibraryIds,
-  ]);
+  };
 
-  const toggleFile = useCallback((file: ScannedFile, targetAnimeId: MediaId) => {
-    dispatch({ type: "toggleFile", file, targetAnimeId });
-  }, []);
-
-  const updateFileAnime = useCallback((file: ScannedFile, newAnimeId: MediaId) => {
-    dispatch({ type: "updateFileAnime", file, newAnimeId });
-  }, []);
-
-  const updateFileMapping = useCallback((file: ScannedFile, season: number, episode: number) => {
-    dispatch({ type: "updateFileMapping", file, season, episode });
-  }, []);
-
-  const setInputMode = useCallback((mode: "browser" | "manual") => {
-    dispatch({ type: "setInputMode", mode });
-  }, []);
-
-  const setIsSearchOpen = useCallback((value: boolean) => {
-    dispatch({ type: "setIsSearchOpen", value });
-  }, []);
-
-  const setPath = useCallback((path: string) => {
-    dispatch({ type: "setPath", path });
-  }, []);
-
-  const setStep = useCallback((step: Step) => {
-    dispatch({ type: "setStep", step });
-  }, []);
+  const isTogglingCandidate = (candidateId: number) =>
+    importSelectionMutation.isPending &&
+    importSelectionMutation.variables?.candidate_id === candidateId;
 
   const dropzoneHandlers = createImportDropzoneHandlers({
-    setInputMode,
+    setInputMode: (mode) => dispatch({ type: "setInputMode", mode }),
     setIsDragOver: (value) => dispatch({ type: "setIsDragOver", value }),
-    setPath,
+    setPath: (path) => dispatch({ type: "setPath", path }),
   });
-
-  const isTogglingCandidate = useCallback(
-    (candidateId: number) =>
-      importSelectionMutation.isPending &&
-      importSelectionMutation.variables?.candidate_id === candidateId,
-    [importSelectionMutation.isPending, importSelectionMutation.variables],
-  );
 
   // Import submits the current selection; block while any serialized toggle is
   // queued or in flight so it cannot send a selection that is about to change.
   // Chain depth is the source of truth — `isPending` misses queued toggles.
-  const [pendingToggles, setPendingToggles] = useState(0);
   const isAwaitingToggle = pendingToggles > 0;
 
   return {
@@ -400,13 +338,16 @@ export function useImportFlow(options: ImportFlowOptions = {}) {
     advanceAddCandidateDialog,
     animeList,
     candidates,
-    closeAddCandidateDialog,
+    closeAddCandidateDialog: () => dispatch({ type: "closeAddCandidateDialog" }),
     currentAddIndex: state.currentAddIndex,
     handleDragLeave: dropzoneHandlers.handleDragLeave,
     handleDragOver: dropzoneHandlers.handleDragOver,
     handleDrop: dropzoneHandlers.handleDrop,
     handleImport,
-    handleManualAdd,
+    handleManualAdd: (candidate: MediaSearchResult) => {
+      dispatch({ type: "manualAdd", candidate });
+      toggleCandidate(candidate, true);
+    },
     handleScan,
     importMutation,
     importSelectionMutation,
@@ -419,20 +360,23 @@ export function useImportFlow(options: ImportFlowOptions = {}) {
     manualCandidates: state.manualCandidates,
     path: state.path,
     pendingAddCandidates: state.pendingAddCandidates,
-    reset,
+    reset: () => dispatch({ type: "reset" }),
     scanMutation,
     scannedFiles,
     selectedCandidateIds: state.selectedCandidateIds,
     selectedFiles: state.selectedFiles,
-    setInputMode,
-    setIsSearchOpen,
-    setPath,
-    setStep,
+    setInputMode: (mode: "browser" | "manual") => dispatch({ type: "setInputMode", mode }),
+    setIsSearchOpen: (value: boolean) => dispatch({ type: "setIsSearchOpen", value }),
+    setPath: (path: string) => dispatch({ type: "setPath", path }),
+    setStep: (step: Step) => dispatch({ type: "setStep", step }),
     skippedFiles,
     step: state.step,
     toggleCandidate,
-    toggleFile,
-    updateFileAnime,
-    updateFileMapping,
+    toggleFile: (file: ScannedFile, targetAnimeId: MediaId) =>
+      dispatch({ type: "toggleFile", file, targetAnimeId }),
+    updateFileAnime: (file: ScannedFile, newAnimeId: MediaId) =>
+      dispatch({ type: "updateFileAnime", file, newAnimeId }),
+    updateFileMapping: (file: ScannedFile, season: number, episode: number) =>
+      dispatch({ type: "updateFileMapping", file, season, episode }),
   };
 }

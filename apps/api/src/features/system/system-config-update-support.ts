@@ -1,10 +1,9 @@
-import { Effect } from "effect";
-
 import type { Config } from "@packages/shared/index.ts";
 import type { PersistedSystemConfigState } from "@/features/system/config-activation.ts";
 import { encodeConfigCore, type ConfigCore } from "@/features/system/config-codec.ts";
 import { encodeQualityProfileRow } from "@/features/system/profile-codec.ts";
 import { makeDefaultConfig } from "@/features/system/defaults.ts";
+import { Effect } from "effect";
 
 export const buildPersistedConfigStates = Effect.fn(
   "SystemConfigUpdateService.buildPersistedConfigStates",

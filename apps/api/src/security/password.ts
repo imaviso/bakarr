@@ -1,4 +1,4 @@
-import { Effect, Either, Encoding, Schema } from "effect";
+import { Context, Effect, Layer, Encoding, Result, Schema } from "effect";
 import { timingSafeEqual as nodeTimingSafeEqual } from "node:crypto";
 
 const PASSWORD_SCHEME = "pbkdf2_sha256";
@@ -24,7 +24,7 @@ interface PasswordCryptoPrimitives {
 }
 
 export class PasswordError extends Schema.TaggedError<PasswordError>()("PasswordError", {
-  cause: Schema.optional(Schema.Defect),
+  cause: Schema.optional(Schema.Defect()),
   message: Schema.String,
 }) {}
 
@@ -55,10 +55,11 @@ export const WebPasswordCrypto: PasswordCryptoShape = {
   randomBytes: randomBytesWith(webPasswordCryptoPrimitives),
 };
 
-export class PasswordCrypto extends Effect.Service<PasswordCrypto>()(
+export class PasswordCrypto extends Context.Service<PasswordCrypto, PasswordCryptoShape>()(
   "@bakarr/security/PasswordCrypto",
-  { succeed: WebPasswordCrypto },
-) {}
+) {
+  static readonly layer = Layer.succeed(PasswordCrypto, WebPasswordCrypto);
+}
 
 function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
   return Uint8Array.from(bytes).buffer;
@@ -75,11 +76,11 @@ function timingSafeEqual(left: Uint8Array, right: Uint8Array): boolean {
 const parseHex = Effect.fn("Password.parseHex")(function* (value: string, message: string) {
   const decoded = Encoding.decodeHex(value);
 
-  if (Either.isLeft(decoded)) {
+  if (Result.isFailure(decoded)) {
     return yield* new PasswordError({ message });
   }
 
-  return decoded.right;
+  return decoded.success;
 });
 
 const parseStoredHash = Effect.fn("Password.parseStoredHash")(function* (storedHash: string) {
@@ -95,9 +96,9 @@ const parseStoredHash = Effect.fn("Password.parseStoredHash")(function* (storedH
     return yield* new PasswordError({ message: "Invalid stored password hash" });
   }
 
-  const iterations = Number(iterationsValue);
+  const iterations = globalThis.Number(iterationsValue);
 
-  if (!Number.isInteger(iterations) || iterations <= 0) {
+  if (!globalThis.Number.isInteger(iterations) || iterations <= 0) {
     return yield* new PasswordError({ message: "Invalid stored password hash" });
   }
 
@@ -121,7 +122,7 @@ export const hashPassword = Effect.fn("Password.hash")(function* (
 
   return [
     PASSWORD_SCHEME,
-    String(ITERATIONS),
+    `${ITERATIONS}`,
     Encoding.encodeHex(salt),
     Encoding.encodeHex(hash),
   ].join("$");
@@ -144,8 +145,8 @@ export function isPasswordHashOutdated(storedHash: string): boolean {
   if (parts.length !== 4) {
     return true;
   }
-  const iterations = Number(parts[1]);
-  return !Number.isInteger(iterations) || iterations < ITERATIONS;
+  const iterations = globalThis.Number(parts[1]);
+  return !globalThis.Number.isInteger(iterations) || iterations < ITERATIONS;
 }
 
 function deriveKeyMaterialWith(primitives: PasswordCryptoPrimitives) {

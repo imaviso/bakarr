@@ -1,7 +1,11 @@
 // oxlint-disable typescript/no-restricted-types -- `unknown` is the honest type at error/cause boundaries (Effect error channels, try/catch causes, Logger messages)
+
+import * as TestClock from "effect/testing/TestClock";
+import { Effect, Fiber, Schema } from "effect";
 import { assert, it } from "@effect/vitest";
-import { HttpClient, HttpClientRequest, HttpClientResponse } from "@effect/platform";
-import { Effect, Fiber, Schema, TestClock } from "effect";
+import * as HttpClient from "effect/unstable/http/HttpClient";
+import * as HttpClientRequest from "effect/unstable/http/HttpClientRequest";
+import * as HttpClientResponse from "effect/unstable/http/HttpClientResponse";
 
 import { callProviderJson, executeProviderRequest } from "@/infra/effect/provider-http.ts";
 import { ExternalCall, ExternalCallLive } from "@/infra/effect/retry.ts";
@@ -12,7 +16,7 @@ const PayloadSchema = Schema.Struct({
 
 function makeStatusClient(respond: (call: number) => { status: number; body: string }) {
   let calls = 0;
-  const client = HttpClient.make((request) =>
+  const client = HttpClient.make((request, _url, _signal, _fiber) =>
     Effect.sync(() => {
       calls += 1;
       const response = respond(calls);
@@ -39,7 +43,7 @@ it.effect("executeProviderRequest retries 429 responses and succeeds", () =>
     }));
     const externalCall = yield* ExternalCall;
 
-    const fiber = yield* Effect.fork(
+    const fiber = yield* Effect.forkChild(
       executeProviderRequest({
         client,
         externalCall,
@@ -64,7 +68,7 @@ it.effect("executeProviderRequest retries 5xx responses and succeeds", () =>
     }));
     const externalCall = yield* ExternalCall;
 
-    const fiber = yield* Effect.fork(
+    const fiber = yield* Effect.forkChild(
       executeProviderRequest({
         client,
         externalCall,
@@ -89,7 +93,7 @@ it.effect("callProviderJson does not burn retries on decode failures", () =>
     }));
     const externalCall = yield* ExternalCall;
 
-    const result = yield* Effect.either(
+    const result = yield* Effect.result(
       callProviderJson({
         client,
         externalCall,
@@ -100,9 +104,9 @@ it.effect("callProviderJson does not burn retries on decode failures", () =>
       }),
     );
 
-    assert.deepStrictEqual(result._tag, "Left");
-    if (result._tag === "Left") {
-      assert.deepStrictEqual(result.left.operation, "test.op.json");
+    assert.deepStrictEqual(result._tag, "Failure");
+    if (result._tag === "Failure") {
+      assert.deepStrictEqual(result.failure.operation, "test.op.json");
     }
     assert.deepStrictEqual(callCount(), 1);
   }).pipe(Effect.provide(ExternalCallLive)),

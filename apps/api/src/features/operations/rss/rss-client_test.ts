@@ -33,7 +33,7 @@ const NYAA_TRACKER_SUFFIX = [
 function makeDnsLayer(mock: (name: string, type: "A" | "AAAA") => Promise<string[]>) {
   return Layer.succeed(
     DnsResolver,
-    DnsResolver.make({
+    DnsResolver.of({
       resolve: (hostname, recordType) =>
         Effect.tryPromise({
           try: () => mock(hostname, recordType),
@@ -54,7 +54,7 @@ function rssLayer(
   execute: (url: string) => Effect.Effect<Response, unknown>,
   dnsMock: (name: string, type: "A" | "AAAA") => Promise<string[]>,
 ) {
-  const transport = RssTransport.make({
+  const transport = RssTransport.of({
     execute: (target) =>
       execute(target.parsedUrl.href).pipe(
         Effect.mapError((cause) =>
@@ -670,7 +670,7 @@ it.effect("RssClient fails when an RSS item is missing required release fields",
   }),
 );
 
-it.scoped("RssClient handles redirects manually when the transport returns 302 responses", () =>
+it.effect("RssClient handles redirects manually when the transport returns 302 responses", () =>
   Effect.gen(function* () {
     const calls: string[] = [];
 
@@ -686,7 +686,7 @@ it.scoped("RssClient handles redirects manually when the transport returns 302 r
                   ExternalCallTestLayer,
                   Layer.succeed(
                     RssTransport,
-                    RssTransport.make({
+                    RssTransport.of({
                       execute: (target) => {
                         calls.push(target.parsedUrl.href);
 
@@ -739,7 +739,7 @@ function assertRssFailure(
 ) {
   assert.deepStrictEqual(Exit.isFailure(exit), true);
   if (Exit.isFailure(exit)) {
-    const failure = Cause.failureOption(exit.cause);
+    const failure = Cause.findErrorOption(exit.cause);
     assert.deepStrictEqual(failure._tag, "Some");
     if (failure._tag === "Some") {
       assert.deepStrictEqual(failure.value instanceof expected, true);

@@ -77,7 +77,7 @@ function parseIpv6(addr: string): bigint {
 
   let value = 0n;
   for (const group of groups) {
-    value = (value << 16n) | BigInt(Number.parseInt(group, 16));
+    value = (value << 16n) | BigInt(globalThis.Number.parseInt(group, 16));
   }
   return value;
 }

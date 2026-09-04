@@ -1,27 +1,27 @@
 // oxlint-disable typescript/no-restricted-types -- `unknown` is the honest type at error/cause boundaries (Effect error channels, try/catch causes, Logger messages)
-import { ParseResult, Schema } from "effect";
+import { Schema, SchemaIssue } from "effect";
 
 import { DomainNotFoundError } from "@/features/errors.ts";
 import { DiskSpaceError } from "@/features/system/disk-space.ts";
 
 export class SystemNotFoundError extends Schema.TaggedError<SystemNotFoundError>()(
   "SystemNotFoundError",
-  { cause: Schema.optional(Schema.Defect), message: Schema.String },
+  { cause: Schema.optional(Schema.Defect()), message: Schema.String },
 ) {}
 
 export class SystemConflictError extends Schema.TaggedError<SystemConflictError>()(
   "SystemConflictError",
-  { cause: Schema.optional(Schema.Defect), message: Schema.String },
+  { cause: Schema.optional(Schema.Defect()), message: Schema.String },
 ) {}
 
 export class ConfigValidationError extends Schema.TaggedError<ConfigValidationError>()(
   "ConfigValidationError",
-  { cause: Schema.optional(Schema.Defect), message: Schema.String },
+  { cause: Schema.optional(Schema.Defect()), message: Schema.String },
 ) {}
 
 export class StoredConfigCorruptError extends Schema.TaggedError<StoredConfigCorruptError>()(
   "StoredConfigCorruptError",
-  { cause: Schema.Defect, message: Schema.String },
+  { cause: Schema.Defect(), message: Schema.String },
 ) {}
 
 export class StoredConfigMissingError extends Schema.TaggedError<StoredConfigMissingError>()(
@@ -31,8 +31,8 @@ export class StoredConfigMissingError extends Schema.TaggedError<StoredConfigMis
 
 export function makeStoredConfigCorruptError(message: string, cause: unknown) {
   const detail =
-    cause && ParseResult.isParseError(cause)
-      ? ParseResult.TreeFormatter.formatErrorSync(cause)
+    cause && Schema.isSchemaError(cause)
+      ? SchemaIssue.makeFormatterDefault()(cause.issue)
       : undefined;
 
   return new StoredConfigCorruptError({
@@ -44,7 +44,7 @@ export function makeStoredConfigCorruptError(message: string, cause: unknown) {
 export class ImageAssetNotFoundError extends Schema.TaggedError<ImageAssetNotFoundError>()(
   "ImageAssetNotFoundError",
   {
-    cause: Schema.optional(Schema.Defect),
+    cause: Schema.optional(Schema.Defect()),
     message: Schema.String,
     status: Schema.Literal(404),
   },
@@ -61,7 +61,7 @@ export class ImageAssetTooLargeError extends Schema.TaggedError<ImageAssetTooLar
 export class ImageAssetAccessError extends Schema.TaggedError<ImageAssetAccessError>()(
   "ImageAssetAccessError",
   {
-    cause: Schema.optional(Schema.Defect),
+    cause: Schema.optional(Schema.Defect()),
     message: Schema.String,
     status: Schema.Literal(500),
   },
@@ -69,13 +69,13 @@ export class ImageAssetAccessError extends Schema.TaggedError<ImageAssetAccessEr
 
 export class StoredUnmappedFolderCorruptError extends Schema.TaggedError<StoredUnmappedFolderCorruptError>()(
   "StoredUnmappedFolderCorruptError",
-  { cause: Schema.optional(Schema.Defect), message: Schema.String },
+  { cause: Schema.optional(Schema.Defect()), message: Schema.String },
 ) {}
 
 export type StoredConfigReadError = StoredConfigCorruptError | StoredConfigMissingError;
 
 export const isStoredConfigReadError = Schema.is(
-  Schema.Union(StoredConfigCorruptError, StoredConfigMissingError),
+  Schema.Union([StoredConfigCorruptError, StoredConfigMissingError]),
 );
 
 export type SystemConfigServiceError =

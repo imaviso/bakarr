@@ -1,13 +1,21 @@
-import { Effect, Option, Redacted } from "effect";
+import { Context, Effect, Layer, Option, Redacted } from "effect";
 import { dirname } from "node:path";
 
 import { AppConfig, BootstrapConfig } from "@/app/config/schema.ts";
 import { nowIso as currentNowIso } from "@/infra/time.ts";
 import { randomHexFrom, RandomService } from "@/infra/random.ts";
-import { hashPassword, PasswordCrypto } from "@/security/password.ts";
-import { TokenHasher } from "@/security/token-hasher.ts";
+import { hashPassword, PasswordCrypto, PasswordError } from "@/security/password.ts";
+import { TokenHasher, TokenHasherError } from "@/security/token-hasher.ts";
 import { announceBootstrapCredentials } from "@/features/auth/bootstrap-output.ts";
 import { AuthUserRepository } from "@/features/auth/user-repository.ts";
+import type { DatabaseError } from "@/db/database.ts";
+
+export interface AuthBootstrapServiceShape {
+  readonly ensureBootstrapUser: () => Effect.Effect<
+    void,
+    DatabaseError | PasswordError | TokenHasherError
+  >;
+}
 
 const makeAuthBootstrapService = Effect.fn("AuthBootstrapService.make")(function* () {
   const users = yield* AuthUserRepository;
@@ -83,22 +91,14 @@ const makeAuthBootstrapService = Effect.fn("AuthBootstrapService.make")(function
     });
   });
 
-  return { ensureBootstrapUser };
+  return { ensureBootstrapUser } satisfies AuthBootstrapServiceShape;
 });
 
-export class AuthBootstrapService extends Effect.Service<AuthBootstrapService>()(
-  "@bakarr/api/AuthBootstrapService",
-  {
-    // AppConfig comes from the lifecycle layer (same pattern as
-    // SystemBootstrapService); it must respect the app-level overrides.
-    dependencies: [
-      AuthUserRepository.Default,
-      PasswordCrypto.Default,
-      RandomService.Default,
-      TokenHasher.Default,
-    ],
-    effect: makeAuthBootstrapService(),
-  },
-) {}
+export class AuthBootstrapService extends Context.Service<
+  AuthBootstrapService,
+  AuthBootstrapServiceShape
+>()("@bakarr/api/AuthBootstrapService") {
+  static readonly layer = Layer.effect(AuthBootstrapService, makeAuthBootstrapService());
+}
 
-export const AuthBootstrapServiceLive = AuthBootstrapService.Default;
+export const AuthBootstrapServiceLive = AuthBootstrapService.layer;

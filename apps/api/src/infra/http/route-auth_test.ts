@@ -1,5 +1,5 @@
-import { HttpServerRequest, HttpServerResponse } from "@effect/platform";
-import { Cause, Effect, Option } from "effect";
+import * as HttpServerRequest from "effect/unstable/http/HttpServerRequest";
+import * as HttpServerResponse from "effect/unstable/http/HttpServerResponse";
 
 import {
   AppConfigModel,
@@ -8,10 +8,14 @@ import {
   AppConfig,
 } from "@/app/config/schema.ts";
 import { AuthForbiddenError, AuthUnauthorizedError } from "@/features/auth/errors.ts";
-import { AuthSessionService } from "@/features/auth/session-service.ts";
+import {
+  AuthSessionService,
+  type AuthSessionServiceShape,
+} from "@/features/auth/session-service.ts";
 import { persistSessionResponse, requireViewerFromHttpRequest } from "@/infra/http/route-auth.ts";
 import { assert, it } from "@effect/vitest";
 import { brandUserId, type AuthUser } from "@packages/shared/index.ts";
+import { Cause, Effect, Option } from "effect";
 
 const sampleViewer: AuthUser = {
   created_at: "2026-01-01T00:00:00.000Z",
@@ -108,7 +112,7 @@ it.effect("requireViewerFromHttpRequest fails with AuthError when viewer is miss
 
     assert.deepStrictEqual(exit._tag, "Failure");
     if (exit._tag === "Failure") {
-      const failure = Cause.failureOption(exit.cause);
+      const failure = Cause.findErrorOption(exit.cause);
       assert.deepStrictEqual(failure._tag, "Some");
       if (failure._tag === "Some") {
         assert.deepStrictEqual(failure.value instanceof AuthUnauthorizedError, true);
@@ -136,7 +140,7 @@ it.effect("requireViewerFromHttpRequest blocks users who must change password", 
 
     assert.deepStrictEqual(exit._tag, "Failure");
     if (exit._tag === "Failure") {
-      const failure = Cause.failureOption(exit.cause);
+      const failure = Cause.findErrorOption(exit.cause);
       assert.deepStrictEqual(failure._tag, "Some");
       if (failure._tag === "Some" && failure.value instanceof AuthForbiddenError) {
         assert.deepStrictEqual(failure.value.message, "Password change required");
@@ -233,12 +237,12 @@ function makeConfig(overrides: Partial<AppConfigShape> = {}): AppConfigShape {
 }
 
 function makeAuthSessionService(
-  resolveViewer: AuthSessionService["resolveViewer"],
-): AuthSessionService {
-  return AuthSessionService.make({
-    login: () => Effect.dieMessage("unused"),
-    loginWithApiKey: () => Effect.dieMessage("unused"),
-    logout: () => Effect.dieMessage("unused"),
+  resolveViewer: AuthSessionServiceShape["resolveViewer"],
+): AuthSessionServiceShape {
+  return AuthSessionService.of({
+    login: () => Effect.die(new Error("unused")),
+    loginWithApiKey: () => Effect.die(new Error("unused")),
+    logout: () => Effect.die(new Error("unused")),
     resolveViewer,
   });
 }

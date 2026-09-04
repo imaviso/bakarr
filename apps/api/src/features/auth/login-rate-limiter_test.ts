@@ -1,7 +1,9 @@
+import * as TestClock from "effect/testing/TestClock";
+import { Effect } from "effect";
 import { assert, it } from "@effect/vitest";
-import { Effect, TestClock } from "effect";
 
 import { AuthRateLimitedError } from "@/features/auth/errors.ts";
+
 import {
   makeLoginRateLimiter,
   MAX_CONSECUTIVE_LOGIN_FAILURES,
@@ -35,17 +37,17 @@ it.effect("locks after the configured consecutive failures and unlocks after coo
 
     yield* failTimes(limiter, CLIENT_A, MAX_CONSECUTIVE_LOGIN_FAILURES);
 
-    const locked = yield* Effect.either(limiter.rejectWhileLocked(CLIENT_A));
+    const locked = yield* Effect.result(limiter.rejectWhileLocked(CLIENT_A));
 
-    assert.deepStrictEqual(locked._tag, "Left");
-    if (locked._tag === "Left") {
-      assert.ok(locked.left instanceof AuthRateLimitedError);
-      assert.deepStrictEqual(locked.left.retryAfterMs, 1_000);
+    assert.deepStrictEqual(locked._tag, "Failure");
+    if (locked._tag === "Failure") {
+      assert.ok(locked.failure instanceof AuthRateLimitedError);
+      assert.deepStrictEqual(locked.failure.retryAfterMs, 1_000);
     }
 
     yield* TestClock.adjust("999 millis");
-    const stillLocked = yield* Effect.either(limiter.rejectWhileLocked(CLIENT_A));
-    assert.deepStrictEqual(stillLocked._tag, "Left");
+    const stillLocked = yield* Effect.result(limiter.rejectWhileLocked(CLIENT_A));
+    assert.deepStrictEqual(stillLocked._tag, "Failure");
 
     yield* TestClock.adjust("1 millis");
     yield* limiter.rejectWhileLocked(CLIENT_A);
@@ -58,8 +60,8 @@ it.effect("one client's failures do not lock another client", () =>
 
     yield* failTimes(limiter, CLIENT_A, MAX_CONSECUTIVE_LOGIN_FAILURES * 3);
 
-    const lockedA = yield* Effect.either(limiter.rejectWhileLocked(CLIENT_A));
-    assert.deepStrictEqual(lockedA._tag, "Left");
+    const lockedA = yield* Effect.result(limiter.rejectWhileLocked(CLIENT_A));
+    assert.deepStrictEqual(lockedA._tag, "Failure");
 
     yield* limiter.rejectWhileLocked(CLIENT_B);
   }),
@@ -83,8 +85,8 @@ it.effect("global backstop locks only after far more distributed failures", () =
       failures += 1;
     }
 
-    const lockedGlobal = yield* Effect.either(limiter.rejectWhileLocked(CLIENT_A));
-    assert.deepStrictEqual(lockedGlobal._tag, "Left");
+    const lockedGlobal = yield* Effect.result(limiter.rejectWhileLocked(CLIENT_A));
+    assert.deepStrictEqual(lockedGlobal._tag, "Failure");
   }),
 );
 
@@ -107,20 +109,20 @@ it.effect("cooldown grows exponentially across repeated lockouts", () =>
     const limiter = yield* makeLoginRateLimiter();
 
     yield* failTimes(limiter, CLIENT_A, MAX_CONSECUTIVE_LOGIN_FAILURES);
-    let locked = yield* Effect.either(limiter.rejectWhileLocked(CLIENT_A));
-    assert.deepStrictEqual(locked._tag === "Left" && locked.left.retryAfterMs, 1_000);
+    let locked = yield* Effect.result(limiter.rejectWhileLocked(CLIENT_A));
+    assert.deepStrictEqual(locked._tag === "Failure" && locked.failure.retryAfterMs, 1_000);
 
     // Cooldown elapses; another failure re-locks with a doubled cooldown.
     yield* TestClock.adjust("1 second");
     yield* limiter.recordFailure(CLIENT_A);
 
-    locked = yield* Effect.either(limiter.rejectWhileLocked(CLIENT_A));
-    assert.deepStrictEqual(locked._tag === "Left" && locked.left.retryAfterMs, 2_000);
+    locked = yield* Effect.result(limiter.rejectWhileLocked(CLIENT_A));
+    assert.deepStrictEqual(locked._tag === "Failure" && locked.failure.retryAfterMs, 2_000);
 
     yield* TestClock.adjust("2 seconds");
     yield* limiter.recordFailure(CLIENT_A);
 
-    locked = yield* Effect.either(limiter.rejectWhileLocked(CLIENT_A));
-    assert.deepStrictEqual(locked._tag === "Left" && locked.left.retryAfterMs, 4_000);
+    locked = yield* Effect.result(limiter.rejectWhileLocked(CLIENT_A));
+    assert.deepStrictEqual(locked._tag === "Failure" && locked.failure.retryAfterMs, 4_000);
   }),
 );

@@ -1,10 +1,11 @@
 // oxlint-disable oxc/no-async-await -- async/await required by transaction callbacks, test callbacks, and tryPromise wrappers
+
+import { Cause, Effect, Exit } from "effect";
 import { assert, it } from "@effect/vitest";
 import { eq } from "drizzle-orm";
-import { Cause, Effect, Exit } from "effect";
 import { brandMediaId } from "@packages/shared/index.ts";
 
-import { tryDatabasePromise } from "@/infra/effect/db.ts";
+import type { DbExecutor } from "@/infra/effect/db.ts";
 
 import * as schema from "@/db/schema.ts";
 import type { AppDatabase } from "@/db/database.ts";
@@ -23,18 +24,19 @@ import {
 } from "@/test/repository-factories.ts";
 import { inferAiredAt } from "@/features/media/shared/derivations.ts";
 import { markSearchResultsAlreadyInLibraryEffect } from "@/features/media/query/search-results.ts";
+
 import {
   getConfiguredImagesPathEffect,
   getConfiguredLibraryPathEffect,
   resolveMediaRootFolderEffect,
 } from "@/features/media/shared/config-support.ts";
 
-it.scoped("upsertUnit prevents duplicate media episode rows", () =>
+it.effect("upsertUnit prevents duplicate media episode rows", () =>
   withSqliteTestDbEffect({
-    run: (db) =>
+    run: (db, _databaseFile, client, exec) =>
       Effect.gen(function* () {
-        const units = makeMediaUnitRepository(db);
-        yield* insertMediaEffect(db, 1, 12);
+        const units = makeMediaUnitRepository(db, client);
+        yield* insertMediaEffect(db, exec, 1, 12);
 
         yield* units.upsertUnit(1, 1, {
           downloaded: true,
@@ -46,8 +48,9 @@ it.scoped("upsertUnit prevents duplicate media episode rows", () =>
           title: "MediaUnit 1 updated",
         });
 
-        const rows = yield* tryDatabasePromise("Failed to query mediaUnits", () =>
-          db.select().from(mediaUnits).where(eq(mediaUnits.mediaId, 1)),
+        const rows = yield* exec.runQuery(
+          "Failed to query mediaUnits",
+          db.select().from(mediaUnits).where(eq(mediaUnits.mediaId, 1)).prepare().effect(),
         );
         assert.deepStrictEqual(rows.length, 1);
         assert.deepStrictEqual(rows[0]?.number, 1);
@@ -57,43 +60,16 @@ it.scoped("upsertUnit prevents duplicate media episode rows", () =>
   }),
 );
 
-it.scoped("ensureUnits rejects duplicate episode inserts for same media", () =>
+it.effect("ensureUnits rejects duplicate episode inserts for same media", () =>
   withSqliteTestDbEffect({
-    run: (db) =>
+    run: (db, _databaseFile, client, exec) =>
       Effect.gen(function* () {
-        yield* insertMediaEffect(db, 2, 1);
-        yield* tryDatabasePromise("Failed to seed mediaUnit for duplicate test", () =>
-          db.insert(mediaUnits).values({
-            audioChannels: null,
-            audioCodec: null,
-            mediaId: 2,
-            durationSeconds: null,
-            number: 1,
-            fileSize: null,
-            groupName: null,
-            quality: null,
-            resolution: null,
-            title: null,
-            aired: null,
-            downloaded: false,
-            filePath: null,
-            videoCodec: null,
-          }),
-        );
-
-        yield* makeMediaUnitRepository(db).ensureUnits(
-          2,
-          1,
-          "RELEASING",
-          undefined,
-          undefined,
-          undefined,
-          () => Effect.succeed("2024-01-01T00:00:00.000Z"),
-        );
-
-        const duplicateInsert = yield* Effect.exit(
-          tryDatabasePromise("Expected duplicate insert to fail", () =>
-            db.insert(mediaUnits).values({
+        yield* insertMediaEffect(db, exec, 2, 1);
+        yield* exec.runQuery(
+          "Failed to seed mediaUnit for duplicate test",
+          db
+            .insert(mediaUnits)
+            .values({
               audioChannels: null,
               audioCodec: null,
               mediaId: 2,
@@ -108,7 +84,44 @@ it.scoped("ensureUnits rejects duplicate episode inserts for same media", () =>
               downloaded: false,
               filePath: null,
               videoCodec: null,
-            }),
+            })
+            .prepare()
+            .effect(),
+        );
+
+        yield* makeMediaUnitRepository(db, client).ensureUnits(
+          2,
+          1,
+          "RELEASING",
+          undefined,
+          undefined,
+          undefined,
+          () => Effect.succeed("2024-01-01T00:00:00.000Z"),
+        );
+
+        const duplicateInsert = yield* Effect.exit(
+          exec.runQuery(
+            "Expected duplicate insert to fail",
+            db
+              .insert(mediaUnits)
+              .values({
+                audioChannels: null,
+                audioCodec: null,
+                mediaId: 2,
+                durationSeconds: null,
+                number: 1,
+                fileSize: null,
+                groupName: null,
+                quality: null,
+                resolution: null,
+                title: null,
+                aired: null,
+                downloaded: false,
+                filePath: null,
+                videoCodec: null,
+              })
+              .prepare()
+              .effect(),
           ),
         );
         assert.deepStrictEqual(duplicateInsert._tag, "Failure");
@@ -117,12 +130,12 @@ it.scoped("ensureUnits rejects duplicate episode inserts for same media", () =>
   }),
 );
 
-it.scoped("insertAnimeAggregateAtomic rolls back media inserts when a later write fails", () =>
+it.effect("insertAnimeAggregateAtomic rolls back media inserts when a later write fails", () =>
   withSqliteTestDbEffect({
-    run: (db) =>
+    run: (db, _databaseFile, client, exec) =>
       Effect.gen(function* () {
         const exit = yield* Effect.exit(
-          makeMediaRepository(db).insertMediaAggregate({
+          makeMediaRepository(db, client).insertMediaAggregate({
             mediaRow: {
               id: 77,
               malId: null,
@@ -194,17 +207,22 @@ it.scoped("insertAnimeAggregateAtomic rolls back media inserts when a later writ
         );
         assert.deepStrictEqual(exit._tag, "Failure");
 
-        const animeRows = yield* tryDatabasePromise(
+        const animeRows = yield* exec.runQuery(
           "Failed to query media for rollback assertion",
-          () => db.select().from(media).where(eq(media.id, 77)),
+          db.select().from(media).where(eq(media.id, 77)).prepare().effect(),
         );
-        const episodeRows = yield* tryDatabasePromise(
+        const episodeRows = yield* exec.runQuery(
           "Failed to query mediaUnits for rollback assertion",
-          () => db.select().from(mediaUnits).where(eq(mediaUnits.mediaId, 77)),
+          db.select().from(mediaUnits).where(eq(mediaUnits.mediaId, 77)).prepare().effect(),
         );
-        const logRows = yield* tryDatabasePromise(
+        const logRows = yield* exec.runQuery(
           "Failed to query systemLogs for rollback assertion",
-          () => db.select().from(systemLogs).where(eq(systemLogs.message, "This should fail")),
+          db
+            .select()
+            .from(systemLogs)
+            .where(eq(systemLogs.message, "This should fail"))
+            .prepare()
+            .effect(),
         );
 
         assert.deepStrictEqual(animeRows.length, 0);
@@ -325,12 +343,12 @@ it("inferAiredAt prefers AniList future schedule over heuristics", () => {
   assert.deepStrictEqual(airedAt, "2024-03-20T12:00:00.000Z");
 });
 
-it.scoped("syncUnitMetadata applies AniDB episode titles and dates", () =>
+it.effect("syncUnitMetadata applies AniDB episode titles and dates", () =>
   withSqliteTestDbEffect({
-    run: (db) =>
+    run: (db, _databaseFile, client, exec) =>
       Effect.gen(function* () {
-        const units = makeMediaUnitRepository(db);
-        yield* insertMediaEffect(db, 25, 2);
+        const units = makeMediaUnitRepository(db, client);
+        yield* insertMediaEffect(db, exec, 25, 2);
         yield* units.ensureUnits(25, 2, "RELEASING", "2024-01-01", undefined, undefined, () =>
           Effect.succeed("2024-01-01T00:00:00.000Z"),
         );
@@ -343,9 +361,9 @@ it.scoped("syncUnitMetadata applies AniDB episode titles and dates", () =>
           },
         ]);
 
-        const rows = yield* tryDatabasePromise(
+        const rows = yield* exec.runQuery(
           "Failed to query mediaUnits for sync assertion",
-          () => db.select().from(mediaUnits).where(eq(mediaUnits.mediaId, 25)),
+          db.select().from(mediaUnits).where(eq(mediaUnits.mediaId, 25)).prepare().effect(),
         );
         const first = rows.find((row) => row.number === 1);
 
@@ -356,12 +374,12 @@ it.scoped("syncUnitMetadata applies AniDB episode titles and dates", () =>
   }),
 );
 
-it.scoped("resolveAnimeRootFolder can preserve an existing folder root", () =>
+it.effect("resolveAnimeRootFolder can preserve an existing folder root", () =>
   withSqliteTestDbEffect({
-    run: (db) =>
+    run: (db, _databaseFile, client, _exec) =>
       Effect.gen(function* () {
         const rootFolder = yield* resolveMediaRootFolderEffect(
-          makeSystemConfigRepository(db),
+          makeSystemConfigRepository(db, client),
           "/library/Naruto Fansub",
           "Naruto",
           { useExistingRoot: true },
@@ -373,25 +391,30 @@ it.scoped("resolveAnimeRootFolder can preserve an existing folder root", () =>
   }),
 );
 
-it.scoped("media repository helpers fail explicitly on corrupt stored config", () =>
+it.effect("media repository helpers fail explicitly on corrupt stored config", () =>
   withSqliteTestDbEffect({
-    run: (db) =>
+    run: (db, _databaseFile, client, exec) =>
       Effect.gen(function* () {
-        yield* tryDatabasePromise("Failed to seed corrupt appConfig for error test", () =>
-          db.insert(appConfig).values({
-            id: 1,
-            data: "{not-json",
-            updatedAt: "2024-01-01T00:00:00.000Z",
-          }),
+        yield* exec.runQuery(
+          "Failed to seed corrupt appConfig for error test",
+          db
+            .insert(appConfig)
+            .values({
+              id: 1,
+              data: "{not-json",
+              updatedAt: "2024-01-01T00:00:00.000Z",
+            })
+            .prepare()
+            .effect(),
         );
 
-        const systemConfigRepository = makeSystemConfigRepository(db);
+        const systemConfigRepository = makeSystemConfigRepository(db, client);
         const rootFolderExit = yield* Effect.exit(
           resolveMediaRootFolderEffect(systemConfigRepository, "", "Naruto"),
         );
         assert.deepStrictEqual(Exit.isFailure(rootFolderExit), true);
         if (Exit.isFailure(rootFolderExit)) {
-          const failure = Cause.failureOption(rootFolderExit.cause);
+          const failure = Cause.findErrorOption(rootFolderExit.cause);
           assert.deepStrictEqual(failure._tag, "Some");
           if (failure._tag === "Some") {
             assert.deepStrictEqual(failure.value._tag, "StoredDataError");
@@ -403,7 +426,7 @@ it.scoped("media repository helpers fail explicitly on corrupt stored config", (
         );
         assert.deepStrictEqual(Exit.isFailure(imagesPathExit), true);
         if (Exit.isFailure(imagesPathExit)) {
-          const failure = Cause.failureOption(imagesPathExit.cause);
+          const failure = Cause.findErrorOption(imagesPathExit.cause);
           assert.deepStrictEqual(failure._tag, "Some");
           if (failure._tag === "Some") {
             assert.deepStrictEqual(failure.value._tag, "StoredDataError");
@@ -414,9 +437,9 @@ it.scoped("media repository helpers fail explicitly on corrupt stored config", (
   }),
 );
 
-it.scoped("media repository helpers use stored config when available", () =>
+it.effect("media repository helpers use stored config when available", () =>
   withSqliteTestDbEffect({
-    run: (db) =>
+    run: (db, _databaseFile, client, exec) =>
       Effect.gen(function* () {
         const testConfig = makeTestConfig("./test.sqlite", (config) => ({
           ...config,
@@ -439,15 +462,20 @@ it.scoped("media repository helpers use stored config when available", () =>
           Effect.flatMap((core) => encodeConfigCore(core)),
         );
 
-        yield* tryDatabasePromise("Failed to seed appConfig for config test", () =>
-          db.insert(appConfig).values({
-            id: 1,
-            data: encodedConfig,
-            updatedAt: "2024-01-01T00:00:00.000Z",
-          }),
+        yield* exec.runQuery(
+          "Failed to seed appConfig for config test",
+          db
+            .insert(appConfig)
+            .values({
+              id: 1,
+              data: encodedConfig,
+              updatedAt: "2024-01-01T00:00:00.000Z",
+            })
+            .prepare()
+            .effect(),
         );
 
-        const systemConfigRepository = makeSystemConfigRepository(db);
+        const systemConfigRepository = makeSystemConfigRepository(db, client);
         assert.deepStrictEqual(
           yield* resolveMediaRootFolderEffect(systemConfigRepository, "", "Naruto"),
           "/media-library",
@@ -465,26 +493,31 @@ it.scoped("media repository helpers use stored config when available", () =>
   }),
 );
 
-it.scoped("qualityProfileRepository.qualityProfileExists checks stored quality profile rows", () =>
+it.effect("qualityProfileRepository.qualityProfileExists checks stored quality profile rows", () =>
   withSqliteTestDbEffect({
-    run: (db) =>
+    run: (db, _databaseFile, client, exec) =>
       Effect.gen(function* () {
-        const qualityProfileRepository = makeQualityProfileRepository(db);
+        const qualityProfileRepository = makeQualityProfileRepository(db, client);
         assert.deepStrictEqual(
           yield* qualityProfileRepository.qualityProfileExists("Standard"),
           false,
         );
 
-        yield* tryDatabasePromise("Failed to seed quality profile", () =>
-          db.insert(qualityProfiles).values({
-            allowedQualities: "1080p",
-            cutoff: "720p",
-            maxSize: null,
-            minSize: null,
-            name: "Standard",
-            seadexPreferred: false,
-            upgradeAllowed: true,
-          }),
+        yield* exec.runQuery(
+          "Failed to seed quality profile",
+          db
+            .insert(qualityProfiles)
+            .values({
+              allowedQualities: "1080p",
+              cutoff: "720p",
+              maxSize: null,
+              minSize: null,
+              name: "Standard",
+              seadexPreferred: false,
+              upgradeAllowed: true,
+            })
+            .prepare()
+            .effect(),
         );
 
         assert.deepStrictEqual(
@@ -496,50 +529,53 @@ it.scoped("qualityProfileRepository.qualityProfileExists checks stored quality p
   }),
 );
 
-it.scoped("markSearchResultsAlreadyInLibrary annotates local matches", () =>
+it.effect("markSearchResultsAlreadyInLibrary annotates local matches", () =>
   withSqliteTestDbEffect({
-    run: (db) =>
+    run: (db, _databaseFile, client, exec) =>
       Effect.gen(function* () {
-        yield* insertMediaEffect(db, 20, 12);
+        yield* insertMediaEffect(db, exec, 20, 12);
 
-        const results = yield* markSearchResultsAlreadyInLibraryEffect(makeMediaRepository(db), [
-          {
-            already_in_library: false,
-            banner_image: undefined,
-            cover_image: undefined,
-            description: undefined,
-            end_date: undefined,
-            end_year: undefined,
-            unit_count: 12,
-            format: "TV",
-            genres: undefined,
-            id: brandMediaId(20),
-            season: undefined,
-            season_year: undefined,
-            start_date: undefined,
-            start_year: undefined,
-            status: "RELEASING",
-            title: { romaji: "Naruto" },
-          },
-          {
-            already_in_library: false,
-            banner_image: undefined,
-            cover_image: undefined,
-            description: undefined,
-            end_date: undefined,
-            end_year: undefined,
-            unit_count: 24,
-            format: "TV",
-            genres: undefined,
-            id: brandMediaId(21),
-            season: undefined,
-            season_year: undefined,
-            start_date: undefined,
-            start_year: undefined,
-            status: "RELEASING",
-            title: { romaji: "Bleach" },
-          },
-        ]);
+        const results = yield* markSearchResultsAlreadyInLibraryEffect(
+          makeMediaRepository(db, client),
+          [
+            {
+              already_in_library: false,
+              banner_image: undefined,
+              cover_image: undefined,
+              description: undefined,
+              end_date: undefined,
+              end_year: undefined,
+              unit_count: 12,
+              format: "TV",
+              genres: undefined,
+              id: brandMediaId(20),
+              season: undefined,
+              season_year: undefined,
+              start_date: undefined,
+              start_year: undefined,
+              status: "RELEASING",
+              title: { romaji: "Naruto" },
+            },
+            {
+              already_in_library: false,
+              banner_image: undefined,
+              cover_image: undefined,
+              description: undefined,
+              end_date: undefined,
+              end_year: undefined,
+              unit_count: 24,
+              format: "TV",
+              genres: undefined,
+              id: brandMediaId(21),
+              season: undefined,
+              season_year: undefined,
+              start_date: undefined,
+              start_year: undefined,
+              status: "RELEASING",
+              title: { romaji: "Bleach" },
+            },
+          ],
+        );
 
         assert.deepStrictEqual(results[0]?.already_in_library, true);
         assert.deepStrictEqual(results[1]?.already_in_library, false);
@@ -548,13 +584,13 @@ it.scoped("markSearchResultsAlreadyInLibrary annotates local matches", () =>
   }),
 );
 
-it.scoped("findMediaRootFolderOwner returns the mapped media for a root", () =>
+it.effect("findMediaRootFolderOwner returns the mapped media for a root", () =>
   withSqliteTestDbEffect({
-    run: (db) =>
+    run: (db, _databaseFile, client, exec) =>
       Effect.gen(function* () {
-        yield* insertMediaEffect(db, 20, 12);
+        yield* insertMediaEffect(db, exec, 20, 12);
 
-        const repository = makeMediaRepository(db);
+        const repository = makeMediaRepository(db, client);
         const owner = yield* repository.findMediaRootFolderOwner("/library/Show-20");
         assert.deepStrictEqual(owner?.id, 20);
         assert.deepStrictEqual(owner?.titleRomaji, "Show 20");
@@ -563,13 +599,13 @@ it.scoped("findMediaRootFolderOwner returns the mapped media for a root", () =>
   }),
 );
 
-it.scoped("findMediaRootFolderOwner handles trailing slash parents", () =>
+it.effect("findMediaRootFolderOwner handles trailing slash parents", () =>
   withSqliteTestDbEffect({
-    run: (db) =>
+    run: (db, _databaseFile, client, exec) =>
       Effect.gen(function* () {
-        yield* insertMediaWithRootEffect(db, 21, 12, "/library/Naruto/");
+        yield* insertMediaWithRootEffect(db, exec, 21, 12, "/library/Naruto/");
 
-        const repository = makeMediaRepository(db);
+        const repository = makeMediaRepository(db, client);
         const owner = yield* repository.findMediaRootFolderOwner("/library/Naruto/Season 1");
 
         assert.deepStrictEqual(owner?.id, 21);
@@ -578,15 +614,16 @@ it.scoped("findMediaRootFolderOwner handles trailing slash parents", () =>
   }),
 );
 
-it.scoped("media root-folder triggers reject overlapping roots", () =>
+it.effect("media root-folder triggers reject overlapping roots", () =>
   withSqliteTestDbEffect({
-    run: (db) =>
+    run: (db, _databaseFile, _client, exec) =>
       Effect.gen(function* () {
-        yield* insertMediaWithRootEffect(db, 30, 12, "/library/Naruto/");
+        yield* insertMediaWithRootEffect(db, exec, 30, 12, "/library/Naruto/");
 
         const overlappingInsert = yield* Effect.exit(
-          tryDatabasePromise("Expected overlapping root insert to fail", () =>
-            insertAnimeWithRoot(db, 31, 12, "/library/Naruto/Season 1"),
+          exec.runQuery(
+            "Expected overlapping root insert to fail",
+            insertAnimeWithRoot(db, 31, 12, "/library/Naruto/Season 1").prepare().effect(),
           ),
         );
         assert.deepStrictEqual(overlappingInsert._tag, "Failure");
@@ -597,29 +634,27 @@ it.scoped("media root-folder triggers reject overlapping roots", () =>
 
 const insertMediaEffect = Effect.fn("MediaRepositoryTest.insertMediaEffect")(function* (
   db: AppDatabase,
+  exec: DbExecutor,
   id: number,
   unitCount: number,
 ) {
-  yield* tryDatabasePromise("Failed to insert test anime", () =>
-    insertAnimeWithRoot(db, id, unitCount, `/library/Show-${id}`),
+  yield* exec.runQuery(
+    "Failed to insert test anime",
+    insertAnimeWithRoot(db, id, unitCount, `/library/Show-${id}`).prepare().effect(),
   );
 });
 
 const insertMediaWithRootEffect = Effect.fn("MediaRepositoryTest.insertMediaWithRootEffect")(
-  function* (db: AppDatabase, id: number, unitCount: number, rootFolder: string) {
-    yield* tryDatabasePromise("Failed to insert test anime with root", () =>
-      insertAnimeWithRoot(db, id, unitCount, rootFolder),
+  function* (db: AppDatabase, exec: DbExecutor, id: number, unitCount: number, rootFolder: string) {
+    yield* exec.runQuery(
+      "Failed to insert test anime with root",
+      insertAnimeWithRoot(db, id, unitCount, rootFolder).prepare().effect(),
     );
   },
 );
 
-async function insertAnimeWithRoot(
-  db: AppDatabase,
-  id: number,
-  unitCount: number,
-  rootFolder: string,
-) {
-  await db.insert(media).values({
+function insertAnimeWithRoot(db: AppDatabase, id: number, unitCount: number, rootFolder: string) {
+  return db.insert(media).values({
     id,
     malId: null,
     titleRomaji: `Show ${id}`,

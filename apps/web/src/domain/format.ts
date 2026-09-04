@@ -54,7 +54,7 @@ export function formatEta(seconds: number): string {
  * Format a duration in seconds as "1h 5m" / "1m 5s" / "45s".
  * Preserves the `scanned-file` `formatDurationSeconds` behavior (test-pinned).
  */
-export function formatDurationSeconds(value?: number): string | undefined {
+export function formatDurationSeconds(value?: number | null): string | undefined {
   if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
     return undefined;
   }

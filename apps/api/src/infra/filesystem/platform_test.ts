@@ -1,7 +1,7 @@
 import { assert, it } from "@effect/vitest";
-import { Effect } from "effect";
 
 import { makeNoopTestFileSystemEffect } from "@/test/filesystem-test.ts";
+import { Effect } from "effect";
 
 it.effect("filesystem noop layer can override readFile behavior", () =>
   Effect.gen(function* () {

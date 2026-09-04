@@ -1,4 +1,4 @@
-import { Schema } from "effect";
+import { Record, Schema } from "effect";
 
 export const BACKGROUND_WORKER_NAMES: readonly [
   "download_sync",
@@ -15,7 +15,7 @@ export const BACKGROUND_JOB_NAMES: readonly [...BackgroundWorkerName[], "unmappe
 
 export type BackgroundJobName = (typeof BACKGROUND_JOB_NAMES)[number];
 
-export const BackgroundWorkerNameSchema = Schema.Literal(...BACKGROUND_WORKER_NAMES);
+export const BackgroundWorkerNameSchema = Schema.Literals([...BACKGROUND_WORKER_NAMES]);
 
 export type BackgroundWorkerName = Schema.Schema.Type<typeof BackgroundWorkerNameSchema>;
 

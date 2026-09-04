@@ -3,7 +3,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useId } from "react";
 import type { FormEvent } from "react";
 import { toast } from "sonner";
-import { Schema } from "effect";
+import { Effect, Schema } from "effect";
 import { Button } from "@/components/ui/button";
 import { errorMessage, formatFieldErrors } from "@/api/effect/errors";
 import { FieldError } from "@/components/shared/field-error";
@@ -15,7 +15,7 @@ import { useApiKeyLoginMutation, useLoginMutation } from "@/api/auth";
 import { useAuth } from "@/app/auth";
 
 const LoginSearchSchema = Schema.Struct({
-  redirect: Schema.optionalWith(Schema.String, { default: () => "" }),
+  redirect: Schema.String.pipe(Schema.withDecodingDefault(Effect.succeed(""))),
 });
 
 function sanitizeRedirect(input: string): string | undefined {
@@ -37,20 +37,20 @@ export const Route = createFileRoute("/login")({
 
 const LoginSchema = Schema.Struct({
   username: Schema.String.pipe(
-    Schema.minLength(1, { message: () => "Username is required" }),
-    Schema.maxLength(128, { message: () => "Username must be 128 characters or less" }),
+    Schema.check(Schema.isMinLength(1, { message: "Username is required" })),
+    Schema.check(Schema.isMaxLength(128, { message: "Username must be 128 characters or less" })),
   ),
   password: Schema.String.pipe(
-    Schema.minLength(1, { message: () => "Password is required" }),
-    Schema.maxLength(256, { message: () => "Password must be 256 characters or less" }),
+    Schema.check(Schema.isMinLength(1, { message: "Password is required" })),
+    Schema.check(Schema.isMaxLength(256, { message: "Password must be 256 characters or less" })),
   ),
 });
 
 const ApiKeySchema = Schema.Struct({
   apiKey: Schema.String.pipe(
-    Schema.minLength(1, { message: () => "API key is required" }),
-    Schema.maxLength(128, { message: () => "API key must be 128 characters or less" }),
-    Schema.pattern(/^[a-fA-F0-9]+$/, { message: () => "API key must be hexadecimal" }),
+    Schema.check(Schema.isMinLength(1, { message: "API key is required" })),
+    Schema.check(Schema.isMaxLength(128, { message: "API key must be 128 characters or less" })),
+    Schema.check(Schema.isPattern(/^[a-fA-F0-9]+$/, { message: "API key must be hexadecimal" })),
   ),
 });
 
@@ -90,7 +90,7 @@ function LoginPage() {
       password: "",
     },
     validators: {
-      onChange: Schema.standardSchemaV1(LoginSchema),
+      onChange: Schema.toStandardSchemaV1(LoginSchema),
     },
     onSubmit: ({ value }) => {
       loginMutation.mutate(value, {
@@ -107,7 +107,7 @@ function LoginPage() {
       apiKey: "",
     },
     validators: {
-      onChange: Schema.standardSchemaV1(ApiKeySchema),
+      onChange: Schema.toStandardSchemaV1(ApiKeySchema),
     },
     onSubmit: ({ value }) => {
       apiKeyLoginMutation.mutate(

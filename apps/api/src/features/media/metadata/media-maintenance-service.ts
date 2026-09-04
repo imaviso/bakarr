@@ -1,4 +1,3 @@
-import { Effect, Exit, Option } from "effect";
 import { dirname, join, resolve } from "node:path";
 import { brandMediaId } from "@packages/shared/index.ts";
 import type { AsyncOperationAccepted } from "@packages/shared/index.ts";
@@ -14,7 +13,6 @@ import { AniDbRuntimeConfigError, MediaNotFoundError } from "@/features/media/er
 import { makeMetadataRefreshRunner } from "@/features/media/metadata/metadata-refresh.ts";
 import { pdfCacheDirectory } from "@/features/media/reader/pdf-reader.ts";
 import { EventBus } from "@/infra/effect/event-bus.ts";
-import { BackgroundJobRepository } from "@/features/system/repository/background-job-repository.ts";
 import { SystemLogRepository } from "@/features/system/repository/log-repository.ts";
 import { nowIso as currentNowIso } from "@/infra/time.ts";
 import { mediaUnits } from "@/db/schema.ts";
@@ -23,6 +21,7 @@ import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-s
 import type { ExternalCallError } from "@/infra/effect/retry.ts";
 import type { InfrastructureError, StoredDataError } from "@/features/errors.ts";
 import { OperationsTaskLauncherService } from "@/features/operations/tasks/operations-task-launcher-service.ts";
+import { Context, Effect, Exit, Layer, Option } from "effect";
 
 export interface MediaMaintenanceServiceShape {
   readonly deleteMedia: (id: number) => Effect.Effect<void, DatabaseError>;
@@ -74,9 +73,9 @@ const makeMediaMaintenanceService = Effect.fn("MediaMaintenanceService.make")(fu
       readerCacheRoot,
       runtimeConfigSnapshot,
     }).pipe(
-      Effect.catchAll((cause) =>
+      Effect.catch((cause) =>
         Effect.logWarning("Failed to prune cached files for deleted media").pipe(
-          Effect.annotateLogs({ mediaId: id, cause: String(cause) }),
+          Effect.annotateLogs({ mediaId: id, cause: globalThis.String(cause) }),
         ),
       ),
     );
@@ -165,24 +164,14 @@ const makeMediaMaintenanceService = Effect.fn("MediaMaintenanceService.make")(fu
   } satisfies MediaMaintenanceServiceShape;
 });
 
-export class MediaMaintenanceService extends Effect.Service<MediaMaintenanceService>()(
-  "@bakarr/api/MediaMaintenanceService",
-  {
-    // EventBus comes from the lifecycle layer.
-    dependencies: [
-      BackgroundJobRepository.Default,
-      MediaImageCacheService.Default,
-      MediaMetadataProviderService.Default,
-      MediaRepository.Default,
-      MediaUnitRepository.Default,
-      OperationsTaskLauncherService.Default,
-      SystemLogRepository.Default,
-    ],
-    effect: makeMediaMaintenanceService(),
-  },
-) {}
+export class MediaMaintenanceService extends Context.Service<
+  MediaMaintenanceService,
+  MediaMaintenanceServiceShape
+>()("@bakarr/api/MediaMaintenanceService") {
+  static readonly layer = Layer.effect(MediaMaintenanceService, makeMediaMaintenanceService());
+}
 
-export const MediaMaintenanceServiceLive = MediaMaintenanceService.Default;
+export const MediaMaintenanceServiceLive = MediaMaintenanceService.layer;
 
 /**
  * Best-effort cleanup of on-disk caches for a deleted media entry: the
@@ -229,8 +218,8 @@ const prunePdfRenderCache = Effect.fn("MediaMaintenanceService.prunePdfRenderCac
   readerCacheRoot: string,
   filePath: string,
 ) {
-  const statResult = yield* Effect.either(fs.stat(filePath));
-  const fileSize = statResult._tag === "Right" ? statResult.right.size : 0;
+  const statResult = yield* Effect.result(fs.stat(filePath));
+  const fileSize = statResult._tag === "Success" ? statResult.success.size : 0;
 
   yield* fs.remove(pdfCacheDirectory({ cacheRoot: readerCacheRoot, filePath, fileSize }), {
     recursive: true,

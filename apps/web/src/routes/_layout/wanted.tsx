@@ -83,7 +83,7 @@ function WantedPage() {
     open: boolean;
     mediaId: number;
     unitNumber: number;
-    unitTitle?: string;
+    unitTitle?: string | null | undefined;
     unitKind?: MissingUnit["unit_kind"];
   }>({
     open: false,
@@ -205,9 +205,7 @@ function WantedPage() {
           mediaId={searchModalState.mediaId}
           unitNumber={searchModalState.unitNumber}
           unitKind={searchModalState.unitKind}
-          {...(searchModalState.unitTitle === undefined
-            ? {}
-            : { unitTitle: searchModalState.unitTitle })}
+          {...(searchModalState.unitTitle == null ? {} : { unitTitle: searchModalState.unitTitle })}
           open={searchModalState.open}
           onOpenChange={(open) => setSearchModalState((prev) => ({ ...prev, open }))}
         />

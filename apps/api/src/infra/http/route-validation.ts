@@ -1,25 +1,25 @@
 // oxlint-disable typescript/no-restricted-types -- `unknown` is the honest type at error/cause boundaries (Effect error channels, try/catch causes, Logger messages)
-import { ParseResult, Predicate, Schema } from "effect";
+import { Predicate, Schema, SchemaIssue } from "effect";
 
 export class RequestValidationError extends Schema.TaggedError<RequestValidationError>()(
   "RequestValidationError",
   {
-    cause: Schema.optional(Schema.Defect),
+    cause: Schema.optional(Schema.Defect()),
     message: Schema.String,
     status: Schema.Literal(400),
   },
 ) {}
 
 export function formatValidationErrorMessage(message: string, error: unknown) {
-  if (ParseResult.isParseError(error)) {
-    const issues = ParseResult.ArrayFormatter.formatErrorSync(error);
+  if (Schema.isSchemaError(error)) {
+    const issues = SchemaIssue.makeFormatterStandardSchemaV1()(error.issue).issues;
 
     if (issues.length > 0) {
       const details = issues
         .slice(0, 3)
         .map((issue) => {
-          const path = issue.path.length > 0 ? issue.path.join(".") : "input";
-          return `${path}: ${issue.message}`;
+          const path = issue.path ?? [];
+          return `${path.length > 0 ? path.join(".") : "input"}: ${issue.message}`;
         })
         .join("; ");
 
@@ -27,11 +27,7 @@ export function formatValidationErrorMessage(message: string, error: unknown) {
     }
   }
 
-  if (
-    Predicate.isRecord(error) &&
-    Predicate.hasProperty(error, "message") &&
-    typeof error.message === "string"
-  ) {
+  if (Predicate.hasProperty(error, "message") && typeof error.message === "string") {
     return `${message}: ${error.message}`;
   }
 

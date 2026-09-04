@@ -1,15 +1,15 @@
 import { assert, it } from "@effect/vitest";
-import { Either, Option } from "effect";
 
 import { parseSizeLabelToBytes } from "@/features/operations/search/release-ranking-size.ts";
+import { Option, Result } from "effect";
 
 function unwrapSize(value: string | null | undefined) {
   const parsed = parseSizeLabelToBytes(value);
-  assert.deepStrictEqual(Either.isRight(parsed), true);
-  if (Either.isLeft(parsed)) {
-    throw parsed.left;
+  assert.deepStrictEqual(Result.isSuccess(parsed), true);
+  if (Result.isFailure(parsed)) {
+    throw parsed.failure;
   }
-  return Option.getOrUndefined(parsed.right);
+  return Option.getOrUndefined(parsed.success);
 }
 
 it("parseSizeLabelToBytes parses binary units", () => {
@@ -27,9 +27,9 @@ it("parseSizeLabelToBytes treats empty labels as none", () => {
 });
 
 it("parseSizeLabelToBytes rejects invalid labels", () => {
-  assert.deepStrictEqual(Either.isLeft(parseSizeLabelToBytes("large")), true);
-  assert.deepStrictEqual(Either.isLeft(parseSizeLabelToBytes("1 XB")), true);
-  assert.deepStrictEqual(Either.isLeft(parseSizeLabelToBytes("-1 GB")), true);
-  assert.deepStrictEqual(Either.isLeft(parseSizeLabelToBytes("abc 1 GB")), true);
-  assert.deepStrictEqual(Either.isLeft(parseSizeLabelToBytes("1.2.3 GB")), true);
+  assert.deepStrictEqual(Result.isFailure(parseSizeLabelToBytes("large")), true);
+  assert.deepStrictEqual(Result.isFailure(parseSizeLabelToBytes("1 XB")), true);
+  assert.deepStrictEqual(Result.isFailure(parseSizeLabelToBytes("-1 GB")), true);
+  assert.deepStrictEqual(Result.isFailure(parseSizeLabelToBytes("abc 1 GB")), true);
+  assert.deepStrictEqual(Result.isFailure(parseSizeLabelToBytes("1.2.3 GB")), true);
 });

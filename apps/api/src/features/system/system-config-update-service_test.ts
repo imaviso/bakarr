@@ -3,7 +3,10 @@ import type * as NodeSqliteClient from "@effect/sql-sqlite-node/SqliteClient";
 
 import type { Config } from "@packages/shared/index.ts";
 import { AppConfig } from "@/app/config/schema.ts";
-import { BackgroundWorkerController } from "@/background/controller-core.ts";
+import {
+  BackgroundWorkerController,
+  type BackgroundWorkerControllerShape,
+} from "@/background/controller-core.ts";
 import { AppDrizzleDatabase, type AppDatabase } from "@/db/database.ts";
 import * as schema from "@/db/schema.ts";
 import { RuntimeLogLevelStateLive } from "@/infra/logging.ts";
@@ -23,9 +26,9 @@ import { SystemLogRepository } from "@/features/system/repository/log-repository
 import { EventBus } from "@/infra/effect/event-bus.ts";
 
 describe("SystemConfigUpdateService", () => {
-  it.scoped("persists updated config and reloads background workers", () =>
+  it.effect("persists updated config and reloads background workers", () =>
     withSqliteTestDbEffect({
-      run: (db, databaseFile, client) =>
+      run: (db, databaseFile, client, exec) =>
         Effect.gen(function* () {
           const reloads: Config[] = [];
           const runtimeConfigRef = yield* Ref.make(makeTestConfig(databaseFile));
@@ -54,7 +57,7 @@ describe("SystemConfigUpdateService", () => {
 
             const updated = yield* updateService.updateConfig(nextConfig);
             const currentConfig = yield* Ref.get(runtimeConfigRef);
-            const storedRow = yield* loadSystemConfigRow(db);
+            const storedRow = yield* loadSystemConfigRow(db, exec);
             const storedCore = yield* decodeStoredConfigRow(storedRow);
 
             assert.deepStrictEqual(updated.general.images_path, "/images/custom");
@@ -71,9 +74,9 @@ describe("SystemConfigUpdateService", () => {
     }),
   );
 
-  it.scoped("preserves the stored qBittorrent password when the update omits it", () =>
+  it.effect("preserves the stored qBittorrent password when the update omits it", () =>
     withSqliteTestDbEffect({
-      run: (db, databaseFile, client) =>
+      run: (db, databaseFile, client, exec) =>
         Effect.gen(function* () {
           const runtimeConfigRef = yield* Ref.make(makeTestConfig(databaseFile));
           const fullLayer = makeSystemConfigUpdateTestLayer({
@@ -105,7 +108,7 @@ describe("SystemConfigUpdateService", () => {
               },
             });
             const currentConfig = yield* Ref.get(runtimeConfigRef);
-            const storedRow = yield* loadSystemConfigRow(db);
+            const storedRow = yield* loadSystemConfigRow(db, exec);
             const storedCore = yield* decodeStoredConfigRow(storedRow);
 
             assert.deepStrictEqual(updated.qbittorrent.password, "secret-pass");
@@ -117,9 +120,9 @@ describe("SystemConfigUpdateService", () => {
     }),
   );
 
-  it.scoped("preserves the stored AniDB password when the update omits it", () =>
+  it.effect("preserves the stored AniDB password when the update omits it", () =>
     withSqliteTestDbEffect({
-      run: (db, databaseFile, client) =>
+      run: (db, databaseFile, client, exec) =>
         Effect.gen(function* () {
           const runtimeConfigRef = yield* Ref.make(makeTestConfig(databaseFile));
           const fullLayer = makeSystemConfigUpdateTestLayer({
@@ -158,7 +161,7 @@ describe("SystemConfigUpdateService", () => {
               },
             });
             const currentConfig = yield* Ref.get(runtimeConfigRef);
-            const storedRow = yield* loadSystemConfigRow(db);
+            const storedRow = yield* loadSystemConfigRow(db, exec);
             const storedCore = yield* decodeStoredConfigRow(storedRow);
 
             assert.deepStrictEqual(updated.metadata?.anidb.password, "anidb-secret");
@@ -171,8 +174,8 @@ describe("SystemConfigUpdateService", () => {
   );
 });
 
-function makeBackgroundWorkerControllerStub(reloads: Config[]): BackgroundWorkerController {
-  return BackgroundWorkerController.make({
+function makeBackgroundWorkerControllerStub(reloads: Config[]): BackgroundWorkerControllerShape {
+  return {
     isStarted: () => Effect.succeed(false),
     reload: (config) =>
       Effect.sync(() => {
@@ -180,7 +183,7 @@ function makeBackgroundWorkerControllerStub(reloads: Config[]): BackgroundWorker
       }),
     start: () => Effect.void,
     stop: () => Effect.void,
-  });
+  };
 }
 
 function makeSystemConfigUpdateTestLayer(input: {
@@ -192,21 +195,21 @@ function makeSystemConfigUpdateTestLayer(input: {
 }) {
   const baseLayer = Layer.mergeAll(
     AppConfig.layerWithOverrides({ databaseFile: input.databaseFile }).pipe(
-      Layer.provide(RandomService.Default),
+      Layer.provide(RandomService.layer),
     ),
     RuntimeLogLevelStateLive,
-    Layer.succeed(AppDrizzleDatabase, AppDrizzleDatabase.make(input.db)),
+    Layer.succeed(AppDrizzleDatabase, AppDrizzleDatabase.of(input.db)),
     Layer.succeed(BackgroundWorkerController, makeBackgroundWorkerControllerStub(input.reloads)),
     Layer.succeed(
       RuntimeConfigSnapshotService,
-      RuntimeConfigSnapshotService.make({
+      RuntimeConfigSnapshotService.of({
         getRuntimeConfig: () => Ref.get(input.runtimeConfigRef),
         replaceRuntimeConfig: (config) => Ref.set(input.runtimeConfigRef, config),
       }),
     ),
     Layer.succeed(
       EventBus,
-      EventBus.make({
+      EventBus.of({
         publish: () => Effect.void,
         publishInfo: () => Effect.void,
         withSubscriptionStream: (use) =>
@@ -218,13 +221,13 @@ function makeSystemConfigUpdateTestLayer(input: {
     ),
   );
 
-  return SystemConfigUpdateService.DefaultWithoutDependencies.pipe(
+  return SystemConfigUpdateService.layer.pipe(
     Layer.provide(
       Layer.mergeAll(
         baseLayer,
-        QualityProfileRepository.Default.pipe(Layer.provide(baseLayer)),
-        SystemConfigRepository.Default.pipe(Layer.provide(baseLayer)),
-        SystemLogRepository.Default.pipe(Layer.provide(baseLayer)),
+        QualityProfileRepository.layer.pipe(Layer.provide(baseLayer)),
+        SystemConfigRepository.layer.pipe(Layer.provide(baseLayer)),
+        SystemLogRepository.layer.pipe(Layer.provide(baseLayer)),
       ),
     ),
   );

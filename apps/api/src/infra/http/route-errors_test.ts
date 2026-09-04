@@ -1,7 +1,9 @@
 // oxlint-disable typescript/no-restricted-types -- `unknown` is the honest type at error/cause boundaries (Effect error channels, try/catch causes, Logger messages)
-import { assert, it } from "@effect/vitest";
-import { HttpServerRequest, HttpServerResponse } from "@effect/platform";
+
 import { Effect, Logger } from "effect";
+import { assert, it } from "@effect/vitest";
+import * as HttpServerRequest from "effect/unstable/http/HttpServerRequest";
+import * as HttpServerResponse from "effect/unstable/http/HttpServerResponse";
 
 import { DatabaseError } from "@/db/database.ts";
 import { AuthForbiddenError, AuthUnauthorizedError } from "@/features/auth/errors.ts";
@@ -207,7 +209,7 @@ it.effect("route responses log mapped client errors below error level", () =>
   Effect.gen(function* () {
     const logs: Array<{ level: string; message: string }> = [];
     const logger = Logger.make<unknown, void>(({ logLevel, message }) => {
-      logs.push({ level: logLevel.label, message: String(message) });
+      logs.push({ level: logLevel, message: globalThis.String(message) });
     });
     const request = HttpServerRequest.fromWeb(new Request("http://localhost/api/auth/me"));
 
@@ -217,7 +219,7 @@ it.effect("route responses log mapped client errors below error level", () =>
       mapRouteError,
     ).pipe(
       Effect.provideService(HttpServerRequest.HttpServerRequest, request),
-      Effect.provide(Logger.replace(Logger.defaultLogger, logger)),
+      Effect.provide(Logger.layer([logger])),
     );
 
     assert.deepStrictEqual(HttpServerResponse.toWeb(response).status, 401);

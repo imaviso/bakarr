@@ -1,8 +1,6 @@
-import * as Cron from "effect/Cron";
-import { Either } from "effect";
-
 import type { Config } from "@packages/shared/index.ts";
 import { DOWNLOAD_SYNC_INTERVAL_MS } from "@/background/schedule.ts";
+import { Cron, Result } from "effect";
 
 export function normalizeLevel(level: string): "info" | "warn" | "error" | "success" {
   if (level === "warn" || level === "error" || level === "success") {
@@ -47,7 +45,9 @@ export function toBackgroundJobStatus(
 }
 
 function formatIntervalMs(intervalMs: number): string {
-  return Number.isInteger(intervalMs / 1000) ? `${intervalMs / 1000}s` : `${intervalMs}ms`;
+  return globalThis.Number.isInteger(intervalMs / 1000)
+    ? `${intervalMs / 1000}s`
+    : `${intervalMs}ms`;
 }
 
 function describeJobSchedule(
@@ -72,7 +72,7 @@ function describeJobSchedule(
     const expression = config.scheduler.cron_expression?.trim();
     if (expression) {
       const parsed = Cron.parse(expression);
-      if (Either.isRight(parsed)) {
+      if (Result.isSuccess(parsed)) {
         return { mode: "cron", value: expression };
       }
     }

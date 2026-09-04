@@ -1,6 +1,8 @@
 // oxlint-disable typescript/no-restricted-types -- `unknown` is the honest type at error/cause boundaries (Effect error channels, try/catch causes, Logger messages)
-import { HttpServerRequest, HttpServerResponse } from "@effect/platform";
-import { Effect, Exit, Logger } from "effect";
+
+import { Cause, Effect, Exit, Logger } from "effect";
+import * as HttpServerRequest from "effect/unstable/http/HttpServerRequest";
+import * as HttpServerResponse from "effect/unstable/http/HttpServerResponse";
 
 import { assert, it } from "@effect/vitest";
 import { AuthUnauthorizedError } from "@/features/auth/errors.ts";
@@ -17,7 +19,7 @@ it.effect("routeResponse re-interrupts interrupt-only causes without a 500 respo
   Effect.gen(function* () {
     const exit = yield* Effect.exit(runRoute(Effect.interrupt));
 
-    assert.deepStrictEqual(Exit.isInterrupted(exit), true);
+    assert.deepStrictEqual(Exit.isFailure(exit) && Cause.hasInterruptsOnly(exit.cause), true);
   }),
 );
 
@@ -25,12 +27,10 @@ it.effect("routeResponse logs no error for interrupted routes", () =>
   Effect.gen(function* () {
     const messages: string[] = [];
     const logger = Logger.make<unknown, void>(({ message }) => {
-      messages.push(String(message));
+      messages.push(globalThis.String(message));
     });
 
-    yield* Effect.exit(
-      runRoute(Effect.interrupt).pipe(Effect.provide(Logger.replace(Logger.defaultLogger, logger))),
-    );
+    yield* Effect.exit(runRoute(Effect.interrupt).pipe(Effect.provide(Logger.layer([logger]))));
 
     assert.deepStrictEqual(
       messages.some((message) => message.includes("HTTP route failed")),

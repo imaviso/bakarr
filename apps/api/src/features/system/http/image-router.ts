@@ -1,12 +1,14 @@
-import { HttpRouter, HttpServerResponse } from "@effect/platform";
-import { Effect, Schema } from "effect";
+import * as HttpRouter from "effect/unstable/http/HttpRouter";
+import * as HttpServerResponse from "effect/unstable/http/HttpServerResponse";
+import { Effect, Layer, Schema } from "effect";
 
 import { ImageAssetService } from "@/features/system/image-asset-service.ts";
 import { contentType } from "@/infra/http/route-fs.ts";
 import { authedRouteResponse } from "@/infra/http/router-helpers.ts";
 
-export const systemImageRouter = HttpRouter.empty.pipe(
-  HttpRouter.get(
+export const systemImageRouter = Layer.mergeAll(
+  HttpRouter.add(
+    "GET",
     "/api/images/*",
     authedRouteResponse(
       Effect.gen(function* () {

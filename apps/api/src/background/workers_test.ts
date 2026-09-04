@@ -1,6 +1,8 @@
 // oxlint-disable typescript/no-restricted-types -- `unknown` is the honest type at error/cause boundaries (Effect error channels, try/catch causes, Logger messages)
+
+import * as TestClock from "effect/testing/TestClock";
+import { Deferred, Effect, Fiber, Logger, Metric, Record, Ref, Scope } from "effect";
 import { assert, it } from "@effect/vitest";
-import { Deferred, Effect, Fiber, Logger, Metric, Ref, Scope, TestClock } from "effect";
 
 import type { Config } from "@packages/shared/index.ts";
 import { buildBackgroundSchedule } from "@/background/schedule.ts";
@@ -10,6 +12,7 @@ import { BackgroundWorkerTimeouts } from "@/background/worker-timeouts.ts";
 import { repeatWorker, withLockEffectOrFail } from "@/background/workers.ts";
 import { BACKGROUND_WORKER_TIMEOUT_MS } from "@/background/worker-model.ts";
 import { makeLatestValuePublisher } from "@/infra/effect/coalescing-latest-value-publisher.ts";
+
 import {
   makeSerializedDrainEffectRunner,
   makeSerializedDropEffectRunner,
@@ -73,15 +76,7 @@ const baseConfig: Config = {
   },
 };
 
-type MetricSnapshotPair = {
-  readonly metricKey: {
-    readonly name: string;
-    readonly tags: ReadonlyArray<{ readonly key: string; readonly value: string }>;
-  };
-  readonly metricState: unknown;
-};
-
-type MetricSnapshot = ReadonlyArray<MetricSnapshotPair>;
+type MetricSnapshot = ReadonlyArray<Metric.Metric.Snapshot>;
 
 function addTrackedFinalizer<A>(
   target: Array<A>,
@@ -175,9 +170,9 @@ it.effect("repeatWorker runs exactly once at startup for interval loops", () =>
         intervalMs: 60_000,
       },
     );
-    const fiber = yield* Effect.fork(worker);
+    const fiber = yield* Effect.forkChild(worker);
 
-    yield* Effect.yieldNow();
+    yield* Effect.yieldNow;
 
     const runsAfterStart = yield* Ref.get(runsRef);
     assert.deepStrictEqual(runsAfterStart, 1);
@@ -195,9 +190,9 @@ it.effect("repeatWorker runs exactly once at startup for cron loops", () =>
         cronExpression: "0 * * * *",
       },
     );
-    const fiber = yield* Effect.fork(worker);
+    const fiber = yield* Effect.forkChild(worker);
 
-    yield* Effect.yieldNow();
+    yield* Effect.yieldNow;
 
     const runsAfterStart = yield* Ref.get(runsRef);
     assert.deepStrictEqual(runsAfterStart, 1);
@@ -288,14 +283,12 @@ it.effect("background worker timeouts are tagged and recorded", () =>
     const monitor = yield* makeBackgroundWorkerMonitor();
     const messages: string[] = [];
     const logger = Logger.make<unknown, void>(({ message }) => {
-      messages.push(String(message));
+      messages.push(globalThis.String(message));
     });
     const lockedTask = yield* withLockEffectOrFail("rss", Effect.never, monitor, 1).pipe(
-      Effect.provide(BackgroundWorkerTimeouts.Default),
+      Effect.provide(BackgroundWorkerTimeouts.layer),
     );
-    const fiber = yield* Effect.fork(
-      lockedTask.pipe(Effect.provide(Logger.replace(Logger.defaultLogger, logger))),
-    );
+    const fiber = yield* Effect.forkChild(lockedTask.pipe(Effect.provide(Logger.layer([logger]))));
 
     yield* TestClock.adjust("1 second");
     const exit = yield* Fiber.await(fiber);
@@ -317,10 +310,10 @@ it.effect("background worker interruption marks run as interrupted", () =>
   Effect.gen(function* () {
     const monitor = yield* makeBackgroundWorkerMonitor();
     const lockedTask = yield* withLockEffectOrFail("rss", Effect.never, monitor, 10_000).pipe(
-      Effect.provide(BackgroundWorkerTimeouts.Default),
+      Effect.provide(BackgroundWorkerTimeouts.layer),
     );
 
-    const fiber = yield* Effect.fork(lockedTask);
+    const fiber = yield* Effect.forkChild(lockedTask);
     yield* Fiber.interrupt(fiber);
 
     const snapshot = yield* monitor.snapshot();
@@ -343,12 +336,12 @@ function counterDelta(
 
 function counterValue(snapshot: MetricSnapshot, name: string, labels: Record<string, string>) {
   const pair = findMetric(snapshot, name, labels);
-  return readCountMetricState(pair?.metricState) ?? 0;
+  return pair?.type === "Counter" ? (readCountMetricState(pair.state) ?? 0) : 0;
 }
 
 function gaugeValue(snapshot: MetricSnapshot, name: string, labels: Record<string, string>) {
   const pair = findMetric(snapshot, name, labels);
-  return readValueMetricState(pair?.metricState);
+  return pair?.type === "Gauge" ? readValueMetricState(pair.state) : undefined;
 }
 
 function histogramCountDelta(
@@ -362,7 +355,7 @@ function histogramCountDelta(
 
 function histogramCount(snapshot: MetricSnapshot, name: string, labels: Record<string, string>) {
   const pair = findMetric(snapshot, name, labels);
-  return readCountMetricState(pair?.metricState) ?? 0;
+  return pair?.type === "Histogram" ? (readCountMetricState(pair.state) ?? 0) : 0;
 }
 
 function readCountMetricState(metricState: unknown): number | undefined {
@@ -386,10 +379,8 @@ function readValueMetricState(metricState: unknown): number | undefined {
 function findMetric(snapshot: MetricSnapshot, name: string, labels: Record<string, string>) {
   return snapshot.find(
     (pair) =>
-      pair.metricKey.name === name &&
-      Object.entries(labels).every(([key, value]) =>
-        pair.metricKey.tags.some((tag) => tag.key === key && tag.value === value),
-      ),
+      pair.id === name &&
+      Object.entries(labels).every(([key, value]) => pair.attributes?.[key] === value),
   );
 }
 
@@ -547,10 +538,10 @@ it.effect("BackgroundWorkerController serializes concurrent starts", () =>
         }),
     });
 
-    const firstStart = yield* Effect.fork(controller.start(baseConfig));
+    const firstStart = yield* Effect.forkChild(controller.start(baseConfig));
     yield* Deferred.await(firstSpawnEntered);
 
-    const secondStart = yield* Effect.fork(controller.start(baseConfig));
+    const secondStart = yield* Effect.forkChild(controller.start(baseConfig));
 
     yield* Deferred.succeed(releaseSpawn, void 0);
     yield* Fiber.join(firstStart);
@@ -587,10 +578,10 @@ it.effect("BackgroundWorkerController serializes concurrent reloads", () =>
 
     yield* controller.start(baseConfig);
 
-    const firstReload = yield* Effect.fork(controller.reload(baseConfig));
+    const firstReload = yield* Effect.forkChild(controller.reload(baseConfig));
     yield* Deferred.await(firstReloadEntered);
 
-    const secondReload = yield* Effect.fork(controller.reload(baseConfig));
+    const secondReload = yield* Effect.forkChild(controller.reload(baseConfig));
 
     yield* Deferred.succeed(releaseReload, void 0);
     yield* Fiber.join(firstReload);
@@ -600,7 +591,7 @@ it.effect("BackgroundWorkerController serializes concurrent reloads", () =>
   }),
 );
 
-it.scoped("coalesced effect runner batches concurrent triggers into one follow-up run", () =>
+it.effect("coalesced effect runner batches concurrent triggers into one follow-up run", () =>
   Effect.gen(function* () {
     const firstRunStarted = yield* Deferred.make<void>();
     const secondRunStarted = yield* Deferred.make<void>();
@@ -623,11 +614,11 @@ it.scoped("coalesced effect runner batches concurrent triggers into one follow-u
       }),
     );
 
-    const firstTrigger = yield* Effect.fork(runner.trigger);
+    const firstTrigger = yield* Effect.forkChild(runner.trigger);
     yield* Deferred.await(firstRunStarted);
 
-    const secondTrigger = yield* Effect.fork(runner.trigger);
-    const thirdTrigger = yield* Effect.fork(runner.trigger);
+    const secondTrigger = yield* Effect.forkChild(runner.trigger);
+    const thirdTrigger = yield* Effect.forkChild(runner.trigger);
 
     assert.deepStrictEqual(runCount.value, 1);
 
@@ -636,16 +627,18 @@ it.scoped("coalesced effect runner batches concurrent triggers into one follow-u
 
     assert.deepStrictEqual(runCount.value, 2);
 
+    // The third trigger arrived while run 2 was in flight, so it records a
+    // pending drain and produces a third run under the drain contract.
     yield* Deferred.succeed(releaseSecondRun, void 0);
     yield* Fiber.await(firstTrigger);
     yield* Fiber.await(secondTrigger);
     yield* Fiber.await(thirdTrigger);
 
-    assert.deepStrictEqual(runCount.value, 2);
+    assert.deepStrictEqual(runCount.value, 3);
   }),
 );
 
-it.scoped("latest value publisher keeps only the newest pending update", () =>
+it.effect("latest value publisher keeps only the newest pending update", () =>
   Effect.gen(function* () {
     const published: number[] = [];
     const firstPublishStarted = yield* Deferred.make<void>();
@@ -675,7 +668,7 @@ it.scoped("latest value publisher keeps only the newest pending update", () =>
   }),
 );
 
-it.scoped("latest value publisher keeps draining after a failed publish", () =>
+it.effect("latest value publisher keeps draining after a failed publish", () =>
   Effect.gen(function* () {
     const published: number[] = [];
     const secondPublished = yield* Deferred.make<void>();
@@ -691,9 +684,9 @@ it.scoped("latest value publisher keeps draining after a failed publish", () =>
     );
 
     yield* publisher.offer(1);
-    const firstFlush = yield* Effect.either(publisher.flush);
+    const firstFlush = yield* Effect.result(publisher.flush);
 
-    assert.deepStrictEqual(firstFlush._tag, "Left");
+    assert.deepStrictEqual(firstFlush._tag, "Failure");
 
     yield* publisher.offer(2);
     yield* Deferred.await(secondPublished);
@@ -717,7 +710,7 @@ it.effect("skipping serialized runner drops overlapping trigger attempts", () =>
       }),
     );
 
-    const firstTrigger = yield* Effect.fork(runner.trigger);
+    const firstTrigger = yield* Effect.forkChild(runner.trigger);
     yield* Deferred.await(firstRunStarted);
 
     const secondResult = yield* runner.trigger;

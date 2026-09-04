@@ -1,4 +1,4 @@
-import { Config, Effect, Schema } from "effect";
+import { Config, Context, Effect, Layer, Record, Schema } from "effect";
 
 import { PositiveIntSchema } from "@/infra/schema.ts";
 import {
@@ -6,10 +6,10 @@ import {
   type BackgroundWorkerName,
 } from "@/background/worker-model.ts";
 
-const PositiveIntConfigSchema = Schema.NumberFromString.pipe(Schema.compose(PositiveIntSchema));
+const PositiveIntConfigSchema = Schema.NumberFromString.pipe(Schema.decodeTo(PositiveIntSchema));
 
 const timeoutMsConfig = (key: string, fallback: number) =>
-  Schema.Config(key, PositiveIntConfigSchema).pipe(Config.withDefault(fallback));
+  Config.schema(PositiveIntConfigSchema, key).pipe(Config.withDefault(fallback));
 
 export interface BackgroundWorkerTimeoutsShape {
   readonly download_sync: number;
@@ -25,10 +25,13 @@ export interface BackgroundWorkerTimeoutsShape {
  * them (e.g. BAKARR_LIBRARY_SCAN_TIMEOUT_MS) when long library scans are
  * killed every cycle by the hardcoded caps.
  */
-export class BackgroundWorkerTimeouts extends Effect.Service<BackgroundWorkerTimeouts>()(
-  "@bakarr/api/BackgroundWorkerTimeouts",
-  {
-    effect: Effect.gen(function* () {
+export class BackgroundWorkerTimeouts extends Context.Service<
+  BackgroundWorkerTimeouts,
+  BackgroundWorkerTimeoutsShape
+>()("@bakarr/api/BackgroundWorkerTimeouts") {
+  static readonly layer = Layer.effect(
+    BackgroundWorkerTimeouts,
+    Effect.gen(function* () {
       return {
         download_sync: yield* timeoutMsConfig(
           "BAKARR_DOWNLOAD_SYNC_TIMEOUT_MS",
@@ -49,5 +52,7 @@ export class BackgroundWorkerTimeouts extends Effect.Service<BackgroundWorkerTim
         rss: yield* timeoutMsConfig("BAKARR_RSS_TIMEOUT_MS", BACKGROUND_WORKER_TIMEOUT_MS.rss),
       } satisfies Record<BackgroundWorkerName, number>;
     }),
-  },
-) {}
+  );
+}
+
+export const BackgroundWorkerTimeoutsLive = BackgroundWorkerTimeouts.layer;

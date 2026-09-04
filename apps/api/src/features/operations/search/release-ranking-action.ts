@@ -5,7 +5,6 @@ import type {
   QualityProfile,
   ReleaseProfileRule,
 } from "@packages/shared/index.ts";
-import { Either, Option } from "effect";
 
 import {
   cutoffQuality,
@@ -16,6 +15,7 @@ import {
 import { parseReleaseName } from "@/features/operations/search/release-ranking-parse.ts";
 import { calculateReleaseScore } from "@/features/operations/search/release-ranking-scoring.ts";
 import { parseSizeLabelToBytes } from "@/features/operations/search/release-ranking-size.ts";
+import { Option, Result } from "effect";
 import type {
   RankedCurrentUnit,
   RankedRelease,
@@ -100,17 +100,17 @@ type RuleGuardResult =
 
 function evaluateSizeGuard(profile: QualityProfile, releaseSizeBytes: number): SizeGuardResult {
   const minSizeBytes = parseSizeLabelToBytes(profile.min_size);
-  if (Either.isLeft(minSizeBytes)) {
+  if (Result.isFailure(minSizeBytes)) {
     return { _tag: "Pass" };
   }
 
   const maxSizeBytes = parseSizeLabelToBytes(profile.max_size);
-  if (Either.isLeft(maxSizeBytes)) {
+  if (Result.isFailure(maxSizeBytes)) {
     return { _tag: "Pass" };
   }
 
-  const minBytesValue = minSizeBytes.right;
-  const maxBytesValue = maxSizeBytes.right;
+  const minBytesValue = minSizeBytes.success;
+  const maxBytesValue = maxSizeBytes.success;
   const min = Option.isSome(minBytesValue) ? minBytesValue.value : null;
   const max = Option.isSome(maxBytesValue) ? maxBytesValue.value : null;
 
@@ -150,7 +150,7 @@ function assessCurrentUnit(
 ) {
   const currentFilePath = current.filePath ?? "";
   const currentHasQualityInfo =
-    Boolean(parseResolution(currentFilePath)) || hasSourceMarkers(currentFilePath);
+    globalThis.Boolean(parseResolution(currentFilePath)) || hasSourceMarkers(currentFilePath);
   const quality = currentHasQualityInfo
     ? parseQualityFromTitle(currentFilePath)
     : parseQualityFromTitle("unknown");
@@ -232,6 +232,6 @@ function isQualityAllowed(
     profile.allowed_qualities.length === 0 ||
     profile.allowed_qualities.includes(quality.name) ||
     profile.allowed_qualities.includes(`${quality.resolution}p`) ||
-    profile.allowed_qualities.includes(String(quality.resolution))
+    profile.allowed_qualities.includes(globalThis.String(quality.resolution))
   );
 }

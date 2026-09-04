@@ -13,7 +13,7 @@ import { normalizeQBitTorrentConfig } from "@/features/system/qbittorrent-config
 import { normalizeRtorrentConfig } from "@/features/system/rtorrent-config.ts";
 
 export type ConfigCore = Schema.Schema.Type<typeof ConfigCoreSchema>;
-export type ConfigCoreEncoded = Schema.Schema.Encoded<typeof ConfigCoreSchema>;
+export type ConfigCoreEncoded = Schema.Codec.Encoded<typeof ConfigCoreSchema>;
 
 export const normalizeConfig = Effect.fn("SystemConfig.normalizeConfig")(function* (
   config: Config,
@@ -32,7 +32,7 @@ export const normalizeConfig = Effect.fn("SystemConfig.normalizeConfig")(functio
 
 export const encodeConfigCore = Effect.fn("ConfigCodec.encodeConfigCore")(
   (core: ConfigCore): Effect.Effect<string, StoredConfigCorruptError> =>
-    Schema.encode(Schema.parseJson(ConfigCoreSchema))(core).pipe(
+    Schema.encodeEffect(Schema.fromJsonString(ConfigCoreSchema))(core).pipe(
       Effect.mapError((cause) =>
         makeStoredConfigCorruptError("Config core is invalid and could not be encoded", cause),
       ),
@@ -41,7 +41,7 @@ export const encodeConfigCore = Effect.fn("ConfigCodec.encodeConfigCore")(
 
 export const toConfigCore = Effect.fn("ConfigCodec.toConfigCore")(
   (config: Config): Effect.Effect<ConfigCore, StoredConfigCorruptError> =>
-    Schema.decodeUnknown(ConfigCoreSchema)(config).pipe(
+    Schema.decodeUnknownEffect(ConfigCoreSchema)(config).pipe(
       Effect.mapError((cause) =>
         makeStoredConfigCorruptError(
           "Runtime configuration could not be projected to core schema",
@@ -56,12 +56,12 @@ export const composeConfig = Effect.fn("ConfigCodec.composeConfig")(
     core: ConfigCore,
     profiles: readonly QualityProfile[],
   ): Effect.Effect<Config, StoredConfigCorruptError> =>
-    Schema.encode(ConfigCoreSchema)(core).pipe(
+    Schema.encodeEffect(ConfigCoreSchema)(core).pipe(
       Effect.flatMap((encodedCore) =>
-        Schema.decodeUnknown(ConfigSchema)({
+        Schema.decodeUnknownEffect(ConfigSchema)({
           ...encodedCore,
           profiles: [...profiles],
-        } satisfies Schema.Schema.Encoded<typeof ConfigSchema>),
+        } satisfies Schema.Codec.Encoded<typeof ConfigSchema>),
       ),
       Effect.mapError((cause) =>
         makeStoredConfigCorruptError(
@@ -74,9 +74,9 @@ export const composeConfig = Effect.fn("ConfigCodec.composeConfig")(
 
 export const decodeConfigCore = Effect.fn("ConfigCodec.decodeConfigCore")(
   (value: string): Effect.Effect<ConfigCore, StoredConfigCorruptError> =>
-    Schema.decodeUnknown(Schema.parseJson(Schema.Unknown))(value).pipe(
+    Schema.decodeUnknownEffect(Schema.fromJsonString(Schema.Unknown))(value).pipe(
       Effect.map((stored) => Object.assign({ rtorrent: DEFAULT_RTORRENT_CONFIG }, stored)),
-      Effect.flatMap((stored) => Schema.decodeUnknown(ConfigCoreSchema)(stored)),
+      Effect.flatMap((stored) => Schema.decodeUnknownEffect(ConfigCoreSchema)(stored)),
       Effect.mapError((cause) =>
         makeStoredConfigCorruptError(
           "Stored configuration is corrupt and could not be decoded",

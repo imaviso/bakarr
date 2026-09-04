@@ -1,7 +1,7 @@
 import { assert, it } from "@effect/vitest";
-import { Effect } from "effect";
 
 import { downloads } from "@/db/schema.ts";
+import { Effect } from "effect";
 import {
   toDownload,
   toDownloadStatus,

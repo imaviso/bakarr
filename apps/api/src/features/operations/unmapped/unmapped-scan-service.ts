@@ -1,5 +1,4 @@
 // oxlint-disable typescript/no-restricted-types -- `unknown` is the honest type at error/cause boundaries (Effect error channels, try/catch causes, Logger messages)
-import { Cause, Effect } from "effect";
 
 import {
   MEDIA_KIND_VALUES,
@@ -35,6 +34,7 @@ import { SystemLogRepository } from "@/features/system/repository/log-repository
 import { SystemUnmappedRepository } from "@/features/system/repository/unmapped-repository.ts";
 import { UnmappedScanCoordinator } from "@/features/operations/tasks/task-coordinators.ts";
 import { OperationsTaskLauncherService } from "@/features/operations/tasks/operations-task-launcher-service.ts";
+import { Cause, Context, Effect, Layer } from "effect";
 
 export interface UnmappedScanServiceShape {
   readonly getUnmappedFolders: () => Effect.Effect<
@@ -155,12 +155,12 @@ const makeUnmappedScanService = Effect.fn("UnmappedScanService.make")(function* 
     return {
       has_outstanding_matches: hasOutstandingMatches,
       folders,
-      is_scanning: Boolean(job?.isRunning),
+      is_scanning: globalThis.Boolean(job?.isRunning),
       last_updated: job?.lastRunAt ?? now,
       match_counts: matchCounts,
       match_status: resolveScannerMatchStatus({
         hasOutstandingMatches,
-        isRunning: Boolean(job?.isRunning),
+        isRunning: globalThis.Boolean(job?.isRunning),
         lastStatus: job?.lastStatus,
         matchCounts,
       }),
@@ -173,7 +173,7 @@ const makeUnmappedScanService = Effect.fn("UnmappedScanService.make")(function* 
     matchingFolder: ScannerState["folders"][number],
     animeRows: ReadonlyArray<typeof media.$inferSelect>,
   ) {
-    const matchResult = yield* Effect.either(
+    const matchResult = yield* Effect.result(
       matchSingleUnmappedFolder({
         aniList,
         animeRows,
@@ -183,8 +183,8 @@ const makeUnmappedScanService = Effect.fn("UnmappedScanService.make")(function* 
       }),
     );
 
-    if (matchResult._tag === "Left") {
-      const errorMessage = toUnmappedMatchErrorMessage(matchResult.left);
+    if (matchResult._tag === "Failure") {
+      const errorMessage = toUnmappedMatchErrorMessage(matchResult.failure);
       const now = yield* nowIso();
       const failedFolder = markUnmappedFolderFailed(matchingFolder, errorMessage, now);
 
@@ -197,18 +197,16 @@ const makeUnmappedScanService = Effect.fn("UnmappedScanService.make")(function* 
     }
 
     const now = yield* nowIso();
-    yield* systemUnmappedRepository.upsertMatchRows([matchResult.right], now);
+    yield* systemUnmappedRepository.upsertMatchRows([matchResult.success], now);
 
     return {
       _tag: "Matched",
-      folder: matchResult.right,
+      folder: matchResult.success,
     } satisfies UnmappedMatchResult;
   });
 
   const failAfterMarkingJobFailure = (error: DatabaseError | DomainPathError | StoredDataError) =>
-    backgroundJobRunner
-      .markFailed("unmapped_scan", error)
-      .pipe(Effect.zipRight(Effect.fail(error)));
+    backgroundJobRunner.markFailed("unmapped_scan", error).pipe(Effect.andThen(Effect.fail(error)));
 
   const failInfrastructureAfterMarkingJobFailure = (cause: Cause.Cause<unknown>) => {
     const infrastructureError = new InfrastructureError({
@@ -218,7 +216,7 @@ const makeUnmappedScanService = Effect.fn("UnmappedScanService.make")(function* 
 
     return backgroundJobRunner
       .markFailed("unmapped_scan", cause)
-      .pipe(Effect.zipRight(Effect.fail(infrastructureError)));
+      .pipe(Effect.andThen(Effect.fail(infrastructureError)));
   };
 
   const runUnmappedScanPass = Effect.fn("UnmappedScanService.runUnmappedScanPass")(
@@ -298,27 +296,21 @@ const makeUnmappedScanService = Effect.fn("UnmappedScanService.make")(function* 
     Effect.catchTag("DatabaseError", failAfterMarkingJobFailure),
     Effect.catchTag("DomainPathError", failAfterMarkingJobFailure),
     Effect.catchTag("StoredDataError", failAfterMarkingJobFailure),
-    Effect.catchAllCause(failInfrastructureAfterMarkingJobFailure),
+    Effect.catchCause(failInfrastructureAfterMarkingJobFailure),
   );
 
   const unmappedScanLoop = Effect.fn("UnmappedScanService.unmappedScanLoop")(function* () {
     // Iterate while queued targets remain, pausing 3s between passes.
-    yield* Effect.iterate(
-      { folderCount: 0, hasQueuedTargets: true },
-      {
-        while: (state) => state.hasQueuedTargets,
-        body: () =>
-          Effect.gen(function* () {
-            const next = yield* runUnmappedScanPass();
+    let state = { folderCount: 0, hasQueuedTargets: true };
+    while (state.hasQueuedTargets) {
+      const next = yield* runUnmappedScanPass();
 
-            if (next.hasQueuedTargets) {
-              yield* Effect.sleep("3 seconds");
-            }
+      if (next.hasQueuedTargets) {
+        yield* Effect.sleep("3 seconds");
+      }
 
-            return next;
-          }),
-      },
-    );
+      state = next;
+    }
   });
 
   const startUnmappedScanLoop = Effect.fn("UnmappedScanService.startUnmappedScanLoop")(
@@ -338,10 +330,10 @@ const makeUnmappedScanService = Effect.fn("UnmappedScanService.make")(function* 
           yield* eventBus.publish({ type: "ScanStarted" });
 
           const loop = unmappedScanLoop().pipe(
-            Effect.catchAllCause((cause) =>
+            Effect.catchCause((cause) =>
               Effect.logError("Unmapped scan loop failed").pipe(
                 Effect.annotateLogs({ error: Cause.pretty(cause) }),
-                Effect.zipRight(Effect.failCause(cause)),
+                Effect.andThen(Effect.failCause(cause)),
               ),
             ),
             Effect.ensuring(eventBus.publish({ type: "ScanFinished" })),
@@ -459,20 +451,11 @@ function resolveScannerMatchStatus(input: {
   return "idle";
 }
 
-export class UnmappedScanService extends Effect.Service<UnmappedScanService>()(
-  "@bakarr/api/UnmappedScanService",
-  {
-    // AniListClient + RuntimeConfigSnapshotService come from the lifecycle layer.
-    dependencies: [
-      BackgroundJobRunner.Default,
-      MediaRepository.Default,
-      OperationsTaskLauncherService.Default,
-      SystemLogRepository.Default,
-      SystemUnmappedRepository.Default,
-      UnmappedScanCoordinator.Default,
-    ],
-    effect: makeUnmappedScanService(),
-  },
-) {}
+export class UnmappedScanService extends Context.Service<
+  UnmappedScanService,
+  UnmappedScanServiceShape
+>()("@bakarr/api/UnmappedScanService") {
+  static readonly layer = Layer.effect(UnmappedScanService, makeUnmappedScanService());
+}
 
-export const UnmappedScanServiceLive = UnmappedScanService.Default;
+export const UnmappedScanServiceLive = UnmappedScanService.layer;

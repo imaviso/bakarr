@@ -36,7 +36,7 @@ interface DownloadEventsDialogProps {
 }
 
 interface Pagination {
-  cursor?: string | undefined;
+  cursor?: string | null | undefined;
   direction: "next" | "prev";
 }
 

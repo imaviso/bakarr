@@ -34,14 +34,19 @@ export function scanVideoFilesStream(
   fs: FileSystemShape,
   path: string,
 ): Stream.Stream<ScannedVideoFile, FileSystemError> {
-  return Stream.unfoldChunkEffect(
+  return Stream.unfold<ScanDirectoryState, Chunk.Chunk<ScannedVideoFile>, FileSystemError, never>(
     { stack: [path], visited: new Set<string>(), root: path },
-    (state: ScanDirectoryState) =>
+    (
+      state: ScanDirectoryState,
+    ): Effect.Effect<
+      readonly [Chunk.Chunk<ScannedVideoFile>, ScanDirectoryState] | undefined,
+      FileSystemError
+    > =>
       Effect.gen(function* () {
         const current = state.stack.pop();
 
         if (current === undefined) {
-          return Option.none();
+          return undefined;
         }
 
         const readDirectoryEffect: Effect.Effect<DirEntry[], FileSystemError> = fs.readDirStream
@@ -124,12 +129,12 @@ export function scanVideoFilesStream(
           ...fileResults,
         ];
 
-        return Option.some<[Chunk.Chunk<ScannedVideoFile>, ScanDirectoryState]>([
-          Chunk.fromIterable(files),
-          state,
-        ]);
+        return [Chunk.fromIterable(files), state];
       }),
-  ).pipe(Stream.withSpan("Operations.scanVideoFilesStream"));
+  ).pipe(
+    Stream.flatMap((chunk) => Stream.fromIterable(chunk)),
+    Stream.withSpan("Operations.scanVideoFilesStream"),
+  );
 }
 
 export function isSupportedImportFile(name: string) {

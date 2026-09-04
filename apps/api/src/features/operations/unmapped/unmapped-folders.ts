@@ -1,5 +1,3 @@
-import { Effect } from "effect";
-
 import {
   type MediaSearchResult,
   MAX_UNMAPPED_FOLDER_MATCH_ATTEMPTS,
@@ -7,6 +5,7 @@ import {
   type UnmappedFolder,
 } from "@packages/shared/index.ts";
 import { scoreAnimeSearchResultMatch } from "@/features/media/shared/derivations.ts";
+import { Effect } from "effect";
 
 type UnmappedFolderInput = Pick<ScannerState["folders"][number], "name" | "path">;
 

@@ -43,18 +43,18 @@ export function EpisodeTableRow(props: EpisodeTableRowProps) {
   const searchModalState: AnimeSearchModalState = {
     open: true,
     unitNumber: episode.number,
-    ...(episode.unit_kind === undefined ? {} : { unitKind: episode.unit_kind }),
-    ...(episode.title === undefined ? {} : { unitTitle: episode.title }),
+    ...(episode.unit_kind == null ? {} : { unitKind: episode.unit_kind }),
+    ...(episode.title == null ? {} : { unitTitle: episode.title }),
   };
   const mappingDialogState: AnimeEpisodeDialogState = {
     open: true,
     unitNumber: episode.number,
-    ...(episode.unit_kind === undefined ? {} : { unitKind: episode.unit_kind }),
+    ...(episode.unit_kind == null ? {} : { unitKind: episode.unit_kind }),
   };
   const deleteDialogState: AnimeEpisodeDialogState = {
     open: true,
     unitNumber: episode.number,
-    ...(episode.unit_kind === undefined ? {} : { unitKind: episode.unit_kind }),
+    ...(episode.unit_kind == null ? {} : { unitKind: episode.unit_kind }),
   };
 
   return (

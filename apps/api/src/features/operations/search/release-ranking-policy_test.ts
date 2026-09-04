@@ -1,5 +1,5 @@
-import { assert, it } from "@effect/vitest";
 import { Effect, Exit } from "effect";
+import { assert, it } from "@effect/vitest";
 
 import {
   brandQualityId,
@@ -7,6 +7,7 @@ import {
   type UnitSearchResult,
   type Quality,
 } from "@packages/shared/index.ts";
+
 import {
   compareUnitSearchResults,
   validateQualityProfileSizeLabels,

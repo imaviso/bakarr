@@ -1,11 +1,11 @@
 // oxlint-disable typescript/no-restricted-types -- `unknown` is the honest type at error/cause boundaries (Effect error channels, try/catch causes, Logger messages)
 import { request as httpRequest } from "node:http";
 import { request as httpsRequest } from "node:https";
-import { Effect, Predicate, Schema } from "effect";
 
 import { MAX_RSS_BYTES } from "@/features/operations/rss/rss-limits.ts";
 import type { PinnedRequestTarget } from "@/features/operations/rss/rss-client-ssrf.ts";
 import { StreamPayloadTooLargeError } from "@/infra/effect/bounded-stream.ts";
+import { Context, Effect, Layer, Predicate, Record, Schema } from "effect";
 
 export interface RssTransportResponse {
   readonly body: Uint8Array;
@@ -16,7 +16,7 @@ export interface RssTransportResponse {
 export class RssTransportError extends Schema.TaggedError<RssTransportError>()(
   "RssTransportError",
   {
-    cause: Schema.Defect,
+    cause: Schema.Defect(),
     message: Schema.String,
   },
 ) {}
@@ -36,30 +36,32 @@ export interface RssTransportShape {
   ) => Effect.Effect<RssTransportResponse, RssTransportError | RssTransportPayloadTooLargeError>;
 }
 
-export class RssTransport extends Effect.Service<RssTransport>()("@bakarr/api/RssTransport", {
-  sync: () => {
-    const execute = Effect.fn("RssTransport.execute")(function* (target: PinnedRequestTarget) {
-      return yield* runPinnedHttpRequest({ target }).pipe(
-        Effect.mapError((cause) =>
-          cause instanceof StreamPayloadTooLargeError
-            ? new RssTransportPayloadTooLargeError({
-                actualBytes: cause.actualBytes,
-                maxBytes: cause.maxBytes,
-                message: `RSS payload exceeded maximum size of ${cause.maxBytes} bytes`,
-              })
-            : new RssTransportError({
-                cause,
-                message: formatRssTransportFailureMessage(cause),
-              }),
-        ),
-      );
-    });
+const makeRssTransport: RssTransportShape = {
+  execute: Effect.fn("RssTransport.execute")(function* (target: PinnedRequestTarget) {
+    return yield* runPinnedHttpRequest({ target }).pipe(
+      Effect.mapError((cause) =>
+        cause instanceof StreamPayloadTooLargeError
+          ? new RssTransportPayloadTooLargeError({
+              actualBytes: cause.actualBytes,
+              maxBytes: cause.maxBytes,
+              message: `RSS payload exceeded maximum size of ${cause.maxBytes} bytes`,
+            })
+          : new RssTransportError({
+              cause,
+              message: formatRssTransportFailureMessage(cause),
+            }),
+      ),
+    );
+  }),
+};
 
-    return { execute } satisfies RssTransportShape;
-  },
-}) {}
+export class RssTransport extends Context.Service<RssTransport, RssTransportShape>()(
+  "@bakarr/api/RssTransport",
+) {
+  static readonly layer = Layer.sync(RssTransport, () => makeRssTransport);
+}
 
-export const RssTransportLive = RssTransport.Default;
+export const RssTransportLive = RssTransport.layer;
 
 interface RssTransportRequestConfig {
   readonly headers: Record<string, string>;
@@ -75,7 +77,7 @@ interface RssTransportRequestConfig {
 const runPinnedHttpRequest = (input: {
   readonly target: PinnedRequestTarget;
 }): Effect.Effect<RssTransportResponse, Error> =>
-  Effect.async<RssTransportResponse, Error>((resume) => {
+  Effect.callback<RssTransportResponse, Error>((resume) => {
     const parsedUrl = input.target.parsedUrl;
     const requestImpl = parsedUrl.protocol === "https:" ? httpsRequest : httpRequest;
     const requestConfig = buildRssTransportRequestConfig(input.target);
@@ -109,9 +111,11 @@ const runPinnedHttpRequest = (input: {
           ? contentLengthHeader[0]
           : contentLengthHeader;
         const contentLength =
-          contentLengthValue === undefined ? Number.NaN : Number.parseInt(contentLengthValue, 10);
+          contentLengthValue === undefined
+            ? globalThis.Number.NaN
+            : globalThis.Number.parseInt(contentLengthValue, 10);
 
-        if (Number.isFinite(contentLength) && contentLength > MAX_RSS_BYTES) {
+        if (globalThis.Number.isFinite(contentLength) && contentLength > MAX_RSS_BYTES) {
           failPayloadTooLarge();
           return;
         }
@@ -183,7 +187,7 @@ const runPinnedHttpRequest = (input: {
   });
 
 function toError(cause: unknown): Error {
-  return cause instanceof Error ? cause : new Error(String(cause));
+  return cause instanceof Error ? cause : new Error(globalThis.String(cause));
 }
 
 function buildRssTransportRequestConfig(target: PinnedRequestTarget): RssTransportRequestConfig {
@@ -205,7 +209,7 @@ function buildRssTransportRequestConfig(target: PinnedRequestTarget): RssTranspo
     lookup: pinnedTarget ? makePinnedLookup(pinnedTarget) : undefined,
     method: "GET",
     path: `${parsedUrl.pathname}${parsedUrl.search}`,
-    port: parsedUrl.port ? Number(parsedUrl.port) : undefined,
+    port: parsedUrl.port ? globalThis.Number(parsedUrl.port) : undefined,
     protocol: parsedUrl.protocol,
     servername: isHttps ? parsedUrl.hostname : undefined,
   };

@@ -1,7 +1,6 @@
-import { Effect } from "effect";
-
 import type { MediaSearchResult } from "@packages/shared/index.ts";
 import type { MediaRepositoryShape } from "@/features/media/shared/media-repository.ts";
+import { Effect } from "effect";
 
 export const markSearchResultsAlreadyInLibraryEffect = Effect.fn(
   "MediaSearchResults.markSearchResultsAlreadyInLibrary",

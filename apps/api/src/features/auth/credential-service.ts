@@ -1,5 +1,3 @@
-import { Effect, Option } from "effect";
-
 import type { ApiKeyResponse, ChangePasswordRequest } from "@packages/shared/index.ts";
 import { DatabaseError } from "@/db/database.ts";
 import { nowIso as currentNowIso } from "@/infra/time.ts";
@@ -15,6 +13,7 @@ import {
 } from "@/features/auth/errors.ts";
 import { EventBus } from "@/infra/effect/event-bus.ts";
 import { AuthUserRepository } from "@/features/auth/user-repository.ts";
+import { Context, Effect, Layer, Option } from "effect";
 
 export interface AuthCredentialServiceShape {
   readonly changePassword: (
@@ -128,17 +127,11 @@ const makeAuthCredentialService = Effect.fn("AuthCredentialService.make")(functi
   } satisfies AuthCredentialServiceShape;
 });
 
-export class AuthCredentialService extends Effect.Service<AuthCredentialService>()(
-  "@bakarr/api/AuthCredentialService",
-  {
-    effect: makeAuthCredentialService(),
-    dependencies: [
-      AuthUserRepository.Default,
-      PasswordCrypto.Default,
-      RandomService.Default,
-      TokenHasher.Default,
-    ],
-  },
-) {}
+export class AuthCredentialService extends Context.Service<
+  AuthCredentialService,
+  AuthCredentialServiceShape
+>()("@bakarr/api/AuthCredentialService") {
+  static readonly layer = Layer.effect(AuthCredentialService, makeAuthCredentialService());
+}
 
-export const AuthCredentialServiceLive = AuthCredentialService.Default;
+export const AuthCredentialServiceLive = AuthCredentialService.layer;

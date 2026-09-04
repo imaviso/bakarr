@@ -1,8 +1,8 @@
 import { assert, it } from "@effect/vitest";
-import { Effect } from "effect";
 
 import { DatabaseError } from "@/db/database.ts";
 import { makeTestConfig } from "@/test/config-fixture.ts";
+import { Effect } from "effect";
 import {
   persistAndActivateConfig,
   type PersistedSystemConfigState,

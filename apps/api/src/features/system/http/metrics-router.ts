@@ -1,12 +1,12 @@
 // oxlint-disable typescript/no-restricted-types -- `unknown` is the honest type at error/cause boundaries (Effect error channels, try/catch causes, Logger messages)
-import { HttpRouter, HttpServerResponse } from "@effect/platform";
-import { Cause, Duration, Effect, Option } from "effect";
+import * as HttpRouter from "effect/unstable/http/HttpRouter";
+import * as HttpServerResponse from "effect/unstable/http/HttpServerResponse";
+import { Cause, Duration, Effect, Layer, Option } from "effect";
 
 import { ObservabilityConfig } from "@/app/config/observability.ts";
 import { SystemRuntimeMetricsService } from "@/features/system/system-runtime-metrics-service.ts";
 import { requireViewerFromHttpRequest } from "@/infra/http/route-auth.ts";
 import { mapRouteError } from "@/infra/http/route-errors/index.ts";
-import { currentTimeNanos } from "@/infra/time.ts";
 import { recordHttpRequestMetrics } from "@/infra/metrics.ts";
 import { routeResponse } from "@/infra/http/router-helpers.ts";
 
@@ -22,8 +22,8 @@ const enforceMetricsAuthIfConfigured = Effect.gen(function* () {
 
 const renderMetricsWithHttpMetrics = Effect.gen(function* () {
   const service = yield* SystemRuntimeMetricsService;
-  const [duration, exit] = yield* Effect.timedWith(currentTimeNanos)(
-    Effect.exit(Effect.zipRight(enforceMetricsAuthIfConfigured, service.renderPrometheusMetrics())),
+  const [duration, exit] = yield* Effect.timed(
+    Effect.exit(Effect.andThen(enforceMetricsAuthIfConfigured, service.renderPrometheusMetrics())),
   );
   const durationMs = Duration.toMillis(duration);
   const status = exit._tag === "Success" ? 200 : statusFromFailureCause(exit.cause);
@@ -43,14 +43,15 @@ const renderMetricsWithHttpMetrics = Effect.gen(function* () {
 });
 
 function statusFromFailureCause(cause: Cause.Cause<unknown>) {
-  return Option.match(Cause.failureOption(cause), {
+  return Option.match(Cause.findErrorOption(cause), {
     onNone: () => 500,
     onSome: (error) => mapRouteError(error).status,
   });
 }
 
-export const systemMetricsRouter = HttpRouter.empty.pipe(
-  HttpRouter.get(
+export const systemMetricsRouter = Layer.mergeAll(
+  HttpRouter.add(
+    "GET",
     METRICS_ROUTE,
     routeResponse(
       renderMetricsWithHttpMetrics,

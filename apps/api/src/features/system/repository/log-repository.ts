@@ -1,10 +1,12 @@
+import { Chunk, Context, Effect, Layer, Stream } from "effect";
 import { and, count, desc, lt, sql } from "drizzle-orm";
-import { Chunk, Effect, Option, Stream } from "effect";
+import * as NodeSqliteClient from "@effect/sql-sqlite-node/SqliteClient";
 
 import type { SystemLog } from "@packages/shared/index.ts";
 import { AppDrizzleDatabase, type AppDatabase, type DatabaseError } from "@/db/database.ts";
 import { systemLogs } from "@/db/schema.ts";
-import { tryDatabasePromise } from "@/infra/effect/db.ts";
+import { makeDbExecutor, type DbExecutor } from "@/infra/effect/db.ts";
+
 import {
   buildSystemLogConditions,
   encodeLogExportCsvStream,
@@ -49,103 +51,128 @@ export interface SystemLogRepositoryShape {
   ) => Stream.Stream<Uint8Array, DatabaseError>;
 }
 
-export class SystemLogRepository extends Effect.Service<SystemLogRepository>()(
-  "@bakarr/api/SystemLogRepository",
-  {
-    effect: Effect.gen(function* () {
+export class SystemLogRepository extends Context.Service<
+  SystemLogRepository,
+  SystemLogRepositoryShape
+>()("@bakarr/api/SystemLogRepository") {
+  static readonly layer = Layer.effect(
+    SystemLogRepository,
+    Effect.gen(function* () {
       const db = yield* AppDrizzleDatabase;
-      return makeSystemLogRepositoryShape(db);
+      const sqlClient = yield* NodeSqliteClient.SqliteClient;
+      return makeSystemLogRepositoryShape(db, sqlClient);
     }),
-    dependencies: [AppDrizzleDatabase.Default],
-  },
-) {}
+  );
+}
 
-export function makeSystemLogRepositoryShape(db: AppDatabase): SystemLogRepositoryShape {
+export function makeSystemLogRepositoryShape(
+  db: AppDatabase,
+  sqlClient: NodeSqliteClient.SqliteClient,
+): SystemLogRepositoryShape {
+  const exec = makeDbExecutor(sqlClient);
   return {
     appendLog: (eventType, level, message, nowIso) =>
-      appendSystemLog(db, eventType, level, message, nowIso),
-    clearLogs: () => clearSystemLogRows(db),
-    deleteLogsOlderThan: (cutoffIso) => deleteSystemLogsOlderThan(db, cutoffIso),
-    loadExportHeader: (plan, nowIso) => loadSystemLogExportHeader(db, plan, nowIso),
-    loadPage: (input) => loadSystemLogPage(db, input),
-    streamExportCsv: (plan) => encodeLogExportCsvStream(streamSystemLogs(db, plan)),
-    streamExportJson: (plan) => encodeLogExportJsonStream(streamSystemLogs(db, plan)),
+      appendSystemLog(db, exec, eventType, level, message, nowIso),
+    clearLogs: () => clearSystemLogRows(db, exec),
+    deleteLogsOlderThan: (cutoffIso) => deleteSystemLogsOlderThan(db, exec, cutoffIso),
+    loadExportHeader: (plan, nowIso) => loadSystemLogExportHeader(db, exec, plan, nowIso),
+    loadPage: (input) => loadSystemLogPage(db, exec, input),
+    streamExportCsv: (plan) => encodeLogExportCsvStream(streamSystemLogs(db, exec, plan)),
+    streamExportJson: (plan) => encodeLogExportJsonStream(streamSystemLogs(db, exec, plan)),
   } satisfies SystemLogRepositoryShape;
 }
 
 const appendSystemLog = Effect.fn("SystemLogRepository.appendLog")(function* <E>(
   db: AppDatabase,
+  exec: DbExecutor,
   eventType: string,
   level: string,
   message: string,
   nowIso: NowIso<E>,
 ) {
   const now = yield* nowIso();
-  yield* tryDatabasePromise("Failed to append system log", () =>
-    db.insert(systemLogs).values({
-      createdAt: now,
-      details: null,
-      eventType,
-      level,
-      message,
-    }),
+  yield* exec.runQuery(
+    "Failed to append system log",
+    db
+      .insert(systemLogs)
+      .values({
+        createdAt: now,
+        details: null,
+        eventType,
+        level,
+        message,
+      })
+      .prepare()
+      .effect(),
   );
 });
 
-const clearSystemLogRows = Effect.fn("SystemLogRepository.clearLogs")(function* (db: AppDatabase) {
-  yield* tryDatabasePromise("Failed to clear system logs", () => db.delete(systemLogs));
+const clearSystemLogRows = Effect.fn("SystemLogRepository.clearLogs")(function* (
+  db: AppDatabase,
+  exec: DbExecutor,
+) {
+  yield* exec.runQuery("Failed to clear system logs", db.delete(systemLogs).prepare().effect());
 });
 
 const deleteSystemLogsOlderThan = Effect.fn("SystemLogRepository.deleteLogsOlderThan")(function* (
   db: AppDatabase,
+  exec: DbExecutor,
   cutoffIso: string,
 ) {
   // Count via sqlite `changes()` — materializing every pruned id just to read
   // its length can pull 100k+ rows after long uptime.
-  return yield* tryDatabasePromise("Failed to prune old system logs", () =>
-    db.transaction((tx) =>
-      tx
-        .delete(systemLogs)
-        .where(lt(systemLogs.createdAt, cutoffIso))
-        .then(() => tx.all<{ changes: number }>(sql`select changes() as changes`))
-        .then((result) => result[0]?.changes ?? 0),
-    ),
+  return yield* exec.runTransaction(
+    "Failed to prune old system logs",
+    Effect.gen(function* () {
+      yield* db.delete(systemLogs).where(lt(systemLogs.createdAt, cutoffIso)).prepare().effect();
+      const changed = yield* db.effectAll<{ changes: number }>(sql`select changes() as changes`);
+      return changed[0]?.changes ?? 0;
+    }),
   );
 });
 
 export const loadSystemLogPage = Effect.fn("SystemLogRepository.loadPage")(function* (
   db: AppDatabase,
+  exec: DbExecutor,
   input: SystemLogPageInput,
 ) {
   const conditions = buildSystemLogConditions(input);
   const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
-  const countQuery = db.select({ value: count() }).from(systemLogs);
-  const rowsQuery = db
+  const countBase = db.select({ value: count() }).from(systemLogs);
+  const rowsBase = db
     .select()
     .from(systemLogs)
     .orderBy(desc(systemLogs.id))
     .limit(input.pageSize)
     .offset((input.page - 1) * input.pageSize);
+  if (whereClause) {
+    countBase.where(whereClause);
+    rowsBase.where(whereClause);
+  }
 
-  const totalRows = yield* tryDatabasePromise("Failed to load system logs", () =>
-    whereClause ? countQuery.where(whereClause) : countQuery,
+  const totalRows = yield* exec.runQuery(
+    "Failed to load system logs",
+    countBase.prepare().effect(),
   );
   const total = totalRows[0]?.value ?? 0;
-  const rows = yield* tryDatabasePromise("Failed to load system logs", () =>
-    whereClause ? rowsQuery.where(whereClause) : rowsQuery,
-  );
+  const rows = yield* exec.runQuery("Failed to load system logs", rowsBase.prepare().effect());
 
   return { rows, total };
 });
 
 const loadSystemLogExportHeader = Effect.fn("SystemLogRepository.loadExportHeader")(function* (
   db: AppDatabase,
+  exec: DbExecutor,
   plan: SystemLogExportPlan,
   nowIso: NowIso,
 ) {
-  const countQuery = db.select({ value: sql<number>`count(*)` }).from(systemLogs);
-  const countRows = yield* tryDatabasePromise("Failed to load system logs", () =>
-    plan.conditions.length > 0 ? countQuery.where(and(...plan.conditions)) : countQuery,
+  const countBase = db.select({ value: sql<number>`count(*)` }).from(systemLogs);
+  if (plan.conditions.length > 0) {
+    countBase.where(and(...plan.conditions));
+  }
+  const countRows = yield* exec.runQuery(
+    "Failed to load system logs",
+    countBase.prepare().effect(),
   );
   const total = countRows[0]?.value ?? 0;
 
@@ -160,45 +187,55 @@ const loadSystemLogExportHeader = Effect.fn("SystemLogRepository.loadExportHeade
 
 function streamSystemLogs(
   db: AppDatabase,
+  exec: DbExecutor,
   plan: SystemLogExportPlan,
 ): Stream.Stream<SystemLog, DatabaseError> {
-  const initialCursor: {
-    emitted: number;
-    cursor: number | undefined;
-  } = { emitted: 0, cursor: undefined };
+  interface ExportCursor {
+    readonly emitted: number;
+    readonly cursor: number | undefined;
+  }
+  const initialCursor: ExportCursor = { emitted: 0, cursor: undefined };
 
-  return Stream.unfoldChunkEffect(initialCursor, (state) =>
-    Effect.gen(function* () {
-      const remaining = plan.limit - state.emitted;
-      if (remaining <= 0) {
-        return Option.none<readonly [Chunk.Chunk<SystemLog>, typeof state]>();
-      }
+  return Stream.unfold<ExportCursor, Chunk.Chunk<SystemLog>, DatabaseError, never>(
+    initialCursor,
+    (
+      state,
+    ): Effect.Effect<readonly [Chunk.Chunk<SystemLog>, ExportCursor] | undefined, DatabaseError> =>
+      Effect.gen(function* () {
+        const remaining = plan.limit - state.emitted;
+        if (remaining <= 0) {
+          return undefined;
+        }
 
-      const cursorCondition =
-        state.cursor === undefined ? undefined : lt(systemLogs.id, state.cursor);
-      const conditions = cursorCondition
-        ? [...plan.conditions, cursorCondition]
-        : [...plan.conditions];
-      const query = db
-        .select()
-        .from(systemLogs)
-        .orderBy(desc(systemLogs.id))
-        .limit(Math.min(EXPORT_PAGE_SIZE, remaining));
-      const rows = yield* tryDatabasePromise("Failed to load system logs", () =>
-        conditions.length > 0 ? query.where(and(...conditions)) : query,
-      );
+        const cursorCondition =
+          state.cursor === undefined ? undefined : lt(systemLogs.id, state.cursor);
+        const conditions = cursorCondition
+          ? [...plan.conditions, cursorCondition]
+          : [...plan.conditions];
+        const queryBase = db
+          .select()
+          .from(systemLogs)
+          .orderBy(desc(systemLogs.id))
+          .limit(Math.min(EXPORT_PAGE_SIZE, remaining));
+        if (conditions.length > 0) {
+          queryBase.where(and(...conditions));
+        }
+        const rows = yield* exec.runQuery(
+          "Failed to load system logs",
+          queryBase.prepare().effect(),
+        );
 
-      if (rows.length === 0) {
-        return Option.none<readonly [Chunk.Chunk<SystemLog>, typeof state]>();
-      }
+        if (rows.length === 0) {
+          return undefined;
+        }
 
-      return Option.some<readonly [Chunk.Chunk<SystemLog>, typeof state]>([
-        Chunk.fromIterable(rows.map(toSystemLog)),
-        {
-          emitted: state.emitted + rows.length,
-          cursor: rows[rows.length - 1]?.id,
-        },
-      ]);
-    }),
-  );
+        return [
+          Chunk.fromIterable(rows.map(toSystemLog)),
+          {
+            emitted: state.emitted + rows.length,
+            cursor: rows[rows.length - 1]?.id,
+          },
+        ];
+      }),
+  ).pipe(Stream.flatMap((chunk) => Stream.fromIterable(chunk)));
 }

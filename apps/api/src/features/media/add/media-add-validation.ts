@@ -1,8 +1,7 @@
-import { Effect, Option } from "effect";
-
 import { MediaConflictError, MediaNotFoundError } from "@/features/media/errors.ts";
 import type { MediaRepositoryShape } from "@/features/media/shared/media-repository.ts";
 import type { QualityProfileRepositoryShape } from "@/features/system/repository/quality-profile-repository.ts";
+import { Effect, Option } from "effect";
 
 export const checkMediaExistsEffect = Effect.fn("MediaAddValidation.checkMediaExists")(function* (
   mediaRepository: MediaRepositoryShape,

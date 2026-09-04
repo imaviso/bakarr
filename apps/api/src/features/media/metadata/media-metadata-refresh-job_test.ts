@@ -1,6 +1,5 @@
 import { assert, it } from "@effect/vitest";
 import { eq } from "drizzle-orm";
-import { Effect } from "effect";
 
 import type { AppDatabase } from "@/db/database.ts";
 import * as schema from "@/db/schema.ts";
@@ -10,8 +9,9 @@ import { refreshMetadataForMonitoredMediaEffect } from "@/features/media/metadat
 import { ExternalCallError } from "@/infra/effect/retry.ts";
 import { MediaImageCacheService } from "@/features/media/metadata/media-image-cache-service.ts";
 import { MediaMetadataProviderService } from "@/features/media/metadata/media-metadata-provider-service.ts";
-import { tryDatabasePromise } from "@/infra/effect/db.ts";
+import { tryDatabaseQuery } from "@/infra/effect/db.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
+import { Effect } from "effect";
 import {
   makeBackgroundJobRepository,
   makeMediaRepository,
@@ -19,11 +19,11 @@ import {
   makeSystemLogRepository,
 } from "@/test/repository-factories.ts";
 
-it.scoped(
+it.effect(
   "refreshMetadataForMonitoredMediaEffect skips per-media external failures and completes",
   () =>
     withSqliteTestDbEffect({
-      run: (db) =>
+      run: (db, _databaseFile, client, _exec) =>
         Effect.gen(function* () {
           const appDb: AppDatabase = db;
 
@@ -31,10 +31,10 @@ it.scoped(
           yield* insertAnimeRow(appDb, 802);
 
           const result = yield* refreshMetadataForMonitoredMediaEffect({
-            imageCacheService: MediaImageCacheService.make({
+            imageCacheService: MediaImageCacheService.of({
               cacheMetadataImages: () => Effect.succeed({}),
             }),
-            metadataProvider: MediaMetadataProviderService.make({
+            metadataProvider: MediaMetadataProviderService.of({
               getAnimeMetadataById: (id: number) =>
                 id === 801
                   ? Effect.fail(
@@ -52,28 +52,29 @@ it.scoped(
                       },
                       metadata: makeMetadata(id),
                     }),
-              getSeasonalAnime: () => Effect.dieMessage("not used in test"),
-              searchMedia: () => Effect.dieMessage("not used in test"),
+              getSeasonalAnime: () => Effect.die(new Error("not used in test")),
+              searchMedia: () => Effect.die(new Error("not used in test")),
             }),
-            backgroundJobRepository: makeBackgroundJobRepository(appDb),
-            mediaRepository: makeMediaRepository(appDb),
-            mediaUnitRepository: makeMediaUnitRepository(appDb),
-            systemLogRepository: makeSystemLogRepository(appDb),
+            backgroundJobRepository: makeBackgroundJobRepository(appDb, client),
+            mediaRepository: makeMediaRepository(appDb, client),
+            mediaUnitRepository: makeMediaUnitRepository(appDb, client),
+            systemLogRepository: makeSystemLogRepository(appDb, client),
             nowIso: () => Effect.succeed("2026-04-16T00:00:00.000Z"),
             refreshConcurrency: 2,
           });
 
-          const [jobRow] = yield* tryDatabasePromise(
+          const [jobRow] = yield* tryDatabaseQuery(
             "Failed to query backgroundJobs for refresh assertion",
-            () =>
-              appDb
-                .select()
-                .from(backgroundJobs)
-                .where(eq(backgroundJobs.name, "metadata_refresh")),
+            appDb
+              .select()
+              .from(backgroundJobs)
+              .where(eq(backgroundJobs.name, "metadata_refresh"))
+              .prepare()
+              .effect(),
           );
-          const allLogs = yield* tryDatabasePromise(
+          const allLogs = yield* tryDatabaseQuery(
             "Failed to query systemLogs for refresh assertion",
-            () => appDb.select().from(systemLogs),
+            appDb.select().from(systemLogs).prepare().effect(),
           );
 
           assert.deepStrictEqual(result.refreshed, 1);
@@ -91,11 +92,11 @@ it.scoped(
     }),
 );
 
-it.scoped(
+it.effect(
   "refreshMetadataForMonitoredMediaEffect preserves ExternalCallError type for top-level failures",
   () =>
     withSqliteTestDbEffect({
-      run: (db) =>
+      run: (db, _databaseFile, client, _exec) =>
         Effect.gen(function* () {
           const appDb: AppDatabase = db;
 
@@ -121,37 +122,38 @@ it.scoped(
           })();
 
           const result = yield* refreshMetadataForMonitoredMediaEffect({
-            imageCacheService: MediaImageCacheService.make({
+            imageCacheService: MediaImageCacheService.of({
               cacheMetadataImages: () => Effect.succeed({}),
             }),
-            metadataProvider: MediaMetadataProviderService.make({
+            metadataProvider: MediaMetadataProviderService.of({
               getAnimeMetadataById: () =>
                 Effect.succeed({
                   _tag: "NotFound",
                 }),
-              getSeasonalAnime: () => Effect.dieMessage("not used in test"),
-              searchMedia: () => Effect.dieMessage("not used in test"),
+              getSeasonalAnime: () => Effect.die(new Error("not used in test")),
+              searchMedia: () => Effect.die(new Error("not used in test")),
             }),
-            backgroundJobRepository: makeBackgroundJobRepository(appDb),
-            mediaRepository: makeMediaRepository(appDb),
-            mediaUnitRepository: makeMediaUnitRepository(appDb),
-            systemLogRepository: makeSystemLogRepository(appDb),
+            backgroundJobRepository: makeBackgroundJobRepository(appDb, client),
+            mediaRepository: makeMediaRepository(appDb, client),
+            mediaUnitRepository: makeMediaUnitRepository(appDb, client),
+            systemLogRepository: makeSystemLogRepository(appDb, client),
             nowIso,
             refreshConcurrency: 1,
-          }).pipe(Effect.either);
+          }).pipe(Effect.result);
 
-          const [jobRow] = yield* tryDatabasePromise(
+          const [jobRow] = yield* tryDatabaseQuery(
             "Failed to query backgroundJobs for top-level failure assertion",
-            () =>
-              appDb
-                .select()
-                .from(backgroundJobs)
-                .where(eq(backgroundJobs.name, "metadata_refresh")),
+            appDb
+              .select()
+              .from(backgroundJobs)
+              .where(eq(backgroundJobs.name, "metadata_refresh"))
+              .prepare()
+              .effect(),
           );
 
-          assert.deepStrictEqual(result._tag, "Left");
-          if (result._tag === "Left") {
-            const left = result.left;
+          assert.deepStrictEqual(result._tag, "Failure");
+          if (result._tag === "Failure") {
+            const left = result.failure;
             assert.deepStrictEqual(left instanceof ExternalCallError, true);
             if (left instanceof ExternalCallError) {
               assert.deepStrictEqual(left.operation, "system.now_iso");
@@ -165,22 +167,27 @@ it.scoped(
 );
 
 const insertAnimeRow = Effect.fn("Test.insertAnimeRow")(function* (db: AppDatabase, id: number) {
-  yield* tryDatabasePromise("Failed to insert test anime row for refresh job", () =>
-    db.insert(media).values({
-      id,
-      titleRomaji: `Media ${id}`,
-      format: "TV",
-      status: "RELEASING",
-      genres: "[]",
-      studios: "[]",
-      profileName: "Default",
-      rootFolder: `/library/media-${id}`,
-      addedAt: "2026-04-10T00:00:00.000Z",
-      releaseProfileIds: "[]",
-      monitored: true,
-      bannerImage: null,
-      coverImage: null,
-    }),
+  yield* tryDatabaseQuery(
+    "Failed to insert test anime row for refresh job",
+    db
+      .insert(media)
+      .values({
+        id,
+        titleRomaji: `Media ${id}`,
+        format: "TV",
+        status: "RELEASING",
+        genres: "[]",
+        studios: "[]",
+        profileName: "Default",
+        rootFolder: `/library/media-${id}`,
+        addedAt: "2026-04-10T00:00:00.000Z",
+        releaseProfileIds: "[]",
+        monitored: true,
+        bannerImage: null,
+        coverImage: null,
+      })
+      .prepare()
+      .effect(),
   );
 });
 

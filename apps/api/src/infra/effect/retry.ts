@@ -1,7 +1,17 @@
 // oxlint-disable typescript/no-restricted-types -- `unknown` is the honest type at error/cause boundaries (Effect error channels, try/catch causes, Logger messages)
-import { Cause, Config, Context, Duration, Effect, Layer, Schedule, Schema } from "effect";
+import {
+  Cause,
+  Config,
+  Context,
+  Duration,
+  Effect,
+  Layer,
+  Record,
+  Schema,
+  Scope,
+  Semaphore,
+} from "effect";
 
-import { currentTimeNanos } from "@/infra/time.ts";
 import { PositiveIntFromStringSchema } from "@/infra/schema.ts";
 import { compactLogAnnotations, errorLogAnnotations } from "@/infra/logging.ts";
 
@@ -21,10 +31,10 @@ export type ExternalCallProvider = (typeof EXTERNAL_CALL_PROVIDERS)[number];
 export class ExternalCallError extends Schema.TaggedError<ExternalCallError>()(
   "ExternalCallError",
   {
-    cause: Schema.Defect,
+    cause: Schema.Defect(),
     message: Schema.String,
     operation: Schema.String,
-    provider: Schema.optional(Schema.Literal(...EXTERNAL_CALL_PROVIDERS)),
+    provider: Schema.optional(Schema.Literals([...EXTERNAL_CALL_PROVIDERS])),
   },
 ) {}
 
@@ -45,7 +55,7 @@ type ExternalCallPool = "default" | "media" | "qbit" | "rtorrent";
 
 export interface ExternalCallPolicyShape {
   readonly retryDelaysMs: readonly number[];
-  readonly timeout: Duration.DurationInput;
+  readonly timeout: Duration.Input;
   readonly resolvePool: (operation: string, provider?: ExternalCallProvider) => ExternalCallPool;
 }
 
@@ -69,10 +79,9 @@ export interface ExternalCallShape {
   ) => Effect.Effect<A, ExternalCallError, R>;
 }
 
-export class ExternalCall extends Context.Tag("@bakarr/api/ExternalCall")<
-  ExternalCall,
-  ExternalCallShape
->() {}
+export class ExternalCall extends Context.Service<ExternalCall, ExternalCallShape>()(
+  "@bakarr/api/ExternalCall",
+) {}
 
 function resolveExternalCallPool(
   operation: string,
@@ -119,17 +128,20 @@ function resolveExternalCallPool(
   return "default";
 }
 
-export class ExternalCallPolicy extends Effect.Service<ExternalCallPolicy>()(
-  "@bakarr/api/ExternalCallPolicy",
-  {
-    sync: () =>
+export class ExternalCallPolicy extends Context.Service<
+  ExternalCallPolicy,
+  ExternalCallPolicyShape
+>()("@bakarr/api/ExternalCallPolicy") {
+  static readonly layer = Layer.sync(
+    ExternalCallPolicy,
+    () =>
       ({
         resolvePool: resolveExternalCallPool,
         retryDelaysMs: EXTERNAL_RETRY_DELAYS_MS,
         timeout: DEFAULT_EXTERNAL_CALL_TIMEOUT,
       }) satisfies ExternalCallPolicyShape,
-  },
-) {}
+  );
+}
 
 export const makeExternalCallSemaphores = Effect.fn("ExternalCall.makeExternalCallSemaphores")(
   function* () {
@@ -151,11 +163,11 @@ export const makeExternalCallSemaphores = Effect.fn("ExternalCall.makeExternalCa
     );
 
     const semaphores = {
-      default: yield* Effect.makeSemaphore(defaultConcurrency),
-      media: yield* Effect.makeSemaphore(mediaConcurrency),
-      qbit: yield* Effect.makeSemaphore(qbitConcurrency),
-      rtorrent: yield* Effect.makeSemaphore(rtorrentConcurrency),
-    } satisfies Record<ExternalCallPool, Effect.Semaphore>;
+      default: yield* Semaphore.make(defaultConcurrency),
+      media: yield* Semaphore.make(mediaConcurrency),
+      qbit: yield* Semaphore.make(qbitConcurrency),
+      rtorrent: yield* Semaphore.make(rtorrentConcurrency),
+    } satisfies Record<ExternalCallPool, Semaphore.Semaphore>;
 
     return {
       withPermits: <A, E, R>(pool: ExternalCallPool, effect: Effect.Effect<A, E, R>) =>
@@ -164,12 +176,12 @@ export const makeExternalCallSemaphores = Effect.fn("ExternalCall.makeExternalCa
   },
 );
 
-export class ExternalCallSemaphores extends Effect.Service<ExternalCallSemaphores>()(
-  "@bakarr/api/ExternalCallSemaphores",
-  {
-    scoped: makeExternalCallSemaphores(),
-  },
-) {}
+export class ExternalCallSemaphores extends Context.Service<
+  ExternalCallSemaphores,
+  ExternalCallSemaphoresShape
+>()("@bakarr/api/ExternalCallSemaphores") {
+  static readonly layer = Layer.effect(ExternalCallSemaphores, makeExternalCallSemaphores());
+}
 
 export const makeExternalCall = Effect.fn("ExternalCall.makeExternalCall")(function* () {
   const policy = yield* ExternalCallPolicy;
@@ -192,36 +204,37 @@ export const makeExternalCall = Effect.fn("ExternalCall.makeExternalCall")(funct
           ),
         );
 
-        const retrySchedule = Schedule.recurs(policy.retryDelaysMs.length).pipe(
-          Schedule.addDelay((retryCount) => policy.retryDelaysMs[retryCount] ?? 0),
-          // `retryCount` is 0-based, so this attempt is `retryCount + 1`.
-          Schedule.checkEffect((error: ExternalCallError, retryCount: number) =>
-            Effect.gen(function* () {
-              if (!allowRetry || retryCount + 1 >= maxAttempts || !isRetryable(error)) {
-                return false;
+        // Manual retry loop so `isRetryable` gates retrying itself (not just the
+        // log tap). A non-retryable failure must not schedule the next delay —
+        // under TestClock that sleep would block the fiber forever.
+        const runAttemptWithRetries = (
+          index: number,
+        ): Effect.Effect<unknown, unknown, Exclude<R, Scope.Scope>> =>
+          performAttempt.pipe(
+            Effect.catch((error) => {
+              if (!isRetryable(error) || index >= policy.retryDelaysMs.length) {
+                return Effect.fail(error);
               }
-
-              yield* Effect.logWarning("external call attempt failed; retrying").pipe(
+              return Effect.logWarning("external call attempt failed; retrying").pipe(
                 Effect.annotateLogs(
                   compactLogAnnotations({
-                    attempt: retryCount + 1,
                     maxAttempts,
-                    nextDelayMs: policy.retryDelaysMs[retryCount] ?? 0,
                     ...errorLogAnnotations(error),
                   }),
                 ),
+                Effect.andThen(Effect.sleep(Duration.millis(policy.retryDelaysMs[index] ?? 0))),
+                Effect.andThen(runAttemptWithRetries(index + 1)),
               );
-
-              return true;
             }),
-          ),
-        );
+          );
 
-        const [duration, exit] = yield* performAttempt.pipe(
-          Effect.retry(retrySchedule),
-          Effect.exit,
-          Effect.timedWith(currentTimeNanos),
-        );
+        const retryableAttempt: Effect.Effect<
+          unknown,
+          unknown,
+          Exclude<R, Scope.Scope>
+        > = allowRetry ? runAttemptWithRetries(0) : performAttempt;
+
+        const [duration, exit] = yield* retryableAttempt.pipe(Effect.exit, Effect.timed);
 
         if (exit._tag === "Success") {
           yield* Effect.logDebug("external call completed").pipe(
@@ -230,19 +243,23 @@ export const makeExternalCall = Effect.fn("ExternalCall.makeExternalCall")(funct
               maxAttempts,
             }),
           );
-          return exit.value;
+          return exit.value as A;
         }
+
+        // Errors escaping the loop are already ExternalCallError (attempt
+        // mapping normalizes them); squash for the typed error channel.
+        const failure = Cause.squash(exit.cause) as ExternalCallError;
 
         yield* Effect.logError("external call failed").pipe(
           Effect.annotateLogs(
             compactLogAnnotations({
               durationMs: Duration.toMillis(duration),
               maxAttempts,
-              ...errorLogAnnotations(Cause.squash(exit.cause)),
+              ...errorLogAnnotations(failure),
             }),
           ),
         );
-        return yield* Effect.failCause(exit.cause);
+        return yield* Effect.fail(failure);
       }),
   );
 
@@ -269,7 +286,7 @@ export const makeExternalCall = Effect.fn("ExternalCall.makeExternalCall")(funct
 });
 
 export const ExternalCallLive = Layer.effect(ExternalCall, makeExternalCall()).pipe(
-  Layer.provide(Layer.mergeAll(ExternalCallPolicy.Default, ExternalCallSemaphores.Default)),
+  Layer.provide(Layer.mergeAll(ExternalCallPolicy.layer, ExternalCallSemaphores.layer)),
 );
 
 // Unset keys fall back to the default; an *invalid* value (non-integer, zero,
@@ -278,13 +295,14 @@ export const ExternalCallLive = Layer.effect(ExternalCall, makeExternalCall()).p
 // config key so operator sees which env var is bad without digging.
 const readExternalConcurrency = (key: string, fallback: number) =>
   Effect.gen(function* () {
-    return yield* Schema.Config(key, PositiveIntFromStringSchema).pipe(
+    return yield* Config.schema(PositiveIntFromStringSchema, key).pipe(
       Config.withDefault(fallback),
-      Effect.orDieWith(
-        (cause) =>
+      Effect.catch((cause) =>
+        Effect.die(
           new Error(
             `Invalid ${key}: ${cause instanceof Error ? cause.message : JSON.stringify(cause)} (expected positive integer)`,
           ),
+        ),
       ),
     );
   });

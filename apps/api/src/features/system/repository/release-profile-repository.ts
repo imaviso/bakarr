@@ -1,12 +1,13 @@
 import { eq } from "drizzle-orm";
-import { Effect } from "effect";
+import * as NodeSqliteClient from "@effect/sql-sqlite-node/SqliteClient";
 
 import type { ReleaseProfileRule } from "@packages/shared/index.ts";
 import { AppDrizzleDatabase, DatabaseError, type AppDatabase } from "@/db/database.ts";
 import { releaseProfiles } from "@/db/schema.ts";
-import { tryDatabasePromise } from "@/infra/effect/db.ts";
+import { makeDbExecutor, type DbExecutor } from "@/infra/effect/db.ts";
 import { decodeNumberList, decodeReleaseProfileRules } from "@/features/system/profile-codec.ts";
 import type { StoredConfigCorruptError } from "@/features/system/errors.ts";
+import { Context, Effect, Layer } from "effect";
 
 export interface ReleaseProfileRepositoryShape {
   readonly deleteReleaseProfileRow: (id: number) => ReturnType<typeof deleteReleaseProfileRow>;
@@ -23,30 +24,35 @@ export interface ReleaseProfileRepositoryShape {
   ) => ReturnType<typeof updateReleaseProfileRow>;
 }
 
-export class ReleaseProfileRepository extends Effect.Service<ReleaseProfileRepository>()(
-  "@bakarr/api/ReleaseProfileRepository",
-  {
-    effect: Effect.gen(function* () {
+export class ReleaseProfileRepository extends Context.Service<
+  ReleaseProfileRepository,
+  ReleaseProfileRepositoryShape
+>()("@bakarr/api/ReleaseProfileRepository") {
+  static readonly layer = Layer.effect(
+    ReleaseProfileRepository,
+    Effect.gen(function* () {
       const db = yield* AppDrizzleDatabase;
-      return makeReleaseProfileRepositoryShape(db);
+      const sqlClient = yield* NodeSqliteClient.SqliteClient;
+      return makeReleaseProfileRepositoryShape(db, sqlClient);
     }),
-    dependencies: [AppDrizzleDatabase.Default],
-  },
-) {}
+  );
+}
 
 export const listReleaseProfileRows = Effect.fn("ReleaseProfileRepository.listReleaseProfileRows")(
-  function* (db: AppDatabase) {
-    return yield* tryDatabasePromise("Failed to list release profiles", () =>
-      db.select().from(releaseProfiles).orderBy(releaseProfiles.id),
+  function* (db: AppDatabase, exec: DbExecutor) {
+    return yield* exec.runQuery(
+      "Failed to list release profiles",
+      db.select().from(releaseProfiles).orderBy(releaseProfiles.id).prepare().effect(),
     );
   },
 );
 
 export const insertReleaseProfileRow = Effect.fn(
   "ReleaseProfileRepository.insertReleaseProfileRow",
-)(function* (db: AppDatabase, row: typeof releaseProfiles.$inferInsert) {
-  const rows = yield* tryDatabasePromise("Failed to insert release profile", () =>
-    db.insert(releaseProfiles).values(row).returning(),
+)(function* (db: AppDatabase, exec: DbExecutor, row: typeof releaseProfiles.$inferInsert) {
+  const rows = yield* exec.runQuery(
+    "Failed to insert release profile",
+    db.insert(releaseProfiles).values(row).returning().prepare().effect(),
   );
 
   const inserted = rows[0];
@@ -63,26 +69,34 @@ export const insertReleaseProfileRow = Effect.fn(
 
 export const updateReleaseProfileRow = Effect.fn(
   "ReleaseProfileRepository.updateReleaseProfileRow",
-)(function* (db: AppDatabase, id: number, row: Partial<typeof releaseProfiles.$inferInsert>) {
-  yield* tryDatabasePromise("Failed to update release profile", () =>
-    db.update(releaseProfiles).set(row).where(eq(releaseProfiles.id, id)),
+)(function* (
+  db: AppDatabase,
+  exec: DbExecutor,
+  id: number,
+  row: Partial<typeof releaseProfiles.$inferInsert>,
+) {
+  yield* exec.runQuery(
+    "Failed to update release profile",
+    db.update(releaseProfiles).set(row).where(eq(releaseProfiles.id, id)).prepare().effect(),
   );
 });
 
 export const deleteReleaseProfileRow = Effect.fn(
   "ReleaseProfileRepository.deleteReleaseProfileRow",
-)(function* (db: AppDatabase, id: number) {
-  yield* tryDatabasePromise("Failed to delete release profile", () =>
-    db.delete(releaseProfiles).where(eq(releaseProfiles.id, id)),
+)(function* (db: AppDatabase, exec: DbExecutor, id: number) {
+  yield* exec.runQuery(
+    "Failed to delete release profile",
+    db.delete(releaseProfiles).where(eq(releaseProfiles.id, id)).prepare().effect(),
   );
 });
 
 export const loadReleaseRules = Effect.fn("ReleaseProfileRepository.loadReleaseRules")(function* (
   db: AppDatabase,
+  exec: DbExecutor,
   mediaRow: { releaseProfileIds: string },
 ) {
   const assignedIds = yield* decodeNumberList(mediaRow.releaseProfileIds);
-  const rows = yield* listReleaseProfileRows(db);
+  const rows = yield* listReleaseProfileRows(db, exec);
   const decodedRules = yield* Effect.forEach(
     rows.filter((row) => row.enabled && (row.isGlobal || assignedIds.includes(row.id))),
     (row) => decodeReleaseProfileRules(row.rules),
@@ -91,12 +105,16 @@ export const loadReleaseRules = Effect.fn("ReleaseProfileRepository.loadReleaseR
   return decodedRules.flat();
 });
 
-export function makeReleaseProfileRepositoryShape(db: AppDatabase): ReleaseProfileRepositoryShape {
+export function makeReleaseProfileRepositoryShape(
+  db: AppDatabase,
+  sqlClient: NodeSqliteClient.SqliteClient,
+): ReleaseProfileRepositoryShape {
+  const exec = makeDbExecutor(sqlClient);
   return {
-    deleteReleaseProfileRow: (id) => deleteReleaseProfileRow(db, id),
-    insertReleaseProfileRow: (row) => insertReleaseProfileRow(db, row),
-    listReleaseProfileRows: () => listReleaseProfileRows(db),
-    loadReleaseRules: (mediaRow) => loadReleaseRules(db, mediaRow),
-    updateReleaseProfileRow: (id, row) => updateReleaseProfileRow(db, id, row),
+    deleteReleaseProfileRow: (id) => deleteReleaseProfileRow(db, exec, id),
+    insertReleaseProfileRow: (row) => insertReleaseProfileRow(db, exec, row),
+    listReleaseProfileRows: () => listReleaseProfileRows(db, exec),
+    loadReleaseRules: (mediaRow) => loadReleaseRules(db, exec, mediaRow),
+    updateReleaseProfileRow: (id, row) => updateReleaseProfileRow(db, exec, id, row),
   } satisfies ReleaseProfileRepositoryShape;
 }

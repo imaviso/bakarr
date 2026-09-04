@@ -1,10 +1,10 @@
-import { absurd, Effect } from "effect";
-
 import { decodeConfigCore, decodeImagePath } from "@/features/system/config-codec.ts";
 import { makeDefaultConfig } from "@/features/system/defaults.ts";
 import { StoredDataError } from "@/features/errors.ts";
 import type { SystemConfigRepositoryShape } from "@/features/system/repository/system-config-repository.ts";
 import type { MediaKind } from "@packages/shared/index.ts";
+import { Effect } from "effect";
+import { absurd } from "effect/Function";
 
 export const resolveMediaRootFolderEffect = Effect.fn("MediaConfigSupport.resolveMediaRootFolder")(
   function* (

@@ -1,6 +1,7 @@
 import { assert, it } from "@effect/vitest";
 import { dirname, join, resolve } from "node:path";
-import { Effect, Layer } from "effect";
+import type * as NodeSqliteClient from "@effect/sql-sqlite-node/SqliteClient";
+import { Effect, Layer, Stream } from "effect";
 
 import * as schema from "@/db/schema.ts";
 import { AppConfig } from "@/app/config/schema.ts";
@@ -30,18 +31,19 @@ import {
 function makeMaintenanceLayer(
   db: AppDatabase,
   databaseFile: string,
+  client: NodeSqliteClient.SqliteClient,
   sandboxFs: typeof FileSystem.Service,
   imagesPath: string,
 ) {
-  return MediaMaintenanceService.DefaultWithoutDependencies.pipe(
+  return MediaMaintenanceService.layer.pipe(
     Layer.provide(
       Layer.mergeAll(
         Layer.succeed(
           EventBus,
-          EventBus.make({
+          EventBus.of({
             publish: () => Effect.void,
             publishInfo: () => Effect.void,
-            withSubscriptionStream: () => Effect.dieMessage("not used in test"),
+            withSubscriptionStream: () => Stream.die(new Error("not used in test")),
           }),
         ),
         Layer.succeed(AppConfig, {
@@ -55,7 +57,7 @@ function makeMaintenanceLayer(
         }),
         Layer.succeed(
           RuntimeConfigSnapshotService,
-          RuntimeConfigSnapshotService.make({
+          RuntimeConfigSnapshotService.of({
             getRuntimeConfig: () =>
               Effect.succeed(
                 makeTestConfig(databaseFile, (config) => ({
@@ -68,39 +70,39 @@ function makeMaintenanceLayer(
         ),
         Layer.succeed(
           MediaMetadataProviderService,
-          MediaMetadataProviderService.make({
-            getAnimeMetadataById: () => Effect.dieMessage("not used in test"),
-            getSeasonalAnime: () => Effect.dieMessage("not used in test"),
-            searchMedia: () => Effect.dieMessage("not used in test"),
+          MediaMetadataProviderService.of({
+            getAnimeMetadataById: () => Effect.die(new Error("not used in test")),
+            getSeasonalAnime: () => Effect.die(new Error("not used in test")),
+            searchMedia: () => Effect.die(new Error("not used in test")),
           }),
         ),
         Layer.succeed(
           MediaImageCacheService,
-          MediaImageCacheService.make({
-            cacheMetadataImages: () => Effect.dieMessage("not used in test"),
+          MediaImageCacheService.of({
+            cacheMetadataImages: () => Effect.die(new Error("not used in test")),
           }),
         ),
         Layer.succeed(
           OperationsTaskLauncherService,
-          OperationsTaskLauncherService.make({
-            launch: () => Effect.dieMessage("not used in test"),
+          OperationsTaskLauncherService.of({
+            launch: () => Effect.die(new Error("not used in test")),
           }),
         ),
         Layer.succeed(FileSystem, sandboxFs),
-        Layer.succeed(AppDrizzleDatabase, AppDrizzleDatabase.make(db)),
-        Layer.succeed(MediaRepository, makeMediaRepository(db)),
-        Layer.succeed(MediaUnitRepository, makeMediaUnitRepository(db)),
-        Layer.succeed(BackgroundJobRepository, makeBackgroundJobRepository(db)),
-        Layer.succeed(SystemLogRepository, makeSystemLogRepository(db)),
+        Layer.succeed(AppDrizzleDatabase, AppDrizzleDatabase.of(db)),
+        Layer.succeed(MediaRepository, makeMediaRepository(db, client)),
+        Layer.succeed(MediaUnitRepository, makeMediaUnitRepository(db, client)),
+        Layer.succeed(BackgroundJobRepository, makeBackgroundJobRepository(db, client)),
+        Layer.succeed(SystemLogRepository, makeSystemLogRepository(db, client)),
       ),
     ),
   );
 }
 
-it.scoped("deleteMedia prunes the image cache and reader render cache", () =>
+it.effect("deleteMedia prunes the image cache and reader render cache", () =>
   withSqliteTestDbEffect({
     schema,
-    run: (db, databaseFile) =>
+    run: (db, databaseFile, client, _exec) =>
       withFileSystemSandboxEffect(({ root, fs }) =>
         Effect.gen(function* () {
           const imagesPath = `${root}/images`;
@@ -120,8 +122,9 @@ it.scoped("deleteMedia prunes the image cache and reader render cache", () =>
           yield* fs.mkdir(pdfCacheDir, { recursive: true });
           yield* fs.writeFile(`${pdfCacheDir}/page-1.jpg`, new Uint8Array([2]));
 
-          yield* Effect.tryPromise(() =>
-            db.insert(schema.media).values({
+          yield* db
+            .insert(schema.media)
+            .values({
               addedAt: "2024-01-01T00:00:00Z",
               format: "MANGA",
               genres: "[]",
@@ -134,29 +137,34 @@ it.scoped("deleteMedia prunes the image cache and reader render cache", () =>
               status: "FINISHED",
               studios: "[]",
               titleRomaji: "Deletable Manga",
-            }),
-          );
-          yield* Effect.tryPromise(() =>
-            db.insert(schema.mediaUnits).values({
+            })
+            .prepare()
+            .effect();
+          yield* db
+            .insert(schema.mediaUnits)
+            .values({
               downloaded: true,
               filePath: unitFilePath,
               fileSize: 1,
               mediaId: 9,
               number: 1,
-            }),
-          );
+            })
+            .prepare()
+            .effect();
 
           yield* Effect.gen(function* () {
             const service = yield* MediaMaintenanceService;
             yield* service.deleteMedia(9);
           }).pipe(
-            Effect.provide(makeMaintenanceLayer(db, databaseFile, FileSystem.make(fs), imagesPath)),
+            Effect.provide(
+              makeMaintenanceLayer(db, databaseFile, client, FileSystem.of(fs), imagesPath),
+            ),
           );
 
           assert.deepStrictEqual(yield* exists(fs, `${imagesPath}/media/9`), false);
           assert.deepStrictEqual(yield* exists(fs, pdfCacheDir), false);
 
-          const unitRows = yield* Effect.tryPromise(() => db.select().from(schema.mediaUnits));
+          const unitRows = yield* db.select().from(schema.mediaUnits).prepare().effect();
           assert.deepStrictEqual(unitRows.length, 0);
         }),
       ),

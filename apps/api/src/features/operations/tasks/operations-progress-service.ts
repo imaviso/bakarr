@@ -1,5 +1,4 @@
-import { Effect, Scope } from "effect";
-
+import { Context, Effect, Layer, Scope } from "effect";
 import type { DownloadStatus } from "@packages/shared/index.ts";
 import type { DatabaseError } from "@/db/database.ts";
 import type { downloads } from "@/db/schema.ts";
@@ -11,7 +10,7 @@ import { DownloadRepository } from "@/features/operations/repository/download-re
 import { makeOperationsProgressPublishers } from "@/features/operations/tasks/operations-progress-publishers.ts";
 
 type DownloadRow = typeof downloads.$inferSelect;
-type ProgressError = DatabaseError | StoredDataError;
+export type ProgressError = DatabaseError | StoredDataError;
 
 export const loadActiveDownloadSnapshot = Effect.fn(
   "OperationsProgress.loadActiveDownloadSnapshot",
@@ -50,11 +49,13 @@ export interface OperationsProgressShape {
   }) => Effect.Effect<void>;
 }
 
-export class OperationsProgress extends Effect.Service<OperationsProgress>()(
-  "@bakarr/api/OperationsProgress",
-  {
-    dependencies: [DownloadRepository.Default, EventBus.Default],
-    scoped: Effect.gen(function* () {
+export class OperationsProgress extends Context.Service<
+  OperationsProgress,
+  OperationsProgressShape
+>()("@bakarr/api/OperationsProgress") {
+  static readonly layer = Layer.effect(
+    OperationsProgress,
+    Effect.gen(function* () {
       yield* Scope.Scope;
       const eventBus = yield* EventBus;
       const downloadRepository = yield* DownloadRepository;
@@ -109,7 +110,7 @@ export class OperationsProgress extends Effect.Service<OperationsProgress>()(
         publishRssCheckProgress: publishers.publishRssCheckProgress,
       } satisfies OperationsProgressShape;
     }),
-  },
-) {}
+  );
+}
 
-export const OperationsProgressLive = OperationsProgress.Default;
+export const OperationsProgressLive = OperationsProgress.layer;

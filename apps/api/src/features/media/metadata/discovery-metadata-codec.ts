@@ -7,10 +7,10 @@ import {
 } from "@packages/shared/index.ts";
 import { StoredDataError } from "@/features/errors.ts";
 
-const AnimeDiscoveryEntryListJsonSchema = Schema.parseJson(
+const AnimeDiscoveryEntryListJsonSchema = Schema.fromJsonString(
   Schema.mutable(Schema.Array(MediaDiscoveryEntrySchema)),
 );
-const AnimeSynonymsJsonSchema = Schema.parseJson(StringListSchema);
+const AnimeSynonymsJsonSchema = Schema.fromJsonString(StringListSchema);
 
 export function encodeAnimeDiscoveryEntries(
   entries: ReadonlyArray<MediaDiscoveryEntry> | undefined,
@@ -19,7 +19,7 @@ export function encodeAnimeDiscoveryEntries(
     return Effect.succeed(null);
   }
 
-  return Schema.encode(AnimeDiscoveryEntryListJsonSchema)(
+  return Schema.encodeEffect(AnimeDiscoveryEntryListJsonSchema)(
     entries.map((entry) => ({
       ...entry,
       title: { ...entry.title },
@@ -42,7 +42,7 @@ export function encodeAnimeSynonyms(
     return Effect.succeed(null);
   }
 
-  return Schema.encode(AnimeSynonymsJsonSchema)([...synonyms]).pipe(
+  return Schema.encodeEffect(AnimeSynonymsJsonSchema)([...synonyms]).pipe(
     Effect.mapError(
       (cause) =>
         new StoredDataError({

@@ -1,4 +1,4 @@
-import { Config, Duration, Effect, Option, Schema } from "effect";
+import { Config, Context, Duration, Effect, Layer, Option, Schema } from "effect";
 
 import type { DatabaseError } from "@/db/database.ts";
 import { currentTimeMillis } from "@/infra/time.ts";
@@ -12,8 +12,8 @@ import { MediaRepository } from "@/features/media/shared/media-repository.ts";
 const DEFAULT_STREAM_EXPIRY_SECONDS = Duration.toSeconds(Duration.hours(6));
 
 const StreamExpirySecondsSchema = Schema.NumberFromString.pipe(
-  Schema.int(),
-  Schema.between(60, 86400),
+  Schema.check(Schema.isInt()),
+  Schema.check(Schema.isBetween({ minimum: 60, maximum: 86400 })),
 );
 
 /**
@@ -23,7 +23,7 @@ const StreamExpirySecondsSchema = Schema.NumberFromString.pipe(
  */
 const resolveStreamExpiryMs = Effect.fn("MediaStream.resolveStreamExpiryMs")(function* () {
   const seconds = yield* Config.option(
-    Schema.Config("BAKARR_STREAM_EXPIRY_SECONDS", StreamExpirySecondsSchema),
+    Config.schema(StreamExpirySecondsSchema, "BAKARR_STREAM_EXPIRY_SECONDS"),
   ).pipe(Effect.map(Option.getOrElse(() => DEFAULT_STREAM_EXPIRY_SECONDS)));
   return Duration.toMillis(Duration.seconds(seconds));
 });
@@ -150,15 +150,14 @@ const makeMediaStreamService = Effect.fn("MediaStreamService.make")(function* ()
   } satisfies MediaStreamServiceShape;
 });
 
-export class MediaStreamService extends Effect.Service<MediaStreamService>()(
-  "@bakarr/api/MediaStreamService",
-  {
-    dependencies: [MediaRepository.Default, StreamTokenSigner.Default],
-    effect: makeMediaStreamService(),
-  },
-) {}
+export class MediaStreamService extends Context.Service<
+  MediaStreamService,
+  MediaStreamServiceShape
+>()("@bakarr/api/MediaStreamService") {
+  static readonly layer = Layer.effect(MediaStreamService, makeMediaStreamService());
+}
 
-export const MediaStreamServiceLive = MediaStreamService.Default;
+export const MediaStreamServiceLive = MediaStreamService.layer;
 
 function buildStreamPath(
   mediaId: number,

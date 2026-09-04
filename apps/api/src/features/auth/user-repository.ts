@@ -1,10 +1,11 @@
 // oxlint-disable oxc/no-async-await -- async/await required by transaction callbacks, test callbacks, and tryPromise wrappers
+import * as NodeSqliteClient from "@effect/sql-sqlite-node/SqliteClient";
 import { and, eq, gt, lt } from "drizzle-orm";
-import { Effect, Option } from "effect";
 
 import { AppDrizzleDatabase, type AppDatabase, type DatabaseError } from "@/db/database.ts";
 import { appConfig, sessions, systemLogs, users } from "@/db/schema.ts";
-import { queryFirst, tryDatabasePromise } from "@/infra/effect/db.ts";
+import { makeDbExecutor } from "@/infra/effect/db.ts";
+import { Context, Effect, Layer, Option } from "effect";
 
 export type AuthUserRow = typeof users.$inferSelect;
 
@@ -78,43 +79,55 @@ export interface AuthUserRepositoryShape {
   }) => Effect.Effect<void, DatabaseError>;
 }
 
-export class AuthUserRepository extends Effect.Service<AuthUserRepository>()(
-  "@bakarr/api/AuthUserRepository",
-  {
-    effect: Effect.gen(function* () {
+export class AuthUserRepository extends Context.Service<
+  AuthUserRepository,
+  AuthUserRepositoryShape
+>()("@bakarr/api/AuthUserRepository") {
+  static readonly layer = Layer.effect(
+    AuthUserRepository,
+    Effect.gen(function* () {
       const db = yield* AppDrizzleDatabase;
-      return makeAuthUserRepositoryShape(db);
+      const sqlClient = yield* NodeSqliteClient.SqliteClient;
+      return makeAuthUserRepositoryShape(db, sqlClient);
     }),
-    dependencies: [AppDrizzleDatabase.Default],
-  },
-) {}
+  );
+}
 
-export function makeAuthUserRepositoryShape(db: AppDatabase): AuthUserRepositoryShape {
+export function makeAuthUserRepositoryShape(
+  db: AppDatabase,
+  sqlClient: NodeSqliteClient.SqliteClient,
+): AuthUserRepositoryShape {
+  const exec = makeDbExecutor(sqlClient);
+
   const findUserByUsername = Effect.fn("AuthUserRepository.findUserByUsername")(function* (
     username: string,
   ) {
-    return yield* queryFirst("Failed to find user by username", () =>
-      db.select().from(users).where(eq(users.username, username)).limit(1),
+    return yield* exec.queryFirst(
+      "Failed to find user by username",
+      db.select().from(users).where(eq(users.username, username)).limit(1).prepare().effect(),
     );
   });
 
   const findUserByApiKey = Effect.fn("AuthUserRepository.findUserByApiKey")(function* (
     apiKey: string,
   ) {
-    return yield* queryFirst("Failed to find user by API key", () =>
-      db.select().from(users).where(eq(users.apiKey, apiKey)).limit(1),
+    return yield* exec.queryFirst(
+      "Failed to find user by API key",
+      db.select().from(users).where(eq(users.apiKey, apiKey)).limit(1).prepare().effect(),
     );
   });
 
   const findUserById = Effect.fn("AuthUserRepository.findUserById")(function* (userId: number) {
-    return yield* queryFirst("Failed to find user by ID", () =>
-      db.select().from(users).where(eq(users.id, userId)).limit(1),
+    return yield* exec.queryFirst(
+      "Failed to find user by ID",
+      db.select().from(users).where(eq(users.id, userId)).limit(1).prepare().effect(),
     );
   });
 
   const findAnyUserId = Effect.fn("AuthUserRepository.findAnyUserId")(function* () {
-    const row = yield* queryFirst("Failed to find user", () =>
-      db.select({ id: users.id }).from(users).limit(1),
+    const row = yield* exec.queryFirst(
+      "Failed to find user",
+      db.select({ id: users.id }).from(users).limit(1).prepare().effect(),
     );
     return Option.map(row, (value) => value.id);
   });
@@ -127,9 +140,10 @@ export function makeAuthUserRepositoryShape(db: AppDatabase): AuthUserRepository
       readonly userId: number;
       readonly username: string;
     }) {
-      yield* tryDatabasePromise("Failed to update password", () =>
-        db.transaction(async (tx) => {
-          await tx
+      yield* exec.runTransaction(
+        "Failed to update password",
+        Effect.gen(function* () {
+          yield* db
             .update(users)
             .set({
               apiKey: input.apiKeyHash,
@@ -137,16 +151,27 @@ export function makeAuthUserRepositoryShape(db: AppDatabase): AuthUserRepository
               passwordHash: input.passwordHash,
               updatedAt: input.changedAt,
             })
-            .where(eq(users.id, input.userId));
-          await tx.delete(sessions).where(eq(sessions.userId, input.userId));
-          await tx.update(appConfig).set({ bootstrapPassword: null }).where(eq(appConfig.id, 1));
-          await tx.insert(systemLogs).values({
-            createdAt: input.changedAt,
-            details: null,
-            eventType: "auth.password.changed",
-            level: "success",
-            message: `${input.username} changed their password`,
-          });
+            .where(eq(users.id, input.userId))
+            .prepare()
+            .effect();
+          yield* db.delete(sessions).where(eq(sessions.userId, input.userId)).prepare().effect();
+          yield* db
+            .update(appConfig)
+            .set({ bootstrapPassword: null })
+            .where(eq(appConfig.id, 1))
+            .prepare()
+            .effect();
+          yield* db
+            .insert(systemLogs)
+            .values({
+              createdAt: input.changedAt,
+              details: null,
+              eventType: "auth.password.changed",
+              level: "success",
+              message: `${input.username} changed their password`,
+            })
+            .prepare()
+            .effect();
         }),
       );
     },
@@ -159,23 +184,30 @@ export function makeAuthUserRepositoryShape(db: AppDatabase): AuthUserRepository
       readonly userId: number;
       readonly username: string;
     }) {
-      yield* tryDatabasePromise("Failed to regenerate API key", () =>
-        db.transaction(async (tx) => {
-          await tx
+      yield* exec.runTransaction(
+        "Failed to regenerate API key",
+        Effect.gen(function* () {
+          yield* db
             .update(users)
             .set({
               apiKey: input.apiKeyHash,
               updatedAt: input.regeneratedAt,
             })
-            .where(eq(users.id, input.userId));
-          await tx.delete(sessions).where(eq(sessions.userId, input.userId));
-          await tx.insert(systemLogs).values({
-            createdAt: input.regeneratedAt,
-            details: null,
-            eventType: "auth.api_key.regenerated",
-            level: "success",
-            message: `${input.username} regenerated an API key`,
-          });
+            .where(eq(users.id, input.userId))
+            .prepare()
+            .effect();
+          yield* db.delete(sessions).where(eq(sessions.userId, input.userId)).prepare().effect();
+          yield* db
+            .insert(systemLogs)
+            .values({
+              createdAt: input.regeneratedAt,
+              details: null,
+              eventType: "auth.api_key.regenerated",
+              level: "success",
+              message: `${input.username} regenerated an API key`,
+            })
+            .prepare()
+            .effect();
         }),
       );
     },
@@ -188,7 +220,8 @@ export function makeAuthUserRepositoryShape(db: AppDatabase): AuthUserRepository
       readonly passwordHash: string;
       readonly username: string;
     }) {
-      yield* tryDatabasePromise("Failed to ensure bootstrap user", () =>
+      yield* exec.runQuery(
+        "Failed to ensure bootstrap user",
         db
           .insert(users)
           .values({
@@ -199,7 +232,9 @@ export function makeAuthUserRepositoryShape(db: AppDatabase): AuthUserRepository
             updatedAt: input.createdAt,
             username: input.username,
           })
-          .onConflictDoNothing(),
+          .onConflictDoNothing()
+          .prepare()
+          .effect(),
       );
     },
   );
@@ -210,44 +245,74 @@ export function makeAuthUserRepositoryShape(db: AppDatabase): AuthUserRepository
     readonly tokenHash: string;
     readonly userId: number;
   }) {
-    yield* tryDatabasePromise("Failed to create session", () =>
-      db.insert(sessions).values({
-        createdAt: input.createdAt,
-        expiresAt: input.expiresAt,
-        lastSeenAt: input.createdAt,
-        token: input.tokenHash,
-        userId: input.userId,
-      }),
+    yield* exec.runQuery(
+      "Failed to create session",
+      db
+        .insert(sessions)
+        .values({
+          createdAt: input.createdAt,
+          expiresAt: input.expiresAt,
+          lastSeenAt: input.createdAt,
+          token: input.tokenHash,
+          userId: input.userId,
+        })
+        .prepare()
+        .effect(),
     );
   });
 
   const resolveUserBySessionToken = Effect.fn("AuthUserRepository.resolveUserBySessionToken")(
     function* (tokenHash: string, now: string) {
-      const row = yield* queryFirst("Failed to resolve the current user", () =>
+      const sessionRow = yield* exec.queryFirst(
+        "Failed to resolve the current user",
+        db
+          .select({ lastSeenAt: sessions.lastSeenAt, userId: sessions.userId })
+          .from(sessions)
+          .where(and(eq(sessions.token, tokenHash), gt(sessions.expiresAt, now)))
+          .limit(1)
+          .prepare()
+          .effect(),
+      );
+
+      if (Option.isNone(sessionRow)) {
+        return Option.none<AuthSessionUserRow>();
+      }
+
+      const userRow = yield* exec.queryFirst(
+        "Failed to resolve the current user",
         db
           .select({
             createdAt: users.createdAt,
             id: users.id,
-            lastSeenAt: sessions.lastSeenAt,
             mustChangePassword: users.mustChangePassword,
             updatedAt: users.updatedAt,
             username: users.username,
           })
-          .from(sessions)
-          .innerJoin(users, eq(users.id, sessions.userId))
-          .where(and(eq(sessions.token, tokenHash), gt(sessions.expiresAt, now)))
-          .limit(1),
+          .from(users)
+          .where(eq(users.id, sessionRow.value.userId))
+          .limit(1)
+          .prepare()
+          .effect(),
       );
 
       if (
-        Option.isNone(row) ||
-        row.value.lastSeenAt === undefined ||
-        row.value.createdAt === undefined
+        Option.isNone(userRow) ||
+        sessionRow.value.lastSeenAt === undefined ||
+        userRow.value.createdAt === undefined
       ) {
         return Option.none<AuthSessionUserRow>();
       }
 
-      return Option.some(row.value);
+      const row = {
+        createdAt: userRow.value.createdAt,
+        id: userRow.value.id,
+        lastSeenAt: sessionRow.value.lastSeenAt,
+        mustChangePassword: userRow.value.mustChangePassword,
+        updatedAt: userRow.value.updatedAt,
+        username: userRow.value.username,
+      };
+
+      return Option.some(row);
     },
   );
 
@@ -256,30 +321,35 @@ export function makeAuthUserRepositoryShape(db: AppDatabase): AuthUserRepository
     readonly lastSeenAt: string;
     readonly tokenHash: string;
   }) {
-    yield* tryDatabasePromise("Failed to resolve the current user", () =>
+    yield* exec.runQuery(
+      "Failed to resolve the current user",
       db
         .update(sessions)
         .set({
           expiresAt: input.expiresAt,
           lastSeenAt: input.lastSeenAt,
         })
-        .where(eq(sessions.token, input.tokenHash)),
+        .where(eq(sessions.token, input.tokenHash))
+        .prepare()
+        .effect(),
     );
   });
 
   const deleteSession = Effect.fn("AuthUserRepository.deleteSession")(function* (
     tokenHash: string,
   ) {
-    yield* tryDatabasePromise("Failed to clear the active session", () =>
-      db.delete(sessions).where(eq(sessions.token, tokenHash)),
+    yield* exec.runQuery(
+      "Failed to clear the active session",
+      db.delete(sessions).where(eq(sessions.token, tokenHash)).prepare().effect(),
     );
   });
 
   const pruneExpiredSessions = Effect.fn("AuthUserRepository.pruneExpiredSessions")(function* (
     now: string,
   ) {
-    yield* tryDatabasePromise("Failed to prune expired sessions", () =>
-      db.delete(sessions).where(lt(sessions.expiresAt, now)),
+    yield* exec.runQuery(
+      "Failed to prune expired sessions",
+      db.delete(sessions).where(lt(sessions.expiresAt, now)).prepare().effect(),
     );
   });
 
@@ -288,11 +358,14 @@ export function makeAuthUserRepositoryShape(db: AppDatabase): AuthUserRepository
     readonly updatedAt: string;
     readonly userId: number;
   }) {
-    yield* tryDatabasePromise("Failed to update password hash", () =>
+    yield* exec.runQuery(
+      "Failed to update password hash",
       db
         .update(users)
         .set({ passwordHash: input.passwordHash, updatedAt: input.updatedAt })
-        .where(eq(users.id, input.userId)),
+        .where(eq(users.id, input.userId))
+        .prepare()
+        .effect(),
     );
   });
 
@@ -303,14 +376,19 @@ export function makeAuthUserRepositoryShape(db: AppDatabase): AuthUserRepository
     readonly level: string;
     readonly message: string;
   }) {
-    yield* tryDatabasePromise("Failed to write log", () =>
-      db.insert(systemLogs).values({
-        createdAt: input.createdAt,
-        details: input.details ?? null,
-        eventType: input.eventType,
-        level: input.level,
-        message: input.message,
-      }),
+    yield* exec.runQuery(
+      "Failed to write log",
+      db
+        .insert(systemLogs)
+        .values({
+          createdAt: input.createdAt,
+          details: input.details ?? null,
+          eventType: input.eventType,
+          level: input.level,
+          message: input.message,
+        })
+        .prepare()
+        .effect(),
     );
   });
 

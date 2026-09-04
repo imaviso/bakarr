@@ -1,8 +1,9 @@
-import { Error as PlatformError, FileSystem, PlatformConfigProvider } from "@effect/platform";
+import * as FileSystem from "effect/FileSystem";
+import * as PlatformError from "effect/PlatformError";
 import { assert, describe, it } from "@effect/vitest";
 import { Config, ConfigProvider, Effect, Layer } from "effect";
 
-describe("PlatformConfigProvider", () => {
+describe("ConfigProvider dotenv", () => {
   const ExampleConfig = Config.all({
     value: Config.string("VALUE"),
     number: Config.number("NUMBER"),
@@ -10,11 +11,11 @@ describe("PlatformConfigProvider", () => {
 
   it.effect("loads values from dotenv when current values are missing", () =>
     Effect.gen(function* () {
-      const baseProvider = Layer.setConfigProvider(ConfigProvider.fromMap(new Map()));
+      const baseProvider = ConfigProvider.layer(ConfigProvider.fromEnvRecord({}));
       const fileSystem = FileSystem.layerNoop({
-        readFileString: () => Effect.succeed("VALUE=hello\nNUMBER=69"),
+        readFileString: (_path) => Effect.succeed("VALUE=hello\nNUMBER=69"),
       });
-      const layer = PlatformConfigProvider.layerDotEnvAdd(".env").pipe(
+      const layer = ConfigProvider.layerAdd(ConfigProvider.fromDotEnv({ path: ".env" })).pipe(
         Layer.provide(fileSystem),
         Layer.provide(baseProvider),
       );
@@ -27,13 +28,11 @@ describe("PlatformConfigProvider", () => {
 
   it.effect("keeps current config provider precedence over dotenv", () =>
     Effect.gen(function* () {
-      const baseProvider = Layer.setConfigProvider(
-        ConfigProvider.fromMap(new Map([["VALUE", "env"]])),
-      );
+      const baseProvider = ConfigProvider.layer(ConfigProvider.fromEnvRecord({ VALUE: "env" }));
       const fileSystem = FileSystem.layerNoop({
-        readFileString: () => Effect.succeed("VALUE=dotenv\nNUMBER=69"),
+        readFileString: (_path) => Effect.succeed("VALUE=dotenv\nNUMBER=69"),
       });
-      const layer = PlatformConfigProvider.layerDotEnvAdd(".env").pipe(
+      const layer = ConfigProvider.layerAdd(ConfigProvider.fromDotEnv({ path: ".env" })).pipe(
         Layer.provide(fileSystem),
         Layer.provide(baseProvider),
       );
@@ -46,29 +45,27 @@ describe("PlatformConfigProvider", () => {
 
   it.effect("ignores missing dotenv files", () =>
     Effect.gen(function* () {
-      const baseProvider = Layer.setConfigProvider(
-        ConfigProvider.fromMap(
-          new Map([
-            ["VALUE", "env"],
-            ["NUMBER", "71"],
-          ]),
-        ),
+      const baseProvider = ConfigProvider.layer(
+        ConfigProvider.fromEnvRecord({ VALUE: "env", NUMBER: "71" }),
       );
       const fileSystem = FileSystem.layerNoop({
-        readFileString: () =>
+        readFileString: (_path) =>
           Effect.fail(
-            new PlatformError.SystemError({
+            PlatformError.systemError({
+              _tag: "NotFound",
               method: "readFileString",
               module: "FileSystem",
               pathOrDescriptor: ".env",
-              reason: "NotFound",
             }),
           ),
       });
-      const layer = PlatformConfigProvider.layerDotEnvAdd(".env").pipe(
-        Layer.provide(fileSystem),
-        Layer.provide(baseProvider),
-      );
+      // v4 fromDotEnv fails at construction when the file is missing; callers
+      // catch and fall back to the base provider (same as runtime-core).
+      const layer = ConfigProvider.layerAdd(
+        ConfigProvider.fromDotEnv({ path: ".env" }).pipe(
+          Effect.catch(() => Effect.succeed(ConfigProvider.fromEnvRecord({}))),
+        ),
+      ).pipe(Layer.provide(fileSystem), Layer.provide(baseProvider));
 
       const result = yield* ExampleConfig.pipe(Effect.provide(layer));
 

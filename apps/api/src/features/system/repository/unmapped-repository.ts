@@ -1,6 +1,7 @@
 // oxlint-disable oxc/no-async-await -- async/await required by transaction callbacks, test callbacks, and tryPromise wrappers
 import { eq, notInArray } from "drizzle-orm";
-import { Effect, Option, Schema } from "effect";
+import * as NodeSqliteClient from "@effect/sql-sqlite-node/SqliteClient";
+import { Context, Effect, Layer, Option, Schema } from "effect";
 
 import {
   type UnmappedFolder,
@@ -10,7 +11,7 @@ import {
 } from "@packages/shared/index.ts";
 import { AppDrizzleDatabase, DatabaseError, type AppDatabase } from "@/db/database.ts";
 import { unmappedFolderMatches } from "@/db/schema.ts";
-import { queryFirst, tryDatabasePromise } from "@/infra/effect/db.ts";
+import { makeDbExecutor, type DbExecutor } from "@/infra/effect/db.ts";
 import { buildUnmappedFolderSearchQueries } from "@/features/operations/unmapped/unmapped-folders.ts";
 import { StoredUnmappedFolderCorruptError } from "@/features/system/errors.ts";
 
@@ -28,19 +29,22 @@ export interface SystemUnmappedRepositoryShape {
   readonly loadMatchRow: (path: string) => ReturnType<typeof loadUnmappedFolderMatchRow>;
 }
 
-export class SystemUnmappedRepository extends Effect.Service<SystemUnmappedRepository>()(
-  "@bakarr/api/SystemUnmappedRepository",
-  {
-    effect: Effect.gen(function* () {
+export class SystemUnmappedRepository extends Context.Service<
+  SystemUnmappedRepository,
+  SystemUnmappedRepositoryShape
+>()("@bakarr/api/SystemUnmappedRepository") {
+  static readonly layer = Layer.effect(
+    SystemUnmappedRepository,
+    Effect.gen(function* () {
       const db = yield* AppDrizzleDatabase;
-      return makeSystemUnmappedRepositoryShape(db);
+      const sqlClient = yield* NodeSqliteClient.SqliteClient;
+      return makeSystemUnmappedRepositoryShape(db, sqlClient);
     }),
-    dependencies: [AppDrizzleDatabase.Default],
-  },
-) {}
+  );
+}
 
 const encodeMediaSearchResultList = (path: string, matches: UnmappedFolder["suggested_matches"]) =>
-  Schema.encode(Schema.parseJson(MediaSearchResultListSchema))(matches).pipe(
+  Schema.encodeEffect(Schema.fromJsonString(MediaSearchResultListSchema))(matches).pipe(
     Effect.mapError(
       (cause) =>
         new DatabaseError({
@@ -52,30 +56,42 @@ const encodeMediaSearchResultList = (path: string, matches: UnmappedFolder["sugg
 
 export const listUnmappedFolderMatchRows = Effect.fn(
   "SystemUnmappedRepository.listUnmappedFolderMatchRows",
-)(function* (db: AppDatabase) {
-  return yield* tryDatabasePromise("Failed to list unmapped folder matches", () =>
-    db.select().from(unmappedFolderMatches).orderBy(unmappedFolderMatches.path),
+)(function* (db: AppDatabase, exec: DbExecutor) {
+  return yield* exec.runQuery(
+    "Failed to list unmapped folder matches",
+    db.select().from(unmappedFolderMatches).orderBy(unmappedFolderMatches.path).prepare().effect(),
   );
 });
 
 export const deleteUnmappedFolderMatchRowsNotInPaths = Effect.fn(
   "SystemUnmappedRepository.deleteUnmappedFolderMatchRowsNotInPaths",
-)(function* (db: AppDatabase, paths: readonly string[]) {
+)(function* (db: AppDatabase, exec: DbExecutor, paths: readonly string[]) {
   if (paths.length === 0) {
-    yield* tryDatabasePromise("Failed to delete unmapped folder matches", () =>
-      db.delete(unmappedFolderMatches),
+    yield* exec.runQuery(
+      "Failed to delete unmapped folder matches",
+      db.delete(unmappedFolderMatches).prepare().effect(),
     );
     return;
   }
 
-  yield* tryDatabasePromise("Failed to delete unmapped folder matches", () =>
-    db.delete(unmappedFolderMatches).where(notInArray(unmappedFolderMatches.path, [...paths])),
+  yield* exec.runQuery(
+    "Failed to delete unmapped folder matches",
+    db
+      .delete(unmappedFolderMatches)
+      .where(notInArray(unmappedFolderMatches.path, [...paths]))
+      .prepare()
+      .effect(),
   );
 });
 
 export const upsertUnmappedFolderMatchRows = Effect.fn(
   "SystemUnmappedRepository.upsertUnmappedFolderMatchRows",
-)(function* (db: AppDatabase, folders: readonly UnmappedFolder[], updatedAt: string) {
+)(function* (
+  db: AppDatabase,
+  exec: DbExecutor,
+  folders: readonly UnmappedFolder[],
+  updatedAt: string,
+) {
   if (folders.length === 0) {
     return;
   }
@@ -86,10 +102,11 @@ export const upsertUnmappedFolderMatchRows = Effect.fn(
     ),
   );
 
-  yield* tryDatabasePromise("Failed to upsert unmapped folder matches", () =>
-    db.transaction(async (tx) => {
+  yield* exec.runTransaction(
+    "Failed to upsert unmapped folder matches",
+    Effect.gen(function* () {
       for (const { folder, suggestedMatches } of persistedFolders) {
-        await tx
+        yield* db
           .insert(unmappedFolderMatches)
           .values({
             matchAttempts: folder.match_attempts ?? 0,
@@ -114,7 +131,9 @@ export const upsertUnmappedFolderMatchRows = Effect.fn(
               suggestedMatches,
               updatedAt,
             },
-          });
+          })
+          .prepare()
+          .effect();
       }
     }),
   );
@@ -122,9 +141,16 @@ export const upsertUnmappedFolderMatchRows = Effect.fn(
 
 export const loadUnmappedFolderMatchRow = Effect.fn(
   "SystemUnmappedRepository.loadUnmappedFolderMatchRow",
-)(function* (db: AppDatabase, path: string) {
-  const row = yield* queryFirst("Failed to load unmapped folder match", () =>
-    db.select().from(unmappedFolderMatches).where(eq(unmappedFolderMatches.path, path)).limit(1),
+)(function* (db: AppDatabase, exec: DbExecutor, path: string) {
+  const row = yield* exec.queryFirst(
+    "Failed to load unmapped folder match",
+    db
+      .select()
+      .from(unmappedFolderMatches)
+      .where(eq(unmappedFolderMatches.path, path))
+      .limit(1)
+      .prepare()
+      .effect(),
   );
 
   return Option.getOrUndefined(row);
@@ -133,8 +159,8 @@ export const loadUnmappedFolderMatchRow = Effect.fn(
 export const decodeUnmappedFolderMatchRow = Effect.fn(
   "SystemUnmappedRepository.decodeUnmappedFolderMatchRow",
 )(function* (row: typeof unmappedFolderMatches.$inferSelect) {
-  const suggestedMatches = yield* Schema.decodeUnknown(
-    Schema.parseJson(MediaSearchResultListSchema),
+  const suggestedMatches = yield* Schema.decodeUnknownEffect(
+    Schema.fromJsonString(MediaSearchResultListSchema),
   )(row.suggestedMatches).pipe(
     Effect.mapError(
       (cause) =>
@@ -145,7 +171,7 @@ export const decodeUnmappedFolderMatchRow = Effect.fn(
     ),
     Effect.map((decoded) => [...decoded]),
   );
-  const matchStatus = yield* Schema.decodeUnknown(UnmappedFolderMatchStatusSchema)(
+  const matchStatus = yield* Schema.decodeUnknownEffect(UnmappedFolderMatchStatusSchema)(
     row.matchStatus,
   ).pipe(
     Effect.mapError(
@@ -157,7 +183,7 @@ export const decodeUnmappedFolderMatchRow = Effect.fn(
     ),
   );
 
-  return yield* Schema.decodeUnknown(UnmappedFolderSchema)({
+  return yield* Schema.decodeUnknownEffect(UnmappedFolderSchema)({
     match_attempts: row.matchAttempts,
     last_match_error: row.lastMatchError ?? undefined,
     last_matched_at: row.lastMatchedAt ?? undefined,
@@ -178,11 +204,16 @@ export const decodeUnmappedFolderMatchRow = Effect.fn(
   );
 });
 
-export function makeSystemUnmappedRepositoryShape(db: AppDatabase): SystemUnmappedRepositoryShape {
+export function makeSystemUnmappedRepositoryShape(
+  db: AppDatabase,
+  sqlClient: NodeSqliteClient.SqliteClient,
+): SystemUnmappedRepositoryShape {
+  const exec = makeDbExecutor(sqlClient);
   return {
-    deleteMatchRowsNotInPaths: (paths) => deleteUnmappedFolderMatchRowsNotInPaths(db, paths),
-    listMatchRows: () => listUnmappedFolderMatchRows(db),
-    loadMatchRow: (path) => loadUnmappedFolderMatchRow(db, path),
-    upsertMatchRows: (folders, updatedAt) => upsertUnmappedFolderMatchRows(db, folders, updatedAt),
+    deleteMatchRowsNotInPaths: (paths) => deleteUnmappedFolderMatchRowsNotInPaths(db, exec, paths),
+    listMatchRows: () => listUnmappedFolderMatchRows(db, exec),
+    loadMatchRow: (path) => loadUnmappedFolderMatchRow(db, exec, path),
+    upsertMatchRows: (folders, updatedAt) =>
+      upsertUnmappedFolderMatchRows(db, exec, folders, updatedAt),
   } satisfies SystemUnmappedRepositoryShape;
 }

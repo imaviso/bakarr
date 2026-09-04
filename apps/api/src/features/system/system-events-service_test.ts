@@ -1,15 +1,16 @@
-import { assert, it } from "@effect/vitest";
 import { Effect, Layer, Stream } from "effect";
+import { assert, it } from "@effect/vitest";
 
 import { brandMediaId, brandDownloadId } from "@packages/shared/index.ts";
 import { makeEventBus, EventBus } from "@/infra/effect/event-bus.ts";
 import { OperationsProgress } from "@/features/operations/tasks/operations-progress-service.ts";
+
 import {
   SystemEventsService,
   SystemEventsServiceLive,
 } from "@/features/system/system-events-service.ts";
 
-it.scoped("SystemEventsService does not lose buffered events during stream bootstrap", () =>
+it.effect("SystemEventsService does not lose buffered events during stream bootstrap", () =>
   Effect.gen(function* () {
     const eventBus = yield* makeEventBus();
     const latestDownloads = [sampleDownload("downloading")];
@@ -20,7 +21,7 @@ it.scoped("SystemEventsService does not lose buffered events during stream boots
           Layer.succeed(EventBus, eventBus),
           Layer.succeed(
             OperationsProgress,
-            OperationsProgress.make({
+            OperationsProgress.of({
               getDownloadProgress: () => Effect.succeed(snapshotDownloads),
               getDownloadProgressBootstrap: () =>
                 Effect.gen(function* () {

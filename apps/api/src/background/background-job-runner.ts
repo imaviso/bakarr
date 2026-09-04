@@ -1,6 +1,6 @@
 // oxlint-disable typescript/no-restricted-types -- `unknown` is the honest type at error/cause boundaries (Effect error channels, try/catch causes, Logger messages)
-import { Cause, Effect, Ref } from "effect";
 
+import { Cause, Context, Effect, Layer, Ref, Semaphore } from "effect";
 import type { DatabaseError } from "@/db/database.ts";
 import type { BackgroundJobName } from "@/background/worker-model.ts";
 import { nowIso } from "@/infra/time.ts";
@@ -8,6 +8,7 @@ import {
   markJobFailureOrFailWithCause,
   markJobFailureOrFailWithError,
 } from "@/background/job-failure-support.ts";
+
 import {
   BackgroundJobRepository,
   type BackgroundJobRepositoryShape,
@@ -119,7 +120,7 @@ export function makeBackgroundJobRunnerShape(
           return exit.value;
         }
 
-        if (!Cause.isInterruptedOnly(exit.cause)) {
+        if (!Cause.hasInterruptsOnly(exit.cause)) {
           yield* markFailed(name, exit.cause);
         }
 
@@ -138,17 +139,21 @@ export function makeBackgroundJobRunnerShape(
   } satisfies BackgroundJobRunnerShape;
 }
 
-export class BackgroundJobRunner extends Effect.Service<BackgroundJobRunner>()(
-  "@bakarr/api/BackgroundJobRunner",
-  {
-    effect: Effect.gen(function* () {
+export class BackgroundJobRunner extends Context.Service<
+  BackgroundJobRunner,
+  BackgroundJobRunnerShape
+>()("@bakarr/api/BackgroundJobRunner") {
+  static readonly layer = Layer.effect(
+    BackgroundJobRunner,
+    Effect.gen(function* () {
       const repository = yield* BackgroundJobRepository;
       const lock = yield* makePerNameJobRunLock();
       return makeBackgroundJobRunnerShape(repository, { lock });
     }),
-    dependencies: [BackgroundJobRepository.Default],
-  },
-) {}
+  );
+}
+
+export const BackgroundJobRunnerLive = BackgroundJobRunner.layer;
 
 function describeFailure(cause: unknown): string {
   if (Cause.isCause(cause)) {
@@ -159,7 +164,7 @@ function describeFailure(cause: unknown): string {
     return cause.message;
   }
 
-  return String(cause);
+  return globalThis.String(cause);
 }
 
 /**
@@ -177,17 +182,17 @@ export interface JobRunLock {
 
 export const makePerNameJobRunLock = Effect.fn("BackgroundJobRunner.makePerNameJobRunLock")(
   function* () {
-    const locks = yield* Ref.make(new Map<string, Effect.Semaphore>());
+    const locks = yield* Ref.make(new Map<string, Semaphore.Semaphore>());
 
     const around = Effect.fn("BackgroundJobRunner.lockAround")(function* <A, E, R>(
       name: string,
       effect: Effect.Effect<A, E, R>,
     ) {
-      const fresh = yield* Effect.makeSemaphore(1);
+      const fresh = yield* Semaphore.make(1);
 
       const semaphore = yield* Ref.modify(
         locks,
-        (current): readonly [Effect.Semaphore, Map<string, Effect.Semaphore>] => {
+        (current): readonly [Semaphore.Semaphore, Map<string, Semaphore.Semaphore>] => {
           const existing = current.get(name);
           if (existing) {
             return [existing, current];

@@ -1,8 +1,7 @@
 // oxlint-disable typescript/no-restricted-types -- `unknown` is the honest type at error/cause boundaries (Effect error channels, try/catch causes, Logger messages)
 import { assert, it } from "@effect/vitest";
-import { CommandExecutor } from "@effect/platform";
-import * as PlatformError from "@effect/platform/Error";
-import { Cause, Effect, Exit, Layer, Logger } from "effect";
+import * as CommandExecutor from "effect/unstable/process/ChildProcessSpawner";
+import * as PlatformError from "effect/PlatformError";
 
 import {
   FFPROBE_CONCURRENCY_LIMIT,
@@ -12,6 +11,7 @@ import {
   shouldProbeMediaMetadata,
 } from "@/infra/media/probe.ts";
 import { commandArgs, makeCommandExecutorStub } from "@/test/stubs.ts";
+import { Cause, Effect, Exit, Layer, Logger } from "effect";
 
 it("mergeProbedMediaMetadata fills only missing fields", () => {
   assert.deepStrictEqual(
@@ -85,7 +85,7 @@ it.effect("MediaProbe enforces global ffprobe concurrency limit", () =>
         maxActive = active;
       }
 
-      return Effect.async<string>((resume) => {
+      return Effect.callback<string>((resume) => {
         let completed = false;
         const timeout = setTimeout(() => {
           completed = true;
@@ -115,7 +115,7 @@ it.effect("MediaProbe enforces global ffprobe concurrency limit", () =>
     ).pipe(
       Effect.provide(
         MediaProbeLive.pipe(
-          Layer.provide(Layer.succeed(CommandExecutor.CommandExecutor, commandExecutorStub)),
+          Layer.provide(Layer.succeed(CommandExecutor.ChildProcessSpawner, commandExecutorStub)),
         ),
       ),
     );
@@ -129,12 +129,12 @@ it.effect("MediaProbe probe fails per call when ffprobe is unavailable", () =>
     const commandExecutorStub = makeCommandExecutorStub((command) =>
       commandArgs(command).includes("-version")
         ? Effect.fail(
-            new PlatformError.SystemError({
+            PlatformError.systemError({
+              _tag: "Unknown",
               cause: new Error("ffprobe not installed"),
               description: "ffprobe not installed",
               method: "string",
               module: "Command",
-              reason: "Unknown",
             }),
           )
         : Effect.succeed('{"streams":[]}'),
@@ -146,7 +146,7 @@ it.effect("MediaProbe probe fails per call when ffprobe is unavailable", () =>
       ).pipe(
         Effect.provide(
           MediaProbeLive.pipe(
-            Layer.provide(Layer.succeed(CommandExecutor.CommandExecutor, commandExecutorStub)),
+            Layer.provide(Layer.succeed(CommandExecutor.ChildProcessSpawner, commandExecutorStub)),
           ),
         ),
       ),
@@ -163,11 +163,11 @@ it.effect("MediaProbe returns a typed failure when ffprobe output is invalid", (
   Effect.gen(function* () {
     const messages: string[] = [];
     const logger = Logger.make<unknown, void>(({ message }) => {
-      messages.push(String(message));
+      messages.push(globalThis.String(message));
     });
-    const loggerLayer = Logger.replace(Logger.defaultLogger, logger);
+    const loggerLayer = Logger.layer([logger]);
 
-    const result = yield* Effect.either(
+    const result = yield* Effect.result(
       Effect.flatMap(MediaProbe, (mediaProbe) =>
         mediaProbe.probeVideoFile("/tmp/invalid.mkv"),
       ).pipe(
@@ -177,7 +177,7 @@ it.effect("MediaProbe returns a typed failure when ffprobe output is invalid", (
             MediaProbeLive.pipe(
               Layer.provide(
                 Layer.succeed(
-                  CommandExecutor.CommandExecutor,
+                  CommandExecutor.ChildProcessSpawner,
                   makeCommandExecutorStub((command) =>
                     commandArgs(command).includes("-version")
                       ? Effect.succeed("ffprobe version test")
@@ -191,9 +191,9 @@ it.effect("MediaProbe returns a typed failure when ffprobe output is invalid", (
       ),
     );
 
-    assert.deepStrictEqual(result._tag, "Left");
-    if (result._tag === "Left") {
-      assert.deepStrictEqual(result.left._tag, "MediaProbeFailure");
+    assert.deepStrictEqual(result._tag, "Failure");
+    if (result._tag === "Failure") {
+      assert.deepStrictEqual(result.failure._tag, "MediaProbeFailure");
     }
     assert.deepStrictEqual(
       messages.some((message) => message.includes("ffprobe output was invalid")),

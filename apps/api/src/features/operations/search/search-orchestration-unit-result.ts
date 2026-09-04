@@ -4,10 +4,10 @@ import type {
   QualityProfile,
   ReleaseProfileRule,
 } from "@packages/shared/index.ts";
-import { Option } from "effect";
 
 import type { ParsedRelease } from "@/features/operations/rss/rss-client-parse.ts";
 import { parseReleaseSourceIdentity } from "@/features/media/identity/identity.ts";
+import { Option } from "effect";
 import {
   decideDownloadAction,
   parseReleaseName,

@@ -4,8 +4,8 @@
  * Feature modules should import from here instead of inspecting
  * platform error codes directly.
  */
-import { Predicate } from "effect";
 
+import { Predicate } from "effect";
 import { getErrorCode } from "@/infra/error-code.ts";
 
 /** Check if an error wraps a "not found" platform error (ENOENT / Deno NotFound). */
@@ -51,5 +51,14 @@ export function isFileExistsError(error: { cause?: unknown }): boolean {
 
 /** Check if a platform SystemError itself is a NotFound branch. */
 export function isSystemNotFoundError(error: unknown): boolean {
-  return Predicate.hasProperty(error, "reason") && error.reason === "NotFound";
+  // v4 SystemError normalizes the branch into `_tag` ("NotFound").
+  if (Predicate.hasProperty(error, "_tag") && error._tag === "NotFound") {
+    return true;
+  }
+
+  if (Predicate.hasProperty(error, "reason")) {
+    return isSystemNotFoundError(error.reason);
+  }
+
+  return false;
 }

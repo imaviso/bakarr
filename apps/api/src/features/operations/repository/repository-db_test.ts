@@ -12,7 +12,7 @@ import {
   qualityProfiles,
   releaseProfiles,
 } from "@/db/schema.ts";
-import { tryDatabasePromise } from "@/infra/effect/db.ts";
+import { tryDatabaseQuery } from "@/infra/effect/db.ts";
 import { encodeConfigCore } from "@/features/system/config-codec.ts";
 import {
   encodeNumberList,
@@ -30,13 +30,13 @@ import { loadQualityProfile } from "@/features/system/repository/quality-profile
 import { loadReleaseRules } from "@/features/system/repository/release-profile-repository.ts";
 import { MediaNotFoundError } from "@/features/media/errors.ts";
 
-it.scoped("operations repository helpers load profile settings", () =>
+it.effect("operations repository helpers load profile settings", () =>
   withSqliteTestDbEffect({
-    run: (db, databaseFile) =>
+    run: (db, databaseFile, _client, exec) =>
       Effect.gen(function* () {
         const defaults = makeDefaultConfig(databaseFile);
-        const encodedDefaults = yield* Schema.encode(ConfigCoreSchema)(defaults);
-        const decodedConfig = yield* Schema.decodeUnknown(ConfigCoreSchema)({
+        const encodedDefaults = yield* Schema.encodeEffect(ConfigCoreSchema)(defaults);
+        const decodedConfig = yield* Schema.decodeUnknownEffect(ConfigCoreSchema)({
           ...encodedDefaults,
           library: {
             ...encodedDefaults.library,
@@ -57,33 +57,39 @@ it.scoped("operations repository helpers load profile settings", () =>
           upgrade_allowed: true,
         });
 
-        yield* tryDatabasePromise("Failed to seed appConfig for operations test", () =>
-          db.insert(appConfig).values({
-            id: 1,
-            data: configData,
-            updatedAt: "2024-01-01T00:00:00.000Z",
-          }),
+        yield* tryDatabaseQuery(
+          "Failed to seed appConfig for operations test",
+          db
+            .insert(appConfig)
+            .values({
+              id: 1,
+              data: configData,
+              updatedAt: "2024-01-01T00:00:00.000Z",
+            })
+            .prepare()
+            .effect(),
         );
-        yield* tryDatabasePromise("Failed to seed qualityProfiles for operations test", () =>
-          db.insert(qualityProfiles).values(qualityProfileRow),
+        yield* tryDatabaseQuery(
+          "Failed to seed qualityProfiles for operations test",
+          db.insert(qualityProfiles).values(qualityProfileRow).prepare().effect(),
         );
 
-        const storedProfile = yield* loadQualityProfile(db, "Default");
+        const storedProfile = yield* loadQualityProfile(db, exec, "Default");
         assert.deepStrictEqual(storedProfile._tag, "Some");
         if (storedProfile._tag === "Some") {
           assert.deepStrictEqual(storedProfile.value.max_size, "4GB");
         }
 
-        const fallbackProfile = yield* loadQualityProfile(db, "Missing");
+        const fallbackProfile = yield* loadQualityProfile(db, exec, "Missing");
         assert.deepStrictEqual(fallbackProfile, Option.none());
       }),
     schema,
   }),
 );
 
-it.scoped("operations repository helpers load media release rules and episode state", () =>
+it.effect("operations repository helpers load media release rules and episode state", () =>
   withSqliteTestDbEffect({
-    run: (db, _databaseFile) =>
+    run: (db, _databaseFile, client, exec) =>
       Effect.gen(function* () {
         const releaseProfileIds = yield* encodeNumberList([2]);
         const globalRules = yield* encodeReleaseProfileRules([
@@ -96,76 +102,91 @@ it.scoped("operations repository helpers load media release rules and episode st
           { rule_type: "must_not", score: 0, term: "Dub" },
         ]);
 
-        yield* tryDatabasePromise("Failed to seed media for release rules test", () =>
-          db.insert(media).values({
-            id: 20,
-            malId: null,
-            titleRomaji: "Naruto",
-            titleEnglish: "Naruto",
-            titleNative: null,
-            format: "TV",
-            description: null,
-            score: null,
-            genres: "[]",
-            studios: "[]",
-            coverImage: null,
-            bannerImage: null,
-            status: "RELEASING",
-            unitCount: 12,
-            startDate: null,
-            endDate: null,
-            startYear: null,
-            endYear: null,
-            nextAiringAt: null,
-            nextAiringUnit: null,
-            profileName: "Default",
-            rootFolder: "/library/Naruto",
-            addedAt: "2024-01-01T00:00:00.000Z",
-            monitored: true,
-            releaseProfileIds,
-          }),
+        yield* tryDatabaseQuery(
+          "Failed to seed media for release rules test",
+          db
+            .insert(media)
+            .values({
+              id: 20,
+              malId: null,
+              titleRomaji: "Naruto",
+              titleEnglish: "Naruto",
+              titleNative: null,
+              format: "TV",
+              description: null,
+              score: null,
+              genres: "[]",
+              studios: "[]",
+              coverImage: null,
+              bannerImage: null,
+              status: "RELEASING",
+              unitCount: 12,
+              startDate: null,
+              endDate: null,
+              startYear: null,
+              endYear: null,
+              nextAiringAt: null,
+              nextAiringUnit: null,
+              profileName: "Default",
+              rootFolder: "/library/Naruto",
+              addedAt: "2024-01-01T00:00:00.000Z",
+              monitored: true,
+              releaseProfileIds,
+            })
+            .prepare()
+            .effect(),
         );
-        yield* tryDatabasePromise("Failed to seed releaseProfiles for release rules test", () =>
-          db.insert(releaseProfiles).values([
-            {
-              id: 1,
-              name: "Global",
-              enabled: true,
-              isGlobal: true,
-              rules: globalRules,
-            },
-            {
-              id: 2,
-              name: "Assigned",
-              enabled: true,
-              isGlobal: false,
-              rules: assignedRules,
-            },
-            {
-              id: 3,
-              name: "Ignored",
-              enabled: true,
-              isGlobal: false,
-              rules: ignoredRules,
-            },
-          ]),
+        yield* tryDatabaseQuery(
+          "Failed to seed releaseProfiles for release rules test",
+          db
+            .insert(releaseProfiles)
+            .values([
+              {
+                id: 1,
+                name: "Global",
+                enabled: true,
+                isGlobal: true,
+                rules: globalRules,
+              },
+              {
+                id: 2,
+                name: "Assigned",
+                enabled: true,
+                isGlobal: false,
+                rules: assignedRules,
+              },
+              {
+                id: 3,
+                name: "Ignored",
+                enabled: true,
+                isGlobal: false,
+                rules: ignoredRules,
+              },
+            ])
+            .prepare()
+            .effect(),
         );
-        yield* tryDatabasePromise("Failed to seed mediaUnits for release rules test", () =>
-          db.insert(mediaUnits).values({
-            mediaId: 20,
-            number: 1,
-            title: null,
-            aired: null,
-            downloaded: true,
-            filePath: "/library/Naruto/Naruto - 01.mkv",
-          }),
+        yield* tryDatabaseQuery(
+          "Failed to seed mediaUnits for release rules test",
+          db
+            .insert(mediaUnits)
+            .values({
+              mediaId: 20,
+              number: 1,
+              title: null,
+              aired: null,
+              downloaded: true,
+              filePath: "/library/Naruto/Naruto - 01.mkv",
+            })
+            .prepare()
+            .effect(),
         );
 
-        const mediaRepository = makeMediaRepository(db);
+        const mediaRepository = makeMediaRepository(db, client);
         const animeRow = yield* mediaRepository.getMediaRow(20);
         assert.deepStrictEqual(animeRow.titleRomaji, "Naruto");
 
-        const releaseRules = yield* loadReleaseRules(db, animeRow);
+        const releaseRules = yield* loadReleaseRules(db, exec, animeRow);
         assert.deepStrictEqual(releaseRules, [
           { rule_type: "preferred", score: 10, term: "SubsPlease" },
           { rule_type: "must", score: 0, term: "1080p" },
@@ -184,7 +205,7 @@ it.scoped("operations repository helpers load media release rules and episode st
         const notFoundExit = yield* Effect.exit(mediaRepository.getMediaRow(999));
         assert.deepStrictEqual(notFoundExit._tag, "Failure");
         if (notFoundExit._tag === "Failure") {
-          const failure = Cause.failureOption(notFoundExit.cause);
+          const failure = Cause.findErrorOption(notFoundExit.cause);
           assert.deepStrictEqual(failure._tag, "Some");
           if (failure._tag === "Some") {
             assert.deepStrictEqual(failure.value instanceof MediaNotFoundError, true);
@@ -239,7 +260,7 @@ it.effect("operations repository metadata decoders fail for corrupt stored JSON"
 
     assert.deepStrictEqual(exit._tag, "Failure");
     if (exit._tag === "Failure") {
-      const failure = Cause.failureOption(exit.cause);
+      const failure = Cause.findErrorOption(exit.cause);
       assert.deepStrictEqual(failure._tag === "None", false);
       if (failure._tag === "Some") {
         assert.deepStrictEqual(failure.value._tag, "StoredDataError");
@@ -248,21 +269,24 @@ it.effect("operations repository metadata decoders fail for corrupt stored JSON"
   }),
 );
 
-it.scoped("DownloadRepository claim and release download reconciliation", () =>
+it.effect("DownloadRepository claim and release download reconciliation", () =>
   withSqliteTestDbEffect({
-    run: (db, _databaseFile) =>
+    run: (db, _databaseFile, client, _exec) =>
       Effect.gen(function* () {
-        yield* tryDatabasePromise("Failed to seed media for claim test", () =>
-          db.insert(media).values(makeClaimMediaRow()),
+        yield* tryDatabaseQuery(
+          "Failed to seed media for claim test",
+          db.insert(media).values(makeClaimMediaRow()).prepare().effect(),
         );
 
-        const repo = makeDownloadRepository(db);
+        const repo = makeDownloadRepository(db, client);
         const loadRow = (id: number) =>
-          tryDatabasePromise("Failed to load download for claim test", () =>
-            db.select().from(downloads).where(eq(downloads.id, id)).limit(1),
+          tryDatabaseQuery(
+            "Failed to load download for claim test",
+            db.select().from(downloads).where(eq(downloads.id, id)).limit(1).prepare().effect(),
           );
         const insertDownload = (overrides: Partial<typeof downloads.$inferInsert>) =>
-          tryDatabasePromise("Failed to seed download for claim test", () =>
+          tryDatabaseQuery(
+            "Failed to seed download for claim test",
             db
               .insert(downloads)
               .values({
@@ -274,7 +298,9 @@ it.scoped("DownloadRepository claim and release download reconciliation", () =>
                 status: "completed",
                 ...overrides,
               })
-              .returning({ id: downloads.id }),
+              .returning({ id: downloads.id })
+              .prepare()
+              .effect(),
           ).pipe(Effect.map((rows) => rows[0]!.id));
 
         const id = yield* insertDownload({ infoHash: "hash-one" });

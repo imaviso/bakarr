@@ -1,5 +1,3 @@
-import { Effect } from "effect";
-
 import { nowIso as currentNowIso } from "@/infra/time.ts";
 import {
   decodeReleaseProfileRow,
@@ -11,6 +9,7 @@ import type {
 } from "@/features/system/config-schema.ts";
 import { SystemLogRepository } from "@/features/system/repository/log-repository.ts";
 import { ReleaseProfileRepository } from "@/features/system/repository/release-profile-repository.ts";
+import { Context, Effect, Layer } from "effect";
 
 const makeReleaseProfileService = Effect.fn("ReleaseProfileService.make")(function* () {
   const releaseProfileRepository = yield* ReleaseProfileRepository;
@@ -72,12 +71,15 @@ const makeReleaseProfileService = Effect.fn("ReleaseProfileService.make")(functi
   };
 });
 
-export class ReleaseProfileService extends Effect.Service<ReleaseProfileService>()(
-  "@bakarr/api/ReleaseProfileService",
-  {
-    effect: makeReleaseProfileService(),
-    dependencies: [ReleaseProfileRepository.Default, SystemLogRepository.Default],
-  },
-) {}
+export type ReleaseProfileServiceShape = Effect.Success<
+  ReturnType<typeof makeReleaseProfileService>
+>;
 
-export const ReleaseProfileServiceLive = ReleaseProfileService.Default;
+export class ReleaseProfileService extends Context.Service<
+  ReleaseProfileService,
+  ReleaseProfileServiceShape
+>()("@bakarr/api/ReleaseProfileService") {
+  static readonly layer = Layer.effect(ReleaseProfileService, makeReleaseProfileService());
+}
+
+export const ReleaseProfileServiceLive = ReleaseProfileService.layer;

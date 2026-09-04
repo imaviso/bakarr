@@ -4,7 +4,7 @@ import { ApiClientError, ApiDecodeError, ApiUnauthorizedError } from "@/api/effe
 export class ClipboardWriteError extends Schema.TaggedError<ClipboardWriteError>()(
   "ClipboardWriteError",
   {
-    cause: Schema.optional(Schema.Defect),
+    cause: Schema.optional(Schema.Defect()),
     message: Schema.String,
   },
 ) {}
@@ -12,7 +12,7 @@ export class ClipboardWriteError extends Schema.TaggedError<ClipboardWriteError>
 export class DownloadEventsExportError extends Schema.TaggedError<DownloadEventsExportError>()(
   "DownloadEventsExportError",
   {
-    cause: Schema.optional(Schema.Defect),
+    cause: Schema.optional(Schema.Defect()),
     message: Schema.String,
   },
 ) {}
@@ -44,7 +44,7 @@ export function errorMessage(error: unknown, fallback: string): string {
  */
 export function fieldErrorMessage(error: unknown): string {
   if (typeof error === "string") return error;
-  if (Predicate.isRecord(error) && Predicate.hasProperty(error, "message")) {
+  if (Predicate.hasProperty(error, "message")) {
     const message = error.message;
     return typeof message === "string" ? message : "Invalid field value";
   }

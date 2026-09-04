@@ -1,6 +1,6 @@
 // oxlint-disable typescript/no-restricted-types -- `unknown` is the honest type at error/cause boundaries (Effect error channels, try/catch causes, Logger messages)
-import { Effect, Predicate } from "effect";
 
+import { Context, Effect, Layer, Predicate } from "effect";
 import type { DatabaseError } from "@/db/database.ts";
 import { FileSystem, isWithinPathRoot } from "@/infra/filesystem/filesystem.ts";
 import {
@@ -8,6 +8,7 @@ import {
   ImageAssetNotFoundError,
   ImageAssetTooLargeError,
 } from "@/features/system/errors.ts";
+
 import {
   RuntimeConfigSnapshotService,
   type RuntimeConfigSnapshotError,
@@ -68,7 +69,6 @@ const accessError = (message: string, cause?: unknown) =>
 
 function hasFileSystemErrorCode(cause: unknown, codes: readonly string[]) {
   return (
-    Predicate.isRecord(cause) &&
     Predicate.hasProperty(cause, "code") &&
     typeof cause.code === "string" &&
     codes.includes(cause.code)
@@ -159,11 +159,10 @@ const makeImageAssetService = Effect.fn("ImageAssetService.make")(function* () {
   return { resolveImageAsset } satisfies ImageAssetServiceShape;
 });
 
-export class ImageAssetService extends Effect.Service<ImageAssetService>()(
+export class ImageAssetService extends Context.Service<ImageAssetService, ImageAssetServiceShape>()(
   "@bakarr/api/ImageAssetService",
-  {
-    effect: makeImageAssetService(),
-  },
-) {}
+) {
+  static readonly layer = Layer.effect(ImageAssetService, makeImageAssetService());
+}
 
-export const ImageAssetServiceLive = ImageAssetService.Default;
+export const ImageAssetServiceLive = ImageAssetService.layer;

@@ -1,8 +1,8 @@
-import { Option } from "effect";
 import { parseUrlOption } from "@/infra/url.ts";
 import type { ParsedRelease } from "@/features/operations/rss/rss-client-parse.ts";
 import { parseReleaseName } from "@/features/operations/search/release-ranking.ts";
 import type { SeaDexEntry, SeaDexRelease } from "@/features/operations/search/seadex-client.ts";
+import { Option } from "effect";
 
 export function applySeaDexMatch(release: ParsedRelease, entry: SeaDexEntry): ParsedRelease {
   const match = findSeaDexReleaseMatch(release, entry.releases);
@@ -114,12 +114,12 @@ function toCandidateTrackers(candidate: SeaDexRelease) {
     normalizeTrackerName(candidate.tracker),
     inferTrackerName(candidate.url),
     inferTrackerName(candidate.groupedUrl),
-  ].filter((value): value is string => Boolean(value));
+  ].filter((value): value is string => globalThis.Boolean(value));
 }
 
 function toCandidateUrlKeys(candidate: SeaDexRelease) {
   return [canonicalTrackerUrl(candidate.url), canonicalTrackerUrl(candidate.groupedUrl)].filter(
-    (value): value is string => Boolean(value),
+    (value): value is string => globalThis.Boolean(value),
   );
 }
 

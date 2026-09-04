@@ -40,7 +40,7 @@ export interface TorrentFile {
 export class TorrentClientUnavailableError extends Schema.TaggedError<TorrentClientUnavailableError>()(
   "TorrentClientUnavailableError",
   {
-    cause: Schema.optional(Schema.Defect),
+    cause: Schema.optional(Schema.Defect()),
     message: Schema.String,
   },
 ) {}

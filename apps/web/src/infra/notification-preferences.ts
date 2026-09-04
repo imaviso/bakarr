@@ -91,7 +91,7 @@ const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
 
 let cachedPreferences: NotificationPreferences | null = null;
 
-const RecordSchema = Schema.Record({ key: Schema.String, value: Schema.Unknown });
+const RecordSchema = Schema.Record(Schema.String, Schema.Unknown);
 const isRecord = Schema.is(RecordSchema);
 
 function normalizeNotificationPreferences(input: unknown): NotificationPreferences {

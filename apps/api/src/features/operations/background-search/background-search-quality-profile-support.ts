@@ -1,7 +1,6 @@
-import { Effect, Option } from "effect";
-
 import { DomainInputError } from "@/features/errors.ts";
 import { QualityProfileRepository } from "@/features/system/repository/quality-profile-repository.ts";
+import { Effect, Option } from "effect";
 
 /**
  * Shared by RSS-feed and missing-unit background search: load the media's

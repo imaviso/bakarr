@@ -1,5 +1,3 @@
-import { Effect } from "effect";
-
 import {
   encodeOptionalNumberList,
   decodeOptionalNumberList,
@@ -13,6 +11,7 @@ import { parseVolumeNumbersFromTitle } from "@/features/operations/search/releas
 import type { TorrentFile } from "@/features/operations/torrent/torrent-domain.ts";
 import { StoredDataError } from "@/features/errors.ts";
 import type { DownloadRepository } from "@/features/operations/repository/download-repository.ts";
+import { Effect } from "effect";
 
 const IN_FLIGHT_STATUSES = new Set(["queued", "downloading", "paused"]);
 

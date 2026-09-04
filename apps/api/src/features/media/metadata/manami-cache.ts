@@ -1,5 +1,7 @@
 import * as NodeSqliteClient from "@effect/sql-sqlite-node/SqliteClient";
-import { Headers, HttpClient, HttpClientRequest } from "@effect/platform";
+import * as Headers from "effect/unstable/http/Headers";
+import * as HttpClient from "effect/unstable/http/HttpClient";
+import * as HttpClientRequest from "effect/unstable/http/HttpClientRequest";
 import { dirname, join, resolve } from "node:path";
 import { Effect, Option, Schema } from "effect";
 
@@ -27,15 +29,18 @@ const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder();
 
 const ManamiCacheMetaSchema = Schema.Struct({
-  fetchedAtMs: Schema.Number.pipe(Schema.int(), Schema.nonNegative()),
+  fetchedAtMs: Schema.Number.pipe(
+    Schema.check(Schema.isInt()),
+    Schema.check(Schema.isGreaterThanOrEqualTo(0)),
+  ),
   etag: Schema.optional(Schema.String),
   lastModified: Schema.optional(Schema.String),
 });
 
 type ManamiCacheMeta = Schema.Schema.Type<typeof ManamiCacheMetaSchema>;
 
-const ManamiDatasetJsonSchema = Schema.parseJson(ManamiDatasetSchema);
-const ManamiCacheMetaJsonSchema = Schema.parseJson(ManamiCacheMetaSchema);
+const ManamiDatasetJsonSchema = Schema.fromJsonString(ManamiDatasetSchema);
+const ManamiCacheMetaJsonSchema = Schema.fromJsonString(ManamiCacheMetaSchema);
 
 export interface ManamiCachePaths {
   readonly datasetFile: string;
@@ -73,7 +78,7 @@ export const refreshSqliteCacheIfNeeded = Effect.fn("ManamiCache.refreshSqliteCa
     const metaFresh =
       meta !== undefined && now - meta.fetchedAtMs < MANAMI_CACHE_REFRESH_INTERVAL_MS;
     const sqliteValid = yield* hasLookupSqliteSchema(sqliteClient).pipe(
-      Effect.catchAll(() => Effect.succeed(false)),
+      Effect.catch(() => Effect.succeed(false)),
     );
 
     if (metaFresh && sqliteValid) {
@@ -82,8 +87,8 @@ export const refreshSqliteCacheIfNeeded = Effect.fn("ManamiCache.refreshSqliteCa
 
     if (metaFresh) {
       // Meta fresh but sqlite broken: rebuild from the cached dataset first.
-      const rebuilt = yield* rebuildFromCachedDataset(fs, sqliteClient, paths).pipe(Effect.either);
-      if (rebuilt._tag === "Right") {
+      const rebuilt = yield* rebuildFromCachedDataset(fs, sqliteClient, paths).pipe(Effect.result);
+      if (rebuilt._tag === "Success") {
         return true;
       }
       // Cached dataset unusable too: fall through to an unconditional download.
@@ -99,9 +104,9 @@ export const refreshSqliteCacheIfNeeded = Effect.fn("ManamiCache.refreshSqliteCa
     if (downloaded._tag === "NotModified") {
       if (!sqliteValid) {
         const rebuilt = yield* rebuildFromCachedDataset(fs, sqliteClient, paths).pipe(
-          Effect.either,
+          Effect.result,
         );
-        if (rebuilt._tag === "Left") {
+        if (rebuilt._tag === "Failure") {
           // 304 but local cache unusable: fetch the full dataset unconditionally.
           yield* downloadAndPersist();
           return true;
@@ -123,8 +128,8 @@ export const refreshSqliteCacheIfNeeded = Effect.fn("ManamiCache.refreshSqliteCa
       return Effect.gen(function* () {
         const result = yield* downloadManamiDataset(client, externalCall);
         if (result._tag === "NotModified") {
-          return yield* Effect.dieMessage(
-            "manami dataset download returned 304 without conditional validators",
+          return yield* Effect.die(
+            new Error("manami dataset download returned 304 without conditional validators"),
           );
         }
         yield* persistDownloadedDataset(result);
@@ -175,7 +180,7 @@ const readCacheMeta = Effect.fn("ManamiCache.readCacheMeta")(function* (
 ) {
   const bytes = yield* fs.readFile(paths.metaFile).pipe(
     Effect.map((bytes) => Option.some(bytes)),
-    Effect.catchAll((error) => {
+    Effect.catch((error) => {
       if (isNotFoundError(error)) {
         return Effect.succeed(Option.none<Uint8Array>());
       }
@@ -195,7 +200,7 @@ const readCacheMeta = Effect.fn("ManamiCache.readCacheMeta")(function* (
   }
 
   const json = yield* decodeUtf8(bytes.value, "manami.sqlite.cache.meta.decode");
-  const metadata = yield* Schema.decode(ManamiCacheMetaJsonSchema)(json).pipe(
+  const metadata = yield* Schema.decodeEffect(ManamiCacheMetaJsonSchema)(json).pipe(
     Effect.mapError((cause) =>
       ExternalCallError.make({
         cause,
@@ -223,7 +228,7 @@ const readDatasetFromCache = Effect.fn("ManamiCache.readDatasetFromCache")(funct
   );
   const json = yield* decodeUtf8(bytes, "manami.dataset.cache.decode");
 
-  return yield* Schema.decode(ManamiDatasetJsonSchema)(json).pipe(
+  return yield* Schema.decodeEffect(ManamiDatasetJsonSchema)(json).pipe(
     Effect.mapError((cause) =>
       ExternalCallError.make({
         cause,
@@ -249,7 +254,7 @@ const writeDatasetToCache = Effect.fn("ManamiCache.writeDatasetToCache")(functio
     ),
   );
 
-  const datasetJson = yield* Schema.encode(ManamiDatasetJsonSchema)(dataset).pipe(
+  const datasetJson = yield* Schema.encodeEffect(ManamiDatasetJsonSchema)(dataset).pipe(
     Effect.mapError((cause) =>
       ExternalCallError.make({
         cause,
@@ -274,7 +279,7 @@ const writeCacheMeta = Effect.fn("ManamiCache.writeCacheMeta")(function* (
   paths: ManamiCachePaths,
   meta: ManamiCacheMeta,
 ) {
-  const metaJson = yield* Schema.encode(ManamiCacheMetaJsonSchema)(meta).pipe(
+  const metaJson = yield* Schema.encodeEffect(ManamiCacheMetaJsonSchema)(meta).pipe(
     Effect.mapError((cause) =>
       ExternalCallError.make({
         cause,
@@ -334,7 +339,7 @@ const downloadManamiDataset = Effect.fn("ManamiCache.downloadDataset")(function*
     ),
   );
 
-  const dataset = yield* Schema.decode(ManamiDatasetJsonSchema)(datasetJson).pipe(
+  const dataset = yield* Schema.decodeEffect(ManamiDatasetJsonSchema)(datasetJson).pipe(
     Effect.mapError((cause) =>
       ExternalCallError.make({
         cause,

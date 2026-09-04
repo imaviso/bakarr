@@ -1,5 +1,3 @@
-import { Effect } from "effect";
-
 import type { Config, ImportResult } from "@packages/shared/index.ts";
 import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import type { MediaProbeShape } from "@/infra/media/probe.ts";
@@ -8,6 +6,7 @@ import { MediaRepository } from "@/features/media/shared/media-repository.ts";
 import type { MediaUnitRepositoryShape } from "@/features/media/units/media-unit-repository.ts";
 import { buildLibraryImportPlan } from "@/features/operations/catalog/catalog-library-write-import-plan-support.ts";
 import { writeLibraryImportFile } from "@/features/operations/download/library-file-write-support.ts";
+import { Effect } from "effect";
 
 export interface LibraryImportFileInput {
   readonly source_path: string;
@@ -59,12 +58,15 @@ export const importLibraryFiles = Effect.fn("Operations.importLibraryFiles")((
         mediaProbe,
         runtimeConfig,
         file,
-      }).pipe(Effect.either);
+      }).pipe(Effect.result);
 
-      if (planned._tag === "Left") {
+      if (planned._tag === "Failure") {
         failedFiles.push({
           source_path: file.source_path,
-          error: planned.left instanceof Error ? planned.left.message : String(planned.left),
+          error:
+            planned.failure instanceof Error
+              ? planned.failure.message
+              : globalThis.String(planned.failure),
         });
         continue;
       }
@@ -73,17 +75,20 @@ export const importLibraryFiles = Effect.fn("Operations.importLibraryFiles")((
         mediaUnitRepository,
         fs,
         randomUuid,
-        plan: planned.right,
-      }).pipe(Effect.either);
-      if (imported._tag === "Left") {
+        plan: planned.success,
+      }).pipe(Effect.result);
+      if (imported._tag === "Failure") {
         failedFiles.push({
           source_path: file.source_path,
-          error: imported.left instanceof Error ? imported.left.message : String(imported.left),
+          error:
+            imported.failure instanceof Error
+              ? imported.failure.message
+              : globalThis.String(imported.failure),
         });
         continue;
       }
 
-      importedFiles.push(imported.right);
+      importedFiles.push(imported.success);
     }
 
     yield* eventBus.publish({

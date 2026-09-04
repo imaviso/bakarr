@@ -1,5 +1,5 @@
-import { HttpClient, HttpClientRequest } from "@effect/platform";
-import { Effect, Option, Schema } from "effect";
+import * as HttpClient from "effect/unstable/http/HttpClient";
+import * as HttpClientRequest from "effect/unstable/http/HttpClientRequest";
 
 import type { MediaSeason, MediaKind } from "@packages/shared/index.ts";
 import { ExternalCall, ExternalCallError, type ExternalCallShape } from "@/infra/effect/retry.ts";
@@ -8,6 +8,7 @@ import type {
   AnimeMetadata,
   ProviderMediaSearchResult,
 } from "@/features/media/metadata/metadata-model.ts";
+import { Context, Effect, Layer, Option, Record, Schema } from "effect";
 import {
   AnimeMetadataFromAniListSchema,
   AnimeSearchResultFromAniListSchema,
@@ -381,11 +382,13 @@ const makeAniListClient = Effect.fn("AniListClient.make")(function* () {
   return service;
 });
 
-export class AniListClient extends Effect.Service<AniListClient>()("@bakarr/api/AniListClient", {
-  effect: makeAniListClient(),
-}) {}
+export class AniListClient extends Context.Service<AniListClient, AniListClientShape>()(
+  "@bakarr/api/AniListClient",
+) {
+  static readonly layer = Layer.effect(AniListClient, makeAniListClient());
+}
 
-export const AniListClientLive = AniListClient.Default;
+export const AniListClientLive = AniListClient.layer;
 
 const callAniList = <A, I>(
   client: HttpClient.HttpClient,
@@ -393,7 +396,7 @@ const callAniList = <A, I>(
   operation: string,
   query: string,
   variables: Readonly<Record<string, string | number | boolean | undefined>>,
-  schema: Schema.Schema<A, I>,
+  schema: Schema.Codec<A, I, never, unknown>,
 ): Effect.Effect<A, ExternalCallError> =>
   Effect.gen(function* () {
     const request = yield* HttpClientRequest.post(ANILIST_URL).pipe(
@@ -433,7 +436,7 @@ const trySearchRemote = Effect.fn("AniListClient.trySearchRemote")(function* (
   );
 
   return yield* Effect.forEach(payload.data.Page.media, (entry) =>
-    Schema.decodeUnknown(AnimeSearchResultFromAniListSchema)(entry).pipe(
+    Schema.decodeUnknownEffect(AnimeSearchResultFromAniListSchema)(entry).pipe(
       Effect.mapError((cause) =>
         ExternalCallError.make({
           cause,
@@ -465,7 +468,7 @@ const tryFetchDetail = Effect.fn("AniListClient.tryFetchDetail")(function* (
     return Option.none();
   }
 
-  const decoded = yield* Schema.decodeUnknown(AnimeMetadataFromAniListSchema)(media).pipe(
+  const decoded = yield* Schema.decodeUnknownEffect(AnimeMetadataFromAniListSchema)(media).pipe(
     Effect.mapError((cause) =>
       ExternalCallError.make({
         cause,
@@ -508,7 +511,7 @@ const tryFetchSeasonal = Effect.fn("AniListClient.tryFetchSeasonal")(function* (
   );
 
   return yield* Effect.forEach(payload.data.Page.media, (entry) =>
-    Schema.decodeUnknown(AnimeSearchResultFromAniListSchema)(entry).pipe(
+    Schema.decodeUnknownEffect(AnimeSearchResultFromAniListSchema)(entry).pipe(
       Effect.map((decoded) => ({
         ...decoded,
         season: decoded.season ?? input.season,

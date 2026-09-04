@@ -1,5 +1,5 @@
-import { HttpRouter } from "@effect/platform";
-import { Effect, Schema } from "effect";
+import * as HttpRouter from "effect/unstable/http/HttpRouter";
+import { Effect, Layer, Schema } from "effect";
 import { RssFeedSchema } from "@packages/shared/index.ts";
 
 import { CatalogRssService } from "@/features/operations/catalog/catalog-rss-service.ts";
@@ -13,15 +13,17 @@ import {
 } from "@/infra/http/router-helpers.ts";
 import { IdParamsSchema } from "@/infra/http/common-request-schemas.ts";
 
-export const rssRouter = HttpRouter.empty.pipe(
-  HttpRouter.get(
+export const rssRouter = Layer.mergeAll(
+  HttpRouter.add(
+    "GET",
     "/rss",
     authedRouteResponse(
       Effect.flatMap(CatalogRssService, (service) => service.listRssFeeds()),
       schemaJsonResponse(Schema.Array(RssFeedSchema)),
     ),
   ),
-  HttpRouter.post(
+  HttpRouter.add(
+    "POST",
     "/rss",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -35,7 +37,8 @@ export const rssRouter = HttpRouter.empty.pipe(
       schemaJsonResponse(RssFeedSchema),
     ),
   ),
-  HttpRouter.del(
+  HttpRouter.add(
+    "DELETE",
     "/rss/:id",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -45,7 +48,8 @@ export const rssRouter = HttpRouter.empty.pipe(
       successResponse,
     ),
   ),
-  HttpRouter.put(
+  HttpRouter.add(
+    "PUT",
     "/rss/:id/toggle",
     authedRouteResponse(
       Effect.gen(function* () {

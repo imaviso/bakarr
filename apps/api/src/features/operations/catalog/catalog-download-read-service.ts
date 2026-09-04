@@ -1,5 +1,3 @@
-import { Effect } from "effect";
-
 import type { Download, DownloadEventsPage, DownloadStatus } from "@packages/shared/index.ts";
 import type { DatabaseError } from "@/db/database.ts";
 import {
@@ -16,6 +14,7 @@ import {
 import { StoredDataError } from "@/features/errors.ts";
 import { OperationsProgress } from "@/features/operations/tasks/operations-progress-service.ts";
 import { nowIso as currentNowIso } from "@/infra/time.ts";
+import { Context, Effect, Layer } from "effect";
 
 type ReadError = DatabaseError | StoredDataError;
 
@@ -39,10 +38,13 @@ export interface CatalogDownloadReadServiceShape {
   ) => Effect.Effect<DownloadEventCsvExportStreamShape, ReadError>;
 }
 
-export class CatalogDownloadReadService extends Effect.Service<CatalogDownloadReadService>()(
-  "@bakarr/api/CatalogDownloadReadService",
-  {
-    effect: Effect.gen(function* () {
+export class CatalogDownloadReadService extends Context.Service<
+  CatalogDownloadReadService,
+  CatalogDownloadReadServiceShape
+>()("@bakarr/api/CatalogDownloadReadService") {
+  static readonly layer = Layer.effect(
+    CatalogDownloadReadService,
+    Effect.gen(function* () {
       const downloadRepository = yield* DownloadRepository;
       const operationsProgress = yield* OperationsProgress;
       const nowIso = currentNowIso;
@@ -99,10 +101,7 @@ export class CatalogDownloadReadService extends Effect.Service<CatalogDownloadRe
         streamDownloadEventsExportJson,
       } satisfies CatalogDownloadReadServiceShape;
     }),
-    // OperationsProgress is a stateful singleton provided once by the lifecycle
-    // layer — embedding it here would build a second instance (different layer object).
-    dependencies: [DownloadRepository.Default],
-  },
-) {}
+  );
+}
 
-export const CatalogDownloadReadServiceLive = CatalogDownloadReadService.Default;
+export const CatalogDownloadReadServiceLive = CatalogDownloadReadService.layer;

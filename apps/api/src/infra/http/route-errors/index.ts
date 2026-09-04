@@ -30,7 +30,7 @@ import {
   StoredDataError,
 } from "@/features/errors.ts";
 
-const CommonRouteErrorSchema = Schema.Union(
+const CommonRouteErrorSchema = Schema.Union([
   AuthErrorSchema,
   DatabaseError,
   DomainConflictError,
@@ -45,7 +45,7 @@ const CommonRouteErrorSchema = Schema.Union(
   StreamPayloadTooLargeError,
   TokenHasherError,
   WorkerTimeoutError,
-);
+]);
 
 type CommonRouteError = Schema.Schema.Type<typeof CommonRouteErrorSchema>;
 
@@ -72,7 +72,9 @@ const taggedCommonRouteErrorMappers: {
     status: 404,
   }),
   AuthRateLimitedError: (error: AuthRateLimitedError): RouteErrorResponse => ({
-    headers: { "retry-after": String(Math.max(1, Math.ceil(error.retryAfterMs / 1000))) },
+    headers: {
+      "retry-after": globalThis.String(Math.max(1, Math.ceil(error.retryAfterMs / 1000))),
+    },
     message: error.message,
     status: 429,
   }),

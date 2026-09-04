@@ -1,7 +1,7 @@
-import { Effect } from "effect";
 import { assert, it } from "@effect/vitest";
 import { brandMediaId } from "@packages/shared/index.ts";
 
+import { Effect } from "effect";
 import {
   encodeAnimeDiscoveryEntries,
   encodeAnimeSynonyms,

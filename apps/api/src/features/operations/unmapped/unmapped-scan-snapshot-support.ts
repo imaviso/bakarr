@@ -1,5 +1,3 @@
-import { Effect } from "effect";
-
 import type { DatabaseError } from "@/db/database.ts";
 import { isNotFoundError } from "@/infra/filesystem/fs-errors.ts";
 import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
@@ -14,6 +12,7 @@ import {
 } from "@/features/operations/unmapped/unmapped-folder-list-support.ts";
 import type { MediaKind, UnmappedFolder } from "@packages/shared/index.ts";
 import type { MediaRepository } from "@/features/media/shared/media-repository.ts";
+import { Effect } from "effect";
 
 export interface ConfigLibraryRoot {
   readonly mediaKind: MediaKind;

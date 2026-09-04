@@ -1,7 +1,6 @@
-import { Effect } from "effect";
-
 import type { FileByteRange } from "@/infra/file-stream.ts";
 import { StreamRangeError } from "@/features/media/stream/media-stream-errors.ts";
+import { Effect } from "effect";
 
 export function parseStreamRange(
   rangeHeader: string | undefined,
@@ -73,9 +72,9 @@ function parseStrictNonNegativeInteger(value: string) {
     return undefined;
   }
 
-  const parsed = Number.parseInt(value, 10);
+  const parsed = globalThis.Number.parseInt(value, 10);
 
-  return Number.isSafeInteger(parsed) ? parsed : undefined;
+  return globalThis.Number.isSafeInteger(parsed) ? parsed : undefined;
 }
 
 function parseStrictPositiveInteger(value: string) {
@@ -90,8 +89,8 @@ function parseStrictPositiveInteger(value: string) {
 
 function isValidAbsoluteRange(start: number, end: number, fileSize: number) {
   return (
-    Number.isSafeInteger(start) &&
-    Number.isSafeInteger(end) &&
+    globalThis.Number.isSafeInteger(start) &&
+    globalThis.Number.isSafeInteger(end) &&
     start >= 0 &&
     end >= start &&
     start < fileSize &&

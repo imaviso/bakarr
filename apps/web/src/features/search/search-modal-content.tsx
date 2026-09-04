@@ -33,8 +33,8 @@ import type { SearchModalState } from "@/features/search/search-modal-state";
 
 interface SearchModalContentProps {
   unitNumber: number;
-  unitTitle?: string | undefined;
-  unitKind?: MediaUnitKind | undefined;
+  unitTitle?: string | null | undefined;
+  unitKind?: MediaUnitKind | null | undefined;
   state: SearchModalState;
 }
 

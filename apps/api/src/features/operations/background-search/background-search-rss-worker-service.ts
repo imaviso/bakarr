@@ -1,5 +1,4 @@
 // oxlint-disable typescript/no-restricted-types -- `unknown` is the honest type at error/cause boundaries (Effect error channels, try/catch causes, Logger messages)
-import { Effect } from "effect";
 
 import { DatabaseError } from "@/db/database.ts";
 import { EventBus } from "@/infra/effect/event-bus.ts";
@@ -8,6 +7,7 @@ import { SearchBackgroundRssService } from "@/features/operations/background-sea
 import { OperationsProgress } from "@/features/operations/tasks/operations-progress-service.ts";
 import { InfrastructureError } from "@/features/errors.ts";
 import { BackgroundJobRunner } from "@/background/background-job-runner.ts";
+import { Context, Effect, Layer } from "effect";
 
 /** Job-edge union — non-domain failures collapsed to InfrastructureError. */
 export type BackgroundSearchRssWorkerError = DatabaseError | InfrastructureError;
@@ -24,16 +24,13 @@ const mapWorkerError = (error: unknown): BackgroundSearchRssWorkerError =>
         cause: error,
       });
 
-export class BackgroundSearchRssWorkerService extends Effect.Service<BackgroundSearchRssWorkerService>()(
-  "@bakarr/api/BackgroundSearchRssWorkerService",
-  {
-    // EventBus + OperationsProgress come from the lifecycle layer.
-    dependencies: [
-      BackgroundJobRunner.Default,
-      SearchBackgroundMissingService.Default,
-      SearchBackgroundRssService.Default,
-    ],
-    effect: Effect.gen(function* () {
+export class BackgroundSearchRssWorkerService extends Context.Service<
+  BackgroundSearchRssWorkerService,
+  BackgroundSearchRssWorkerServiceShape
+>()("@bakarr/api/BackgroundSearchRssWorkerService") {
+  static readonly layer = Layer.effect(
+    BackgroundSearchRssWorkerService,
+    Effect.gen(function* () {
       const backgroundJobRunner = yield* BackgroundJobRunner;
       const eventBus = yield* EventBus;
       const progress = yield* OperationsProgress;
@@ -74,7 +71,7 @@ export class BackgroundSearchRssWorkerService extends Effect.Service<BackgroundS
 
       return { runRssWorker } satisfies BackgroundSearchRssWorkerServiceShape;
     }),
-  },
-) {}
+  );
+}
 
-export const BackgroundSearchRssWorkerServiceLive = BackgroundSearchRssWorkerService.Default;
+export const BackgroundSearchRssWorkerServiceLive = BackgroundSearchRssWorkerService.layer;

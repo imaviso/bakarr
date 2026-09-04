@@ -1,6 +1,8 @@
+import * as TestClock from "effect/testing/TestClock";
+import { Cause, Effect, Exit, Layer, Option } from "effect";
+import type * as NodeSqliteClient from "@effect/sql-sqlite-node/SqliteClient";
 import { assert, describe, it } from "@effect/vitest";
 import { eq } from "drizzle-orm";
-import { Cause, Effect, Exit, Layer, Option, TestClock } from "effect";
 
 import {
   brandMediaId,
@@ -9,7 +11,7 @@ import {
   type MediaSearchResult,
 } from "@packages/shared/index.ts";
 import * as schema from "@/db/schema.ts";
-import { MediaQueryService } from "@/features/media/query/query-service.ts";
+import { MediaQueryService, makeMediaQueryService } from "@/features/media/query/query-service.ts";
 import { AniListClient } from "@/features/media/metadata/anilist.ts";
 import { MediaSeasonalProviderService } from "@/features/media/query/media-seasonal-provider-service.ts";
 import { AppDrizzleDatabase, type AppDatabase } from "@/db/database.ts";
@@ -27,7 +29,10 @@ import { MediaProbeMetadataFound } from "@/infra/media/probe.ts";
 import { withFileSystemSandboxEffect, writeTextFile } from "@/test/filesystem-test.ts";
 import { StoredDataError } from "@/features/errors.ts";
 import { annotateMediaSearchResultsForQuery } from "@/features/media/query/media-search-annotation.ts";
-import { MediaFileService } from "@/features/media/files/media-file-service.ts";
+import {
+  MediaFileService,
+  makeMediaFileService,
+} from "@/features/media/files/media-file-service.ts";
 import { OperationsTaskLauncherService } from "@/features/operations/tasks/operations-task-launcher-service.ts";
 import { FileSystem } from "@/infra/filesystem/filesystem.ts";
 import { MediaProbe } from "@/infra/media/probe.ts";
@@ -55,15 +60,15 @@ function makeSeasonalResult(input: {
 }
 
 describe("MediaQueryService.listSeasonalMedia", () => {
-  it.scoped("uses db cache within ttl and skips provider call", () =>
+  it.effect("uses db cache within ttl and skips provider call", () =>
     withSqliteTestDbEffect({
-      run: (db) =>
+      run: (db, _databaseFile, client, _exec) =>
         Effect.gen(function* () {
           let providerCalls = 0;
 
           const providerLayer = Layer.succeed(
             MediaSeasonalProviderService,
-            MediaSeasonalProviderService.make({
+            MediaSeasonalProviderService.of({
               getSeasonalAnime: () => {
                 providerCalls += 1;
                 return Effect.succeed({
@@ -82,7 +87,7 @@ describe("MediaQueryService.listSeasonalMedia", () => {
             providerLayer,
             Layer.succeed(
               AniListClient,
-              AniListClient.make({
+              AniListClient.of({
                 getAnimeMetadataById: () => Effect.succeed(Option.none()),
                 getSeasonalAnime: () => Effect.succeed([]),
                 searchAnimeMetadata: () => Effect.succeed([]),
@@ -90,7 +95,7 @@ describe("MediaQueryService.listSeasonalMedia", () => {
             ),
             Layer.succeed(
               ManamiClient,
-              ManamiClient.make({
+              ManamiClient.of({
                 getByAniListId: () => Effect.succeed(Option.none()),
                 getByMalId: () => Effect.succeed(Option.none()),
                 resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
@@ -98,12 +103,15 @@ describe("MediaQueryService.listSeasonalMedia", () => {
                 searchMedia: () => Effect.succeed([]),
               }),
             ),
-            Layer.succeed(AppDrizzleDatabase, AppDrizzleDatabase.make(db)),
-            Layer.succeed(MediaRepository, makeMediaRepository(db)),
-            Layer.succeed(SeasonalMediaCacheRepository, makeSeasonalMediaCacheRepository(db)),
+            Layer.succeed(AppDrizzleDatabase, AppDrizzleDatabase.of(db)),
+            Layer.succeed(MediaRepository, makeMediaRepository(db, client)),
+            Layer.succeed(
+              SeasonalMediaCacheRepository,
+              makeSeasonalMediaCacheRepository(db, client),
+            ),
           );
 
-          const queryServiceLayer = MediaQueryService.DefaultWithoutDependencies.pipe(
+          const queryServiceLayer = Layer.effect(MediaQueryService, makeMediaQueryService()).pipe(
             Layer.provide(baseLayer),
           );
 
@@ -143,16 +151,16 @@ describe("MediaQueryService.listSeasonalMedia", () => {
     }),
   );
 
-  it.scoped("re-fetches when ttl expires", () =>
+  it.effect("re-fetches when ttl expires", () =>
     withSqliteTestDbEffect({
-      run: (db) =>
+      run: (db, _databaseFile, client, _exec) =>
         Effect.gen(function* () {
           yield* TestClock.setTime(new Date("2025-04-01T10:00:00.000Z").getTime());
           let providerCalls = 0;
 
           const providerLayer = Layer.succeed(
             MediaSeasonalProviderService,
-            MediaSeasonalProviderService.make({
+            MediaSeasonalProviderService.of({
               getSeasonalAnime: () => {
                 providerCalls += 1;
                 return Effect.succeed({
@@ -167,13 +175,13 @@ describe("MediaQueryService.listSeasonalMedia", () => {
             }),
           );
 
-          const layer = MediaQueryService.DefaultWithoutDependencies.pipe(
+          const layer = Layer.effect(MediaQueryService, makeMediaQueryService()).pipe(
             Layer.provide(
               Layer.mergeAll(
                 providerLayer,
                 Layer.succeed(
                   AniListClient,
-                  AniListClient.make({
+                  AniListClient.of({
                     getAnimeMetadataById: () => Effect.succeed(Option.none()),
                     getSeasonalAnime: () => Effect.succeed([]),
                     searchAnimeMetadata: () => Effect.succeed([]),
@@ -181,7 +189,7 @@ describe("MediaQueryService.listSeasonalMedia", () => {
                 ),
                 Layer.succeed(
                   ManamiClient,
-                  ManamiClient.make({
+                  ManamiClient.of({
                     getByAniListId: () => Effect.succeed(Option.none()),
                     getByMalId: () => Effect.succeed(Option.none()),
                     resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
@@ -189,9 +197,12 @@ describe("MediaQueryService.listSeasonalMedia", () => {
                     searchMedia: () => Effect.succeed([]),
                   }),
                 ),
-                Layer.succeed(AppDrizzleDatabase, AppDrizzleDatabase.make(db)),
-                Layer.succeed(MediaRepository, makeMediaRepository(db)),
-                Layer.succeed(SeasonalMediaCacheRepository, makeSeasonalMediaCacheRepository(db)),
+                Layer.succeed(AppDrizzleDatabase, AppDrizzleDatabase.of(db)),
+                Layer.succeed(MediaRepository, makeMediaRepository(db, client)),
+                Layer.succeed(
+                  SeasonalMediaCacheRepository,
+                  makeSeasonalMediaCacheRepository(db, client),
+                ),
               ),
             ),
           );
@@ -216,16 +227,16 @@ describe("MediaQueryService.listSeasonalMedia", () => {
     }),
   );
 
-  it.scoped("returns stale cache as degraded when provider fails after ttl", () =>
+  it.effect("returns stale cache as degraded when provider fails after ttl", () =>
     withSqliteTestDbEffect({
-      run: (db) =>
+      run: (db, _databaseFile, client) =>
         Effect.gen(function* () {
           yield* TestClock.setTime(new Date("2025-04-01T10:00:00.000Z").getTime());
           let providerCalls = 0;
 
           const providerLayer = Layer.succeed(
             MediaSeasonalProviderService,
-            MediaSeasonalProviderService.make({
+            MediaSeasonalProviderService.of({
               getSeasonalAnime: () => {
                 providerCalls += 1;
 
@@ -251,13 +262,13 @@ describe("MediaQueryService.listSeasonalMedia", () => {
             }),
           );
 
-          const layer = MediaQueryService.DefaultWithoutDependencies.pipe(
+          const layer = Layer.effect(MediaQueryService, makeMediaQueryService()).pipe(
             Layer.provide(
               Layer.mergeAll(
                 providerLayer,
                 Layer.succeed(
                   AniListClient,
-                  AniListClient.make({
+                  AniListClient.of({
                     getAnimeMetadataById: () => Effect.succeed(Option.none()),
                     getSeasonalAnime: () => Effect.succeed([]),
                     searchAnimeMetadata: () => Effect.succeed([]),
@@ -265,7 +276,7 @@ describe("MediaQueryService.listSeasonalMedia", () => {
                 ),
                 Layer.succeed(
                   ManamiClient,
-                  ManamiClient.make({
+                  ManamiClient.of({
                     getByAniListId: () => Effect.succeed(Option.none()),
                     getByMalId: () => Effect.succeed(Option.none()),
                     resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
@@ -273,9 +284,12 @@ describe("MediaQueryService.listSeasonalMedia", () => {
                     searchMedia: () => Effect.succeed([]),
                   }),
                 ),
-                Layer.succeed(AppDrizzleDatabase, AppDrizzleDatabase.make(db)),
-                Layer.succeed(MediaRepository, makeMediaRepository(db)),
-                Layer.succeed(SeasonalMediaCacheRepository, makeSeasonalMediaCacheRepository(db)),
+                Layer.succeed(AppDrizzleDatabase, AppDrizzleDatabase.of(db)),
+                Layer.succeed(MediaRepository, makeMediaRepository(db, client)),
+                Layer.succeed(
+                  SeasonalMediaCacheRepository,
+                  makeSeasonalMediaCacheRepository(db, client),
+                ),
               ),
             ),
           );
@@ -301,30 +315,35 @@ describe("MediaQueryService.listSeasonalMedia", () => {
     }),
   );
 
-  it.scoped("resolves defaults from now + marks already_in_library", () =>
+  it.effect("resolves defaults from now + marks already_in_library", () =>
     withSqliteTestDbEffect({
-      run: (db) =>
+      run: (db, _databaseFile, client, exec) =>
         Effect.gen(function* () {
-          yield* Effect.tryPromise(() =>
-            db.insert(schema.media).values({
-              addedAt: "2024-01-01T00:00:00.000Z",
-              unitCount: 12,
-              format: "TV",
-              genres: "[]",
-              id: 1,
-              monitored: true,
-              profileName: "Default",
-              releaseProfileIds: "[]",
-              rootFolder: "/library/Seasonal",
-              status: "RELEASING",
-              studios: "[]",
-              titleRomaji: "Winter Show",
-            }),
+          yield* exec.runQuery(
+            "Failed to seed test data",
+            db
+              .insert(schema.media)
+              .values({
+                addedAt: "2024-01-01T00:00:00.000Z",
+                unitCount: 12,
+                format: "TV",
+                genres: "[]",
+                id: 1,
+                monitored: true,
+                profileName: "Default",
+                releaseProfileIds: "[]",
+                rootFolder: "/library/Seasonal",
+                status: "RELEASING",
+                studios: "[]",
+                titleRomaji: "Winter Show",
+              })
+              .prepare()
+              .effect(),
           );
 
           yield* TestClock.setTime(new Date("2025-06-15T12:00:00Z").getTime());
 
-          const providerService = MediaSeasonalProviderService.make({
+          const providerService = MediaSeasonalProviderService.of({
             getSeasonalAnime: (input: {
               season: "spring" | "summer" | "fall" | "winter";
               year: number;
@@ -362,13 +381,13 @@ describe("MediaQueryService.listSeasonalMedia", () => {
               }),
           });
 
-          const layer = MediaQueryService.DefaultWithoutDependencies.pipe(
+          const layer = Layer.effect(MediaQueryService, makeMediaQueryService()).pipe(
             Layer.provide(
               Layer.mergeAll(
                 Layer.succeed(MediaSeasonalProviderService, providerService),
                 Layer.succeed(
                   AniListClient,
-                  AniListClient.make({
+                  AniListClient.of({
                     getAnimeMetadataById: () => Effect.succeed(Option.none()),
                     getSeasonalAnime: () => Effect.succeed([]),
                     searchAnimeMetadata: () => Effect.succeed([]),
@@ -376,7 +395,7 @@ describe("MediaQueryService.listSeasonalMedia", () => {
                 ),
                 Layer.succeed(
                   ManamiClient,
-                  ManamiClient.make({
+                  ManamiClient.of({
                     getByAniListId: () => Effect.succeed(Option.none()),
                     getByMalId: () => Effect.succeed(Option.none()),
                     resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
@@ -384,9 +403,12 @@ describe("MediaQueryService.listSeasonalMedia", () => {
                     searchMedia: () => Effect.succeed([]),
                   }),
                 ),
-                Layer.succeed(AppDrizzleDatabase, AppDrizzleDatabase.make(db)),
-                Layer.succeed(MediaRepository, makeMediaRepository(db)),
-                Layer.succeed(SeasonalMediaCacheRepository, makeSeasonalMediaCacheRepository(db)),
+                Layer.succeed(AppDrizzleDatabase, AppDrizzleDatabase.of(db)),
+                Layer.succeed(MediaRepository, makeMediaRepository(db, client)),
+                Layer.succeed(
+                  SeasonalMediaCacheRepository,
+                  makeSeasonalMediaCacheRepository(db, client),
+                ),
               ),
             ),
           );
@@ -406,11 +428,11 @@ describe("MediaQueryService.listSeasonalMedia", () => {
     }),
   );
 
-  it.scoped("respects explicit season/year/limit", () =>
+  it.effect("respects explicit season/year/limit", () =>
     withSqliteTestDbEffect({
-      run: (db) =>
+      run: (db, _databaseFile, client, _exec) =>
         Effect.gen(function* () {
-          const providerService = MediaSeasonalProviderService.make({
+          const providerService = MediaSeasonalProviderService.of({
             getSeasonalAnime: (input) =>
               Effect.succeed({
                 degraded: true,
@@ -433,13 +455,13 @@ describe("MediaQueryService.listSeasonalMedia", () => {
               }),
           });
 
-          const layer = MediaQueryService.DefaultWithoutDependencies.pipe(
+          const layer = Layer.effect(MediaQueryService, makeMediaQueryService()).pipe(
             Layer.provide(
               Layer.mergeAll(
                 Layer.succeed(MediaSeasonalProviderService, providerService),
                 Layer.succeed(
                   AniListClient,
-                  AniListClient.make({
+                  AniListClient.of({
                     getAnimeMetadataById: () => Effect.succeed(Option.none()),
                     getSeasonalAnime: () => Effect.succeed([]),
                     searchAnimeMetadata: () => Effect.succeed([]),
@@ -447,7 +469,7 @@ describe("MediaQueryService.listSeasonalMedia", () => {
                 ),
                 Layer.succeed(
                   ManamiClient,
-                  ManamiClient.make({
+                  ManamiClient.of({
                     getByAniListId: () => Effect.succeed(Option.none()),
                     getByMalId: () => Effect.succeed(Option.none()),
                     resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
@@ -455,9 +477,12 @@ describe("MediaQueryService.listSeasonalMedia", () => {
                     searchMedia: () => Effect.succeed([]),
                   }),
                 ),
-                Layer.succeed(AppDrizzleDatabase, AppDrizzleDatabase.make(db)),
-                Layer.succeed(MediaRepository, makeMediaRepository(db)),
-                Layer.succeed(SeasonalMediaCacheRepository, makeSeasonalMediaCacheRepository(db)),
+                Layer.succeed(AppDrizzleDatabase, AppDrizzleDatabase.of(db)),
+                Layer.succeed(MediaRepository, makeMediaRepository(db, client)),
+                Layer.succeed(
+                  SeasonalMediaCacheRepository,
+                  makeSeasonalMediaCacheRepository(db, client),
+                ),
               ),
             ),
           );
@@ -513,17 +538,17 @@ describe("resolveSeasonFromDate / resolveSeasonYearFromDate", () => {
 });
 
 describe("MediaQueryService.searchMedia", () => {
-  it.scoped("falls back to Manami local search when AniList search fails", () =>
+  it.effect("falls back to Manami local search when AniList search fails", () =>
     withSqliteTestDbEffect({
-      run: (db) =>
+      run: (db, _databaseFile, client, _exec) =>
         Effect.gen(function* () {
           yield* TestClock.setTime(new Date("2025-04-01T10:00:00.000Z").getTime());
-          const layer = MediaQueryService.DefaultWithoutDependencies.pipe(
+          const layer = Layer.effect(MediaQueryService, makeMediaQueryService()).pipe(
             Layer.provide(
               Layer.mergeAll(
                 Layer.succeed(
                   MediaSeasonalProviderService,
-                  MediaSeasonalProviderService.make({
+                  MediaSeasonalProviderService.of({
                     getSeasonalAnime: () =>
                       Effect.succeed({
                         degraded: false,
@@ -537,7 +562,7 @@ describe("MediaQueryService.searchMedia", () => {
                 ),
                 Layer.succeed(
                   AniListClient,
-                  AniListClient.make({
+                  AniListClient.of({
                     getAnimeMetadataById: () => Effect.succeed(Option.none()),
                     getSeasonalAnime: () => Effect.succeed([]),
                     searchAnimeMetadata: () =>
@@ -552,7 +577,7 @@ describe("MediaQueryService.searchMedia", () => {
                 ),
                 Layer.succeed(
                   ManamiClient,
-                  ManamiClient.make({
+                  ManamiClient.of({
                     getByAniListId: () => Effect.succeed(Option.none()),
                     getByMalId: () => Effect.succeed(Option.none()),
                     resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
@@ -568,9 +593,12 @@ describe("MediaQueryService.searchMedia", () => {
                       ]),
                   }),
                 ),
-                Layer.succeed(AppDrizzleDatabase, AppDrizzleDatabase.make(db)),
-                Layer.succeed(MediaRepository, makeMediaRepository(db)),
-                Layer.succeed(SeasonalMediaCacheRepository, makeSeasonalMediaCacheRepository(db)),
+                Layer.succeed(AppDrizzleDatabase, AppDrizzleDatabase.of(db)),
+                Layer.succeed(MediaRepository, makeMediaRepository(db, client)),
+                Layer.succeed(
+                  SeasonalMediaCacheRepository,
+                  makeSeasonalMediaCacheRepository(db, client),
+                ),
               ),
             ),
           );
@@ -592,12 +620,13 @@ describe("MediaQueryService.searchMedia", () => {
 
 function makeQueryServiceLayer(
   db: AppDatabase,
+  client: NodeSqliteClient.SqliteClient,
   stubs: {
     readonly aniList?: typeof AniListClient.Service;
     readonly manami?: typeof ManamiClient.Service;
   } = {},
 ) {
-  const providerService = MediaSeasonalProviderService.make({
+  const providerService = MediaSeasonalProviderService.of({
     getSeasonalAnime: () =>
       Effect.succeed({
         degraded: false,
@@ -610,14 +639,14 @@ function makeQueryServiceLayer(
   });
   const aniList =
     stubs.aniList ??
-    AniListClient.make({
+    AniListClient.of({
       getAnimeMetadataById: () => Effect.succeed(Option.none()),
       getSeasonalAnime: () => Effect.succeed([]),
       searchAnimeMetadata: () => Effect.succeed([]),
     });
   const manami =
     stubs.manami ??
-    ManamiClient.make({
+    ManamiClient.of({
       getByAniListId: () => Effect.succeed(Option.none()),
       getByMalId: () => Effect.succeed(Option.none()),
       resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
@@ -625,15 +654,15 @@ function makeQueryServiceLayer(
       searchMedia: () => Effect.succeed([]),
     });
 
-  return MediaQueryService.DefaultWithoutDependencies.pipe(
+  return Layer.effect(MediaQueryService, makeMediaQueryService()).pipe(
     Layer.provide(
       Layer.mergeAll(
         Layer.succeed(MediaSeasonalProviderService, providerService),
         Layer.succeed(AniListClient, aniList),
         Layer.succeed(ManamiClient, manami),
-        Layer.succeed(AppDrizzleDatabase, AppDrizzleDatabase.make(db)),
-        Layer.succeed(MediaRepository, makeMediaRepository(db)),
-        Layer.succeed(SeasonalMediaCacheRepository, makeSeasonalMediaCacheRepository(db)),
+        Layer.succeed(AppDrizzleDatabase, AppDrizzleDatabase.of(db)),
+        Layer.succeed(MediaRepository, makeMediaRepository(db, client)),
+        Layer.succeed(SeasonalMediaCacheRepository, makeSeasonalMediaCacheRepository(db, client)),
       ),
     ),
   );
@@ -692,51 +721,61 @@ it("deriveEpisodeTimelineMetadata marks future and aired mediaUnits", () => {
   });
 });
 
-it.scoped("MediaQueryService.listUnits returns stored unit probe metadata", () =>
+it.effect("MediaQueryService.listUnits returns stored unit probe metadata", () =>
   withSqliteTestDbEffect({
-    run: (db) =>
+    run: (db, _databaseFile, client, exec) =>
       withFileSystemSandboxEffect(({ root, fs }) =>
         Effect.gen(function* () {
           const appDb: AppDatabase = db;
           const filePath = `${root}/MediaUnit 1.mkv`;
           yield* writeTextFile(fs, filePath, "test");
 
-          yield* Effect.tryPromise(() =>
-            appDb.insert(schema.media).values({
-              addedAt: "2024-01-01T00:00:00.000Z",
-              unitCount: 1,
-              format: "TV",
-              genres: "[]",
-              id: 1,
-              monitored: true,
-              profileName: "Default",
-              releaseProfileIds: "[]",
-              rootFolder: root,
-              status: "RELEASING",
-              studios: "[]",
-              titleRomaji: "Test Show",
-            }),
+          yield* exec.runQuery(
+            "Failed to seed test data",
+            appDb
+              .insert(schema.media)
+              .values({
+                addedAt: "2024-01-01T00:00:00.000Z",
+                unitCount: 1,
+                format: "TV",
+                genres: "[]",
+                id: 1,
+                monitored: true,
+                profileName: "Default",
+                releaseProfileIds: "[]",
+                rootFolder: root,
+                status: "RELEASING",
+                studios: "[]",
+                titleRomaji: "Test Show",
+              })
+              .prepare()
+              .effect(),
           );
-          yield* Effect.tryPromise(() =>
-            appDb.insert(schema.mediaUnits).values({
-              aired: "2024-01-01T00:00:00.000Z",
-              mediaId: 1,
-              downloaded: true,
-              durationSeconds: 1440,
-              filePath,
-              fileSize: 4,
-              audioChannels: "2.0",
-              audioCodec: "AAC",
-              number: 1,
-              resolution: "1080p",
-              title: "Pilot",
-              videoCodec: "HEVC",
-            }),
+          yield* exec.runQuery(
+            "Failed to seed test data",
+            appDb
+              .insert(schema.mediaUnits)
+              .values({
+                aired: "2024-01-01T00:00:00.000Z",
+                mediaId: 1,
+                downloaded: true,
+                durationSeconds: 1440,
+                filePath,
+                fileSize: 4,
+                audioChannels: "2.0",
+                audioCodec: "AAC",
+                number: 1,
+                resolution: "1080p",
+                title: "Pilot",
+                videoCodec: "HEVC",
+              })
+              .prepare()
+              .effect(),
           );
 
           yield* TestClock.setTime(new Date("2024-01-02T00:00:00.000Z").getTime());
           const service = yield* MediaQueryService.pipe(
-            Effect.provide(makeQueryServiceLayer(appDb)),
+            Effect.provide(makeQueryServiceLayer(appDb, client)),
           );
 
           const result = yield* service.listUnits(1);
@@ -753,46 +792,56 @@ it.scoped("MediaQueryService.listUnits returns stored unit probe metadata", () =
   }),
 );
 
-it.scoped("MediaFileService.listFiles caches probed metadata to episode rows", () =>
+it.effect("MediaFileService.listFiles caches probed metadata to episode rows", () =>
   withSqliteTestDbEffect({
-    run: (db) =>
+    run: (db, _databaseFile, client, exec) =>
       withFileSystemSandboxEffect(({ root, fs }) =>
         Effect.gen(function* () {
           const appDb: AppDatabase = db;
           const filePath = `${root}/MediaUnit 1.mkv`;
           yield* writeTextFile(fs, filePath, "test");
 
-          yield* Effect.tryPromise(() =>
-            appDb.insert(schema.media).values({
-              addedAt: "2024-01-01T00:00:00.000Z",
-              unitCount: 1,
-              format: "TV",
-              genres: "[]",
-              id: 101,
-              monitored: true,
-              profileName: "Default",
-              releaseProfileIds: "[]",
-              rootFolder: root,
-              status: "RELEASING",
-              studios: "[]",
-              titleRomaji: "Probe Cache Show",
-            }),
+          yield* exec.runQuery(
+            "Failed to seed test data",
+            appDb
+              .insert(schema.media)
+              .values({
+                addedAt: "2024-01-01T00:00:00.000Z",
+                unitCount: 1,
+                format: "TV",
+                genres: "[]",
+                id: 101,
+                monitored: true,
+                profileName: "Default",
+                releaseProfileIds: "[]",
+                rootFolder: root,
+                status: "RELEASING",
+                studios: "[]",
+                titleRomaji: "Probe Cache Show",
+              })
+              .prepare()
+              .effect(),
           );
 
-          yield* Effect.tryPromise(() =>
-            appDb.insert(schema.mediaUnits).values({
-              aired: "2024-01-01T00:00:00.000Z",
-              mediaId: 101,
-              downloaded: true,
-              filePath,
-              fileSize: 4,
-              number: 1,
-              title: "Pilot",
-            }),
+          yield* exec.runQuery(
+            "Failed to seed test data",
+            appDb
+              .insert(schema.mediaUnits)
+              .values({
+                aired: "2024-01-01T00:00:00.000Z",
+                mediaId: 101,
+                downloaded: true,
+                filePath,
+                fileSize: 4,
+                number: 1,
+                title: "Pilot",
+              })
+              .prepare()
+              .effect(),
           );
 
           let probeCalls = 0;
-          const mediaProbe = MediaProbe.make({
+          const mediaProbe = MediaProbe.of({
             probeVideoFile: (_path: string) => {
               probeCalls += 1;
               return Effect.succeed(
@@ -809,20 +858,20 @@ it.scoped("MediaFileService.listFiles caches probed metadata to episode rows", (
             },
           });
 
-          const layer = MediaFileService.DefaultWithoutDependencies.pipe(
+          const layer = Layer.effect(MediaFileService, makeMediaFileService()).pipe(
             Layer.provide(
               Layer.mergeAll(
                 makeUnusedEventBusLayer("not used in test"),
-                Layer.succeed(FileSystem, FileSystem.make(fs)),
+                Layer.succeed(FileSystem, FileSystem.of(fs)),
                 Layer.succeed(MediaProbe, mediaProbe),
-                Layer.succeed(AppDrizzleDatabase, AppDrizzleDatabase.make(appDb)),
-                Layer.succeed(MediaRepository, makeMediaRepository(appDb)),
-                Layer.succeed(MediaUnitRepository, makeMediaUnitRepository(appDb)),
-                Layer.succeed(SystemLogRepository, makeSystemLogRepository(appDb)),
+                Layer.succeed(AppDrizzleDatabase, AppDrizzleDatabase.of(appDb)),
+                Layer.succeed(MediaRepository, makeMediaRepository(appDb, client)),
+                Layer.succeed(MediaUnitRepository, makeMediaUnitRepository(appDb, client)),
+                Layer.succeed(SystemLogRepository, makeSystemLogRepository(appDb, client)),
                 Layer.succeed(
                   OperationsTaskLauncherService,
-                  OperationsTaskLauncherService.make({
-                    launch: () => Effect.dieMessage("not used in test"),
+                  OperationsTaskLauncherService.of({
+                    launch: () => Effect.die(new Error("not used in test")),
                   }),
                 ),
               ),
@@ -837,8 +886,14 @@ it.scoped("MediaFileService.listFiles caches probed metadata to episode rows", (
 
           const first = yield* listFiles(101);
 
-          const episodeRows = yield* Effect.tryPromise(() =>
-            appDb.select().from(schema.mediaUnits).where(eq(schema.mediaUnits.mediaId, 101)),
+          const episodeRows = yield* exec.runQuery(
+            "Failed to query test data",
+            appDb
+              .select()
+              .from(schema.mediaUnits)
+              .where(eq(schema.mediaUnits.mediaId, 101))
+              .prepare()
+              .effect(),
           );
           const [row] = episodeRows;
 
@@ -867,14 +922,14 @@ it.scoped("MediaFileService.listFiles caches probed metadata to episode rows", (
   }),
 );
 
-it.scoped("MediaQueryService.getMediaByAnilistId returns related and recommended metadata", () =>
+it.effect("MediaQueryService.getMediaByAnilistId returns related and recommended metadata", () =>
   withSqliteTestDbEffect({
-    run: (db) =>
+    run: (db, _databaseFile, client, _exec) =>
       Effect.gen(function* () {
         const appDb: AppDatabase = db;
         const service = yield* MediaQueryService.pipe(
           Effect.provide(
-            makeQueryServiceLayer(appDb, {
+            makeQueryServiceLayer(appDb, client, {
               aniList: makeAniListStub({
                 bannerImage: "https://example.com/banner.png",
                 coverImage: "https://example.com/cover.png",
@@ -913,41 +968,53 @@ it.scoped("MediaQueryService.getMediaByAnilistId returns related and recommended
   }),
 );
 
-it.scoped("MediaQueryService.getMedia returns discovery metadata from database storage", () =>
+it.effect("MediaQueryService.getMedia returns discovery metadata from database storage", () =>
   withSqliteTestDbEffect({
-    run: (db) =>
+    run: (db, _databaseFile, client, exec) =>
       Effect.gen(function* () {
         const appDb: AppDatabase = db;
-        yield* Effect.tryPromise(() =>
-          appDb.insert(schema.media).values({
-            addedAt: "2024-01-01T00:00:00.000Z",
-            unitCount: 1,
-            format: "TV",
-            genres: "[]",
-            id: 80,
-            monitored: true,
-            profileName: "Default",
-            releaseProfileIds: "[]",
-            rootFolder: "/library/Stub",
-            status: "RELEASING",
-            studios: "[]",
-            synonyms: '["Alias One", "Alias Two"]',
-            relatedMedia:
-              '[{"id":79,"relation_type":"PREQUEL","title":{"romaji":"Prequel Show"},"format":"TV","status":"FINISHED"}]',
-            recommendedMedia:
-              '[{"id":81,"title":{"english":"Recommended Show","romaji":"Recommended Show"},"format":"TV","status":"FINISHED"}]',
-            titleRomaji: "Stub Show",
-          }),
+        yield* exec.runQuery(
+          "Failed to seed test data",
+          appDb
+            .insert(schema.media)
+            .values({
+              addedAt: "2024-01-01T00:00:00.000Z",
+              unitCount: 1,
+              format: "TV",
+              genres: "[]",
+              id: 80,
+              monitored: true,
+              profileName: "Default",
+              releaseProfileIds: "[]",
+              rootFolder: "/library/Stub",
+              status: "RELEASING",
+              studios: "[]",
+              synonyms: '["Alias One", "Alias Two"]',
+              relatedMedia:
+                '[{"id":79,"relation_type":"PREQUEL","title":{"romaji":"Prequel Show"},"format":"TV","status":"FINISHED"}]',
+              recommendedMedia:
+                '[{"id":81,"title":{"english":"Recommended Show","romaji":"Recommended Show"},"format":"TV","status":"FINISHED"}]',
+              titleRomaji: "Stub Show",
+            })
+            .prepare()
+            .effect(),
         );
-        yield* Effect.tryPromise(() =>
-          appDb.insert(schema.mediaUnits).values({
-            mediaId: 80,
-            downloaded: false,
-            number: 1,
-          }),
+        yield* exec.runQuery(
+          "Failed to seed test data",
+          appDb
+            .insert(schema.mediaUnits)
+            .values({
+              mediaId: 80,
+              downloaded: false,
+              number: 1,
+            })
+            .prepare()
+            .effect(),
         );
 
-        const service = yield* MediaQueryService.pipe(Effect.provide(makeQueryServiceLayer(appDb)));
+        const service = yield* MediaQueryService.pipe(
+          Effect.provide(makeQueryServiceLayer(appDb, client)),
+        );
         const result = yield* service.getMedia(80);
 
         assert.deepStrictEqual(result.related_media?.[0]?.relation_type, "PREQUEL");
@@ -958,41 +1025,53 @@ it.scoped("MediaQueryService.getMedia returns discovery metadata from database s
   }),
 );
 
-it.scoped("MediaQueryService.getMedia uses stored discovery metadata from database", () =>
+it.effect("MediaQueryService.getMedia uses stored discovery metadata from database", () =>
   withSqliteTestDbEffect({
-    run: (db) =>
+    run: (db, _databaseFile, client, exec) =>
       Effect.gen(function* () {
         const appDb: AppDatabase = db;
-        yield* Effect.tryPromise(() =>
-          appDb.insert(schema.media).values({
-            addedAt: "2024-01-01T00:00:00.000Z",
-            unitCount: 1,
-            format: "TV",
-            genres: "[]",
-            id: 90,
-            monitored: true,
-            profileName: "Default",
-            releaseProfileIds: "[]",
-            rootFolder: "/library/StoredMetadata",
-            status: "RELEASING",
-            studios: "[]",
-            synonyms: '["Alt Title", "Another Name"]',
-            relatedMedia:
-              '[{"id":91,"title":{"romaji":"Related Show"},"format":"TV","status":"FINISHED"}]',
-            recommendedMedia:
-              '[{"id":92,"title":{"romaji":"Recommended Show"},"format":"TV","status":"FINISHED"}]',
-            titleRomaji: "Stored Show",
-          }),
+        yield* exec.runQuery(
+          "Failed to seed test data",
+          appDb
+            .insert(schema.media)
+            .values({
+              addedAt: "2024-01-01T00:00:00.000Z",
+              unitCount: 1,
+              format: "TV",
+              genres: "[]",
+              id: 90,
+              monitored: true,
+              profileName: "Default",
+              releaseProfileIds: "[]",
+              rootFolder: "/library/StoredMetadata",
+              status: "RELEASING",
+              studios: "[]",
+              synonyms: '["Alt Title", "Another Name"]',
+              relatedMedia:
+                '[{"id":91,"title":{"romaji":"Related Show"},"format":"TV","status":"FINISHED"}]',
+              recommendedMedia:
+                '[{"id":92,"title":{"romaji":"Recommended Show"},"format":"TV","status":"FINISHED"}]',
+              titleRomaji: "Stored Show",
+            })
+            .prepare()
+            .effect(),
         );
-        yield* Effect.tryPromise(() =>
-          appDb.insert(schema.mediaUnits).values({
-            mediaId: 90,
-            downloaded: false,
-            number: 1,
-          }),
+        yield* exec.runQuery(
+          "Failed to seed test data",
+          appDb
+            .insert(schema.mediaUnits)
+            .values({
+              mediaId: 90,
+              downloaded: false,
+              number: 1,
+            })
+            .prepare()
+            .effect(),
         );
 
-        const service = yield* MediaQueryService.pipe(Effect.provide(makeQueryServiceLayer(appDb)));
+        const service = yield* MediaQueryService.pipe(
+          Effect.provide(makeQueryServiceLayer(appDb, client)),
+        );
         const result = yield* service.getMedia(90);
 
         assert.deepStrictEqual(result.id, 90);
@@ -1006,17 +1085,17 @@ it.scoped("MediaQueryService.getMedia uses stored discovery metadata from databa
   }),
 );
 
-it.scoped("MediaQueryService.searchMedia falls back to Manami when AniList search fails", () =>
+it.effect("MediaQueryService.searchMedia falls back to Manami when AniList search fails", () =>
   withSqliteTestDbEffect({
-    run: (db) =>
+    run: (db, _databaseFile, client, _exec) =>
       Effect.gen(function* () {
         const appDb: AppDatabase = db;
         const result = yield* Effect.exit(
           Effect.gen(function* () {
             const service = yield* MediaQueryService.pipe(
               Effect.provide(
-                makeQueryServiceLayer(appDb, {
-                  aniList: AniListClient.make({
+                makeQueryServiceLayer(appDb, client, {
+                  aniList: AniListClient.of({
                     getAnimeMetadataById: () => Effect.succeed(Option.none()),
                     searchAnimeMetadata: () =>
                       Effect.fail(
@@ -1045,15 +1124,15 @@ it.scoped("MediaQueryService.searchMedia falls back to Manami when AniList searc
   }),
 );
 
-it.scoped("MediaQueryService.searchMedia reports non-degraded when AniList search succeeds", () =>
+it.effect("MediaQueryService.searchMedia reports non-degraded when AniList search succeeds", () =>
   withSqliteTestDbEffect({
-    run: (db) =>
+    run: (db, _databaseFile, client, _exec) =>
       Effect.gen(function* () {
         const appDb: AppDatabase = db;
         const service = yield* MediaQueryService.pipe(
           Effect.provide(
-            makeQueryServiceLayer(appDb, {
-              aniList: AniListClient.make({
+            makeQueryServiceLayer(appDb, client, {
+              aniList: AniListClient.of({
                 getAnimeMetadataById: () => Effect.succeed(Option.none()),
                 searchAnimeMetadata: () =>
                   Effect.succeed([
@@ -1079,22 +1158,22 @@ it.scoped("MediaQueryService.searchMedia reports non-degraded when AniList searc
   }),
 );
 
-it.scoped(
+it.effect(
   "MediaQueryService.searchMedia falls back to Manami when AniList returns no results",
   () =>
     withSqliteTestDbEffect({
-      run: (db) =>
+      run: (db, _databaseFile, client, _exec) =>
         Effect.gen(function* () {
           const appDb: AppDatabase = db;
           const service = yield* MediaQueryService.pipe(
             Effect.provide(
-              makeQueryServiceLayer(appDb, {
-                aniList: AniListClient.make({
+              makeQueryServiceLayer(appDb, client, {
+                aniList: AniListClient.of({
                   getAnimeMetadataById: () => Effect.succeed(Option.none()),
                   searchAnimeMetadata: () => Effect.succeed([]),
                   getSeasonalAnime: () => Effect.succeed([]),
                 }),
-                manami: ManamiClient.make({
+                manami: ManamiClient.of({
                   getByAniListId: () => Effect.succeed(Option.none()),
                   getByMalId: () => Effect.succeed(Option.none()),
                   resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
@@ -1124,37 +1203,44 @@ it.scoped(
 );
 
 function makeAniListStub(metadata: AnimeMetadata) {
-  return AniListClient.make({
+  return AniListClient.of({
     getAnimeMetadataById: () => Effect.succeed(Option.some(metadata)),
     searchAnimeMetadata: () => Effect.succeed([]),
     getSeasonalAnime: () => Effect.succeed([]),
   });
 }
 
-it.scoped("MediaQueryService.listMedia returns paginated results with defaults", () =>
+it.effect("MediaQueryService.listMedia returns paginated results with defaults", () =>
   withSqliteTestDbEffect({
-    run: (db) =>
+    run: (db, _databaseFile, client, exec) =>
       Effect.gen(function* () {
         const appDb: AppDatabase = db;
         for (let i = 1; i <= 5; i++) {
-          yield* Effect.tryPromise(() =>
-            appDb.insert(schema.media).values({
-              id: i,
-              titleRomaji: `Show ${i}`,
-              rootFolder: `/test/${i}`,
-              format: "TV",
-              status: "FINISHED",
-              genres: "[]",
-              studios: "[]",
-              profileName: "Default",
-              releaseProfileIds: "[]",
-              addedAt: "2024-01-01T00:00:00Z",
-              monitored: true,
-            }),
+          yield* exec.runQuery(
+            "Failed to seed test data",
+            appDb
+              .insert(schema.media)
+              .values({
+                id: i,
+                titleRomaji: `Show ${i}`,
+                rootFolder: `/test/${i}`,
+                format: "TV",
+                status: "FINISHED",
+                genres: "[]",
+                studios: "[]",
+                profileName: "Default",
+                releaseProfileIds: "[]",
+                addedAt: "2024-01-01T00:00:00Z",
+                monitored: true,
+              })
+              .prepare()
+              .effect(),
           );
         }
 
-        const service = yield* MediaQueryService.pipe(Effect.provide(makeQueryServiceLayer(appDb)));
+        const service = yield* MediaQueryService.pipe(
+          Effect.provide(makeQueryServiceLayer(appDb, client)),
+        );
         const result = yield* service.listMedia();
 
         assert.deepStrictEqual(result.total, 5);
@@ -1167,30 +1253,37 @@ it.scoped("MediaQueryService.listMedia returns paginated results with defaults",
   }),
 );
 
-it.scoped("MediaQueryService.listMedia respects limit and offset", () =>
+it.effect("MediaQueryService.listMedia respects limit and offset", () =>
   withSqliteTestDbEffect({
-    run: (db) =>
+    run: (db, _databaseFile, client, exec) =>
       Effect.gen(function* () {
         const appDb: AppDatabase = db;
         for (let i = 1; i <= 10; i++) {
-          yield* Effect.tryPromise(() =>
-            appDb.insert(schema.media).values({
-              id: i,
-              titleRomaji: `Show ${i}`,
-              rootFolder: `/test/${i}`,
-              format: "TV",
-              status: "FINISHED",
-              genres: "[]",
-              studios: "[]",
-              profileName: "Default",
-              releaseProfileIds: "[]",
-              addedAt: "2024-01-01T00:00:00Z",
-              monitored: true,
-            }),
+          yield* exec.runQuery(
+            "Failed to seed test data",
+            appDb
+              .insert(schema.media)
+              .values({
+                id: i,
+                titleRomaji: `Show ${i}`,
+                rootFolder: `/test/${i}`,
+                format: "TV",
+                status: "FINISHED",
+                genres: "[]",
+                studios: "[]",
+                profileName: "Default",
+                releaseProfileIds: "[]",
+                addedAt: "2024-01-01T00:00:00Z",
+                monitored: true,
+              })
+              .prepare()
+              .effect(),
           );
         }
 
-        const service = yield* MediaQueryService.pipe(Effect.provide(makeQueryServiceLayer(appDb)));
+        const service = yield* MediaQueryService.pipe(
+          Effect.provide(makeQueryServiceLayer(appDb, client)),
+        );
 
         const page1 = yield* service.listMedia({ limit: 3, offset: 0 });
         const page1First = page1.items[0];
@@ -1218,28 +1311,35 @@ it.scoped("MediaQueryService.listMedia respects limit and offset", () =>
   }),
 );
 
-it.scoped("MediaQueryService.listMedia caps limit at 500", () =>
+it.effect("MediaQueryService.listMedia caps limit at 500", () =>
   withSqliteTestDbEffect({
-    run: (db) =>
+    run: (db, _databaseFile, client, exec) =>
       Effect.gen(function* () {
         const appDb: AppDatabase = db;
-        yield* Effect.tryPromise(() =>
-          appDb.insert(schema.media).values({
-            id: 1,
-            titleRomaji: "Show",
-            rootFolder: "/test",
-            format: "TV",
-            status: "FINISHED",
-            genres: "[]",
-            studios: "[]",
-            profileName: "Default",
-            releaseProfileIds: "[]",
-            addedAt: "2024-01-01T00:00:00Z",
-            monitored: true,
-          }),
+        yield* exec.runQuery(
+          "Failed to seed test data",
+          appDb
+            .insert(schema.media)
+            .values({
+              id: 1,
+              titleRomaji: "Show",
+              rootFolder: "/test",
+              format: "TV",
+              status: "FINISHED",
+              genres: "[]",
+              studios: "[]",
+              profileName: "Default",
+              releaseProfileIds: "[]",
+              addedAt: "2024-01-01T00:00:00Z",
+              monitored: true,
+            })
+            .prepare()
+            .effect(),
         );
 
-        const service = yield* MediaQueryService.pipe(Effect.provide(makeQueryServiceLayer(appDb)));
+        const service = yield* MediaQueryService.pipe(
+          Effect.provide(makeQueryServiceLayer(appDb, client)),
+        );
         const result = yield* service.listMedia({ limit: 1000 });
         assert.deepStrictEqual(result.limit, 500);
       }),
@@ -1247,28 +1347,35 @@ it.scoped("MediaQueryService.listMedia caps limit at 500", () =>
   }),
 );
 
-it.scoped("MediaQueryService.listMedia floors limit at 1", () =>
+it.effect("MediaQueryService.listMedia floors limit at 1", () =>
   withSqliteTestDbEffect({
-    run: (db) =>
+    run: (db, _databaseFile, client, exec) =>
       Effect.gen(function* () {
         const appDb: AppDatabase = db;
-        yield* Effect.tryPromise(() =>
-          appDb.insert(schema.media).values({
-            id: 1,
-            titleRomaji: "Show",
-            rootFolder: "/test",
-            format: "TV",
-            status: "FINISHED",
-            genres: "[]",
-            studios: "[]",
-            profileName: "Default",
-            releaseProfileIds: "[]",
-            addedAt: "2024-01-01T00:00:00Z",
-            monitored: true,
-          }),
+        yield* exec.runQuery(
+          "Failed to seed test data",
+          appDb
+            .insert(schema.media)
+            .values({
+              id: 1,
+              titleRomaji: "Show",
+              rootFolder: "/test",
+              format: "TV",
+              status: "FINISHED",
+              genres: "[]",
+              studios: "[]",
+              profileName: "Default",
+              releaseProfileIds: "[]",
+              addedAt: "2024-01-01T00:00:00Z",
+              monitored: true,
+            })
+            .prepare()
+            .effect(),
         );
 
-        const service = yield* MediaQueryService.pipe(Effect.provide(makeQueryServiceLayer(appDb)));
+        const service = yield* MediaQueryService.pipe(
+          Effect.provide(makeQueryServiceLayer(appDb, client)),
+        );
         const result = yield* service.listMedia({ limit: 0 });
         assert.deepStrictEqual(result.limit, 1);
       }),
@@ -1276,28 +1383,35 @@ it.scoped("MediaQueryService.listMedia floors limit at 1", () =>
   }),
 );
 
-it.scoped("MediaQueryService.listMedia floors negative offset at 0", () =>
+it.effect("MediaQueryService.listMedia floors negative offset at 0", () =>
   withSqliteTestDbEffect({
-    run: (db) =>
+    run: (db, _databaseFile, client, exec) =>
       Effect.gen(function* () {
         const appDb: AppDatabase = db;
-        yield* Effect.tryPromise(() =>
-          appDb.insert(schema.media).values({
-            id: 1,
-            titleRomaji: "Show",
-            rootFolder: "/test",
-            format: "TV",
-            status: "FINISHED",
-            genres: "[]",
-            studios: "[]",
-            profileName: "Default",
-            releaseProfileIds: "[]",
-            addedAt: "2024-01-01T00:00:00Z",
-            monitored: true,
-          }),
+        yield* exec.runQuery(
+          "Failed to seed test data",
+          appDb
+            .insert(schema.media)
+            .values({
+              id: 1,
+              titleRomaji: "Show",
+              rootFolder: "/test",
+              format: "TV",
+              status: "FINISHED",
+              genres: "[]",
+              studios: "[]",
+              profileName: "Default",
+              releaseProfileIds: "[]",
+              addedAt: "2024-01-01T00:00:00Z",
+              monitored: true,
+            })
+            .prepare()
+            .effect(),
         );
 
-        const service = yield* MediaQueryService.pipe(Effect.provide(makeQueryServiceLayer(appDb)));
+        const service = yield* MediaQueryService.pipe(
+          Effect.provide(makeQueryServiceLayer(appDb, client)),
+        );
         const result = yield* service.listMedia({ offset: -10 });
         assert.deepStrictEqual(result.offset, 0);
       }),
@@ -1305,37 +1419,49 @@ it.scoped("MediaQueryService.listMedia floors negative offset at 0", () =>
   }),
 );
 
-it.scoped("MediaQueryService.listMedia aggregates episode download counts", () =>
+it.effect("MediaQueryService.listMedia aggregates episode download counts", () =>
   withSqliteTestDbEffect({
-    run: (db) =>
+    run: (db, _databaseFile, client, exec) =>
       Effect.gen(function* () {
         const appDb: AppDatabase = db;
-        yield* Effect.tryPromise(() =>
-          appDb.insert(schema.media).values({
-            id: 1,
-            titleRomaji: "Show",
-            rootFolder: "/test",
-            format: "TV",
-            status: "FINISHED",
-            genres: "[]",
-            studios: "[]",
-            profileName: "Default",
-            releaseProfileIds: "[]",
-            addedAt: "2024-01-01T00:00:00Z",
-            monitored: true,
-            unitCount: 3,
-          }),
+        yield* exec.runQuery(
+          "Failed to seed test data",
+          appDb
+            .insert(schema.media)
+            .values({
+              id: 1,
+              titleRomaji: "Show",
+              rootFolder: "/test",
+              format: "TV",
+              status: "FINISHED",
+              genres: "[]",
+              studios: "[]",
+              profileName: "Default",
+              releaseProfileIds: "[]",
+              addedAt: "2024-01-01T00:00:00Z",
+              monitored: true,
+              unitCount: 3,
+            })
+            .prepare()
+            .effect(),
         );
 
-        yield* Effect.tryPromise(() =>
-          appDb.insert(schema.mediaUnits).values([
-            { mediaId: 1, number: 1, downloaded: true, filePath: "/ep1.mkv" },
-            { mediaId: 1, number: 2, downloaded: true, filePath: "/ep2.mkv" },
-            { mediaId: 1, number: 3, downloaded: false, filePath: null },
-          ]),
+        yield* exec.runQuery(
+          "Failed to seed test data",
+          appDb
+            .insert(schema.mediaUnits)
+            .values([
+              { mediaId: 1, number: 1, downloaded: true, filePath: "/ep1.mkv" },
+              { mediaId: 1, number: 2, downloaded: true, filePath: "/ep2.mkv" },
+              { mediaId: 1, number: 3, downloaded: false, filePath: null },
+            ])
+            .prepare()
+            .effect(),
         );
 
-        const service = yield* MediaQueryService.pipe(Effect.provide(makeQueryServiceLayer(appDb)));
+        const service = yield* MediaQueryService.pipe(
+          Effect.provide(makeQueryServiceLayer(appDb, client)),
+        );
         const result = yield* service.listMedia();
         const firstItem = result.items[0];
         assert(firstItem);
@@ -1346,43 +1472,50 @@ it.scoped("MediaQueryService.listMedia aggregates episode download counts", () =
   }),
 );
 
-it.scoped("MediaQueryService.listMedia filters by monitored status", () =>
+it.effect("MediaQueryService.listMedia filters by monitored status", () =>
   withSqliteTestDbEffect({
-    run: (db) =>
+    run: (db, _databaseFile, client, exec) =>
       Effect.gen(function* () {
         const appDb: AppDatabase = db;
-        yield* Effect.tryPromise(() =>
-          appDb.insert(schema.media).values([
-            {
-              id: 1,
-              titleRomaji: "Monitored Show",
-              rootFolder: "/test/1",
-              format: "TV",
-              status: "FINISHED",
-              genres: "[]",
-              studios: "[]",
-              profileName: "Default",
-              releaseProfileIds: "[]",
-              addedAt: "2024-01-01T00:00:00Z",
-              monitored: true,
-            },
-            {
-              id: 2,
-              titleRomaji: "Unmonitored Show",
-              rootFolder: "/test/2",
-              format: "TV",
-              status: "FINISHED",
-              genres: "[]",
-              studios: "[]",
-              profileName: "Default",
-              releaseProfileIds: "[]",
-              addedAt: "2024-01-01T00:00:00Z",
-              monitored: false,
-            },
-          ]),
+        yield* exec.runQuery(
+          "Failed to seed test data",
+          appDb
+            .insert(schema.media)
+            .values([
+              {
+                id: 1,
+                titleRomaji: "Monitored Show",
+                rootFolder: "/test/1",
+                format: "TV",
+                status: "FINISHED",
+                genres: "[]",
+                studios: "[]",
+                profileName: "Default",
+                releaseProfileIds: "[]",
+                addedAt: "2024-01-01T00:00:00Z",
+                monitored: true,
+              },
+              {
+                id: 2,
+                titleRomaji: "Unmonitored Show",
+                rootFolder: "/test/2",
+                format: "TV",
+                status: "FINISHED",
+                genres: "[]",
+                studios: "[]",
+                profileName: "Default",
+                releaseProfileIds: "[]",
+                addedAt: "2024-01-01T00:00:00Z",
+                monitored: false,
+              },
+            ])
+            .prepare()
+            .effect(),
         );
 
-        const service = yield* MediaQueryService.pipe(Effect.provide(makeQueryServiceLayer(appDb)));
+        const service = yield* MediaQueryService.pipe(
+          Effect.provide(makeQueryServiceLayer(appDb, client)),
+        );
 
         const allResults = yield* service.listMedia();
         assert.deepStrictEqual(allResults.total, 2);
@@ -1404,41 +1537,51 @@ it.scoped("MediaQueryService.listMedia filters by monitored status", () =>
   }),
 );
 
-it.scoped(
+it.effect(
   "MediaQueryService.listMedia includes progress and metadata fields needed by list UI",
   () =>
     withSqliteTestDbEffect({
-      run: (db) =>
+      run: (db, _databaseFile, client, exec) =>
         Effect.gen(function* () {
           const appDb: AppDatabase = db;
-          yield* Effect.tryPromise(() =>
-            appDb.insert(schema.media).values({
-              id: 10,
-              titleRomaji: "Detailed Show",
-              rootFolder: "/test/10",
-              format: "TV",
-              status: "RELEASING",
-              genres: '["Action"]',
-              studios: '["Studio A"]',
-              score: 87,
-              profileName: "Default",
-              releaseProfileIds: "[1,2]",
-              addedAt: "2024-01-01T00:00:00Z",
-              monitored: true,
-              unitCount: 3,
-            }),
+          yield* exec.runQuery(
+            "Failed to seed test data",
+            appDb
+              .insert(schema.media)
+              .values({
+                id: 10,
+                titleRomaji: "Detailed Show",
+                rootFolder: "/test/10",
+                format: "TV",
+                status: "RELEASING",
+                genres: '["Action"]',
+                studios: '["Studio A"]',
+                score: 87,
+                profileName: "Default",
+                releaseProfileIds: "[1,2]",
+                addedAt: "2024-01-01T00:00:00Z",
+                monitored: true,
+                unitCount: 3,
+              })
+              .prepare()
+              .effect(),
           );
 
-          yield* Effect.tryPromise(() =>
-            appDb.insert(schema.mediaUnits).values([
-              { mediaId: 10, number: 1, downloaded: true, filePath: "/ep1.mkv" },
-              { mediaId: 10, number: 2, downloaded: false, filePath: null },
-              { mediaId: 10, number: 3, downloaded: false, filePath: null },
-            ]),
+          yield* exec.runQuery(
+            "Failed to seed test data",
+            appDb
+              .insert(schema.mediaUnits)
+              .values([
+                { mediaId: 10, number: 1, downloaded: true, filePath: "/ep1.mkv" },
+                { mediaId: 10, number: 2, downloaded: false, filePath: null },
+                { mediaId: 10, number: 3, downloaded: false, filePath: null },
+              ])
+              .prepare()
+              .effect(),
           );
 
           const service = yield* MediaQueryService.pipe(
-            Effect.provide(makeQueryServiceLayer(appDb)),
+            Effect.provide(makeQueryServiceLayer(appDb, client)),
           );
           const result = yield* service.listMedia();
           assert.deepStrictEqual(result.items.length, 1);
@@ -1461,38 +1604,43 @@ it.scoped(
     }),
 );
 
-it.scoped("MediaQueryService.listMedia fails when stored media JSON metadata is corrupt", () =>
+it.effect("MediaQueryService.listMedia fails when stored media JSON metadata is corrupt", () =>
   withSqliteTestDbEffect({
-    run: (db) =>
+    run: (db, _databaseFile, client, exec) =>
       Effect.gen(function* () {
         const appDb: AppDatabase = db;
-        yield* Effect.tryPromise(() =>
-          appDb.insert(schema.media).values({
-            id: 10,
-            titleRomaji: "Broken Show",
-            rootFolder: "/test/10",
-            format: "TV",
-            status: "RELEASING",
-            genres: "not-json",
-            monitored: true,
-            profileName: "Default",
-            releaseProfileIds: "[]",
-            addedAt: "2024-01-01T00:00:00Z",
-            studios: "[]",
-          }),
+        yield* exec.runQuery(
+          "Failed to seed test data",
+          appDb
+            .insert(schema.media)
+            .values({
+              id: 10,
+              titleRomaji: "Broken Show",
+              rootFolder: "/test/10",
+              format: "TV",
+              status: "RELEASING",
+              genres: "not-json",
+              monitored: true,
+              profileName: "Default",
+              releaseProfileIds: "[]",
+              addedAt: "2024-01-01T00:00:00Z",
+              studios: "[]",
+            })
+            .prepare()
+            .effect(),
         );
 
         const result = yield* Effect.exit(
           Effect.gen(function* () {
             const service = yield* MediaQueryService.pipe(
-              Effect.provide(makeQueryServiceLayer(appDb)),
+              Effect.provide(makeQueryServiceLayer(appDb, client)),
             );
             return yield* service.listMedia();
           }),
         );
         assert.deepStrictEqual(Exit.isFailure(result), true);
         if (Exit.isFailure(result)) {
-          const failure = Cause.failureOption(result.cause);
+          const failure = Cause.findErrorOption(result.cause);
           assert.deepStrictEqual(failure._tag, "Some");
           if (failure._tag === "Some") {
             assert.deepStrictEqual(failure.value instanceof StoredDataError, true);

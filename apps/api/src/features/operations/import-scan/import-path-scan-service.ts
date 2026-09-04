@@ -1,5 +1,3 @@
-import { Effect } from "effect";
-
 import { brandMediaId, type MediaSearchResult, type ScanResult } from "@packages/shared/index.ts";
 import type {
   ImportCandidateSelectionRequest,
@@ -45,6 +43,7 @@ import {
   type FileSystemShape,
 } from "@/infra/filesystem/filesystem.ts";
 import { MediaProbe, type MediaProbeShape } from "@/infra/media/probe.ts";
+import { Context, Effect, Layer } from "effect";
 
 const scanImportPathEffect = Effect.fn("ImportPathScanService.scanImportPathEffect")(
   function* (input: {
@@ -272,10 +271,13 @@ export interface ImportPathScanServiceShape {
   >;
 }
 
-export class ImportPathScanService extends Effect.Service<ImportPathScanService>()(
-  "@bakarr/api/ImportPathScanService",
-  {
-    effect: Effect.gen(function* () {
+export class ImportPathScanService extends Context.Service<
+  ImportPathScanService,
+  ImportPathScanServiceShape
+>()("@bakarr/api/ImportPathScanService") {
+  static readonly layer = Layer.effect(
+    ImportPathScanService,
+    Effect.gen(function* () {
       const aniList = yield* AniListClient;
       const manami = yield* ManamiClient;
       const fs = yield* FileSystem;
@@ -366,8 +368,7 @@ export class ImportPathScanService extends Effect.Service<ImportPathScanService>
         scanImportPath,
       } satisfies ImportPathScanServiceShape;
     }),
-    dependencies: [MediaRepository.Default],
-  },
-) {}
+  );
+}
 
-export const ImportPathScanServiceLive = ImportPathScanService.Default;
+export const ImportPathScanServiceLive = ImportPathScanService.layer;

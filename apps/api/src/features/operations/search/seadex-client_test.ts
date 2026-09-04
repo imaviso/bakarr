@@ -1,10 +1,11 @@
 // oxlint-disable typescript/no-restricted-types -- `unknown` is the honest type at error/cause boundaries (Effect error channels, try/catch causes, Logger messages)
 import { assert, it } from "@effect/vitest";
-import { HttpClient, HttpClientResponse } from "@effect/platform";
-import { Effect, Either, Layer, Option } from "effect";
+import * as HttpClient from "effect/unstable/http/HttpClient";
+import * as HttpClientResponse from "effect/unstable/http/HttpClientResponse";
 
 import { ExternalCallError, ExternalCallLive } from "@/infra/effect/retry.ts";
 import { SeaDexClient, SeaDexClientLive } from "@/features/operations/search/seadex-client.ts";
+import { Effect, Layer, Option, Result } from "effect";
 
 const ExternalCallTestLayer = ExternalCallLive;
 
@@ -63,7 +64,7 @@ it.effect("SeaDexClient wraps schema mismatches as ExternalCallError", () =>
     const result = yield* Effect.flatMap(SeaDexClient, (client) =>
       client.getEntryByAniListId(20),
     ).pipe(
-      Effect.either,
+      Effect.result,
       Effect.provide(
         makeSeaDexLayer({
           items: [
@@ -79,10 +80,10 @@ it.effect("SeaDexClient wraps schema mismatches as ExternalCallError", () =>
       ),
     );
 
-    assert.deepStrictEqual(Either.isLeft(result), true);
-    if (Either.isLeft(result)) {
-      assert.deepStrictEqual(result.left instanceof ExternalCallError, true);
-      assert.deepStrictEqual(result.left.message, "SeaDex response decode failed");
+    assert.deepStrictEqual(Result.isFailure(result), true);
+    if (Result.isFailure(result)) {
+      assert.deepStrictEqual(result.failure instanceof ExternalCallError, true);
+      assert.deepStrictEqual(result.failure.message, "SeaDex response decode failed");
     }
   }),
 );
@@ -99,8 +100,8 @@ function makeSeaDexLayer(payload: unknown) {
 }
 
 function makeSeaDexHttpClient(payload: unknown) {
-  return HttpClient.make((request, url) => {
-    assert.deepStrictEqual(url.pathname, "/api/collections/entries/records");
+  return HttpClient.make((request, _url, _signal, _fiber) => {
+    assert.deepStrictEqual(new URL(request.url).pathname, "/api/collections/entries/records");
 
     return Effect.succeed(
       HttpClientResponse.fromWeb(

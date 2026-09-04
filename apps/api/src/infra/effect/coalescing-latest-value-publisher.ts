@@ -1,5 +1,4 @@
-import { Deferred, Effect, Fiber, Queue, Ref } from "effect";
-import type { Scope } from "effect";
+import { Deferred, Effect, Fiber, Queue, Ref, Scope } from "effect";
 
 /**
  * Latest-value coalescing publisher.
@@ -114,20 +113,20 @@ export const makeLatestValuePublisher = Effect.fn("EffectCoalescing.makeLatestVa
               return yield* Effect.failCause(exit.cause);
             }
             // Let the worker run its post-cycle bookkeeping before re-reading.
-            yield* Effect.yieldNow();
+            yield* Effect.yieldNow;
             continue;
           }
 
           if (yield* isQuiescent) {
             // Re-check after a yield: an offer may have landed between the
             // reads above and now.
-            yield* Effect.yieldNow();
+            yield* Effect.yieldNow;
             if (yield* isQuiescent) {
               return yield* Effect.void;
             }
           }
 
-          yield* Effect.yieldNow();
+          yield* Effect.yieldNow;
         }
       }).pipe(Effect.withSpan("LatestValuePublisher.flush"));
 

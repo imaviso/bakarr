@@ -1,8 +1,10 @@
-import { HttpClient, HttpClientRequest, HttpClientResponse } from "@effect/platform";
-import { Deferred, Effect, Either, HashMap, Option, Ref } from "effect";
+import * as HttpClient from "effect/unstable/http/HttpClient";
+import * as HttpClientRequest from "effect/unstable/http/HttpClientRequest";
+import * as HttpClientResponse from "effect/unstable/http/HttpClientResponse";
 
 import { currentTimeMillis } from "@/infra/time.ts";
 import { ExternalCallError, type ExternalCallShape } from "@/infra/effect/retry.ts";
+import { Deferred, Effect, HashMap, Option, Ref, Result } from "effect";
 import {
   QBitTorrentClientError,
   qbitPasswordValue,
@@ -127,27 +129,27 @@ export function withSessionCache(
     const cachedOption = HashMap.get(sessions, sessionKey);
 
     if (Option.isSome(cachedOption) && now - cachedOption.value.createdAt < SESSION_TTL_MS) {
-      const response = yield* Effect.either(operation(cachedOption.value.cookie));
+      const response = yield* Effect.result(operation(cachedOption.value.cookie));
 
-      if (Either.isRight(response)) {
-        if (!isUnauthorizedStatus(response.right.status)) {
-          return response.right;
+      if (Result.isSuccess(response)) {
+        if (!isUnauthorizedStatus(response.success.status)) {
+          return response.success;
         }
 
         yield* Ref.update(sessionsRef, (map) => HashMap.remove(map, sessionKey));
       } else {
-        return yield* response.left;
+        return yield* response.failure;
       }
     }
 
-    const newCookie = yield* Effect.either(acquireFreshSessionCookie(config, sessionKey));
+    const newCookie = yield* Effect.result(acquireFreshSessionCookie(config, sessionKey));
 
-    if (Either.isRight(newCookie)) {
-      return yield* operation(newCookie.right);
+    if (Result.isSuccess(newCookie)) {
+      return yield* operation(newCookie.success);
     }
 
-    if (!isAuthenticationFailure(newCookie.left)) {
-      return yield* newCookie.left;
+    if (!isAuthenticationFailure(newCookie.failure)) {
+      return yield* newCookie.failure;
     }
 
     const response = yield* operation("");

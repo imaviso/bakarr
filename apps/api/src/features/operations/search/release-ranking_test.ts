@@ -1,8 +1,8 @@
 import { assert, it } from "@effect/vitest";
-import { Effect, Either, Option } from "effect";
 
 import { makeDefaultAppConfig } from "@/app/config/schema.ts";
 import type { Config, QualityProfile } from "@packages/shared/index.ts";
+import { Effect, Option, Result } from "effect";
 import {
   compareUnitSearchResults,
   decideDownloadAction,
@@ -125,7 +125,7 @@ it("decide download accepts new release and upgrades higher quality", () => {
     baseConfig,
   );
 
-  assert.deepStrictEqual(Boolean(accepted.Accept), true);
+  assert.deepStrictEqual(globalThis.Boolean(accepted.Accept), true);
 
   const upgraded = decideDownloadAction(
     baseProfile,
@@ -149,7 +149,7 @@ it("decide download accepts new release and upgrades higher quality", () => {
     baseConfig,
   );
 
-  assert.deepStrictEqual(Boolean(upgraded.Upgrade), true);
+  assert.deepStrictEqual(globalThis.Boolean(upgraded.Upgrade), true);
 });
 
 it("seadex release can upgrade same-quality current file", () => {
@@ -175,7 +175,7 @@ it("seadex release can upgrade same-quality current file", () => {
     baseConfig,
   );
 
-  assert.deepStrictEqual(Boolean(decision.Upgrade), true);
+  assert.deepStrictEqual(globalThis.Boolean(decision.Upgrade), true);
   assert.deepStrictEqual(decision.Upgrade?.is_seadex_best, true);
 });
 
@@ -266,8 +266,8 @@ it("seadex tags and notes boost release score", () => {
     },
   );
 
-  assert.deepStrictEqual(Boolean(preferred.Accept), true);
-  assert.deepStrictEqual(Boolean(fallback.Accept), true);
+  assert.deepStrictEqual(globalThis.Boolean(preferred.Accept), true);
+  assert.deepStrictEqual(globalThis.Boolean(fallback.Accept), true);
   assert.deepStrictEqual((preferred.Accept?.score ?? 0) > (fallback.Accept?.score ?? 0), true);
 });
 
@@ -321,8 +321,8 @@ it("negative SeaDex notes can reduce release score", () => {
     },
   );
 
-  assert.deepStrictEqual(Boolean(recommended.Accept), true);
-  assert.deepStrictEqual(Boolean(problematic.Accept), true);
+  assert.deepStrictEqual(globalThis.Boolean(recommended.Accept), true);
+  assert.deepStrictEqual(globalThis.Boolean(problematic.Accept), true);
   assert.deepStrictEqual((recommended.Accept?.score ?? 0) > (problematic.Accept?.score ?? 0), true);
 });
 
@@ -362,8 +362,8 @@ it("SeaDex best metadata outranks high-seeder non-SeaDex releases", () => {
     baseConfig,
   );
 
-  assert.deepStrictEqual(Boolean(seadex.Accept), true);
-  assert.deepStrictEqual(Boolean(popular.Accept), true);
+  assert.deepStrictEqual(globalThis.Boolean(seadex.Accept), true);
+  assert.deepStrictEqual(globalThis.Boolean(popular.Accept), true);
   assert.deepStrictEqual((seadex.Accept?.score ?? 0) > (popular.Accept?.score ?? 0), true);
 });
 
@@ -405,8 +405,8 @@ it("SeaDex notes mentioning the release group boost the matching release", () =>
     baseConfig,
   );
 
-  assert.deepStrictEqual(Boolean(matched.Accept), true);
-  assert.deepStrictEqual(Boolean(unmatched.Accept), true);
+  assert.deepStrictEqual(globalThis.Boolean(matched.Accept), true);
+  assert.deepStrictEqual(globalThis.Boolean(unmatched.Accept), true);
   assert.deepStrictEqual((matched.Accept?.score ?? 0) > (unmatched.Accept?.score ?? 0), true);
 });
 
@@ -559,11 +559,14 @@ it.effect("invalid quality profile size labels fail validation", () =>
     const result = yield* validateQualityProfileSizeLabels({
       ...baseProfile,
       min_size: "not-a-size",
-    }).pipe(Effect.either);
+    }).pipe(Effect.result);
 
-    assert.deepStrictEqual(Either.isLeft(result), true);
-    if (Either.isLeft(result)) {
-      assert.deepStrictEqual(result.left.message, "Invalid quality profile size label: not-a-size");
+    assert.deepStrictEqual(Result.isFailure(result), true);
+    if (Result.isFailure(result)) {
+      assert.deepStrictEqual(
+        result.failure.message,
+        "Invalid quality profile size label: not-a-size",
+      );
     }
   }),
 );
@@ -574,12 +577,12 @@ it.effect("quality profile min_size cannot exceed max_size", () =>
       ...baseProfile,
       max_size: "1 GiB",
       min_size: "2 GiB",
-    }).pipe(Effect.either);
+    }).pipe(Effect.result);
 
-    assert.deepStrictEqual(Either.isLeft(result), true);
-    if (Either.isLeft(result)) {
+    assert.deepStrictEqual(Result.isFailure(result), true);
+    if (Result.isFailure(result)) {
       assert.deepStrictEqual(
-        result.left.message,
+        result.failure.message,
         "Quality profile min_size cannot exceed max_size",
       );
     }

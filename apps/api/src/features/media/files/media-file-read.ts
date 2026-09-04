@@ -1,8 +1,7 @@
-import { Effect } from "effect";
-
 import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import { isWithinPathRoot } from "@/infra/filesystem/filesystem.ts";
 import type { MediaRepositoryShape } from "@/features/media/shared/media-repository.ts";
+import { Effect } from "effect";
 import {
   UnitFileResolveError,
   UnitFileResolved,
@@ -27,9 +26,9 @@ export const resolveUnitFileEffect = Effect.fn("MediaFileRead.resolveUnitFileEff
       });
     }
 
-    const mediaRootResult = yield* Effect.either(input.fs.realPath(mediaRow.rootFolder));
+    const mediaRootResult = yield* Effect.result(input.fs.realPath(mediaRow.rootFolder));
 
-    if (mediaRootResult._tag === "Left") {
+    if (mediaRootResult._tag === "Failure") {
       yield* Effect.logDebug("Media root folder not accessible").pipe(
         Effect.annotateLogs({
           mediaId: input.mediaId,
@@ -46,9 +45,9 @@ export const resolveUnitFileEffect = Effect.fn("MediaFileRead.resolveUnitFileEff
       });
     }
 
-    const filePathResult = yield* Effect.either(input.fs.realPath(unitRow.filePath));
+    const filePathResult = yield* Effect.result(input.fs.realPath(unitRow.filePath));
 
-    if (filePathResult._tag === "Left") {
+    if (filePathResult._tag === "Failure") {
       yield* Effect.logDebug("MediaUnit file path not accessible").pipe(
         Effect.annotateLogs({
           mediaId: input.mediaId,
@@ -65,15 +64,15 @@ export const resolveUnitFileEffect = Effect.fn("MediaFileRead.resolveUnitFileEff
       });
     }
 
-    const filePath = filePathResult.right;
+    const filePath = filePathResult.success;
 
-    if (!isWithinPathRoot(filePath, mediaRootResult.right)) {
+    if (!isWithinPathRoot(filePath, mediaRootResult.success)) {
       yield* Effect.logDebug("MediaUnit file outside media root").pipe(
         Effect.annotateLogs({
           mediaId: input.mediaId,
           unitNumber: input.unitNumber,
           filePath,
-          mediaRoot: mediaRootResult.right,
+          mediaRoot: mediaRootResult.success,
         }),
       );
       return yield* new UnitFileResolveError({
@@ -81,7 +80,7 @@ export const resolveUnitFileEffect = Effect.fn("MediaFileRead.resolveUnitFileEff
         mediaId: input.mediaId,
         message: "MediaUnit file mapping is invalid",
         reason: "outside-root",
-        rootFolder: mediaRootResult.right,
+        rootFolder: mediaRootResult.success,
         unitNumber: input.unitNumber,
       });
     }

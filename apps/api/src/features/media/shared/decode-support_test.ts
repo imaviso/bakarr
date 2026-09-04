@@ -1,5 +1,4 @@
 // oxlint-disable typescript/no-restricted-types -- `unknown` is the honest type at error/cause boundaries (Effect error channels, try/catch causes, Logger messages)
-import { Cause, Effect, Exit, Option } from "effect";
 import { assert, it } from "@effect/vitest";
 
 import {
@@ -8,11 +7,12 @@ import {
   decodeStoredSynonymsEffect,
 } from "@/features/media/shared/decode-support.ts";
 import { StoredDataError } from "@/features/errors.ts";
+import { Cause, Effect, Exit, Option } from "effect";
 
 function assertStoredDataError(exit: Exit.Exit<unknown, unknown>, message: string) {
   assert.deepStrictEqual(Exit.isFailure(exit), true);
   if (Exit.isFailure(exit)) {
-    const failure = Cause.failureOption(exit.cause);
+    const failure = Cause.findErrorOption(exit.cause);
     assert.ok(Option.isSome(failure));
     assert.ok(failure.value instanceof StoredDataError);
     assert.deepStrictEqual(failure.value.message, message);

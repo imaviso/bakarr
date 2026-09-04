@@ -160,5 +160,5 @@ function pickOverride<T>(override: T | undefined, base: T | undefined): T | unde
 }
 
 function normalizeFiniteNumber(value: number | undefined) {
-  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+  return typeof value === "number" && globalThis.Number.isFinite(value) ? value : undefined;
 }

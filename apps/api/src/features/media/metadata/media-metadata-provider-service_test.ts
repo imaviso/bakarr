@@ -1,4 +1,3 @@
-import { Effect, Layer, Option } from "effect";
 import { brandMediaId } from "@packages/shared/index.ts";
 
 import { assert, it } from "@effect/vitest";
@@ -11,6 +10,7 @@ import { JikanClient } from "@/features/media/metadata/jikan.ts";
 import type { JikanNormalizedAnime } from "@/features/media/metadata/jikan-model.ts";
 import { ManamiClient, type ManamiLookupEntry } from "@/features/media/metadata/manami.ts";
 import { ExternalCallError } from "@/infra/effect/retry.ts";
+import { Effect, Layer, Option } from "effect";
 
 it.effect("returns refresh pending when AniDB cache is missing", () => {
   let refreshCount = 0;
@@ -461,7 +461,7 @@ function makeProviderLayer(input: {
   const dependenciesLayer = Layer.mergeAll(
     Layer.succeed(
       AniListClient,
-      AniListClient.make({
+      AniListClient.of({
         getAnimeMetadataById: (id: number) =>
           Effect.succeed(Option.some(input.metadata ?? makeMetadata(id))),
         searchAnimeMetadata: () => Effect.succeed([]),
@@ -470,39 +470,39 @@ function makeProviderLayer(input: {
     ),
     Layer.succeed(
       JikanClient,
-      JikanClient.make({
+      JikanClient.of({
         getAnimeByMalId: (malId: number) =>
           input.getAnimeByMalIdError !== undefined
             ? Effect.fail(input.getAnimeByMalIdError)
             : Effect.sync(() => {
                 input.onJikanLookup?.(malId);
-                return Option.fromNullable(input.jikanMetadata);
+                return Option.fromNullishOr(input.jikanMetadata);
               }),
         getSeasonalAnime: () => Effect.succeed([]),
       }),
     ),
     Layer.succeed(
       ManamiClient,
-      ManamiClient.make({
+      ManamiClient.of({
         getByAniListId: () =>
           input.getByAniListIdError !== undefined
             ? Effect.fail(input.getByAniListIdError)
-            : Effect.succeed(Option.fromNullable(input.manamiEntry)),
+            : Effect.succeed(Option.fromNullishOr(input.manamiEntry)),
         getByMalId: () => Effect.succeed(Option.none()),
         resolveAniListIdFromMalId: (malId: number) =>
           input.resolveAniListIdFromMalIdError !== undefined
             ? Effect.fail(input.resolveAniListIdFromMalIdError)
-            : Effect.succeed(Option.fromNullable(input.aniListIdByMalId?.get(malId))),
+            : Effect.succeed(Option.fromNullishOr(input.aniListIdByMalId?.get(malId))),
         resolveMalIdFromAniListId: () =>
           input.resolveMalIdFromAniListIdError !== undefined
             ? Effect.fail(input.resolveMalIdFromAniListIdError)
-            : Effect.succeed(Option.fromNullable(input.malIdFromAniListId)),
+            : Effect.succeed(Option.fromNullishOr(input.malIdFromAniListId)),
         searchMedia: () => Effect.succeed([]),
       }),
     ),
     Layer.succeed(
       MediaMetadataEnrichmentService,
-      MediaMetadataEnrichmentService.make({
+      MediaMetadataEnrichmentService.of({
         getAniDbCacheState: () => Effect.succeed(input.cacheState),
         requestAniDbRefresh: (request: AniDbRefreshRequest) =>
           Effect.sync(() => input.onRefresh(request)),
@@ -511,10 +511,8 @@ function makeProviderLayer(input: {
   );
 
   // DefaultWithoutDependencies: the provider's own `.Default` embeds
-  // MediaMetadataEnrichmentService.Default; the enrichment stub below must win.
-  return MediaMetadataProviderService.DefaultWithoutDependencies.pipe(
-    Layer.provideMerge(dependenciesLayer),
-  );
+  // MediaMetadataEnrichmentService.layer; the enrichment stub below must win.
+  return MediaMetadataProviderService.layer.pipe(Layer.provideMerge(dependenciesLayer));
 }
 
 function makeMetadata(id: number, overrides?: Partial<AnimeMetadata>): AnimeMetadata {

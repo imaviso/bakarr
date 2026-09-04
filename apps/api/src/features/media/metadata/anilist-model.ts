@@ -1,4 +1,4 @@
-import { Schema } from "effect";
+import { Schema, SchemaGetter } from "effect";
 
 import { brandMediaId, type MediaDiscoveryEntry, type MediaKind } from "@packages/shared/index.ts";
 import { deriveAnimeSeason } from "@/features/media/shared/date-utils.ts";
@@ -204,11 +204,9 @@ function normalizeUnitCountForFormat(
   return episodes ?? volumes ?? undefined;
 }
 
-export const AnimeSearchResultFromAniListSchema = Schema.transform(
-  AniListSearchMediaSchema,
-  ProviderMediaSearchResultSchema,
-  {
-    decode: (entry) => ({
+export const AnimeSearchResultFromAniListSchema = AniListSearchMediaSchema.pipe(
+  Schema.decodeTo(ProviderMediaSearchResultSchema, {
+    decode: SchemaGetter.transform((entry) => ({
       already_in_library: false,
       banner_image: entry.bannerImage ?? undefined,
       cover_image: entry.coverImage?.extraLarge ?? entry.coverImage?.large ?? undefined,
@@ -242,8 +240,8 @@ export const AnimeSearchResultFromAniListSchema = Schema.transform(
         native: entry.title?.native ?? undefined,
         romaji: entry.title?.romaji ?? undefined,
       },
-    }),
-    encode: (entry) => ({
+    })),
+    encode: SchemaGetter.transform((entry) => ({
       bannerImage: entry.banner_image,
       coverImage: entry.cover_image
         ? { extraLarge: entry.cover_image, large: entry.cover_image }
@@ -269,15 +267,13 @@ export const AnimeSearchResultFromAniListSchema = Schema.transform(
         native: entry.title.native,
         romaji: entry.title.romaji,
       },
-    }),
-  },
+    })),
+  }),
 );
 
-export const AnimeMetadataFromAniListSchema = Schema.transform(
-  AniListDetailMediaSchema,
-  AnimeMetadataSchema,
-  {
-    decode: (media) => ({
+export const AnimeMetadataFromAniListSchema = AniListDetailMediaSchema.pipe(
+  Schema.decodeTo(AnimeMetadataSchema, {
+    decode: SchemaGetter.transform((media) => ({
       background: undefined,
       bannerImage: media.bannerImage ?? undefined,
       coverImage: media.coverImage?.extraLarge ?? media.coverImage?.large ?? undefined,
@@ -318,8 +314,8 @@ export const AnimeMetadataFromAniListSchema = Schema.transform(
         native: media.title?.native ?? undefined,
         romaji: media.title?.romaji ?? `Media ${media.id}`,
       },
-    }),
-    encode: (metadata) => ({
+    })),
+    encode: SchemaGetter.transform((metadata) => ({
       airingSchedule: undefined,
       averageScore: metadata.score,
       bannerImage: metadata.bannerImage,
@@ -350,8 +346,8 @@ export const AnimeMetadataFromAniListSchema = Schema.transform(
         native: metadata.title.native,
         romaji: metadata.title.romaji,
       },
-    }),
-  },
+    })),
+  }),
 );
 
 function toMediaKind(format: string | null | undefined): MediaKind {
@@ -389,7 +385,7 @@ function normalizeDuration(durationMinutes: number | null | undefined) {
   if (
     durationMinutes === null ||
     durationMinutes === undefined ||
-    !Number.isFinite(durationMinutes)
+    !globalThis.Number.isFinite(durationMinutes)
   ) {
     return undefined;
   }
@@ -404,7 +400,7 @@ function parseDurationMinutes(duration: string | undefined) {
 
   const match = /^(\d+)\s*min$/.exec(duration.trim());
   const minutes = match?.[1];
-  return minutes ? Number.parseInt(minutes, 10) : undefined;
+  return minutes ? globalThis.Number.parseInt(minutes, 10) : undefined;
 }
 
 function toIsoDate(date?: AniListDateInput): string | undefined {
@@ -414,10 +410,9 @@ function toIsoDate(date?: AniListDateInput): string | undefined {
 
   const day = date.day ?? 1;
 
-  return `${String(date.year).padStart(4, "0")}-${String(date.month).padStart(
-    2,
-    "0",
-  )}-${String(day).padStart(2, "0")}`;
+  return `${globalThis.String(date.year).padStart(4, "0")}-${globalThis
+    .String(date.month)
+    .padStart(2, "0")}-${globalThis.String(day).padStart(2, "0")}`;
 }
 
 function toNextAiringEpisode(airing: { airingAt: number; episode: number } | null | undefined) {
@@ -447,7 +442,11 @@ function normalizeFutureAiringSchedule(
   const dedupedByEpisode = new Map<number, number>();
 
   for (const entry of merged) {
-    if (!Number.isFinite(entry.episode) || entry.episode <= 0 || !Number.isFinite(entry.airingAt)) {
+    if (
+      !globalThis.Number.isFinite(entry.episode) ||
+      entry.episode <= 0 ||
+      !globalThis.Number.isFinite(entry.airingAt)
+    ) {
       continue;
     }
 

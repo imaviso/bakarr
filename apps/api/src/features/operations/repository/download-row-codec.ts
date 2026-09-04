@@ -14,7 +14,7 @@ import { toSharedParsedEpisodeIdentity } from "@/features/media/identity/identit
 import type { AppDatabase } from "@/db/database.ts";
 import { downloadEvents, downloads } from "@/db/schema.ts";
 import { StoredDataError } from "@/features/errors.ts";
-import { tryDatabasePromise } from "@/infra/effect/db.ts";
+import type { DbExecutor } from "@/infra/effect/db.ts";
 
 export interface DownloadEventRecordInput {
   readonly mediaId?: number;
@@ -36,7 +36,7 @@ export interface DownloadEventRecordInput {
 export function encodeDownloadSourceMetadata(
   value: DownloadSourceMetadata,
 ): Effect.Effect<string, StoredDataError> {
-  return Schema.encode(Schema.parseJson(DownloadSourceMetadataSchema))({
+  return Schema.encodeEffect(Schema.fromJsonString(DownloadSourceMetadataSchema))({
     ...value,
     seadex_tags: value.seadex_tags ? [...value.seadex_tags] : undefined,
   }).pipe(
@@ -57,7 +57,9 @@ export const decodeDownloadSourceMetadata = Effect.fn(
     return undefined;
   }
 
-  return yield* Schema.decodeUnknown(Schema.parseJson(DownloadSourceMetadataSchema))(value).pipe(
+  return yield* Schema.decodeUnknownEffect(Schema.fromJsonString(DownloadSourceMetadataSchema))(
+    value,
+  ).pipe(
     Effect.mapError(
       (cause) =>
         new StoredDataError({
@@ -82,7 +84,7 @@ export function encodeDownloadEventMetadata(value: {
   imported_path?: string;
   source_metadata?: DownloadSourceMetadata;
 }): Effect.Effect<string, StoredDataError> {
-  return Schema.encode(Schema.parseJson(DownloadEventMetadataSchema))({
+  return Schema.encodeEffect(Schema.fromJsonString(DownloadEventMetadataSchema))({
     covered_units: value.covered_units ? [...value.covered_units] : undefined,
     imported_path: value.imported_path,
     source_metadata: value.source_metadata,
@@ -117,25 +119,36 @@ export const toDownloadEventInsert = Effect.fn("DownloadRepository.toDownloadEve
 );
 
 export const insertDownloadEventRow = Effect.fn("DownloadRepository.insertDownloadEventRow")(
-  function* (db: AppDatabase, input: DownloadEventRecordInput, createdAt: string) {
+  function* (
+    db: AppDatabase,
+    exec: DbExecutor,
+    input: DownloadEventRecordInput,
+    createdAt: string,
+  ) {
     const row = yield* toDownloadEventInsert(input, createdAt);
-    yield* tryDatabasePromise("Failed to record download event", () =>
-      db.insert(downloadEvents).values(row),
+    yield* exec.runQuery(
+      "Failed to record download event",
+      db.insert(downloadEvents).values(row).prepare().effect(),
     );
   },
 );
 
 export const deleteDownloadRow = Effect.fn("DownloadRepository.deleteDownloadRow")(function* (
   db: AppDatabase,
+  exec: DbExecutor,
   id: number,
   errorMessage: string,
 ) {
-  yield* tryDatabasePromise(errorMessage, () => db.delete(downloads).where(eq(downloads.id, id)));
+  yield* exec.runQuery(
+    errorMessage,
+    db.delete(downloads).where(eq(downloads.id, id)).prepare().effect(),
+  );
 });
 
 export const updateDownloadStatusRow = Effect.fn("DownloadRepository.updateDownloadStatusRow")(
   function* (
     db: AppDatabase,
+    exec: DbExecutor,
     input: {
       readonly externalState: string;
       readonly id: number;
@@ -143,14 +156,17 @@ export const updateDownloadStatusRow = Effect.fn("DownloadRepository.updateDownl
     },
     errorMessage: string,
   ) {
-    yield* tryDatabasePromise(errorMessage, () =>
+    yield* exec.runQuery(
+      errorMessage,
       db
         .update(downloads)
         .set({
           externalState: input.externalState,
           status: input.status,
         })
-        .where(eq(downloads.id, input.id)),
+        .where(eq(downloads.id, input.id))
+        .prepare()
+        .effect(),
     );
   },
 );

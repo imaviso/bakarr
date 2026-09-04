@@ -1,5 +1,4 @@
 import { Effect } from "effect";
-
 import type {
   TorrentClientUnavailableError,
   TorrentFile,

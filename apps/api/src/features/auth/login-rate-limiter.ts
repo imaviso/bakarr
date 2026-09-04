@@ -1,6 +1,6 @@
 // oxlint-disable typescript-eslint/consistent-return -- generator early-returns mirror the repo convention in config-activation.ts
-import { Clock, Effect, Ref } from "effect";
 
+import { Clock, Effect, Ref } from "effect";
 import { AuthRateLimitedError } from "@/features/auth/errors.ts";
 
 export const MAX_CONSECUTIVE_LOGIN_FAILURES = 5;

@@ -1,11 +1,11 @@
-import { Either, Effect, Encoding, Schema } from "effect";
+import { Context, Effect, Encoding, Layer, Result, Schema } from "effect";
 
 import { RandomService } from "@/infra/random.ts";
 
 export class StreamTokenSignerError extends Schema.TaggedError<StreamTokenSignerError>()(
   "StreamTokenSignerError",
   {
-    cause: Schema.optional(Schema.Defect),
+    cause: Schema.optional(Schema.Defect()),
     message: Schema.String,
   },
 ) {}
@@ -58,11 +58,11 @@ const makeStreamTokenSigner = Effect.fn("StreamTokenSigner.make")(function* () {
     }
 
     const signatureBytes = Encoding.decodeHex(input.signatureHex);
-    if (Either.isLeft(signatureBytes) || signatureBytes.right.length !== 32) {
+    if (Result.isFailure(signatureBytes) || signatureBytes.success.length !== 32) {
       return false;
     }
 
-    const signatureBuffer = Uint8Array.from(signatureBytes.right);
+    const signatureBuffer = Uint8Array.from(signatureBytes.success);
 
     return yield* Effect.tryPromise({
       try: () =>
@@ -78,15 +78,28 @@ const makeStreamTokenSigner = Effect.fn("StreamTokenSigner.make")(function* () {
   return { sign, verify };
 });
 
-export class StreamTokenSigner extends Effect.Service<StreamTokenSigner>()(
-  "@bakarr/api/StreamTokenSigner",
-  {
-    effect: makeStreamTokenSigner(),
-    dependencies: [RandomService.Default],
-  },
-) {}
+export interface StreamTokenSignerShape {
+  readonly sign: (input: {
+    readonly mediaId: number;
+    readonly unitNumber: number;
+    readonly expiresAt: number;
+  }) => Effect.Effect<string, StreamTokenSignerError>;
+  readonly verify: (input: {
+    readonly mediaId: number;
+    readonly unitNumber: number;
+    readonly expiresAt: number;
+    readonly nowMillis: number;
+    readonly signatureHex: string;
+  }) => Effect.Effect<boolean, StreamTokenSignerError>;
+}
 
-export const StreamTokenSignerLive = StreamTokenSigner.Default;
+export class StreamTokenSigner extends Context.Service<StreamTokenSigner, StreamTokenSignerShape>()(
+  "@bakarr/api/StreamTokenSigner",
+) {
+  static readonly layer = Layer.effect(StreamTokenSigner, makeStreamTokenSigner());
+}
+
+export const StreamTokenSignerLive = StreamTokenSigner.layer;
 
 function toPayload(input: {
   readonly mediaId: number;

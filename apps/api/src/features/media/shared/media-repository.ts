@@ -1,13 +1,14 @@
 // oxlint-disable oxc/no-async-await -- async/await required by transaction callbacks, test callbacks, and tryPromise wrappers
 import { and, asc, count, eq, inArray, ne, or, sql } from "drizzle-orm";
-import { Effect, Option } from "effect";
 
 import { brandMediaId, type CalendarEvent, type MissingUnit } from "@packages/shared/index.ts";
+import * as NodeSqliteClient from "@effect/sql-sqlite-node/SqliteClient";
 import { AppDrizzleDatabase, type AppDatabase, type DatabaseError } from "@/db/database.ts";
 import { media, mediaUnits, systemLogs } from "@/db/schema.ts";
 import { deriveEpisodeTimelineMetadata } from "@/features/media/shared/derivations.ts";
-import { queryFirst, tryDatabasePromise } from "@/infra/effect/db.ts";
+import { makeDbExecutor, type DbExecutor } from "@/infra/effect/db.ts";
 import { MediaNotFoundError } from "@/features/media/errors.ts";
+import { Context, Effect, Layer, Option } from "effect";
 
 export interface MediaUnitProgressStat {
   readonly mediaId: number;
@@ -161,60 +162,71 @@ export interface MediaRepositoryShape {
   readonly listMonitoredMediaIds: () => Effect.Effect<readonly number[], DatabaseError>;
 }
 
-export class MediaRepository extends Effect.Service<MediaRepository>()(
+export class MediaRepository extends Context.Service<MediaRepository, MediaRepositoryShape>()(
   "@bakarr/api/MediaRepository",
-  {
-    effect: Effect.gen(function* () {
+) {
+  static readonly layer = Layer.effect(
+    MediaRepository,
+    Effect.gen(function* () {
       const db = yield* AppDrizzleDatabase;
-      return makeMediaRepositoryShape(db);
+      const sqlClient = yield* NodeSqliteClient.SqliteClient;
+      return makeMediaRepositoryShape(db, sqlClient);
     }),
-    dependencies: [AppDrizzleDatabase.Default],
-  },
-) {}
+  );
+}
 
-export function makeMediaRepositoryShape(db: AppDatabase): MediaRepositoryShape {
+export function makeMediaRepositoryShape(
+  db: AppDatabase,
+  sqlClient: NodeSqliteClient.SqliteClient,
+): MediaRepositoryShape {
+  const exec = makeDbExecutor(sqlClient);
   return {
-    countMedia: (input) => countMediaEffect(db, input),
-    findExistingMediaIds: (mediaIds) => findExistingMediaIdsEffect(db, mediaIds),
-    findMediaRootFolderOwner: (rootFolder) => findMediaRootFolderOwnerEffect(db, rootFolder),
-    findMediaByExactRootFolder: (rootFolder) => findMediaByExactRootFolderEffect(db, rootFolder),
-    listAllMediaRows: () => listAllMediaRowsEffect(db),
-    getMediaRow: (mediaId) => getMediaRowEffect(db, mediaId),
-    getUnitRow: (mediaId, unitNumber) => getUnitRowEffect(db, mediaId, unitNumber),
-    listCalendarEvents: (start, end, now) => listCalendarEventsEffect(db, start, end, now),
-    listMappedUnitRows: (mediaId) => listMappedUnitRowsEffect(db, mediaId),
-    listImportScanMappedUnits: (input) => listImportScanMappedUnitsEffect(db, input),
-    listScopedUnitRows: (input) => listScopedUnitRowsEffect(db, input),
-    listMediaRows: (input) => listMediaRowsEffect(db, input),
-    listMissingUnitNumbers: (mediaIds) => listMissingUnitNumbersEffect(db, mediaIds),
-    listUnitProgressStats: (mediaIds) => listUnitProgressStatsEffect(db, mediaIds),
-    listUnitRowsByMediaId: (mediaId) => listUnitRowsByMediaIdEffect(db, mediaId),
-    listUnitRowsWithMediaKind: (mediaId) => listUnitRowsWithMediaKindEffect(db, mediaId),
-    listWantedMissing: (limit, nowIso) => listWantedMissingEffect(db, limit, nowIso),
-    listMissingUnitSearchRows: (input) => listMissingUnitSearchRowsEffect(db, input),
+    countMedia: (input) => countMediaEffect(db, exec, input),
+    findExistingMediaIds: (mediaIds) => findExistingMediaIdsEffect(db, exec, mediaIds),
+    findMediaRootFolderOwner: (rootFolder) => findMediaRootFolderOwnerEffect(db, exec, rootFolder),
+    findMediaByExactRootFolder: (rootFolder) =>
+      findMediaByExactRootFolderEffect(db, exec, rootFolder),
+    listAllMediaRows: () => listAllMediaRowsEffect(db, exec),
+    getMediaRow: (mediaId) => getMediaRowEffect(db, exec, mediaId),
+    getUnitRow: (mediaId, unitNumber) => getUnitRowEffect(db, exec, mediaId, unitNumber),
+    listCalendarEvents: (start, end, now) => listCalendarEventsEffect(db, exec, start, end, now),
+    listMappedUnitRows: (mediaId) => listMappedUnitRowsEffect(db, exec, mediaId),
+    listImportScanMappedUnits: (input) => listImportScanMappedUnitsEffect(db, exec, input),
+    listScopedUnitRows: (input) => listScopedUnitRowsEffect(db, exec, input),
+    listMediaRows: (input) => listMediaRowsEffect(db, exec, input),
+    listMissingUnitNumbers: (mediaIds) => listMissingUnitNumbersEffect(db, exec, mediaIds),
+    listUnitProgressStats: (mediaIds) => listUnitProgressStatsEffect(db, exec, mediaIds),
+    listUnitRowsByMediaId: (mediaId) => listUnitRowsByMediaIdEffect(db, exec, mediaId),
+    listUnitRowsWithMediaKind: (mediaId) => listUnitRowsWithMediaKindEffect(db, exec, mediaId),
+    listWantedMissing: (limit, nowIso) => listWantedMissingEffect(db, exec, limit, nowIso),
+    listMissingUnitSearchRows: (input) => listMissingUnitSearchRowsEffect(db, exec, input),
     loadCurrentUnitState: (mediaId, unitNumber) =>
-      loadCurrentUnitStateEffect(db, mediaId, unitNumber),
-    loadUnitsByNumbers: (mediaId, numbers) => loadUnitsByNumbersEffect(db, mediaId, numbers),
-    mediaExists: (mediaId) => mediaExistsEffect(db, mediaId),
-    requireMediaExists: (mediaId) => requireMediaExistsEffect(db, mediaId),
-    deleteMedia: (mediaId) => deleteMediaEffect(db, mediaId),
-    insertMediaAggregate: (input) => insertMediaAggregateEffect(db, input),
-    listMonitoredMediaIds: () => listMonitoredMediaIdsEffect(db),
-    updateMediaRow: (mediaId, row) => updateMediaRowEffect(db, mediaId, row),
-    updateMonitored: (mediaId, monitored) => updateMonitoredEffect(db, mediaId, monitored),
-    updateProfileName: (mediaId, profileName) => updateProfileNameEffect(db, mediaId, profileName),
+      loadCurrentUnitStateEffect(db, exec, mediaId, unitNumber),
+    loadUnitsByNumbers: (mediaId, numbers) => loadUnitsByNumbersEffect(db, exec, mediaId, numbers),
+    mediaExists: (mediaId) => mediaExistsEffect(db, exec, mediaId),
+    requireMediaExists: (mediaId) => requireMediaExistsEffect(db, exec, mediaId),
+    deleteMedia: (mediaId) => deleteMediaEffect(db, exec, mediaId),
+    insertMediaAggregate: (input) => insertMediaAggregateEffect(db, exec, input),
+    listMonitoredMediaIds: () => listMonitoredMediaIdsEffect(db, exec),
+    updateMediaRow: (mediaId, row) => updateMediaRowEffect(db, exec, mediaId, row),
+    updateMonitored: (mediaId, monitored) => updateMonitoredEffect(db, exec, mediaId, monitored),
+    updateProfileName: (mediaId, profileName) =>
+      updateProfileNameEffect(db, exec, mediaId, profileName),
     updateReleaseProfileIds: (mediaId, releaseProfileIds) =>
-      updateReleaseProfileIdsEffect(db, mediaId, releaseProfileIds),
-    updateRootFolder: (mediaId, rootFolder) => updateRootFolderEffect(db, mediaId, rootFolder),
+      updateReleaseProfileIdsEffect(db, exec, mediaId, releaseProfileIds),
+    updateRootFolder: (mediaId, rootFolder) =>
+      updateRootFolderEffect(db, exec, mediaId, rootFolder),
   } satisfies MediaRepositoryShape;
 }
 
 const getMediaRowEffect = Effect.fn("MediaRepository.getMediaRow")(function* (
   db: AppDatabase,
+  exec: DbExecutor,
   mediaId: number,
 ) {
-  const row = yield* queryFirst("Failed to load media", () =>
-    db.select().from(media).where(eq(media.id, mediaId)).limit(1),
+  const row = yield* exec.queryFirst(
+    "Failed to load media",
+    db.select().from(media).where(eq(media.id, mediaId)).limit(1).prepare().effect(),
   );
   if (Option.isNone(row)) {
     return yield* new MediaNotFoundError({ message: "Media not found" });
@@ -224,22 +236,27 @@ const getMediaRowEffect = Effect.fn("MediaRepository.getMediaRow")(function* (
 
 const requireMediaExistsEffect = Effect.fn("MediaRepository.requireMediaExists")(function* (
   db: AppDatabase,
+  exec: DbExecutor,
   mediaId: number,
 ) {
-  yield* getMediaRowEffect(db, mediaId);
+  yield* getMediaRowEffect(db, exec, mediaId);
 });
 
 const getUnitRowEffect = Effect.fn("MediaRepository.getUnitRow")(function* (
   db: AppDatabase,
+  exec: DbExecutor,
   mediaId: number,
   unitNumber: number,
 ) {
-  const row = yield* queryFirst("Failed to load episode", () =>
+  const row = yield* exec.queryFirst(
+    "Failed to load episode",
     db
       .select()
       .from(mediaUnits)
       .where(and(eq(mediaUnits.mediaId, mediaId), eq(mediaUnits.number, unitNumber)))
-      .limit(1),
+      .limit(1)
+      .prepare()
+      .effect(),
   );
   if (Option.isNone(row)) {
     return yield* new MediaNotFoundError({ message: "MediaUnit not found" });
@@ -249,15 +266,19 @@ const getUnitRowEffect = Effect.fn("MediaRepository.getUnitRow")(function* (
 
 const loadCurrentUnitStateEffect = Effect.fn("MediaRepository.loadCurrentUnitState")(function* (
   db: AppDatabase,
+  exec: DbExecutor,
   mediaId: number,
   unitNumber: number,
 ) {
-  const row = yield* queryFirst("Failed to load episode state", () =>
+  const row = yield* exec.queryFirst(
+    "Failed to load episode state",
     db
       .select()
       .from(mediaUnits)
       .where(and(eq(mediaUnits.mediaId, mediaId), eq(mediaUnits.number, unitNumber)))
-      .limit(1),
+      .limit(1)
+      .prepare()
+      .effect(),
   );
 
   return Option.isSome(row)
@@ -269,20 +290,23 @@ const loadCurrentUnitStateEffect = Effect.fn("MediaRepository.loadCurrentUnitSta
 });
 
 const findMediaByExactRootFolderEffect = Effect.fn("MediaRepository.findMediaByExactRootFolder")(
-  function* (db: AppDatabase, rootFolder: string) {
-    const rows = yield* tryDatabasePromise("Failed to find media by root folder", () =>
+  function* (db: AppDatabase, exec: DbExecutor, rootFolder: string) {
+    const rows = yield* exec.runQuery(
+      "Failed to find media by root folder",
       db
         .select({ id: media.id, titleRomaji: media.titleRomaji })
         .from(media)
         .where(eq(media.rootFolder, rootFolder))
-        .limit(1),
+        .limit(1)
+        .prepare()
+        .effect(),
     );
     return rows[0];
   },
 );
 
 const findMediaRootFolderOwnerEffect = Effect.fn("MediaRepository.findMediaRootFolderOwner")(
-  function* (db: AppDatabase, rootFolder: string) {
+  function* (db: AppDatabase, exec: DbExecutor, rootFolder: string) {
     const normalized = normalizeRootFolder(rootFolder);
     const parentCandidates = buildParentPaths(normalized);
     const parentCandidatesWithSlash = parentCandidates.flatMap((candidate) =>
@@ -292,7 +316,8 @@ const findMediaRootFolderOwnerEffect = Effect.fn("MediaRepository.findMediaRootF
       .replace(/\\/g, "\\\\")
       .replace(/%/g, "\\%")
       .replace(/_/g, "\\_");
-    const rows = yield* tryDatabasePromise("Failed to find media root folder owner", () =>
+    const rows = yield* exec.runQuery(
+      "Failed to find media root folder owner",
       db
         .select({
           id: media.id,
@@ -305,7 +330,9 @@ const findMediaRootFolderOwnerEffect = Effect.fn("MediaRepository.findMediaRootF
             inArray(media.rootFolder, [...parentCandidatesWithSlash]),
             sql`${media.rootFolder} LIKE ${`${escapedNormalized}/%`} ESCAPE '\\'`,
           ),
-        ),
+        )
+        .prepare()
+        .effect(),
     );
 
     return (
@@ -323,23 +350,15 @@ const findMediaRootFolderOwnerEffect = Effect.fn("MediaRepository.findMediaRootF
 
 const listWantedMissingEffect = Effect.fn("MediaRepository.listWantedMissing")(function* (
   db: AppDatabase,
+  exec: DbExecutor,
   limit: number,
   nowIso: string,
 ) {
   const now = new Date(nowIso).toISOString();
-  const rows = yield* tryDatabasePromise("Failed to load wanted mediaUnits", () =>
+  const rows = yield* exec.runQuery(
+    "Failed to load wanted mediaUnits",
     db
-      .select({
-        mediaId: media.id,
-        mediaTitle: media.titleRomaji,
-        mediaKind: media.mediaKind,
-        coverImage: media.coverImage,
-        nextAiringAt: media.nextAiringAt,
-        nextAiringUnit: media.nextAiringUnit,
-        unitNumber: mediaUnits.number,
-        title: mediaUnits.title,
-        aired: mediaUnits.aired,
-      })
+      .select()
       .from(mediaUnits)
       .innerJoin(media, eq(media.id, mediaUnits.mediaId))
       .where(
@@ -357,27 +376,29 @@ const listWantedMissingEffect = Effect.fn("MediaRepository.listWantedMissing")(f
         ),
       )
       .orderBy(sql`${mediaUnits.aired} is null`, asc(mediaUnits.aired), media.titleRomaji)
-      .limit(Math.max(1, limit)),
+      .limit(Math.max(1, limit))
+      .prepare()
+      .effect(),
   );
 
-  return rows.map((row) => {
-    const timeline = deriveEpisodeTimelineMetadata(row.aired ?? undefined, new Date(now));
+  return rows.map(({ media: mediaRow, media_units: unitRow }) => {
+    const timeline = deriveEpisodeTimelineMetadata(unitRow.aired ?? undefined, new Date(now));
 
     return {
-      aired: row.aired ?? undefined,
+      aired: unitRow.aired ?? undefined,
       airing_status: timeline.airing_status,
-      media_id: brandMediaId(row.mediaId),
-      media_image: row.coverImage ?? undefined,
-      media_title: row.mediaTitle,
-      unit_kind: row.mediaKind === "anime" ? "episode" : "volume",
-      unit_number: row.unitNumber,
-      unit_title: row.title ?? undefined,
+      media_id: brandMediaId(mediaRow.id),
+      media_image: mediaRow.coverImage ?? undefined,
+      media_title: mediaRow.titleRomaji,
+      unit_kind: mediaRow.mediaKind === "anime" ? "episode" : "volume",
+      unit_number: unitRow.number,
+      unit_title: unitRow.title ?? undefined,
       is_future: timeline.is_future,
       next_airing_unit:
-        row.nextAiringAt && row.nextAiringUnit
+        mediaRow.nextAiringAt && mediaRow.nextAiringUnit
           ? {
-              airing_at: row.nextAiringAt,
-              unit_number: row.nextAiringUnit,
+              airing_at: mediaRow.nextAiringAt,
+              unit_number: mediaRow.nextAiringUnit,
             }
           : undefined,
     } satisfies MissingUnit;
@@ -387,6 +408,7 @@ const listWantedMissingEffect = Effect.fn("MediaRepository.listWantedMissing")(f
 const listMissingUnitSearchRowsEffect = Effect.fn("MediaRepository.listMissingUnitSearchRows")(
   function* (
     db: AppDatabase,
+    exec: DbExecutor,
     input: {
       readonly mediaId?: number;
       readonly nowIso: string;
@@ -411,32 +433,39 @@ const listMissingUnitSearchRowsEffect = Effect.fn("MediaRepository.listMissingUn
         : eq(mediaUnits.mediaId, input.mediaId),
     ];
 
-    return yield* tryDatabasePromise("Failed to queue missing-unit search", () =>
+    return yield* exec.runQuery(
+      "Failed to queue missing-unit search",
       db
         .select()
         .from(mediaUnits)
         .innerJoin(media, eq(media.id, mediaUnits.mediaId))
         .where(and(...missingConditions))
         .orderBy(media.titleRomaji, mediaUnits.number)
-        .limit(Math.max(1, input.limit)),
+        .limit(Math.max(1, input.limit))
+        .prepare()
+        .effect(),
     );
   },
 );
 
 const listCalendarEventsEffect = Effect.fn("MediaRepository.listCalendarEvents")(function* (
   db: AppDatabase,
+  exec: DbExecutor,
   start: string,
   end: string,
   now: Date,
 ) {
   const nowIsoValue = now.toISOString();
-  const rows = yield* tryDatabasePromise("Failed to load calendar events", () =>
+  const rows = yield* exec.runQuery(
+    "Failed to load calendar events",
     db
       .select()
       .from(mediaUnits)
       .innerJoin(media, eq(media.id, mediaUnits.mediaId))
       .where(and(sql`${mediaUnits.aired} >= ${start}`, sql`${mediaUnits.aired} <= ${end}`))
-      .orderBy(mediaUnits.aired, media.titleRomaji),
+      .orderBy(mediaUnits.aired, media.titleRomaji)
+      .prepare()
+      .effect(),
   );
 
   return rows.map(({ media: mediaRow, media_units: unitRow }) => {
@@ -465,19 +494,24 @@ const listCalendarEventsEffect = Effect.fn("MediaRepository.listCalendarEvents")
 
 const listMappedUnitRowsEffect = Effect.fn("MediaRepository.listMappedUnitRows")(function* (
   db: AppDatabase,
+  exec: DbExecutor,
   mediaId: number,
 ) {
-  return yield* tryDatabasePromise("Failed to load mediaUnits for rename preview", () =>
+  return yield* exec.runQuery(
+    "Failed to load mediaUnits for rename preview",
     db
       .select()
       .from(mediaUnits)
-      .where(and(eq(mediaUnits.mediaId, mediaId), sql`${mediaUnits.filePath} is not null`)),
+      .where(and(eq(mediaUnits.mediaId, mediaId), sql`${mediaUnits.filePath} is not null`))
+      .prepare()
+      .effect(),
   );
 });
 
 const listImportScanMappedUnitsEffect = Effect.fn("MediaRepository.listImportScanMappedUnits")(
   function* (
     db: AppDatabase,
+    exec: DbExecutor,
     input: {
       readonly mediaIds: readonly number[];
       readonly paths: readonly string[];
@@ -506,23 +540,33 @@ const listImportScanMappedUnitsEffect = Effect.fn("MediaRepository.listImportSca
       return [];
     }
 
-    return yield* tryDatabasePromise("Failed to scan import path", () =>
-      db
-        .select({
-          media_id: mediaUnits.mediaId,
-          media_title: media.titleRomaji,
-          unit_number: mediaUnits.number,
-          file_path: mediaUnits.filePath,
-        })
-        .from(mediaUnits)
-        .innerJoin(media, eq(mediaUnits.mediaId, media.id))
-        .where(whereClause),
-    );
+    return yield* exec
+      .runQuery(
+        "Failed to scan import path",
+        db
+          .select()
+          .from(mediaUnits)
+          .innerJoin(media, eq(mediaUnits.mediaId, media.id))
+          .where(whereClause)
+          .prepare()
+          .effect(),
+      )
+      .pipe(
+        Effect.map((rows) =>
+          rows.map(({ media: mediaRow, media_units: unitRow }) => ({
+            file_path: unitRow.filePath,
+            media_id: unitRow.mediaId,
+            media_title: mediaRow.titleRomaji,
+            unit_number: unitRow.number,
+          })),
+        ),
+      );
   },
 );
 
 const listScopedUnitRowsEffect = Effect.fn("MediaRepository.listScopedUnitRows")(function* (
   db: AppDatabase,
+  exec: DbExecutor,
   input: {
     readonly mediaIds: readonly number[];
     readonly unitNumbers: readonly number[];
@@ -532,7 +576,8 @@ const listScopedUnitRowsEffect = Effect.fn("MediaRepository.listScopedUnitRows")
     return [];
   }
 
-  return yield* tryDatabasePromise("Failed to scan import path", () =>
+  return yield* exec.runQuery(
+    "Failed to scan import path",
     db
       .select({
         aired: mediaUnits.aired,
@@ -546,99 +591,135 @@ const listScopedUnitRowsEffect = Effect.fn("MediaRepository.listScopedUnitRows")
           inArray(mediaUnits.mediaId, [...input.mediaIds]),
           inArray(mediaUnits.number, [...input.unitNumbers]),
         ),
-      ),
+      )
+      .prepare()
+      .effect(),
   );
 });
 
 const mediaExistsEffect = Effect.fn("MediaRepository.mediaExists")(function* (
   db: AppDatabase,
+  exec: DbExecutor,
   mediaId: number,
 ) {
-  const rows = yield* tryDatabasePromise("Failed to check library status", () =>
-    db.select({ id: media.id }).from(media).where(eq(media.id, mediaId)).limit(1),
+  const rows = yield* exec.runQuery(
+    "Failed to check library status",
+    db
+      .select({ id: media.id })
+      .from(media)
+      .where(eq(media.id, mediaId))
+      .limit(1)
+      .prepare()
+      .effect(),
   );
   return rows.length > 0;
 });
 
 const findExistingMediaIdsEffect = Effect.fn("MediaRepository.findExistingMediaIds")(function* (
   db: AppDatabase,
+  exec: DbExecutor,
   mediaIds: readonly number[],
 ) {
   if (mediaIds.length === 0) {
     return new Set<number>();
   }
-  const rows = yield* tryDatabasePromise("Failed to mark search results in library", () =>
+  const rows = yield* exec.runQuery(
+    "Failed to mark search results in library",
     db
       .select({ id: media.id })
       .from(media)
-      .where(inArray(media.id, [...mediaIds])),
+      .where(inArray(media.id, [...mediaIds]))
+      .prepare()
+      .effect(),
   );
   return new Set(rows.map((row) => row.id));
 });
 
 const listAllMediaRowsEffect = Effect.fn("MediaRepository.listAllMediaRows")(function* (
   db: AppDatabase,
+  exec: DbExecutor,
 ) {
-  return yield* tryDatabasePromise("Failed to list all media", () =>
-    db.select().from(media).orderBy(media.id),
+  return yield* exec.runQuery(
+    "Failed to list all media",
+    db.select().from(media).orderBy(media.id).prepare().effect(),
   );
 });
 
 const listMediaRowsEffect = Effect.fn("MediaRepository.listMediaRows")(function* (
   db: AppDatabase,
+  exec: DbExecutor,
   input: { readonly monitored?: boolean; readonly limit: number; readonly offset: number },
 ) {
   const monitoredCondition =
     input.monitored !== undefined ? eq(media.monitored, input.monitored) : undefined;
-  return yield* tryDatabasePromise("Failed to list media", () => {
-    const baseQuery = db.select().from(media);
-    const query = monitoredCondition ? baseQuery.where(monitoredCondition) : baseQuery;
-    return query.orderBy(media.id).limit(input.limit).offset(input.offset);
-  });
+  const baseQuery = db.select().from(media);
+  const query = monitoredCondition ? baseQuery.where(monitoredCondition) : baseQuery;
+  return yield* exec.runQuery(
+    "Failed to list media",
+    query.orderBy(media.id).limit(input.limit).offset(input.offset).prepare().effect(),
+  );
 });
 
 const countMediaEffect = Effect.fn("MediaRepository.countMedia")(function* (
   db: AppDatabase,
+  exec: DbExecutor,
   input: { readonly monitored?: boolean },
 ) {
   const monitoredCondition =
     input.monitored !== undefined ? eq(media.monitored, input.monitored) : undefined;
-  const rows = yield* tryDatabasePromise("Failed to count media", () => {
+  const rows = yield* (function () {
     const countQuery = db.select({ count: count() }).from(media);
-    return monitoredCondition ? countQuery.where(monitoredCondition) : countQuery;
-  });
+    const __q = monitoredCondition ? countQuery.where(monitoredCondition) : countQuery;
+    return exec.runQuery("Failed to count media", __q.prepare().effect());
+  })();
   return rows[0]?.count ?? 0;
 });
 
 const listUnitRowsByMediaIdEffect = Effect.fn("MediaRepository.listUnitRowsByMediaId")(function* (
   db: AppDatabase,
+  exec: DbExecutor,
   mediaId: number,
 ) {
-  return yield* tryDatabasePromise("Failed to load media", () =>
-    db.select().from(mediaUnits).where(eq(mediaUnits.mediaId, mediaId)),
+  return yield* exec.runQuery(
+    "Failed to load media",
+    db.select().from(mediaUnits).where(eq(mediaUnits.mediaId, mediaId)).prepare().effect(),
   );
 });
 
 const listUnitRowsWithMediaKindEffect = Effect.fn("MediaRepository.listUnitRowsWithMediaKind")(
-  function* (db: AppDatabase, mediaId: number) {
-    return yield* tryDatabasePromise("Failed to list mediaUnits", () =>
-      db
-        .select({ unit: mediaUnits, mediaKind: media.mediaKind })
-        .from(mediaUnits)
-        .innerJoin(media, eq(media.id, mediaUnits.mediaId))
-        .where(eq(mediaUnits.mediaId, mediaId)),
-    );
+  function* (db: AppDatabase, exec: DbExecutor, mediaId: number) {
+    return yield* exec
+      .runQuery(
+        "Failed to list mediaUnits",
+        db
+          .select()
+          .from(mediaUnits)
+          .innerJoin(media, eq(media.id, mediaUnits.mediaId))
+          .where(eq(mediaUnits.mediaId, mediaId))
+          .prepare()
+          .effect(),
+      )
+      .pipe(
+        Effect.map((rows) =>
+          rows.map(({ media: mediaRow, media_units: unitRow }) => ({
+            mediaKind: mediaRow.mediaKind,
+            unit: unitRow,
+          })),
+        ),
+      );
   },
 );
 
 const listUnitProgressStatsEffect = Effect.fn("MediaRepository.listUnitProgressStats")(function* (
   db: AppDatabase,
+  exec: DbExecutor,
   mediaIds: readonly number[],
 ) {
   if (mediaIds.length === 0) {
     return [];
   }
-  return yield* tryDatabasePromise("Failed to list media", () =>
+  return yield* exec.runQuery(
+    "Failed to list media",
     db
       .select({
         mediaId: mediaUnits.mediaId,
@@ -649,30 +730,37 @@ const listUnitProgressStatsEffect = Effect.fn("MediaRepository.listUnitProgressS
       })
       .from(mediaUnits)
       .where(inArray(mediaUnits.mediaId, [...mediaIds]))
-      .groupBy(mediaUnits.mediaId),
+      .groupBy(mediaUnits.mediaId)
+      .prepare()
+      .effect(),
   );
 });
 
 const listMissingUnitNumbersEffect = Effect.fn("MediaRepository.listMissingUnitNumbers")(function* (
   db: AppDatabase,
+  exec: DbExecutor,
   mediaIds: readonly number[],
 ) {
   if (mediaIds.length === 0) {
     return [];
   }
-  return yield* tryDatabasePromise("Failed to list media", () =>
+  return yield* exec.runQuery(
+    "Failed to list media",
     db
       .select({
         mediaId: mediaUnits.mediaId,
         number: mediaUnits.number,
       })
       .from(mediaUnits)
-      .where(and(inArray(mediaUnits.mediaId, [...mediaIds]), eq(mediaUnits.downloaded, false))),
+      .where(and(inArray(mediaUnits.mediaId, [...mediaIds]), eq(mediaUnits.downloaded, false)))
+      .prepare()
+      .effect(),
   );
 });
 
 const loadUnitsByNumbersEffect = Effect.fn("MediaRepository.loadUnitsByNumbers")(function* (
   db: AppDatabase,
+  exec: DbExecutor,
   mediaId: number,
   numbers: readonly number[],
 ) {
@@ -680,97 +768,119 @@ const loadUnitsByNumbersEffect = Effect.fn("MediaRepository.loadUnitsByNumbers")
     return [];
   }
 
-  return yield* tryDatabasePromise("Failed to load media units", () =>
+  return yield* exec.runQuery(
+    "Failed to load media units",
     db
       .select()
       .from(mediaUnits)
-      .where(and(eq(mediaUnits.mediaId, mediaId), inArray(mediaUnits.number, [...numbers]))),
+      .where(and(eq(mediaUnits.mediaId, mediaId), inArray(mediaUnits.number, [...numbers])))
+      .prepare()
+      .effect(),
   );
 });
 
 const updateMonitoredEffect = Effect.fn("MediaRepository.updateMonitored")(function* (
   db: AppDatabase,
+  exec: DbExecutor,
   mediaId: number,
   monitored: boolean,
 ) {
-  yield* tryDatabasePromise("Failed to update media", () =>
-    db.update(media).set({ monitored }).where(eq(media.id, mediaId)),
+  yield* exec.runQuery(
+    "Failed to update media",
+    db.update(media).set({ monitored }).where(eq(media.id, mediaId)).prepare().effect(),
   );
 });
 
 const updateRootFolderEffect = Effect.fn("MediaRepository.updateRootFolder")(function* (
   db: AppDatabase,
+  exec: DbExecutor,
   mediaId: number,
   rootFolder: string,
 ) {
-  yield* tryDatabasePromise("Failed to update media path", () =>
-    db.update(media).set({ rootFolder }).where(eq(media.id, mediaId)),
+  yield* exec.runQuery(
+    "Failed to update media path",
+    db.update(media).set({ rootFolder }).where(eq(media.id, mediaId)).prepare().effect(),
   );
 });
 
 const updateProfileNameEffect = Effect.fn("MediaRepository.updateProfileName")(function* (
   db: AppDatabase,
+  exec: DbExecutor,
   mediaId: number,
   profileName: string,
 ) {
-  yield* tryDatabasePromise("Failed to update media", () =>
-    db.update(media).set({ profileName }).where(eq(media.id, mediaId)),
+  yield* exec.runQuery(
+    "Failed to update media",
+    db.update(media).set({ profileName }).where(eq(media.id, mediaId)).prepare().effect(),
   );
 });
 
 const updateReleaseProfileIdsEffect = Effect.fn("MediaRepository.updateReleaseProfileIds")(
-  function* (db: AppDatabase, mediaId: number, releaseProfileIds: string) {
-    yield* tryDatabasePromise("Failed to update media", () =>
-      db.update(media).set({ releaseProfileIds }).where(eq(media.id, mediaId)),
+  function* (db: AppDatabase, exec: DbExecutor, mediaId: number, releaseProfileIds: string) {
+    yield* exec.runQuery(
+      "Failed to update media",
+      db.update(media).set({ releaseProfileIds }).where(eq(media.id, mediaId)).prepare().effect(),
     );
   },
 );
 
 const insertMediaAggregateEffect = Effect.fn("MediaRepository.insertMediaAggregate")(function* (
   db: AppDatabase,
+  exec: DbExecutor,
   input: {
     readonly mediaRow: typeof media.$inferInsert;
     readonly unitRows: readonly (typeof mediaUnits.$inferInsert)[];
     readonly log: typeof systemLogs.$inferInsert;
   },
 ) {
-  yield* tryDatabasePromise("Failed to insert media aggregate", () =>
-    db.transaction(async (tx) => {
-      await tx.insert(media).values(input.mediaRow);
+  yield* exec.runTransaction(
+    "Failed to insert media aggregate",
+    Effect.gen(function* () {
+      yield* db.insert(media).values(input.mediaRow).prepare().effect();
 
       if (input.unitRows.length > 0) {
-        await tx.insert(mediaUnits).values([...input.unitRows]);
+        yield* db
+          .insert(mediaUnits)
+          .values([...input.unitRows])
+          .prepare()
+          .effect();
       }
 
-      await tx.insert(systemLogs).values(input.log);
+      yield* db.insert(systemLogs).values(input.log).prepare().effect();
     }),
   );
 });
 
 const updateMediaRowEffect = Effect.fn("MediaRepository.updateMediaRow")(function* (
   db: AppDatabase,
+  exec: DbExecutor,
   mediaId: number,
   row: typeof media.$inferInsert | Partial<typeof media.$inferInsert>,
 ) {
-  yield* tryDatabasePromise("Failed to update media", () =>
-    db.update(media).set(row).where(eq(media.id, mediaId)),
+  yield* exec.runQuery(
+    "Failed to update media",
+    db.update(media).set(row).where(eq(media.id, mediaId)).prepare().effect(),
   );
 });
 
 const deleteMediaEffect = Effect.fn("MediaRepository.deleteMedia")(function* (
   db: AppDatabase,
+  exec: DbExecutor,
   mediaId: number,
 ) {
-  yield* tryDatabasePromise("Failed to delete media", () =>
-    db.delete(media).where(eq(media.id, mediaId)),
+  yield* exec.runQuery(
+    "Failed to delete media",
+    db.delete(media).where(eq(media.id, mediaId)).prepare().effect(),
   );
 });
 
 const listMonitoredMediaIdsEffect = Effect.fn("MediaRepository.listMonitoredMediaIds")(function* (
   db: AppDatabase,
+  exec: DbExecutor,
 ) {
-  const rows = yield* tryDatabasePromise("Failed to list monitored media ids", () =>
-    db.select({ id: media.id }).from(media).where(eq(media.monitored, true)),
+  const rows = yield* exec.runQuery(
+    "Failed to list monitored media ids",
+    db.select({ id: media.id }).from(media).where(eq(media.monitored, true)).prepare().effect(),
   );
   return rows.map((row) => row.id);
 });

@@ -13,12 +13,12 @@ export function formatJobFailureMessage(cause: unknown): string {
     "message" in cause &&
     typeof cause.message === "string"
   ) {
-    return `${String(cause._tag)}: ${cause.message}`;
+    return `${globalThis.String(cause._tag)}: ${cause.message}`;
   }
 
   if (cause instanceof Error) {
     return `${cause.name}: ${cause.message}`;
   }
 
-  return String(cause);
+  return globalThis.String(cause);
 }

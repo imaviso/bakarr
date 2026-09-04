@@ -1,5 +1,5 @@
 import { useForm } from "@tanstack/react-form";
-import { Schema } from "effect";
+import { Schema, Struct } from "effect";
 import { SortableQualityList } from "@/features/settings/sortable-quality-list";
 import { fieldErrorMessage } from "@/api/effect/errors";
 import { Button } from "@/components/ui/button";
@@ -23,29 +23,31 @@ import {
 } from "@/api/profiles";
 import type { QualityProfile } from "@/api/contracts";
 
-const ProfileSchema = Schema.mutable(
-  Schema.Struct({
-    name: Schema.String.pipe(Schema.minLength(1, { message: () => "Name is required" })),
-    cutoff: Schema.String.pipe(Schema.minLength(1, { message: () => "Cutoff is required" })),
-    upgrade_allowed: Schema.Boolean,
-    seadex_preferred: Schema.Boolean,
-    allowed_qualities: Schema.mutable(Schema.Array(Schema.String)),
-    min_size: Schema.UndefinedOr(Schema.String),
-    max_size: Schema.UndefinedOr(Schema.String),
-  }),
-);
+const ProfileSchema = Schema.Struct({
+  name: Schema.String.pipe(Schema.check(Schema.isMinLength(1, { message: "Name is required" }))),
+  cutoff: Schema.String.pipe(
+    Schema.check(Schema.isMinLength(1, { message: "Cutoff is required" })),
+  ),
+  upgrade_allowed: Schema.Boolean,
+  seadex_preferred: Schema.Boolean,
+  allowed_qualities: Schema.mutable(Schema.Array(Schema.String)),
+  min_size: Schema.UndefinedOr(Schema.String),
+  max_size: Schema.UndefinedOr(Schema.String),
+}).mapFields(Struct.map(Schema.mutableKey));
 
 const SizeFieldSchema = Schema.UndefinedOr(
   Schema.String.pipe(
-    Schema.pattern(/^[0-9]+(\.[0-9]+)?\s*(MB|GB)$/i, {
-      message: () => "Must be format like '500 MB' or '2.5 GB'",
-    }),
+    Schema.check(
+      Schema.isPattern(/^[0-9]+(\.[0-9]+)?\s*(MB|GB)$/i, {
+        message: "Must be format like '500 MB' or '2.5 GB'",
+      }),
+    ),
   ),
 );
 
 function validateSizeField({ value }: { value: unknown }): string | undefined {
-  const result = Schema.decodeUnknownEither(SizeFieldSchema)(value);
-  if (result._tag === "Right") return undefined;
+  const result = Schema.decodeUnknownResult(SizeFieldSchema)(value);
+  if (result._tag === "Success") return undefined;
   return "Must be format like '500 MB' or '2.5 GB'";
 }
 
@@ -70,7 +72,7 @@ export function ProfileForm(props: {
       max_size: props.profile?.max_size || undefined,
     },
     validators: {
-      onChange: Schema.standardSchemaV1(ProfileSchema),
+      onChange: Schema.toStandardSchemaV1(ProfileSchema),
     },
     onSubmit: async ({ value }) => {
       if (isEditing && props.profile) {

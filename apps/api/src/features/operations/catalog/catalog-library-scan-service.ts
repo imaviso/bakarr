@@ -1,5 +1,4 @@
-import { Effect, Ref, Stream } from "effect";
-
+import { Context, Effect, Layer, Ref, Stream } from "effect";
 import type { DatabaseError } from "@/db/database.ts";
 import { media } from "@/db/schema.ts";
 import { EventBus } from "@/infra/effect/event-bus.ts";
@@ -17,6 +16,7 @@ import {
   type LibraryScanCounts,
 } from "@/features/operations/catalog/catalog-library-scan-file-support.ts";
 import { scanVideoFilesStream } from "@/features/operations/import-scan/file-scanner.ts";
+
 import {
   BackgroundJobRunner,
   type BackgroundJobRunnerShape,
@@ -43,7 +43,7 @@ const scanMediaLibraryRow = Effect.fn("CatalogLibraryScan.scanMediaLibraryRow")(
         }),
     ),
     Stream.runFoldEffect(
-      { matchedFiles: 0, scannedFiles: 0 } satisfies LibraryScanCounts,
+      () => ({ matchedFiles: 0, scannedFiles: 0 }) satisfies LibraryScanCounts,
       (counts, file) =>
         countLibraryScanFile(mediaUnitRepository, {
           mediaId: animeRow.id,
@@ -70,7 +70,7 @@ function makeCatalogLibraryScanSupport(input: {
         yield* Effect.annotateCurrentSpan("job", "library_scan");
 
         const animeRows = yield* input.mediaRepository.listMediaRows({
-          limit: Number.MAX_SAFE_INTEGER,
+          limit: globalThis.Number.MAX_SAFE_INTEGER,
           offset: 0,
         });
         yield* Effect.annotateCurrentSpan("mediaCount", animeRows.length);
@@ -113,10 +113,13 @@ function makeCatalogLibraryScanSupport(input: {
   return { runLibraryScan };
 }
 
-export class CatalogLibraryScanService extends Effect.Service<CatalogLibraryScanService>()(
-  "@bakarr/api/CatalogLibraryScanService",
-  {
-    effect: Effect.gen(function* () {
+export class CatalogLibraryScanService extends Context.Service<
+  CatalogLibraryScanService,
+  CatalogLibraryScanServiceShape
+>()("@bakarr/api/CatalogLibraryScanService") {
+  static readonly layer = Layer.effect(
+    CatalogLibraryScanService,
+    Effect.gen(function* () {
       const backgroundJobRunner = yield* BackgroundJobRunner;
       const eventBus = yield* EventBus;
       const fs = yield* FileSystem;
@@ -133,14 +136,7 @@ export class CatalogLibraryScanService extends Effect.Service<CatalogLibraryScan
         publishLibraryScanProgress: progress.publishLibraryScanProgress,
       });
     }),
-    // FS + OperationsProgress provided by ops feature layer.
-    dependencies: [
-      BackgroundJobRunner.Default,
-      EventBus.Default,
-      MediaRepository.Default,
-      MediaUnitRepository.Default,
-    ],
-  },
-) {}
+  );
+}
 
-export const CatalogLibraryScanServiceLive = CatalogLibraryScanService.Default;
+export const CatalogLibraryScanServiceLive = CatalogLibraryScanService.layer;

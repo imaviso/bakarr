@@ -1,5 +1,6 @@
 import { Cause, Effect, Exit, Layer } from "effect";
 
+import * as SqliteClient from "@effect/sql-sqlite-node/SqliteClient";
 import { AppDrizzleDatabase } from "@/db/database.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 import { assert, describe, it } from "@effect/vitest";
@@ -43,17 +44,18 @@ describe("SystemConfigService", () => {
     }),
   );
 
-  it.scoped("fails when the stored config row is missing", () =>
+  it.effect("fails when the stored config row is missing", () =>
     withSqliteTestDbEffect({
-      run: (db) =>
+      run: (db, _databaseFile, client, _exec) =>
         Effect.gen(function* () {
           const repositoryLayer = Layer.mergeAll(
-            SystemConfigRepository.DefaultWithoutDependencies,
-            QualityProfileRepository.DefaultWithoutDependencies,
-          ).pipe(Layer.provide(Layer.succeed(AppDrizzleDatabase, AppDrizzleDatabase.make(db))));
-          const layer = SystemConfigService.DefaultWithoutDependencies.pipe(
-            Layer.provide(repositoryLayer),
+            SystemConfigRepository.layer,
+            QualityProfileRepository.layer,
+          ).pipe(
+            Layer.provide(Layer.succeed(AppDrizzleDatabase, AppDrizzleDatabase.of(db))),
+            Layer.provide(Layer.succeed(SqliteClient.SqliteClient, client)),
           );
+          const layer = SystemConfigService.layer.pipe(Layer.provide(repositoryLayer));
 
           const exit = yield* Effect.exit(
             Effect.flatMap(SystemConfigService, (service) => service.getConfig()).pipe(
@@ -64,7 +66,7 @@ describe("SystemConfigService", () => {
           assert.deepStrictEqual(Exit.isFailure(exit), true);
 
           if (Exit.isFailure(exit)) {
-            const failure = Cause.failureOption(exit.cause);
+            const failure = Cause.findErrorOption(exit.cause);
             assert.deepStrictEqual(failure._tag, "Some", Cause.pretty(exit.cause));
 
             if (failure._tag === "Some") {

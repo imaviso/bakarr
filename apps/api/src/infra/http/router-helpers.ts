@@ -1,6 +1,8 @@
 // oxlint-disable typescript/no-restricted-types -- `unknown` is the honest type at error/cause boundaries (Effect error channels, try/catch causes, Logger messages)
-import { HttpRouter, HttpServerRequest, HttpServerResponse } from "@effect/platform";
-import { Cause, Effect, Option, ParseResult, Predicate, Schema } from "effect";
+import * as HttpRouter from "effect/unstable/http/HttpRouter";
+import * as HttpServerRequest from "effect/unstable/http/HttpServerRequest";
+import * as HttpServerResponse from "effect/unstable/http/HttpServerResponse";
+import { Cause, Effect, Option, Predicate, Record, Schema } from "effect";
 
 import { collectBoundedText, StreamPayloadTooLargeError } from "@/infra/effect/bounded-stream.ts";
 import { mapRouteError } from "@/infra/http/route-errors/index.ts";
@@ -13,11 +15,11 @@ import type { RouteErrorResponse } from "@/infra/http/route-types.ts";
 
 export const MAX_JSON_BODY_BYTES = 1_048_576;
 
-export const decodeJsonBodyWithLabel = <A, I, R>(schema: Schema.Schema<A, I, R>, label: string) =>
+export const decodeJsonBodyWithLabel = <A, I, R>(schema: Schema.Codec<A, I, R>, label: string) =>
   readBoundedRequestText.pipe(Effect.flatMap((text) => decodeJsonText(schema, label, text)));
 
 export const decodeOptionalJsonBodyWithLabel = <A, I, R>(
-  schema: Schema.Schema<A, I, R>,
+  schema: Schema.Codec<A, I, R>,
   label: string,
   emptyBodyValue: A,
 ) =>
@@ -45,15 +47,15 @@ const readBoundedRequestText = Effect.gen(function* () {
   return yield* collectBoundedText(request.stream, MAX_JSON_BODY_BYTES);
 });
 
-const decodeJsonText = <A, I, R>(schema: Schema.Schema<A, I, R>, label: string, text: string) =>
+const decodeJsonText = <A, I, R>(schema: Schema.Codec<A, I, R>, label: string, text: string) =>
   Effect.flatMap(parseJsonText(text, label), (json) =>
-    Schema.decodeUnknown(schema)(json).pipe(
+    Schema.decodeUnknownEffect(schema)(json).pipe(
       Effect.mapError((error) => mapLabeledBodyDecodeError(label, error)),
     ),
   );
 
 const parseJsonText = (text: string, label: string) =>
-  Schema.decodeUnknown(Schema.parseJson(Schema.Unknown))(text).pipe(
+  Schema.decodeUnknownEffect(Schema.fromJsonString(Schema.Unknown))(text).pipe(
     Effect.mapError((cause) =>
       RequestValidationError.make({
         cause,
@@ -64,7 +66,7 @@ const parseJsonText = (text: string, label: string) =>
   );
 
 export const decodePathParams = <A, I extends Readonly<Record<string, string | undefined>>, R>(
-  schema: Schema.Schema<A, I, R>,
+  schema: Schema.Codec<A, I, R>,
 ) =>
   HttpRouter.schemaPathParams(schema).pipe(
     Effect.mapError((error) => mapParseValidationError(error, "Invalid path parameters")),
@@ -75,7 +77,7 @@ export const decodeQuery = <
   I extends Readonly<Record<string, string | ReadonlyArray<string> | undefined>>,
   R,
 >(
-  schema: Schema.Schema<A, I, R>,
+  schema: Schema.Codec<A, I, R>,
 ) =>
   HttpServerRequest.schemaSearchParams(schema).pipe(
     Effect.mapError((error) => mapParseValidationError(error, "Invalid query parameters")),
@@ -86,7 +88,7 @@ export const decodeQueryWithLabel = <
   I extends Readonly<Record<string, string | ReadonlyArray<string> | undefined>>,
   R,
 >(
-  schema: Schema.Schema<A, I, R>,
+  schema: Schema.Codec<A, I, R>,
   label: string,
 ) =>
   HttpServerRequest.schemaSearchParams(schema).pipe(
@@ -106,16 +108,16 @@ export const routeResponse = <A, E, R, E2, R2>(
 
     return yield* effect.pipe(
       Effect.flatMap((value) => onSuccess(value)),
-      Effect.catchAllCause((cause) =>
+      Effect.catchCause((cause) =>
         Effect.gen(function* () {
           // Client disconnects and shutdown surface as interrupt-only causes.
           // The response channel is already dead: re-interrupt quietly instead
           // of mapping the request to a 500 and logging an error.
-          if (Cause.isInterruptedOnly(cause)) {
+          if (Cause.hasInterruptsOnly(cause)) {
             return yield* Effect.interrupt;
           }
 
-          const failure = Cause.failureOption(cause);
+          const failure = Cause.findErrorOption(cause);
           const mapped = Option.match(failure, {
             onNone: (): RouteErrorResponse => ({ message: "Unexpected server error", status: 500 }),
             onSome: (error) => mapError(error),
@@ -149,7 +151,7 @@ export const routeResponse = <A, E, R, E2, R2>(
     );
   });
 
-export const schemaJsonResponse = <A, I, R>(schema: Schema.Schema<A, I, R>) =>
+export const schemaJsonResponse = <A, I, R>(schema: Schema.Codec<A, I, R>) =>
   HttpServerResponse.schemaJson(schema);
 
 const SuccessResponseSchema = Schema.Struct({
@@ -161,7 +163,7 @@ export const successResponse = () =>
   HttpServerResponse.schemaJson(SuccessResponseSchema)({ data: null, success: true });
 
 export const schemaAcceptedResponse =
-  <A, I, R>(schema: Schema.Schema<A, I, R>) =>
+  <A, I, R>(schema: Schema.Codec<A, I, R>) =>
   (value: A) =>
     HttpServerResponse.schemaJson(Schema.Struct({ data: schema, success: Schema.Literal(true) }))(
       { data: value, success: true },
@@ -172,10 +174,10 @@ export const authedRouteResponse = <A, E, R, E2, R2>(
   effect: Effect.Effect<A, E, R>,
   onSuccess: (value: A) => Effect.Effect<HttpServerResponse.HttpServerResponse, E2, R2>,
   mapError: (error: unknown) => RouteErrorResponse = mapRouteError,
-) => routeResponse(Effect.zipRight(requireViewerFromHttpRequest(), effect), onSuccess, mapError);
+) => routeResponse(Effect.andThen(requireViewerFromHttpRequest(), effect), onSuccess, mapError);
 
 function mapParseValidationError(error: unknown, message: string) {
-  if (!ParseResult.isParseError(error)) {
+  if (!Schema.isSchemaError(error)) {
     return error;
   }
 
@@ -187,7 +189,7 @@ function mapParseValidationError(error: unknown, message: string) {
 }
 
 function mapLabeledBodyDecodeError(label: string, error: unknown) {
-  if (ParseResult.isParseError(error)) {
+  if (Schema.isSchemaError(error)) {
     return RequestValidationError.make({
       cause: error,
       message: formatValidationErrorMessage(`Invalid request body for ${label}`, error),
@@ -200,7 +202,7 @@ function mapLabeledBodyDecodeError(label: string, error: unknown) {
 
 function describeRouteFailure(error: unknown): string {
   if (Predicate.hasProperty(error, "_tag")) {
-    return String(error._tag);
+    return globalThis.String(error._tag);
   }
 
   if (error instanceof Error) {

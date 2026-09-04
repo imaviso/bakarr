@@ -1,5 +1,3 @@
-import { Effect } from "effect";
-
 import {
   brandMediaId,
   type AsyncOperationAccepted,
@@ -25,6 +23,7 @@ import { SearchReleaseService } from "@/features/operations/search/search-orches
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 import { QualityProfileRepository } from "@/features/system/repository/quality-profile-repository.ts";
 import { ReleaseProfileRepository } from "@/features/system/repository/release-profile-repository.ts";
+import { Context, Effect, Layer } from "effect";
 
 export interface SearchBackgroundMissingServiceShape {
   readonly startMissingUnitSearch: (
@@ -35,10 +34,13 @@ export interface SearchBackgroundMissingServiceShape {
   ) => Effect.Effect<void, DatabaseError | InfrastructureError>;
 }
 
-export class SearchBackgroundMissingService extends Effect.Service<SearchBackgroundMissingService>()(
-  "@bakarr/api/SearchBackgroundMissingService",
-  {
-    effect: Effect.gen(function* () {
+export class SearchBackgroundMissingService extends Context.Service<
+  SearchBackgroundMissingService,
+  SearchBackgroundMissingServiceShape
+>()("@bakarr/api/SearchBackgroundMissingService") {
+  static readonly layer = Layer.effect(
+    SearchBackgroundMissingService,
+    Effect.gen(function* () {
       const eventBus = yield* EventBus;
       const progress = yield* OperationsProgress;
       const searchReleaseService = yield* SearchReleaseService;
@@ -188,22 +190,22 @@ export class SearchBackgroundMissingService extends Effect.Service<SearchBackgro
           // Per-row isolation: one poisoned unit (profile/rules/search/queue
           // failure) must not abort the pass — log, skip, continue so
           // SearchMissingFinished still publishes.
-          const rowResult = yield* processMissingRow(row).pipe(Effect.either);
+          const rowResult = yield* processMissingRow(row).pipe(Effect.result);
 
-          if (rowResult._tag === "Left") {
+          if (rowResult._tag === "Failure") {
             yield* Effect.logWarning(
               "Missing-unit search row failed; continuing with remaining rows",
             ).pipe(
               Effect.annotateLogs({
                 mediaId: row.media.id,
                 unitNumber: row.media_units.number,
-                error: String(rowResult.left),
+                error: globalThis.String(rowResult.failure),
               }),
             );
             continue;
           }
 
-          if (!rowResult.right) {
+          if (!rowResult.success) {
             continue;
           }
 
@@ -267,18 +269,7 @@ export class SearchBackgroundMissingService extends Effect.Service<SearchBackgro
         triggerSearchMissing,
       } satisfies SearchBackgroundMissingServiceShape;
     }),
-    // OperationsProgress + RuntimeConfigSnapshotService come from the lifecycle layer.
-    dependencies: [
-      BackgroundSearchQueueService.Default,
-      EventBus.Default,
-      MediaRepository.Default,
-      MediaUnitRepository.Default,
-      OperationsTaskLauncherService.Default,
-      QualityProfileRepository.Default,
-      ReleaseProfileRepository.Default,
-      SearchReleaseService.Default,
-    ],
-  },
-) {}
+  );
+}
 
-export const SearchBackgroundMissingServiceLive = SearchBackgroundMissingService.Default;
+export const SearchBackgroundMissingServiceLive = SearchBackgroundMissingService.layer;

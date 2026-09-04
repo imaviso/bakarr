@@ -9,11 +9,19 @@ const AnimeMetadataTitleSchema = Schema.Struct({
 });
 
 const AnimeDateStringSchema = Schema.String.pipe(
-  Schema.pattern(/^\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})?)?$/),
+  Schema.check(
+    Schema.isPattern(/^\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})?)?$/),
+  ),
 );
-const AnimePositiveIntSchema = Schema.Number.pipe(Schema.int(), Schema.positive());
-const AnimeNonNegativeIntSchema = Schema.Number.pipe(Schema.int(), Schema.nonNegative());
-const AnimeScoreSchema = Schema.Number.pipe(Schema.between(0, 100));
+const AnimePositiveIntSchema = Schema.Number.pipe(
+  Schema.check(Schema.isInt(), Schema.isGreaterThan(0)),
+);
+const AnimeNonNegativeIntSchema = Schema.Number.pipe(
+  Schema.check(Schema.isInt(), Schema.isGreaterThanOrEqualTo(0)),
+);
+const AnimeScoreSchema = Schema.Number.pipe(
+  Schema.check(Schema.isBetween({ minimum: 0, maximum: 100 })),
+);
 
 const AnimeMetadataAiringScheduleItemSchema = Schema.Struct({
   airingAt: AnimeDateStringSchema,
@@ -71,7 +79,7 @@ const ProviderMediaSearchResultTitleSchema = Schema.Struct({
 
 export const ProviderMediaSearchResultSchema = Schema.Struct({
   id: AnimePositiveIntSchema,
-  media_kind: Schema.optional(Schema.Literal("anime", "manga", "light_novel")),
+  media_kind: Schema.optional(Schema.Literals(["anime", "manga", "light_novel"])),
   title: ProviderMediaSearchResultTitleSchema,
   format: Schema.optional(Schema.String),
   source: Schema.optional(Schema.String),
@@ -89,7 +97,7 @@ export const ProviderMediaSearchResultSchema = Schema.Struct({
   end_date: Schema.optional(Schema.String),
   start_year: Schema.optional(Schema.Number),
   end_year: Schema.optional(Schema.Number),
-  season: Schema.optional(Schema.Literal("winter", "spring", "summer", "fall")),
+  season: Schema.optional(Schema.Literals(["winter", "spring", "summer", "fall"])),
   season_year: Schema.optional(Schema.Number),
   cover_image: Schema.optional(Schema.String),
   banner_image: Schema.optional(Schema.String),

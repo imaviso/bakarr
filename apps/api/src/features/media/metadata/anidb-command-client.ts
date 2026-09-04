@@ -1,6 +1,5 @@
-import { type Socket } from "node:dgram";
-
 import { Clock, Effect, Ref } from "effect";
+import { type Socket } from "node:dgram";
 
 import { parseAniDbResponse } from "@/features/media/metadata/anidb-protocol.ts";
 import {
@@ -149,7 +148,7 @@ const nextRequestTag = Effect.fn("AniDbClient.nextRequestTag")(function* (
   nextTagRef: Ref.Ref<number>,
 ) {
   return yield* Ref.modify(nextTagRef, (current): readonly [string, number] => [
-    String(current),
+    globalThis.String(current),
     current + 1,
   ]);
 });

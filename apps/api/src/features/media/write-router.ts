@@ -1,5 +1,5 @@
-import { HttpRouter } from "@effect/platform";
-import { Effect, Option, Schema } from "effect";
+import * as HttpRouter from "effect/unstable/http/HttpRouter";
+import { Effect, Layer, Option, Schema } from "effect";
 
 import { MediaFileService } from "@/features/media/files/media-file-service.ts";
 import { MediaEnrollmentService } from "@/features/media/add/media-enrollment-service.ts";
@@ -37,8 +37,9 @@ import {
 
 const acceptedOperationResponse = schemaAcceptedResponse(AsyncOperationAcceptedSchema);
 
-export const mediaWriteRouter = HttpRouter.empty.pipe(
-  HttpRouter.post(
+export const mediaWriteRouter = Layer.mergeAll(
+  HttpRouter.add(
+    "POST",
     "/media",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -48,7 +49,8 @@ export const mediaWriteRouter = HttpRouter.empty.pipe(
       schemaJsonResponse(MediaSchema),
     ),
   ),
-  HttpRouter.del(
+  HttpRouter.add(
+    "DELETE",
     "/media/:id",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -58,7 +60,8 @@ export const mediaWriteRouter = HttpRouter.empty.pipe(
       successResponse,
     ),
   ),
-  HttpRouter.post(
+  HttpRouter.add(
+    "POST",
     "/media/:id/monitor",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -69,7 +72,8 @@ export const mediaWriteRouter = HttpRouter.empty.pipe(
       successResponse,
     ),
   ),
-  HttpRouter.put(
+  HttpRouter.add(
+    "PUT",
     "/media/:id/path",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -80,7 +84,8 @@ export const mediaWriteRouter = HttpRouter.empty.pipe(
       successResponse,
     ),
   ),
-  HttpRouter.put(
+  HttpRouter.add(
+    "PUT",
     "/media/:id/profile",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -91,7 +96,8 @@ export const mediaWriteRouter = HttpRouter.empty.pipe(
       successResponse,
     ),
   ),
-  HttpRouter.put(
+  HttpRouter.add(
+    "PUT",
     "/media/:id/release-profiles",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -107,7 +113,8 @@ export const mediaWriteRouter = HttpRouter.empty.pipe(
       successResponse,
     ),
   ),
-  HttpRouter.post(
+  HttpRouter.add(
+    "POST",
     "/media/:id/units/refresh",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -117,7 +124,8 @@ export const mediaWriteRouter = HttpRouter.empty.pipe(
       acceptedOperationResponse,
     ),
   ),
-  HttpRouter.post(
+  HttpRouter.add(
+    "POST",
     "/media/:id/units/scan",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -127,7 +135,8 @@ export const mediaWriteRouter = HttpRouter.empty.pipe(
       acceptedOperationResponse,
     ),
   ),
-  HttpRouter.get(
+  HttpRouter.add(
+    "GET",
     "/media/:id/units/scan/tasks",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -140,7 +149,8 @@ export const mediaWriteRouter = HttpRouter.empty.pipe(
       schemaJsonResponse(Schema.Array(OperationTaskSchema)),
     ),
   ),
-  HttpRouter.get(
+  HttpRouter.add(
+    "GET",
     "/media/:id/units/scan/tasks/:taskId",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -162,7 +172,8 @@ export const mediaWriteRouter = HttpRouter.empty.pipe(
       schemaJsonResponse(OperationTaskSchema),
     ),
   ),
-  HttpRouter.del(
+  HttpRouter.add(
+    "DELETE",
     "/media/:id/units/:unitNumber/file",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -172,7 +183,8 @@ export const mediaWriteRouter = HttpRouter.empty.pipe(
       successResponse,
     ),
   ),
-  HttpRouter.post(
+  HttpRouter.add(
+    "POST",
     "/media/:id/units/:unitNumber/map",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -183,7 +195,8 @@ export const mediaWriteRouter = HttpRouter.empty.pipe(
       successResponse,
     ),
   ),
-  HttpRouter.post(
+  HttpRouter.add(
+    "POST",
     "/media/:id/units/map/bulk",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -197,7 +210,8 @@ export const mediaWriteRouter = HttpRouter.empty.pipe(
       successResponse,
     ),
   ),
-  HttpRouter.post(
+  HttpRouter.add(
+    "POST",
     "/media/:id/rename",
     authedRouteResponse(
       Effect.gen(function* () {

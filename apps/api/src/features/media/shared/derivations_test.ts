@@ -35,7 +35,10 @@ it("summarizeEpisodeCoverage prefers air date and formats sorted unique mediaUni
   );
   assert.deepStrictEqual(summarizeEpisodeCoverage({ unitNumbers: [3, 1, 2, 2] }), "Episodes 1-3");
   assert.deepStrictEqual(summarizeEpisodeCoverage({ unitNumbers: [5, 1, 3] }), "Episodes 1, 3, 5");
-  assert.deepStrictEqual(summarizeEpisodeCoverage({ unitNumbers: [1, 0, Number.NaN] }), undefined);
+  assert.deepStrictEqual(
+    summarizeEpisodeCoverage({ unitNumbers: [1, 0, globalThis.Number.NaN] }),
+    undefined,
+  );
 });
 
 it("inferAiredAt uses explicit and nearest schedule before date interpolation", () => {

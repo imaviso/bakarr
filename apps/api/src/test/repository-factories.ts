@@ -1,4 +1,5 @@
 import type { AppDatabase } from "@/db/database.ts";
+import type * as NodeSqliteClient from "@effect/sql-sqlite-node/SqliteClient";
 import { AuthUserRepository } from "@/features/auth/user-repository.ts";
 import { makeAuthUserRepositoryShape } from "@/features/auth/user-repository.ts";
 import { MediaRepository } from "@/features/media/shared/media-repository.ts";
@@ -32,50 +33,77 @@ import { makeSystemStatsRepositoryShape } from "@/features/system/repository/sta
 import { SystemUnmappedRepository } from "@/features/system/repository/unmapped-repository.ts";
 import { makeSystemUnmappedRepositoryShape } from "@/features/system/repository/unmapped-repository.ts";
 
-export const makeAuthUserRepository = (db: AppDatabase) =>
-  AuthUserRepository.make(makeAuthUserRepositoryShape(db));
+export const makeAuthUserRepository = (db: AppDatabase, sqlClient: NodeSqliteClient.SqliteClient) =>
+  AuthUserRepository.of(makeAuthUserRepositoryShape(db, sqlClient));
 
-export const makeMediaRepository = (db: AppDatabase) =>
-  MediaRepository.make(makeMediaRepositoryShape(db));
+export const makeMediaRepository = (db: AppDatabase, sqlClient: NodeSqliteClient.SqliteClient) =>
+  MediaRepository.of(makeMediaRepositoryShape(db, sqlClient));
 
-export const makeMediaUnitRepository = (db: AppDatabase) =>
-  MediaUnitRepository.make(makeMediaUnitRepositoryShape(db));
+export const makeMediaUnitRepository = (
+  db: AppDatabase,
+  sqlClient: NodeSqliteClient.SqliteClient,
+) => MediaUnitRepository.of(makeMediaUnitRepositoryShape(db, sqlClient));
 
-export const makeAniDbUnitCacheRepository = (db: AppDatabase) =>
-  AniDbUnitCacheRepository.make(makeAniDbUnitCacheRepositoryShape(db));
+export const makeAniDbUnitCacheRepository = (
+  db: AppDatabase,
+  sqlClient: NodeSqliteClient.SqliteClient,
+) => AniDbUnitCacheRepository.of(makeAniDbUnitCacheRepositoryShape(db, sqlClient));
 
-export const makeSeasonalMediaCacheRepository = (db: AppDatabase) =>
-  SeasonalMediaCacheRepository.make(makeSeasonalMediaCacheRepositoryShape(db));
+export const makeSeasonalMediaCacheRepository = (
+  db: AppDatabase,
+  sqlClient: NodeSqliteClient.SqliteClient,
+) => SeasonalMediaCacheRepository.of(makeSeasonalMediaCacheRepositoryShape(db, sqlClient));
 
-export const makeDownloadRepository = (db: AppDatabase) =>
-  DownloadRepository.make(makeDownloadRepositoryShape(db));
+export const makeDownloadRepository = (db: AppDatabase, sqlClient: NodeSqliteClient.SqliteClient) =>
+  DownloadRepository.of(makeDownloadRepositoryShape(db, sqlClient));
 
-export const makeOperationsTaskRepository = (db: AppDatabase) =>
-  OperationsTaskRepository.make(makeOperationsTaskRepositoryShape(db));
+export const makeOperationsTaskRepository = (
+  db: AppDatabase,
+  sqlClient: NodeSqliteClient.SqliteClient,
+) => OperationsTaskRepository.of(makeOperationsTaskRepositoryShape(db, sqlClient));
 
-export const makeRssFeedRepository = (db: AppDatabase) =>
-  RssFeedRepository.make(makeRssFeedRepositoryShape(db));
+export const makeRssFeedRepository = (db: AppDatabase, sqlClient: NodeSqliteClient.SqliteClient) =>
+  RssFeedRepository.of(makeRssFeedRepositoryShape(db, sqlClient));
 
-export const makeBackgroundJobRepository = (db: AppDatabase) =>
-  BackgroundJobRepository.make(makeBackgroundJobRepositoryShape(db));
+export const makeBackgroundJobRepository = (
+  db: AppDatabase,
+  sqlClient: NodeSqliteClient.SqliteClient,
+) => BackgroundJobRepository.of(makeBackgroundJobRepositoryShape(db, sqlClient));
 
-export const makeBackgroundJobRunner = (db: AppDatabase) =>
-  BackgroundJobRunner.make(makeBackgroundJobRunnerShape(makeBackgroundJobRepositoryShape(db)));
+export const makeBackgroundJobRunner = (
+  db: AppDatabase,
+  sqlClient: NodeSqliteClient.SqliteClient,
+) =>
+  BackgroundJobRunner.of(
+    makeBackgroundJobRunnerShape(makeBackgroundJobRepositoryShape(db, sqlClient)),
+  );
 
-export const makeSystemLogRepository = (db: AppDatabase) =>
-  SystemLogRepository.make(makeSystemLogRepositoryShape(db));
+export const makeSystemLogRepository = (
+  db: AppDatabase,
+  sqlClient: NodeSqliteClient.SqliteClient,
+) => SystemLogRepository.of(makeSystemLogRepositoryShape(db, sqlClient));
 
-export const makeQualityProfileRepository = (db: AppDatabase) =>
-  QualityProfileRepository.make(makeQualityProfileRepositoryShape(db));
+export const makeQualityProfileRepository = (
+  db: AppDatabase,
+  sqlClient: NodeSqliteClient.SqliteClient,
+) => QualityProfileRepository.of(makeQualityProfileRepositoryShape(db, sqlClient));
 
-export const makeReleaseProfileRepository = (db: AppDatabase) =>
-  ReleaseProfileRepository.make(makeReleaseProfileRepositoryShape(db));
+export const makeReleaseProfileRepository = (
+  db: AppDatabase,
+  sqlClient: NodeSqliteClient.SqliteClient,
+) => ReleaseProfileRepository.of(makeReleaseProfileRepositoryShape(db, sqlClient));
 
-export const makeSystemConfigRepository = (db: AppDatabase) =>
-  SystemConfigRepository.make(makeSystemConfigRepositoryShape(db));
+export const makeSystemConfigRepository = (
+  db: AppDatabase,
+  sqlClient: NodeSqliteClient.SqliteClient,
+) => SystemConfigRepository.of(makeSystemConfigRepositoryShape(db, sqlClient));
 
-export const makeSystemStatsRepository = (db: AppDatabase) =>
-  SystemStatsRepository.make(makeSystemStatsRepositoryShape(db));
+export const makeSystemStatsRepository = (
+  db: AppDatabase,
+  sqlClient: NodeSqliteClient.SqliteClient,
+) => SystemStatsRepository.of(makeSystemStatsRepositoryShape(db, sqlClient));
 
-export const makeSystemUnmappedRepository = (db: AppDatabase) =>
-  SystemUnmappedRepository.make(makeSystemUnmappedRepositoryShape(db));
+export const makeSystemUnmappedRepository = (
+  db: AppDatabase,
+  sqlClient: NodeSqliteClient.SqliteClient,
+) => SystemUnmappedRepository.of(makeSystemUnmappedRepositoryShape(db, sqlClient));

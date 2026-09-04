@@ -1,8 +1,9 @@
 // oxlint-disable typescript/no-restricted-types -- `unknown` is the honest type at error/cause boundaries (Effect error channels, try/catch causes, Logger messages)
-import { Command, CommandExecutor } from "@effect/platform";
+import * as Command from "effect/unstable/process/ChildProcess";
+import * as CommandExecutor from "effect/unstable/process/ChildProcessSpawner";
 import { existsSync } from "node:fs";
 import { dirname, resolve } from "node:path";
-import { Effect, Either, Schema } from "effect";
+import { Context, Effect, Layer, Result, Schema } from "effect";
 
 import type { Config } from "@packages/shared/index.ts";
 import { getConfiguredLibraryPaths } from "@/features/media/shared/config-support.ts";
@@ -15,14 +16,14 @@ export const DiskSpaceSchema = Schema.Struct({
 export type DiskSpace = Schema.Schema.Type<typeof DiskSpaceSchema>;
 
 export class DiskSpaceError extends Schema.TaggedError<DiskSpaceError>()("DiskSpaceError", {
-  cause: Schema.optional(Schema.Defect),
+  cause: Schema.optional(Schema.Defect()),
   message: Schema.String,
 }) {}
 
 export const BlockStatsSchema = Schema.Struct({
-  bavail: Schema.Union(Schema.Number, Schema.BigInt),
-  blocks: Schema.Union(Schema.Number, Schema.BigInt),
-  bsize: Schema.Union(Schema.Number, Schema.BigInt),
+  bavail: Schema.Union([Schema.Number, Schema.BigInt]),
+  blocks: Schema.Union([Schema.Number, Schema.BigInt]),
+  bsize: Schema.Union([Schema.Number, Schema.BigInt]),
 });
 
 export type BlockStatsShape = Schema.Schema.Type<typeof BlockStatsSchema>;
@@ -51,21 +52,24 @@ export const mapBlockStatsToDiskSpaceEffect = Effect.fn("DiskSpace.mapBlockStats
   },
 );
 
-function fromEither<A>(either: Either.Either<A, DiskSpaceError>): Effect.Effect<A, DiskSpaceError> {
-  return Either.match(either, {
-    onLeft: Effect.fail,
-    onRight: Effect.succeed,
+function fromEither<A>(either: Result.Result<A, DiskSpaceError>): Effect.Effect<A, DiskSpaceError> {
+  return Result.match(either, {
+    onFailure: Effect.fail,
+    onSuccess: Effect.succeed,
   });
 }
 
-function runDfCommand(commandExecutor: CommandExecutor.CommandExecutor, path: string) {
+function runDfCommand(
+  commandExecutor: CommandExecutor.ChildProcessSpawner["Service"],
+  path: string,
+) {
   return commandExecutor
-    .string(Command.make("df", "-Pk", path))
+    .string(Command.make("df", ["-Pk", path]))
     .pipe(Effect.mapError(toDiskSpaceError(`Failed to get disk space for ${path}`)));
 }
 
 export function makeDiskSpaceInspector(
-  commandExecutor: CommandExecutor.CommandExecutor,
+  commandExecutor: CommandExecutor.ChildProcessSpawner["Service"],
 ): DiskSpaceInspectorShape {
   const getDiskSpace = Effect.fn("DiskSpaceInspector.getDiskSpace")(function* (path: string) {
     const probePath = resolveDiskProbePath(path);
@@ -97,17 +101,20 @@ export function makeDiskSpaceInspector(
   };
 }
 
-export class DiskSpaceInspector extends Effect.Service<DiskSpaceInspector>()(
-  "@bakarr/api/DiskSpaceInspector",
-  {
-    effect: Effect.gen(function* () {
-      const commandExecutor = yield* CommandExecutor.CommandExecutor;
+export class DiskSpaceInspector extends Context.Service<
+  DiskSpaceInspector,
+  DiskSpaceInspectorShape
+>()("@bakarr/api/DiskSpaceInspector") {
+  static readonly layer = Layer.effect(
+    DiskSpaceInspector,
+    Effect.gen(function* () {
+      const commandExecutor = yield* CommandExecutor.ChildProcessSpawner;
       return makeDiskSpaceInspector(commandExecutor);
     }),
-  },
-) {}
+  );
+}
 
-export const DiskSpaceInspectorLive = DiskSpaceInspector.Default;
+export const DiskSpaceInspectorLive = DiskSpaceInspector.layer;
 
 export function selectStoragePath(config: Config, databaseFile: string): string {
   const libraryPath = getConfiguredLibraryPaths(config.library).find(
@@ -123,12 +130,12 @@ export function selectStoragePath(config: Config, databaseFile: string): string 
   return databaseFile;
 }
 
-function clampDiskBytes(value: number): Either.Either<number, DiskSpaceError> {
-  if (!Number.isFinite(value) || value < 0) {
-    return Either.left(new DiskSpaceError({ message: "Invalid disk byte count" }));
+function clampDiskBytes(value: number): Result.Result<number, DiskSpaceError> {
+  if (!globalThis.Number.isFinite(value) || value < 0) {
+    return Result.fail(new DiskSpaceError({ message: "Invalid disk byte count" }));
   }
 
-  return Either.right(Math.min(value, Number.MAX_SAFE_INTEGER));
+  return Result.succeed(Math.min(value, globalThis.Number.MAX_SAFE_INTEGER));
 }
 
 const mapDfOutputToDiskSpaceEffect = Effect.fn("DiskSpace.mapDfOutputToDiskSpaceEffect")(function* (
@@ -141,7 +148,7 @@ const mapDfOutputToDiskSpaceEffect = Effect.fn("DiskSpace.mapDfOutputToDiskSpace
 function mapDfOutputToDiskSpaceEither(
   path: string,
   output: string,
-): Either.Either<DiskSpace, DiskSpaceError> {
+): Result.Result<DiskSpace, DiskSpaceError> {
   const lines = output
     .split(/\r?\n/)
     .map((line) => line.trim())
@@ -149,70 +156,70 @@ function mapDfOutputToDiskSpaceEither(
   const dataLine = lines.at(-1);
 
   if (!dataLine) {
-    return Either.left(new DiskSpaceError({ message: `df returned no data for path: ${path}` }));
+    return Result.fail(new DiskSpaceError({ message: `df returned no data for path: ${path}` }));
   }
 
   const columns = dataLine.split(/\s+/);
 
   if (columns.length < 4) {
-    return Either.left(new DiskSpaceError({ message: `Unexpected df output for path: ${path}` }));
+    return Result.fail(new DiskSpaceError({ message: `Unexpected df output for path: ${path}` }));
   }
 
-  const total = Number(columns[1]);
-  const available = Number(columns[3]);
+  const total = globalThis.Number(columns[1]);
+  const available = globalThis.Number(columns[3]);
 
-  if (!Number.isFinite(total) || total <= 0) {
-    return Either.left(
+  if (!globalThis.Number.isFinite(total) || total <= 0) {
+    return Result.fail(
       new DiskSpaceError({ message: `Invalid total blocks from df for path: ${path}` }),
     );
   }
 
-  if (!Number.isFinite(available) || available < 0) {
-    return Either.left(
+  if (!globalThis.Number.isFinite(available) || available < 0) {
+    return Result.fail(
       new DiskSpaceError({ message: `Invalid available blocks from df for path: ${path}` }),
     );
   }
 
   const free = clampDiskBytes(available * 1024);
-  if (Either.isLeft(free)) {
-    return Either.left(free.left);
+  if (Result.isFailure(free)) {
+    return Result.fail(free.failure);
   }
 
   const totalBytes = clampDiskBytes(total * 1024);
-  if (Either.isLeft(totalBytes)) {
-    return Either.left(totalBytes.left);
+  if (Result.isFailure(totalBytes)) {
+    return Result.fail(totalBytes.failure);
   }
 
-  return Either.right({
-    free: free.right,
-    total: totalBytes.right,
+  return Result.succeed({
+    free: free.success,
+    total: totalBytes.success,
   });
 }
 
 function toPositiveNumber(
   value: bigint | number,
   message: string,
-): Either.Either<number, DiskSpaceError> {
-  const numeric = typeof value === "bigint" ? Number(value) : value;
+): Result.Result<number, DiskSpaceError> {
+  const numeric = typeof value === "bigint" ? globalThis.Number(value) : value;
 
-  if (!Number.isFinite(numeric) || numeric <= 0) {
-    return Either.left(new DiskSpaceError({ message }));
+  if (!globalThis.Number.isFinite(numeric) || numeric <= 0) {
+    return Result.fail(new DiskSpaceError({ message }));
   }
 
-  return Either.right(Math.min(numeric, Number.MAX_SAFE_INTEGER));
+  return Result.succeed(Math.min(numeric, globalThis.Number.MAX_SAFE_INTEGER));
 }
 
 function toNonNegativeNumber(
   value: bigint | number,
   message: string,
-): Either.Either<number, DiskSpaceError> {
-  const numeric = typeof value === "bigint" ? Number(value) : value;
+): Result.Result<number, DiskSpaceError> {
+  const numeric = typeof value === "bigint" ? globalThis.Number(value) : value;
 
-  if (!Number.isFinite(numeric) || numeric < 0) {
-    return Either.left(new DiskSpaceError({ message }));
+  if (!globalThis.Number.isFinite(numeric) || numeric < 0) {
+    return Result.fail(new DiskSpaceError({ message }));
   }
 
-  return Either.right(Math.min(numeric, Number.MAX_SAFE_INTEGER));
+  return Result.succeed(Math.min(numeric, globalThis.Number.MAX_SAFE_INTEGER));
 }
 
 function toDiskSpaceError(message: string) {

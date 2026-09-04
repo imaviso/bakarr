@@ -1,3 +1,4 @@
+import type * as NodeSqliteClient from "@effect/sql-sqlite-node/SqliteClient";
 import { Effect, Layer } from "effect";
 import { eq } from "drizzle-orm";
 
@@ -7,7 +8,7 @@ import { downloadEvents, downloads, media } from "@/db/schema.ts";
 import type { AppDatabase } from "@/db/database.ts";
 import { AppDrizzleDatabase } from "@/db/database.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
-import { tryDatabasePromise } from "@/infra/effect/db.ts";
+import { tryDatabaseQuery } from "@/infra/effect/db.ts";
 import { makeTestConfig } from "@/test/config-fixture.ts";
 import {
   makeDownloadRepository,
@@ -36,7 +37,7 @@ import {
 } from "@/features/operations/download/download-claim-token.ts";
 import { DownloadTorrentSyncService } from "@/features/operations/download/download-torrent-sync-service.ts";
 
-// `it.scoped` runs the service under the TestClock, whose `nowIso()` starts at
+// `it.scoped` runs the service under the whose `nowIso()` starts at
 // the epoch — so seeded claim/sync timestamps are offsets from epoch zero.
 const minutesAgoIso = (minutes: number) => new Date(-minutes * 60 * 1000).toISOString();
 
@@ -54,39 +55,41 @@ const makeTorrent = (hash: string): TorrentSnapshot => ({
   state: "completed",
 });
 
-const makeSyncServiceLayer = (db: AppDatabase, databaseFile: string) =>
+const makeSyncServiceLayer = (
+  db: AppDatabase,
+  databaseFile: string,
+  client: NodeSqliteClient.SqliteClient,
+) =>
   Effect.gen(function* () {
     const fs = yield* makeTestFileSystemEffect();
-    const appDbLayer = Layer.succeed(AppDrizzleDatabase, AppDrizzleDatabase.make(db));
-    const taskWriteLayer = OperationsTaskWriteService.DefaultWithoutDependencies.pipe(
+    const appDbLayer = Layer.succeed(AppDrizzleDatabase, AppDrizzleDatabase.of(db));
+    const taskWriteLayer = OperationsTaskWriteService.layer.pipe(
       Layer.provide(
         Layer.mergeAll(
-          OperationsTaskRepository.DefaultWithoutDependencies.pipe(Layer.provide(appDbLayer)),
+          OperationsTaskRepository.layer.pipe(Layer.provide(appDbLayer)),
           EventBusNoopLive,
         ),
       ),
     );
-    const launcherLayer = OperationsTaskLauncherService.DefaultWithoutDependencies.pipe(
-      Layer.provide(taskWriteLayer),
-    );
-    const reconciliationLayer = DownloadReconciliationService.DefaultWithoutDependencies.pipe(
+    const launcherLayer = OperationsTaskLauncherService.layer.pipe(Layer.provide(taskWriteLayer));
+    const reconciliationLayer = DownloadReconciliationService.layer.pipe(
       Layer.provide(
         Layer.mergeAll(
-          Layer.succeed(DownloadRepository, makeDownloadRepository(db)),
+          Layer.succeed(DownloadRepository, makeDownloadRepository(db, client)),
           EventBusNoopLive,
-          Layer.succeed(MediaRepository, makeMediaRepository(db)),
-          Layer.succeed(MediaUnitRepository, makeMediaUnitRepository(db)),
-          RandomService.Default,
+          Layer.succeed(MediaRepository, makeMediaRepository(db, client)),
+          Layer.succeed(MediaUnitRepository, makeMediaUnitRepository(db, client)),
+          RandomService.layer,
           Layer.succeed(FileSystem, fs),
           Layer.succeed(
             MediaProbe,
-            MediaProbe.make({
+            MediaProbe.of({
               probeVideoFile: () => Effect.succeed(new MediaProbeNoMetadata({})),
             }),
           ),
           Layer.succeed(
             TorrentClientService,
-            TorrentClientService.make({
+            TorrentClientService.of({
               addTorrentUrlIfEnabled: () => Effect.succeed({ _tag: "Disabled" }),
               deleteTorrentIfEnabled: () => Effect.succeed({ _tag: "Disabled" }),
               listTorrentContentsIfEnabled: () => Effect.succeed({ _tag: "Disabled" }),
@@ -97,7 +100,7 @@ const makeSyncServiceLayer = (db: AppDatabase, databaseFile: string) =>
           ),
           Layer.succeed(
             OperationsProgress,
-            OperationsProgress.make({
+            OperationsProgress.of({
               getDownloadProgress: () => Effect.succeed([]),
               getDownloadProgressBootstrap: () => Effect.succeed([]),
               getDownloadRuntimeSummary: () => Effect.succeed({ active_count: 0 }),
@@ -109,7 +112,7 @@ const makeSyncServiceLayer = (db: AppDatabase, databaseFile: string) =>
           ),
           Layer.succeed(
             RuntimeConfigSnapshotService,
-            RuntimeConfigSnapshotService.make({
+            RuntimeConfigSnapshotService.of({
               getRuntimeConfig: () =>
                 Effect.succeed(
                   makeTestConfig(databaseFile, (c) => ({
@@ -124,17 +127,17 @@ const makeSyncServiceLayer = (db: AppDatabase, databaseFile: string) =>
       ),
     );
 
-    return DownloadTorrentSyncService.DefaultWithoutDependencies.pipe(
+    return DownloadTorrentSyncService.layer.pipe(
       Layer.provide(
         Layer.mergeAll(
           reconciliationLayer,
-          Layer.succeed(DownloadRepository, makeDownloadRepository(db)),
+          Layer.succeed(DownloadRepository, makeDownloadRepository(db, client)),
           EventBusNoopLive,
-          Layer.succeed(MediaRepository, makeMediaRepository(db)),
+          Layer.succeed(MediaRepository, makeMediaRepository(db, client)),
           launcherLayer,
           Layer.succeed(
             TorrentClientService,
-            TorrentClientService.make({
+            TorrentClientService.of({
               addTorrentUrlIfEnabled: () => Effect.succeed({ _tag: "Disabled" }),
               deleteTorrentIfEnabled: () => Effect.succeed({ _tag: "Disabled" }),
               listTorrentContentsIfEnabled: () => Effect.succeed({ _tag: "Disabled" }),
@@ -149,7 +152,7 @@ const makeSyncServiceLayer = (db: AppDatabase, databaseFile: string) =>
           ),
           Layer.succeed(
             RuntimeConfigSnapshotService,
-            RuntimeConfigSnapshotService.make({
+            RuntimeConfigSnapshotService.of({
               getRuntimeConfig: () =>
                 Effect.succeed(
                   makeTestConfig(databaseFile, (c) => ({
@@ -162,7 +165,7 @@ const makeSyncServiceLayer = (db: AppDatabase, databaseFile: string) =>
           ),
           Layer.succeed(
             OperationsProgress,
-            OperationsProgress.make({
+            OperationsProgress.of({
               getDownloadProgress: () => Effect.succeed([]),
               getDownloadProgressBootstrap: () => Effect.succeed([]),
               getDownloadRuntimeSummary: () => Effect.succeed({ active_count: 0 }),
@@ -178,21 +181,26 @@ const makeSyncServiceLayer = (db: AppDatabase, databaseFile: string) =>
   });
 
 const seedMedia = (db: AppDatabase) =>
-  tryDatabasePromise("Failed to seed media for sync test", () =>
-    db.insert(media).values({
-      addedAt: "2024-01-01T00:00:00.000Z",
-      format: "TV",
-      genres: "[]",
-      id: 1,
-      mediaKind: "anime",
-      monitored: true,
-      profileName: "Default",
-      releaseProfileIds: "[]",
-      rootFolder: "/library/Naruto",
-      status: "RELEASING",
-      studios: "[]",
-      titleRomaji: "Naruto",
-    }),
+  tryDatabaseQuery(
+    "Failed to seed media for sync test",
+    db
+      .insert(media)
+      .values({
+        addedAt: "2024-01-01T00:00:00.000Z",
+        format: "TV",
+        genres: "[]",
+        id: 1,
+        mediaKind: "anime",
+        monitored: true,
+        profileName: "Default",
+        releaseProfileIds: "[]",
+        rootFolder: "/library/Naruto",
+        status: "RELEASING",
+        studios: "[]",
+        titleRomaji: "Naruto",
+      })
+      .prepare()
+      .effect(),
   );
 
 interface SeededDownloadInput {
@@ -203,29 +211,35 @@ interface SeededDownloadInput {
 }
 
 const seedDownload = (db: AppDatabase, input: SeededDownloadInput) =>
-  tryDatabasePromise("Failed to seed download for sync test", () =>
-    db.insert(downloads).values({
-      addedAt: "2024-01-01T00:00:00.000Z",
-      contentPath: `/downloads/${input.infoHash}`,
-      infoHash: input.infoHash,
-      lastSyncedAt: input.lastSyncedAt ?? minutesAgoIso(1),
-      mediaId: 1,
-      mediaTitle: "Naruto",
-      reconciledAt: input.reconciledAt ?? null,
-      status: input.status,
-      torrentName: `torrent-${input.infoHash}`,
-      unitNumber: 1,
-    }),
+  tryDatabaseQuery(
+    "Failed to seed download for sync test",
+    db
+      .insert(downloads)
+      .values({
+        addedAt: "2024-01-01T00:00:00.000Z",
+        contentPath: `/downloads/${input.infoHash}`,
+        infoHash: input.infoHash,
+        lastSyncedAt: input.lastSyncedAt ?? minutesAgoIso(1),
+        mediaId: 1,
+        mediaTitle: "Naruto",
+        reconciledAt: input.reconciledAt ?? null,
+        status: input.status,
+        torrentName: `torrent-${input.infoHash}`,
+        unitNumber: 1,
+      })
+      .prepare()
+      .effect(),
   );
 
 const loadDownloadRow = (db: AppDatabase, infoHash: string) =>
-  tryDatabasePromise("Failed to load download for sync test", () =>
-    db.select().from(downloads).where(eq(downloads.infoHash, infoHash)).limit(1),
+  tryDatabaseQuery(
+    "Failed to load download for sync test",
+    db.select().from(downloads).where(eq(downloads.infoHash, infoHash)).limit(1).prepare().effect(),
   ).pipe(Effect.map((rows) => rows[0]));
 
-it.scoped("sync treats a fresh claim as not imported and leaves it for retry", () =>
+it.effect("sync treats a fresh claim as not imported and leaves it for retry", () =>
   withSqliteTestDbEffect({
-    run: (db, databaseFile) =>
+    run: (db, databaseFile, client, _exec) =>
       Effect.gen(function* () {
         yield* seedMedia(db);
         const freshClaim = buildClaimToken(minutesAgoIso(5), "fresh-uuid");
@@ -235,7 +249,7 @@ it.scoped("sync treats a fresh claim as not imported and leaves it for retry", (
           status: "completed",
         });
 
-        const serviceLayer = yield* makeSyncServiceLayer(db, databaseFile);
+        const serviceLayer = yield* makeSyncServiceLayer(db, databaseFile, client);
         const service = yield* DownloadTorrentSyncService.pipe(Effect.provide(serviceLayer));
 
         yield* service.syncDownloadsWithQBitEffect();
@@ -252,9 +266,9 @@ it.scoped("sync treats a fresh claim as not imported and leaves it for retry", (
   }),
 );
 
-it.scoped("sync sweeps stale claims so auto-reconcile can retry", () =>
+it.effect("sync sweeps stale claims so auto-reconcile can retry", () =>
   withSqliteTestDbEffect({
-    run: (db, databaseFile) =>
+    run: (db, databaseFile, client, _exec) =>
       Effect.gen(function* () {
         yield* seedMedia(db);
         const staleClaim = buildClaimToken(minutesAgoIso(31), "stale-uuid");
@@ -264,7 +278,7 @@ it.scoped("sync sweeps stale claims so auto-reconcile can retry", () =>
           status: "completed",
         });
 
-        const serviceLayer = yield* makeSyncServiceLayer(db, databaseFile);
+        const serviceLayer = yield* makeSyncServiceLayer(db, databaseFile, client);
         const service = yield* DownloadTorrentSyncService.pipe(Effect.provide(serviceLayer));
 
         yield* service.syncDownloadsWithQBitEffect();
@@ -276,9 +290,9 @@ it.scoped("sync sweeps stale claims so auto-reconcile can retry", () =>
   }),
 );
 
-it.scoped("sync marks phantom queued rows failed with an event", () =>
+it.effect("sync marks phantom queued rows failed with an event", () =>
   withSqliteTestDbEffect({
-    run: (db, databaseFile) =>
+    run: (db, databaseFile, client, _exec) =>
       Effect.gen(function* () {
         yield* seedMedia(db);
         yield* seedDownload(db, {
@@ -287,7 +301,7 @@ it.scoped("sync marks phantom queued rows failed with an event", () =>
           status: "queued",
         });
 
-        const serviceLayer = yield* makeSyncServiceLayer(db, databaseFile);
+        const serviceLayer = yield* makeSyncServiceLayer(db, databaseFile, client);
         const service = yield* DownloadTorrentSyncService.pipe(Effect.provide(serviceLayer));
 
         yield* service.syncDownloadsWithQBitEffect();
@@ -299,11 +313,14 @@ it.scoped("sync marks phantom queued rows failed with an event", () =>
           "qBittorrent no longer reports this queued download",
         );
 
-        const events = yield* tryDatabasePromise("Failed to load events for sync test", () =>
+        const events = yield* tryDatabaseQuery(
+          "Failed to load events for sync test",
           db
             .select()
             .from(downloadEvents)
-            .where(eq(downloadEvents.downloadId, row?.id ?? -1)),
+            .where(eq(downloadEvents.downloadId, row?.id ?? -1))
+            .prepare()
+            .effect(),
         );
         assert.deepStrictEqual(events.length, 1);
         assert.deepStrictEqual(events[0]?.eventType, "download.failed");
@@ -314,9 +331,9 @@ it.scoped("sync marks phantom queued rows failed with an event", () =>
   }),
 );
 
-it.scoped("sync writes status-change events in the same pass as the update", () =>
+it.effect("sync writes status-change events in the same pass as the update", () =>
   withSqliteTestDbEffect({
-    run: (db, databaseFile) =>
+    run: (db, databaseFile, client, _exec) =>
       Effect.gen(function* () {
         yield* seedMedia(db);
         yield* seedDownload(db, {
@@ -325,7 +342,7 @@ it.scoped("sync writes status-change events in the same pass as the update", () 
           status: "downloading",
         });
 
-        const serviceLayer = yield* makeSyncServiceLayer(db, databaseFile);
+        const serviceLayer = yield* makeSyncServiceLayer(db, databaseFile, client);
         const service = yield* DownloadTorrentSyncService.pipe(Effect.provide(serviceLayer));
 
         yield* service.syncDownloadsWithQBitEffect();
@@ -333,11 +350,14 @@ it.scoped("sync writes status-change events in the same pass as the update", () 
         const row = yield* loadDownloadRow(db, "hash-fresh-claim");
         assert.deepStrictEqual(row?.status, "completed");
 
-        const events = yield* tryDatabasePromise("Failed to load events for sync test", () =>
+        const events = yield* tryDatabaseQuery(
+          "Failed to load events for sync test",
           db
             .select()
             .from(downloadEvents)
-            .where(eq(downloadEvents.downloadId, row?.id ?? -1)),
+            .where(eq(downloadEvents.downloadId, row?.id ?? -1))
+            .prepare()
+            .effect(),
         );
         assert.deepStrictEqual(events.length, 1);
         assert.deepStrictEqual(events[0]?.eventType, "download.status_changed");

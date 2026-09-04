@@ -1,6 +1,5 @@
 import { RiArrowLeftSLine, RiArrowRightSLine, RiInformationLine } from "@remixicon/react";
 import { useSuspenseInfiniteQuery } from "@tanstack/react-query";
-import { useCallback, useEffect } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { MediaSearchResultCard } from "@/features/media/media-search-result-card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -13,7 +12,6 @@ import { formatSeasonWindowLabel } from "@/domain/seasonal-navigation";
 import type { SeasonWindow } from "@/domain/seasonal-navigation";
 
 interface SeasonalAnimeSectionProps {
-  active: boolean;
   seasonWindow: SeasonWindow;
   onPrevious: () => void;
   onNext: () => void;
@@ -48,26 +46,12 @@ export function SeasonalAnimeSection(props: SeasonalAnimeSectionProps) {
 
   const rowCount = Math.ceil(allResults.length / colCount);
 
-  const getScrollElement = useCallback(() => nodeRef.current, [nodeRef]);
-
-  const estimateSize = useCallback(() => estimateRowSize, [estimateRowSize]);
-
   const rowVirtualizer = useVirtualizer({
     count: rowCount,
-    estimateSize,
+    estimateSize: () => estimateRowSize,
     overscan: 4,
-    getScrollElement,
-    enabled: props.active,
+    getScrollElement: () => nodeRef.current,
   });
-
-  useEffect(() => {
-    const el = nodeRef.current;
-    if (el) {
-      el.scrollTop = 0;
-    }
-    rowVirtualizer.scrollToOffset(0);
-    rowVirtualizer.measure();
-  }, [props.seasonWindow.season, props.seasonWindow.year, rowVirtualizer, nodeRef, props.active]);
 
   const virtualRows = rowVirtualizer.getVirtualItems();
 

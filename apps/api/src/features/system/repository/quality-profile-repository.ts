@@ -1,13 +1,14 @@
 // oxlint-disable oxc/no-async-await -- async/await required by transaction callbacks, test callbacks, and tryPromise wrappers
 import { count, eq } from "drizzle-orm";
-import { Effect, Option } from "effect";
+import * as NodeSqliteClient from "@effect/sql-sqlite-node/SqliteClient";
 
 import type { QualityProfile } from "@packages/shared/index.ts";
 import { AppDrizzleDatabase, type AppDatabase, type DatabaseError } from "@/db/database.ts";
 import { media, qualityProfiles } from "@/db/schema.ts";
-import { tryDatabasePromise } from "@/infra/effect/db.ts";
+import { makeDbExecutor, type DbExecutor } from "@/infra/effect/db.ts";
 import { decodeQualityProfileRow } from "@/features/system/profile-codec.ts";
 import type { StoredConfigCorruptError } from "@/features/system/errors.ts";
+import { Context, Effect, Layer, Option } from "effect";
 
 export interface QualityProfileRepositoryShape {
   readonly deleteQualityProfileRow: (name: string) => Effect.Effect<void, DatabaseError>;
@@ -43,68 +44,96 @@ export interface QualityProfileRepositoryShape {
   ) => Effect.Effect<void, DatabaseError>;
 }
 
-export class QualityProfileRepository extends Effect.Service<QualityProfileRepository>()(
-  "@bakarr/api/QualityProfileRepository",
-  {
-    effect: Effect.gen(function* () {
+export class QualityProfileRepository extends Context.Service<
+  QualityProfileRepository,
+  QualityProfileRepositoryShape
+>()("@bakarr/api/QualityProfileRepository") {
+  static readonly layer = Layer.effect(
+    QualityProfileRepository,
+    Effect.gen(function* () {
       const db = yield* AppDrizzleDatabase;
-      return makeQualityProfileRepositoryShape(db);
+      const sqlClient = yield* NodeSqliteClient.SqliteClient;
+      return makeQualityProfileRepositoryShape(db, sqlClient);
     }),
-    dependencies: [AppDrizzleDatabase.Default],
-  },
-) {}
+  );
+}
 
 export const loadAnyQualityProfileRow = Effect.fn(
   "QualityProfileRepository.loadAnyQualityProfileRow",
-)(function* (db: AppDatabase) {
-  const rows = yield* tryDatabasePromise("Failed to load quality profile", () =>
-    db.select().from(qualityProfiles).limit(1),
+)(function* (db: AppDatabase, exec: DbExecutor) {
+  const rows = yield* exec.runQuery(
+    "Failed to load quality profile",
+    db.select().from(qualityProfiles).limit(1).prepare().effect(),
   );
 
   return rows[0];
 });
 
 export const countMediaUsingProfile = Effect.fn("QualityProfileRepository.countMediaUsingProfile")(
-  function* (db: AppDatabase, profileName: string) {
-    const rows = yield* tryDatabasePromise("Failed to count media", () =>
-      db.select({ value: count() }).from(media).where(eq(media.profileName, profileName)),
+  function* (db: AppDatabase, exec: DbExecutor, profileName: string) {
+    const rows = yield* exec.runQuery(
+      "Failed to count media",
+      db
+        .select({ value: count() })
+        .from(media)
+        .where(eq(media.profileName, profileName))
+        .prepare()
+        .effect(),
     );
     return rows[0]?.value ?? 0;
   },
 );
 
 export const listQualityProfileRows = Effect.fn("QualityProfileRepository.listQualityProfileRows")(
-  function* (db: AppDatabase) {
-    return yield* tryDatabasePromise("Failed to list quality profiles", () =>
-      db.select().from(qualityProfiles).orderBy(qualityProfiles.name),
+  function* (db: AppDatabase, exec: DbExecutor) {
+    return yield* exec.runQuery(
+      "Failed to list quality profiles",
+      db.select().from(qualityProfiles).orderBy(qualityProfiles.name).prepare().effect(),
     );
   },
 );
 
 export const insertQualityProfileRow = Effect.fn(
   "QualityProfileRepository.insertQualityProfileRow",
-)(function* (db: AppDatabase, row: typeof qualityProfiles.$inferInsert) {
-  yield* tryDatabasePromise("Failed to insert quality profile", () =>
-    db.insert(qualityProfiles).values(row),
+)(function* (db: AppDatabase, exec: DbExecutor, row: typeof qualityProfiles.$inferInsert) {
+  yield* exec.runQuery(
+    "Failed to insert quality profile",
+    db.insert(qualityProfiles).values(row).prepare().effect(),
   );
 });
 
 export const insertQualityProfileRows = Effect.fn(
   "QualityProfileRepository.insertQualityProfileRows",
-)(function* (db: AppDatabase, rows: readonly (typeof qualityProfiles.$inferInsert)[]) {
+)(function* (
+  db: AppDatabase,
+  exec: DbExecutor,
+  rows: readonly (typeof qualityProfiles.$inferInsert)[],
+) {
   if (rows.length === 0) {
     return;
   }
 
-  yield* tryDatabasePromise("Failed to insert quality profiles", () =>
-    db.insert(qualityProfiles).values([...rows]),
+  yield* exec.runQuery(
+    "Failed to insert quality profiles",
+    db
+      .insert(qualityProfiles)
+      .values([...rows])
+      .prepare()
+      .effect(),
   );
 });
 
 export const loadQualityProfileRow = Effect.fn("QualityProfileRepository.loadQualityProfileRow")(
-  function* (db: AppDatabase, name: string) {
-    const rows = yield* tryDatabasePromise("Failed to load quality profile", () =>
-      db.select().from(qualityProfiles).where(eq(qualityProfiles.name, name)).limit(1),
+  function* (db: AppDatabase, exec: DbExecutor, name: string) {
+    const rows = yield* exec.runQuery(
+      "Failed to load quality profile",
+      db
+        .select()
+        .from(qualityProfiles)
+        .where(eq(qualityProfiles.name, name))
+        .limit(1)
+        .prepare()
+        .effect(),
     );
 
     return rows[0];
@@ -112,8 +141,8 @@ export const loadQualityProfileRow = Effect.fn("QualityProfileRepository.loadQua
 );
 
 export const loadQualityProfile = Effect.fn("QualityProfileRepository.loadQualityProfile")(
-  function* (db: AppDatabase, name: string) {
-    const row = yield* loadQualityProfileRow(db, name);
+  function* (db: AppDatabase, exec: DbExecutor, name: string) {
+    const row = yield* loadQualityProfileRow(db, exec, name);
     if (!row) {
       return Option.none<QualityProfile>();
     }
@@ -123,13 +152,16 @@ export const loadQualityProfile = Effect.fn("QualityProfileRepository.loadQualit
 );
 
 export const qualityProfileExists = Effect.fn("QualityProfileRepository.qualityProfileExists")(
-  function* (db: AppDatabase, name: string) {
-    const rows = yield* tryDatabasePromise("Failed to verify quality profile", () =>
+  function* (db: AppDatabase, exec: DbExecutor, name: string) {
+    const rows = yield* exec.runQuery(
+      "Failed to verify quality profile",
       db
         .select({ name: qualityProfiles.name })
         .from(qualityProfiles)
         .where(eq(qualityProfiles.name, name))
-        .limit(1),
+        .limit(1)
+        .prepare()
+        .effect(),
     );
     return rows.length > 0;
   },
@@ -137,21 +169,43 @@ export const qualityProfileExists = Effect.fn("QualityProfileRepository.qualityP
 
 export const updateQualityProfileRow = Effect.fn(
   "QualityProfileRepository.updateQualityProfileRow",
-)(function* (db: AppDatabase, name: string, row: typeof qualityProfiles.$inferInsert) {
-  yield* tryDatabasePromise("Failed to update quality profile", () =>
-    db.update(qualityProfiles).set(row).where(eq(qualityProfiles.name, name)),
+)(function* (
+  db: AppDatabase,
+  exec: DbExecutor,
+  name: string,
+  row: typeof qualityProfiles.$inferInsert,
+) {
+  yield* exec.runQuery(
+    "Failed to update quality profile",
+    db.update(qualityProfiles).set(row).where(eq(qualityProfiles.name, name)).prepare().effect(),
   );
 });
 
 export const renameQualityProfileWithCascade = Effect.fn(
   "QualityProfileRepository.renameQualityProfileWithCascade",
-)(function* (db: AppDatabase, oldName: string, row: typeof qualityProfiles.$inferInsert) {
-  yield* tryDatabasePromise("Failed to rename quality profile", () =>
-    db.transaction(async (tx) => {
-      await tx.update(qualityProfiles).set(row).where(eq(qualityProfiles.name, oldName));
+)(function* (
+  db: AppDatabase,
+  exec: DbExecutor,
+  oldName: string,
+  row: typeof qualityProfiles.$inferInsert,
+) {
+  yield* exec.runTransaction(
+    "Failed to rename quality profile",
+    Effect.gen(function* () {
+      yield* db
+        .update(qualityProfiles)
+        .set(row)
+        .where(eq(qualityProfiles.name, oldName))
+        .prepare()
+        .effect();
 
       if (oldName !== row.name) {
-        await tx.update(media).set({ profileName: row.name }).where(eq(media.profileName, oldName));
+        yield* db
+          .update(media)
+          .set({ profileName: row.name })
+          .where(eq(media.profileName, oldName))
+          .prepare()
+          .effect();
       }
     }),
   );
@@ -159,25 +213,30 @@ export const renameQualityProfileWithCascade = Effect.fn(
 
 export const deleteQualityProfileRow = Effect.fn(
   "QualityProfileRepository.deleteQualityProfileRow",
-)(function* (db: AppDatabase, name: string) {
-  yield* tryDatabasePromise("Failed to delete quality profile", () =>
-    db.delete(qualityProfiles).where(eq(qualityProfiles.name, name)),
+)(function* (db: AppDatabase, exec: DbExecutor, name: string) {
+  yield* exec.runQuery(
+    "Failed to delete quality profile",
+    db.delete(qualityProfiles).where(eq(qualityProfiles.name, name)).prepare().effect(),
   );
 });
 
-export function makeQualityProfileRepositoryShape(db: AppDatabase): QualityProfileRepositoryShape {
+export function makeQualityProfileRepositoryShape(
+  db: AppDatabase,
+  sqlClient: NodeSqliteClient.SqliteClient,
+): QualityProfileRepositoryShape {
+  const exec = makeDbExecutor(sqlClient);
   return {
-    countMediaUsingProfile: (profileName) => countMediaUsingProfile(db, profileName),
-    deleteQualityProfileRow: (name) => deleteQualityProfileRow(db, name),
-    insertQualityProfileRow: (row) => insertQualityProfileRow(db, row),
-    insertQualityProfileRows: (rows) => insertQualityProfileRows(db, rows),
-    listQualityProfileRows: () => listQualityProfileRows(db),
-    loadAnyQualityProfileRow: () => loadAnyQualityProfileRow(db),
-    loadQualityProfile: (name) => loadQualityProfile(db, name),
-    loadQualityProfileRow: (name) => loadQualityProfileRow(db, name),
-    qualityProfileExists: (name) => qualityProfileExists(db, name),
+    countMediaUsingProfile: (profileName) => countMediaUsingProfile(db, exec, profileName),
+    deleteQualityProfileRow: (name) => deleteQualityProfileRow(db, exec, name),
+    insertQualityProfileRow: (row) => insertQualityProfileRow(db, exec, row),
+    insertQualityProfileRows: (rows) => insertQualityProfileRows(db, exec, rows),
+    listQualityProfileRows: () => listQualityProfileRows(db, exec),
+    loadAnyQualityProfileRow: () => loadAnyQualityProfileRow(db, exec),
+    loadQualityProfile: (name) => loadQualityProfile(db, exec, name),
+    loadQualityProfileRow: (name) => loadQualityProfileRow(db, exec, name),
+    qualityProfileExists: (name) => qualityProfileExists(db, exec, name),
     renameQualityProfileWithCascade: (oldName, row) =>
-      renameQualityProfileWithCascade(db, oldName, row),
-    updateQualityProfileRow: (name, row) => updateQualityProfileRow(db, name, row),
+      renameQualityProfileWithCascade(db, exec, oldName, row),
+    updateQualityProfileRow: (name, row) => updateQualityProfileRow(db, exec, name, row),
   } satisfies QualityProfileRepositoryShape;
 }

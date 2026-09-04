@@ -1,5 +1,4 @@
-import { Effect, Ref } from "effect";
-
+import { Context, Effect, Layer, Ref } from "effect";
 import {
   BACKGROUND_WORKER_NAMES,
   type BackgroundWorkerName,
@@ -10,6 +9,7 @@ import {
   updateWorkerInSnapshot,
 } from "@/background/worker-model.ts";
 import { nowIso } from "@/infra/time.ts";
+
 import {
   preRegisterBackgroundWorkerMetrics,
   recordBackgroundWorkerRun,
@@ -158,14 +158,14 @@ export const makeBackgroundWorkerMonitor = Effect.fn("Background.makeBackgroundW
   },
 );
 
-export class BackgroundWorkerMonitor extends Effect.Service<BackgroundWorkerMonitor>()(
-  "@bakarr/api/BackgroundWorkerMonitor",
-  {
-    effect: makeBackgroundWorkerMonitor(),
-  },
-) {}
+export class BackgroundWorkerMonitor extends Context.Service<
+  BackgroundWorkerMonitor,
+  BackgroundWorkerMonitorShape
+>()("@bakarr/api/BackgroundWorkerMonitor") {
+  static readonly layer = Layer.effect(BackgroundWorkerMonitor, makeBackgroundWorkerMonitor());
+}
 
-export const BackgroundWorkerMonitorLive = BackgroundWorkerMonitor.Default;
+export const BackgroundWorkerMonitorLive = BackgroundWorkerMonitor.layer;
 
 export const initializeBackgroundWorkerMetrics = Effect.fn("Background.initializeWorkerMetrics")(
   function* () {

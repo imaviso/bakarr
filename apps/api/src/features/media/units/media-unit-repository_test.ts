@@ -1,18 +1,19 @@
 import { assert, it } from "@effect/vitest";
 import { eq } from "drizzle-orm";
-import type { SqliteRemoteDatabase } from "drizzle-orm/sqlite-proxy";
-import { Effect } from "effect";
+import type { AppDatabase } from "@/db/database.ts";
 
 import * as schema from "@/db/schema.ts";
 import { media, mediaUnits } from "@/db/schema.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
-import { tryDatabasePromise } from "@/infra/effect/db.ts";
+import type { DbExecutor } from "@/infra/effect/db.ts";
 import { makeMediaUnitRepository } from "@/test/repository-factories.ts";
+import { Effect } from "effect";
 
-type TestDatabase = SqliteRemoteDatabase<typeof schema>;
+type TestDatabase = AppDatabase;
 
-function seedAnime(db: TestDatabase) {
-  return tryDatabasePromise("Failed to seed test anime", () =>
+function seedAnime(db: TestDatabase, exec: DbExecutor) {
+  return exec.runQuery(
+    "Failed to seed test anime",
     db
       .insert(media)
       .values({
@@ -29,16 +30,18 @@ function seedAnime(db: TestDatabase) {
         studios: "[]",
         titleRomaji: "Show",
       })
-      .returning(),
+      .returning()
+      .prepare()
+      .effect(),
   );
 }
 
-it.scoped("clearUnitMapping clears episode file fields", () =>
+it.effect("clearUnitMapping clears episode file fields", () =>
   withSqliteTestDbEffect({
-    run: (db) =>
+    run: (db, _databaseFile, client, exec) =>
       Effect.gen(function* () {
-        const units = makeMediaUnitRepository(db);
-        yield* seedAnime(db);
+        const units = makeMediaUnitRepository(db, client);
+        yield* seedAnime(db, exec);
         yield* units.upsertUnit(1, 3, {
           downloaded: true,
           filePath: "/library/Show/Show - 03.mkv",
@@ -48,8 +51,9 @@ it.scoped("clearUnitMapping clears episode file fields", () =>
 
         yield* units.clearUnitMapping(1, 3);
 
-        const rows = yield* tryDatabasePromise("Failed to query mediaUnits for assertion", () =>
-          db.select().from(mediaUnits).where(eq(mediaUnits.id, 1)),
+        const rows = yield* exec.runQuery(
+          "Failed to query mediaUnits for assertion",
+          db.select().from(mediaUnits).where(eq(mediaUnits.id, 1)).prepare().effect(),
         );
         assert.deepStrictEqual(rows[0]?.downloaded, false);
         assert.deepStrictEqual(rows[0]?.filePath, null);
@@ -60,12 +64,12 @@ it.scoped("clearUnitMapping clears episode file fields", () =>
   }),
 );
 
-it.scoped("upsertUnit updates existing episode on conflict", () =>
+it.effect("upsertUnit updates existing episode on conflict", () =>
   withSqliteTestDbEffect({
-    run: (db) =>
+    run: (db, _databaseFile, client, exec) =>
       Effect.gen(function* () {
-        const units = makeMediaUnitRepository(db);
-        yield* seedAnime(db);
+        const units = makeMediaUnitRepository(db, client);
+        yield* seedAnime(db, exec);
         yield* units.upsertUnit(1, 2, {
           downloaded: true,
           filePath: "/library/Show/Show - 02.mkv",
@@ -78,8 +82,9 @@ it.scoped("upsertUnit updates existing episode on conflict", () =>
           resolution: "720p",
         });
 
-        const rows = yield* tryDatabasePromise("Failed to query mediaUnits for assertion", () =>
-          db.select().from(mediaUnits).where(eq(mediaUnits.id, 1)),
+        const rows = yield* exec.runQuery(
+          "Failed to query mediaUnits for assertion",
+          db.select().from(mediaUnits).where(eq(mediaUnits.id, 1)).prepare().effect(),
         );
         assert.deepStrictEqual(rows.length, 1);
         assert.deepStrictEqual(rows[0]?.filePath, "/library/Show/Show - 02 v2.mkv");
@@ -90,12 +95,12 @@ it.scoped("upsertUnit updates existing episode on conflict", () =>
   }),
 );
 
-it.scoped("upsertUnit does not overwrite unspecified fields on conflict", () =>
+it.effect("upsertUnit does not overwrite unspecified fields on conflict", () =>
   withSqliteTestDbEffect({
-    run: (db) =>
+    run: (db, _databaseFile, client, exec) =>
       Effect.gen(function* () {
-        const units = makeMediaUnitRepository(db);
-        yield* seedAnime(db);
+        const units = makeMediaUnitRepository(db, client);
+        yield* seedAnime(db, exec);
         yield* units.upsertUnit(1, 4, {
           downloaded: true,
           filePath: "/library/Show/Show - 04.mkv",
@@ -105,8 +110,9 @@ it.scoped("upsertUnit does not overwrite unspecified fields on conflict", () =>
           title: "New Title",
         });
 
-        const rows = yield* tryDatabasePromise("Failed to query mediaUnits for assertion", () =>
-          db.select().from(mediaUnits).where(eq(mediaUnits.id, 1)),
+        const rows = yield* exec.runQuery(
+          "Failed to query mediaUnits for assertion",
+          db.select().from(mediaUnits).where(eq(mediaUnits.id, 1)).prepare().effect(),
         );
         assert.deepStrictEqual(rows.length, 1);
         assert.deepStrictEqual(rows[0]?.resolution, "1080p");
@@ -117,12 +123,12 @@ it.scoped("upsertUnit does not overwrite unspecified fields on conflict", () =>
   }),
 );
 
-it.scoped("upsertUnit remap to a different file clears stale probe metadata", () =>
+it.effect("upsertUnit remap to a different file clears stale probe metadata", () =>
   withSqliteTestDbEffect({
-    run: (db) =>
+    run: (db, _databaseFile, client, exec) =>
       Effect.gen(function* () {
-        const units = makeMediaUnitRepository(db);
-        yield* seedAnime(db);
+        const units = makeMediaUnitRepository(db, client);
+        yield* seedAnime(db, exec);
         yield* units.upsertUnit(1, 5, {
           downloaded: true,
           filePath: "/library/Show/Show - 05-old.mkv",
@@ -141,8 +147,9 @@ it.scoped("upsertUnit remap to a different file clears stale probe metadata", ()
           filePath: "/library/Show/Show - 05-new.mkv",
         });
 
-        const rows = yield* tryDatabasePromise("Failed to query mediaUnits for assertion", () =>
-          db.select().from(mediaUnits).where(eq(mediaUnits.id, 1)),
+        const rows = yield* exec.runQuery(
+          "Failed to query mediaUnits for assertion",
+          db.select().from(mediaUnits).where(eq(mediaUnits.id, 1)).prepare().effect(),
         );
         assert.deepStrictEqual(rows[0]?.filePath, "/library/Show/Show - 05-new.mkv");
         assert.deepStrictEqual(rows[0]?.downloaded, true);
@@ -159,12 +166,12 @@ it.scoped("upsertUnit remap to a different file clears stale probe metadata", ()
   }),
 );
 
-it.scoped("upsertUnit same-path rewrite keeps cached probe metadata", () =>
+it.effect("upsertUnit same-path rewrite keeps cached probe metadata", () =>
   withSqliteTestDbEffect({
-    run: (db) =>
+    run: (db, _databaseFile, client, exec) =>
       Effect.gen(function* () {
-        const units = makeMediaUnitRepository(db);
-        yield* seedAnime(db);
+        const units = makeMediaUnitRepository(db, client);
+        yield* seedAnime(db, exec);
         const filePath = "/library/Show/Show - 06.mkv";
         yield* units.upsertUnit(1, 6, {
           downloaded: true,
@@ -178,8 +185,9 @@ it.scoped("upsertUnit same-path rewrite keeps cached probe metadata", () =>
           filePath,
         });
 
-        const rows = yield* tryDatabasePromise("Failed to query mediaUnits for assertion", () =>
-          db.select().from(mediaUnits).where(eq(mediaUnits.id, 1)),
+        const rows = yield* exec.runQuery(
+          "Failed to query mediaUnits for assertion",
+          db.select().from(mediaUnits).where(eq(mediaUnits.id, 1)).prepare().effect(),
         );
         assert.deepStrictEqual(rows[0]?.groupName, "KeepGroup");
         assert.deepStrictEqual(rows[0]?.resolution, "1080p");
@@ -188,12 +196,12 @@ it.scoped("upsertUnit same-path rewrite keeps cached probe metadata", () =>
   }),
 );
 
-it.scoped("bulkMapUnitFiles remap to a different file clears stale probe metadata", () =>
+it.effect("bulkMapUnitFiles remap to a different file clears stale probe metadata", () =>
   withSqliteTestDbEffect({
-    run: (db) =>
+    run: (db, _databaseFile, client, exec) =>
       Effect.gen(function* () {
-        const units = makeMediaUnitRepository(db);
-        yield* seedAnime(db);
+        const units = makeMediaUnitRepository(db, client);
+        yield* seedAnime(db, exec);
         yield* units.upsertUnit(1, 7, {
           downloaded: true,
           filePath: "/library/Show/Show - 07-old.mkv",
@@ -205,8 +213,9 @@ it.scoped("bulkMapUnitFiles remap to a different file clears stale probe metadat
           { unit_number: 7, file_path: "/library/Show/Show - 07-new.mkv", clear: false },
         ]);
 
-        const rows = yield* tryDatabasePromise("Failed to query mediaUnits for assertion", () =>
-          db.select().from(mediaUnits).where(eq(mediaUnits.id, 1)),
+        const rows = yield* exec.runQuery(
+          "Failed to query mediaUnits for assertion",
+          db.select().from(mediaUnits).where(eq(mediaUnits.id, 1)).prepare().effect(),
         );
         assert.deepStrictEqual(rows[0]?.filePath, "/library/Show/Show - 07-new.mkv");
         assert.deepStrictEqual(rows[0]?.groupName, null);

@@ -1,5 +1,6 @@
 import { Layer } from "effect";
 
+import { DatabaseSqlClientLive } from "@/db/database.ts";
 import { AuthUserRepository } from "@/features/auth/user-repository.ts";
 import { MediaRepository } from "@/features/media/shared/media-repository.ts";
 import { MediaUnitRepository } from "@/features/media/units/media-unit-repository.ts";
@@ -26,19 +27,20 @@ import { SystemConfigRepository } from "@/features/system/repository/system-conf
  * test-only override seam.
  */
 export const PureDbLeaves = Layer.mergeAll(
-  AuthUserRepository.Default,
-  BackgroundJobRepository.Default,
-  DownloadRepository.Default,
-  MediaRepository.Default,
-  MediaUnitRepository.Default,
-  AniDbUnitCacheRepository.Default,
-  SeasonalMediaCacheRepository.Default,
-  OperationsTaskRepository.Default,
-  RssFeedRepository.Default,
-  SystemLogRepository.Default,
-  SystemStatsRepository.Default,
-  SystemUnmappedRepository.Default,
-  QualityProfileRepository.Default,
-  ReleaseProfileRepository.Default,
-  SystemConfigRepository.Default,
+  DatabaseSqlClientLive,
+  AuthUserRepository.layer,
+  BackgroundJobRepository.layer,
+  DownloadRepository.layer,
+  MediaRepository.layer,
+  MediaUnitRepository.layer,
+  AniDbUnitCacheRepository.layer,
+  SeasonalMediaCacheRepository.layer,
+  OperationsTaskRepository.layer,
+  RssFeedRepository.layer,
+  SystemLogRepository.layer,
+  SystemStatsRepository.layer,
+  SystemUnmappedRepository.layer,
+  QualityProfileRepository.layer,
+  ReleaseProfileRepository.layer,
+  SystemConfigRepository.layer,
 );

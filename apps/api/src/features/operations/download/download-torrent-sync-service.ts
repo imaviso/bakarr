@@ -1,5 +1,4 @@
 // oxlint-disable typescript/no-restricted-types -- `unknown` is the honest type at error/cause boundaries (Effect error channels, try/catch causes, Logger messages)
-import { Effect, Duration, Option } from "effect";
 
 import type {
   AsyncOperationAccepted,
@@ -25,7 +24,7 @@ import {
 } from "@/features/operations/repository/download-repository.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 import { TorrentClientService } from "@/features/operations/torrent/torrent-client-service.ts";
-import { currentTimeNanos, nowIso as currentNowIso } from "@/infra/time.ts";
+import { nowIso as currentNowIso } from "@/infra/time.ts";
 import {
   isClaimToken,
   isStaleClaimToken,
@@ -34,6 +33,7 @@ import { DownloadReconciliationService } from "@/features/operations/download/do
 import { MediaRepository } from "@/features/media/shared/media-repository.ts";
 import { DatabaseError } from "@/db/database.ts";
 import { InfrastructureError } from "@/features/errors.ts";
+import { Context, Duration, Effect, Layer, Option, Semaphore } from "effect";
 
 function shouldReconcileCompletedDownloads(config: Config | null) {
   return config?.downloads.reconcile_completed_downloads ?? true;
@@ -64,18 +64,13 @@ const mapSyncError = (error: unknown): DownloadTorrentSyncError =>
         cause: error,
       });
 
-export class DownloadTorrentSyncService extends Effect.Service<DownloadTorrentSyncService>()(
-  "@bakarr/api/DownloadTorrentSyncService",
-  {
-    // Progress/torrent/config snapshot come from the lifecycle layer.
-    dependencies: [
-      DownloadReconciliationService.Default,
-      DownloadRepository.Default,
-      EventBus.Default,
-      MediaRepository.Default,
-      OperationsTaskLauncherService.Default,
-    ],
-    effect: Effect.gen(function* () {
+export class DownloadTorrentSyncService extends Context.Service<
+  DownloadTorrentSyncService,
+  DownloadTorrentSyncServiceShape
+>()("@bakarr/api/DownloadTorrentSyncService") {
+  static readonly layer = Layer.effect(
+    DownloadTorrentSyncService,
+    Effect.gen(function* () {
       const syncRepo = yield* DownloadRepository;
       const mediaRepository = yield* MediaRepository;
       const torrentClientService = yield* TorrentClientService;
@@ -84,7 +79,7 @@ export class DownloadTorrentSyncService extends Effect.Service<DownloadTorrentSy
       const eventBus = yield* EventBus;
       const progress = yield* OperationsProgress;
       const taskLauncher = yield* OperationsTaskLauncherService;
-      const syncSemaphore = yield* Effect.makeSemaphore(1);
+      const syncSemaphore = yield* Semaphore.make(1);
 
       const refineBatchCoverageFromTorrentFiles = Effect.fn(
         "TorrentSync.refineBatchCoverageFromTorrentFiles",
@@ -98,20 +93,20 @@ export class DownloadTorrentSyncService extends Effect.Service<DownloadTorrentSy
       }) {
         const contentsResult = yield* torrentClientService
           .listTorrentContentsIfEnabled(refineInput.infoHash)
-          .pipe(Effect.either);
+          .pipe(Effect.result);
 
-        if (contentsResult._tag === "Left") {
+        if (contentsResult._tag === "Failure") {
           yield* Effect.logDebug("Failed to inspect torrent file list").pipe(
             Effect.annotateLogs({
               downloadId: refineInput.downloadId,
-              error: String(contentsResult.left),
+              error: globalThis.String(contentsResult.failure),
               infoHash: refineInput.infoHash,
             }),
           );
           return;
         }
 
-        if (contentsResult.right._tag === "Disabled") {
+        if (contentsResult.success._tag === "Disabled") {
           return;
         }
 
@@ -119,7 +114,7 @@ export class DownloadTorrentSyncService extends Effect.Service<DownloadTorrentSy
           .getMediaRow(refineInput.mediaId)
           .pipe(Effect.option);
         const inferredEpisodes = inferCoveredUnitsFromTorrentContents({
-          files: contentsResult.right.files,
+          files: contentsResult.success.files,
           parseVolumeNumbers: Option.match(mediaRowOption, {
             onNone: () => true,
             onSome: (row) => row.mediaKind !== "anime",
@@ -224,20 +219,20 @@ export class DownloadTorrentSyncService extends Effect.Service<DownloadTorrentSy
             const runtimeConfig = yield* runtimeConfigSnapshot.getRuntimeConfig();
             const torrentsResult = yield* torrentClientService
               .listTorrentsIfEnabled()
-              .pipe(Effect.either);
+              .pipe(Effect.result);
 
-            if (torrentsResult._tag === "Left") {
+            if (torrentsResult._tag === "Failure") {
               yield* Effect.logWarning("Torrent client unreachable, skipping download sync").pipe(
-                Effect.annotateLogs({ error: String(torrentsResult.left) }),
+                Effect.annotateLogs({ error: globalThis.String(torrentsResult.failure) }),
               );
               return;
             }
 
-            if (torrentsResult.right._tag === "Disabled") {
+            if (torrentsResult.success._tag === "Disabled") {
               return;
             }
 
-            const torrents = torrentsResult.right.torrents;
+            const torrents = torrentsResult.success.torrents;
 
             if (torrents.length === 0) {
               return;
@@ -285,7 +280,7 @@ export class DownloadTorrentSyncService extends Effect.Service<DownloadTorrentSy
               // A leftover claim token means the import never finished — treat
               // the row as not imported so presentation stays actionable.
               const preservedImported =
-                Boolean(existing?.reconciledAt) && !isClaimToken(existing?.reconciledAt);
+                globalThis.Boolean(existing?.reconciledAt) && !isClaimToken(existing?.reconciledAt);
               const nextStatus = preservedImported ? "imported" : status;
               const nextExternalState = preservedImported
                 ? (existing?.externalState ?? "imported")
@@ -346,10 +341,10 @@ export class DownloadTorrentSyncService extends Effect.Service<DownloadTorrentSy
               // Orphans have no torrent hash to pin to a chunk — persist them directly.
               for (const orphan of orphanEvents) {
                 yield* syncRepo.insertDownloadEvent(orphan, syncNow).pipe(
-                  Effect.catchAll((cause) =>
+                  Effect.catch((cause) =>
                     Effect.logWarning("Failed to persist orphan status event").pipe(
                       Effect.annotateLogs({
-                        cause: String(cause),
+                        cause: globalThis.String(cause),
                         downloadId: orphan.downloadId,
                       }),
                     ),
@@ -383,7 +378,8 @@ export class DownloadTorrentSyncService extends Effect.Service<DownloadTorrentSy
               }[] => {
                 const existing = existingDownloadsMap.get(updateRow.hash);
                 const preservedImported =
-                  Boolean(existing?.reconciledAt) && !isClaimToken(existing?.reconciledAt);
+                  globalThis.Boolean(existing?.reconciledAt) &&
+                  !isClaimToken(existing?.reconciledAt);
 
                 if (!existing || !existing.isBatch || preservedImported) {
                   return [];
@@ -430,21 +426,21 @@ export class DownloadTorrentSyncService extends Effect.Service<DownloadTorrentSy
                 continue;
               }
 
-              const reconcileResult = yield* Effect.either(
+              const reconcileResult = yield* Effect.result(
                 reconciliationService.reconcileCompletedTorrentEffect(
                   updateRow.hash,
                   updateRow.contentPath ?? updateRow.savePath ?? undefined,
                 ),
               );
 
-              if (reconcileResult._tag === "Left") {
+              if (reconcileResult._tag === "Failure") {
                 failedReconciliations += 1;
                 yield* Effect.logWarning(
                   "Failed to reconcile completed download; continuing with remaining torrents",
                 ).pipe(
                   Effect.annotateLogs({
                     downloadHash: updateRow.hash,
-                    error: String(reconcileResult.left),
+                    error: globalThis.String(reconcileResult.failure),
                   }),
                 );
               }
@@ -463,7 +459,7 @@ export class DownloadTorrentSyncService extends Effect.Service<DownloadTorrentSy
         return yield* Effect.gen(function* () {
           const [duration, exit] = yield* syncDownloadsWithQBitEffect().pipe(
             Effect.exit,
-            Effect.timedWith(currentTimeNanos),
+            Effect.timed,
           );
 
           if (exit._tag === "Failure") {
@@ -505,7 +501,7 @@ export class DownloadTorrentSyncService extends Effect.Service<DownloadTorrentSy
         syncDownloadsWithQBitEffect,
       } satisfies DownloadTorrentSyncServiceShape;
     }),
-  },
-) {}
+  );
+}
 
-export const DownloadTorrentSyncServiceLive = DownloadTorrentSyncService.Default;
+export const DownloadTorrentSyncServiceLive = DownloadTorrentSyncService.layer;

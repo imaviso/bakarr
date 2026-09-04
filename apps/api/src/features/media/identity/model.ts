@@ -30,11 +30,11 @@ export class DailyEpisodeIdentity extends Schema.Class<DailyEpisodeIdentity>(
   scheme: Schema.Literal("daily"),
 }) {}
 
-export const ParsedUnitIdentitySchema = Schema.Union(
+export const ParsedUnitIdentitySchema = Schema.Union([
   SeasonEpisodeIdentity,
   AbsoluteEpisodeIdentity,
   DailyEpisodeIdentity,
-);
+]);
 
 export type ParsedUnitIdentity = Schema.Schema.Type<typeof ParsedUnitIdentitySchema>;
 

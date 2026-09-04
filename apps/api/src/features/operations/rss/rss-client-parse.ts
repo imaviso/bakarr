@@ -1,5 +1,6 @@
 // oxlint-disable typescript/no-restricted-types -- `unknown` is the honest type at error/cause boundaries (Effect error channels, try/catch causes, Logger messages)
-import { ParseResult, Schema, Effect, Option, Stream } from "effect";
+
+import { Effect, Option, Schema, SchemaGetter, SchemaIssue, Stream } from "effect";
 import { XMLParser } from "fast-xml-parser";
 
 import { collectBoundedText } from "@/infra/effect/bounded-stream.ts";
@@ -73,13 +74,13 @@ class RssItemSchema extends Schema.Class<RssItemSchema>("RssItemSchema")({
   pubDate: Schema.optional(Schema.String),
 }) {}
 
-const ItemsSchema = Schema.transform(
-  Schema.Union(Schema.Array(RssItemSchema), RssItemSchema),
-  Schema.Array(RssItemSchema),
-  {
-    decode: (value) => (Array.isArray(value) ? value : [value]),
-    encode: (value) => value,
-  },
+const ItemsSchema = Schema.Union([Schema.Array(RssItemSchema), RssItemSchema]).pipe(
+  Schema.decodeTo(Schema.Array(RssItemSchema), {
+    decode: SchemaGetter.transform((value: RssItemSchema | ReadonlyArray<RssItemSchema>) =>
+      Array.isArray(value) ? value : [value],
+    ),
+    encode: SchemaGetter.transform((value: ReadonlyArray<RssItemSchema>) => value),
+  }),
 );
 
 class RssChannelSchema extends Schema.Class<RssChannelSchema>("RssChannelSchema")({
@@ -94,89 +95,88 @@ class RssRootSchema extends Schema.Class<RssRootSchema>("RssRootSchema")({
   rss: RssRootInnerSchema,
 }) {}
 
-const ParsedReleaseFromRssItemSchema = Schema.transformOrFail(RssItemSchema, ParsedReleaseSchema, {
-  decode: (item) => {
-    const { title } = item;
-    const { link } = item;
-    const infoHash = item["nyaa:infoHash"];
-    const size = item["nyaa:size"];
-    const { pubDate } = item;
-    const seeders = parseCount(item["nyaa:seeders"]);
-    const leechers = parseCount(item["nyaa:leechers"]);
-    const trusted = parseYesNo(item["nyaa:trusted"]);
-    const remake = parseYesNo(item["nyaa:remake"]);
+const ParsedReleaseFromRssItemSchema = RssItemSchema.pipe(
+  Schema.decodeTo(ParsedReleaseSchema, {
+    decode: SchemaGetter.transformOrFail((item: RssItemSchema) => {
+      const { title } = item;
+      const { link } = item;
+      const infoHash = item["nyaa:infoHash"];
+      const size = item["nyaa:size"];
+      const { pubDate } = item;
+      const seeders = parseCount(item["nyaa:seeders"]);
+      const leechers = parseCount(item["nyaa:leechers"]);
+      const trusted = parseYesNo(item["nyaa:trusted"]);
+      const remake = parseYesNo(item["nyaa:remake"]);
 
-    if (!title || !link || !infoHash || !size || !pubDate) {
-      return Effect.fail(
-        new ParseResult.Type(ParsedReleaseSchema.ast, item, "RSS item is missing required fields"),
-      );
-    }
+      if (!title || !link || !infoHash || !size || !pubDate) {
+        return Effect.fail(
+          new SchemaIssue.InvalidValue({ message: "RSS item is missing required fields" }),
+        );
+      }
 
-    if (
-      Option.isNone(seeders) ||
-      Option.isNone(leechers) ||
-      Option.isNone(trusted) ||
-      Option.isNone(remake)
-    ) {
-      return Effect.fail(
-        new ParseResult.Type(
-          ParsedReleaseSchema.ast,
-          item,
-          "RSS item contains invalid numeric or boolean fields",
-        ),
-      );
-    }
+      if (
+        Option.isNone(seeders) ||
+        Option.isNone(leechers) ||
+        Option.isNone(trusted) ||
+        Option.isNone(remake)
+      ) {
+        return Effect.fail(
+          new SchemaIssue.InvalidValue({
+            message: "RSS item contains invalid numeric or boolean fields",
+          }),
+        );
+      }
 
-    const sizeBytes = parseSizeToBytes(size);
+      const sizeBytes = parseSizeToBytes(size);
 
-    if (Option.isNone(sizeBytes)) {
-      return Effect.fail(
-        new ParseResult.Type(
-          ParsedReleaseSchema.ast,
-          item,
-          "RSS item contains an invalid size field",
-        ),
-      );
-    }
+      if (Option.isNone(sizeBytes)) {
+        return Effect.fail(
+          new SchemaIssue.InvalidValue({
+            message: "RSS item contains an invalid size field",
+          }),
+        );
+      }
 
-    const groupMatch = title.match(/^\[(.*?)\]/);
+      const groupMatch = title.match(/^\[(.*?)\]/);
 
-    // rTorrent may run without DHT/PEX; a tracker-less magnet (xt+dn only)
-    // then never resolves and sits as an eternal <hash>.meta placeholder.
-    // Nyaa's own magnets always carry trackers, so mirror them.
-    const magnet = buildNyaaMagnet(infoHash, title);
+      // rTorrent may run without DHT/PEX; a tracker-less magnet (xt+dn only)
+      // then never resolves and sits as an eternal <hash>.meta placeholder.
+      // Nyaa's own magnets always carry trackers, so mirror them.
+      const magnet = buildNyaaMagnet(infoHash, title);
 
-    return Effect.succeed({
-      group: groupMatch?.[1],
-      infoHash,
-      isSeaDex: false,
-      isSeaDexBest: false,
-      leechers: leechers.value,
-      magnet,
-      pubDate,
-      remake: remake.value,
-      resolution: parseResolution(title),
-      seeders: seeders.value,
-      size,
-      sizeBytes: sizeBytes.value,
-      title,
-      trusted: trusted.value,
-      viewUrl: link.replace("/download/", "/view/").replace(/\.torrent$/i, ""),
-    } satisfies ParsedRelease);
-  },
-  encode: (release) =>
-    Effect.succeed({
-      link: release.viewUrl.replace("/view/", "/download/") + ".torrent",
-      pubDate: release.pubDate,
-      title: release.title,
-      "nyaa:infoHash": release.infoHash,
-      "nyaa:leechers": String(release.leechers),
-      "nyaa:remake": release.remake ? "Yes" : "No",
-      "nyaa:seeders": String(release.seeders),
-      "nyaa:size": release.size,
-      "nyaa:trusted": release.trusted ? "Yes" : "No",
+      return Effect.succeed({
+        group: groupMatch?.[1],
+        infoHash,
+        isSeaDex: false,
+        isSeaDexBest: false,
+        leechers: leechers.value,
+        magnet,
+        pubDate,
+        remake: remake.value,
+        resolution: parseResolution(title),
+        seeders: seeders.value,
+        size,
+        sizeBytes: sizeBytes.value,
+        title,
+        trusted: trusted.value,
+        viewUrl: link.replace("/download/", "/view/").replace(/\.torrent$/i, ""),
+      } satisfies ParsedRelease);
     }),
-});
+    encode: SchemaGetter.transformOrFail((release: ParsedRelease) =>
+      Effect.succeed({
+        link: release.viewUrl.replace("/view/", "/download/") + ".torrent",
+        pubDate: release.pubDate,
+        title: release.title,
+        "nyaa:infoHash": release.infoHash,
+        "nyaa:leechers": globalThis.String(release.leechers),
+        "nyaa:remake": release.remake ? "Yes" : "No",
+        "nyaa:seeders": globalThis.String(release.seeders),
+        "nyaa:size": release.size,
+        "nyaa:trusted": release.trusted ? "Yes" : "No",
+      }),
+    ),
+  }),
+);
 
 export const readRssItems = Effect.fn("RssClient.readRssItems")(function* (
   body: Stream.Stream<Uint8Array, unknown>,
@@ -214,7 +214,7 @@ const parseRssXml = Effect.fn("RssClient.parseRssXml")(function* (xml: string) {
       }),
   });
 
-  const decoded = yield* Schema.decodeUnknown(RssRootSchema)(parsed).pipe(
+  const decoded = yield* Schema.decodeUnknownEffect(RssRootSchema)(parsed).pipe(
     Effect.mapError(
       (cause) =>
         new RssFeedParseError({
@@ -227,7 +227,7 @@ const parseRssXml = Effect.fn("RssClient.parseRssXml")(function* (xml: string) {
   const items = decoded.rss.channel.item ?? [];
 
   return yield* Effect.forEach(items, (item) =>
-    Schema.decodeUnknown(ParsedReleaseFromRssItemSchema)(item).pipe(
+    Schema.decodeUnknownEffect(ParsedReleaseFromRssItemSchema)(item).pipe(
       Effect.mapError(
         (cause) =>
           new RssFeedParseError({
@@ -253,7 +253,7 @@ function parseSizeToBytes(size: string): Option.Option<number> {
     return Option.none();
   }
 
-  const value = Number.parseFloat(valueRaw);
+  const value = globalThis.Number.parseFloat(valueRaw);
   const unit = unitRaw.toUpperCase();
   let multiplier = 1024 ** 4;
 
@@ -279,8 +279,8 @@ function parseCount(value: string | undefined): Option.Option<number> {
     return Option.none();
   }
 
-  const parsed = Number.parseInt(value.trim(), 10);
-  return Number.isSafeInteger(parsed) ? Option.some(parsed) : Option.none();
+  const parsed = globalThis.Number.parseInt(value.trim(), 10);
+  return globalThis.Number.isSafeInteger(parsed) ? Option.some(parsed) : Option.none();
 }
 
 function parseYesNo(value: string | undefined): Option.Option<boolean> {

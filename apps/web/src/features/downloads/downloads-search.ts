@@ -3,7 +3,7 @@ import {
   createDownloadEventsSearchSchema,
   DOWNLOADS_EVENTS_SEARCH_KEYS,
 } from "@/domain/download/events-search";
-import { Schema } from "effect";
+import { Effect, Schema, SchemaTransformation } from "effect";
 
 export type DownloadsTab = "events" | "history" | "queue";
 
@@ -28,13 +28,14 @@ const downloadsEventsSearchDefaults = createDownloadEventsSearchDefaults(
   DOWNLOADS_EVENTS_SEARCH_KEYS,
 );
 
-const DownloadsTabSchema = Schema.transform(
-  Schema.String,
-  Schema.Literal("events", "history", "queue"),
-  {
-    decode: (tab) => (tab === "events" || tab === "history" || tab === "queue" ? tab : "queue"),
-    encode: (tab) => tab,
-  },
+const DownloadsTabSchema = Schema.String.pipe(
+  Schema.decodeTo(
+    Schema.Literals(["events", "history", "queue"]),
+    SchemaTransformation.transform({
+      decode: (tab) => (tab === "events" || tab === "history" || tab === "queue" ? tab : "queue"),
+      encode: (tab) => tab,
+    }),
+  ),
 );
 
 export const downloadsSearchDefaults = {
@@ -60,9 +61,9 @@ export const downloadsSearchDefaults = {
 const DownloadsSearchSchema = Schema.Struct({
   ...createDownloadEventsSearchSchema(DOWNLOADS_EVENTS_SEARCH_KEYS, downloadsEventsSearchDefaults)
     .fields,
-  tab: Schema.optionalWith(DownloadsTabSchema, {
-    default: () => downloadsSearchDefaults.tab,
-  }),
+  tab: DownloadsTabSchema.pipe(
+    Schema.withDecodingDefaultType(Effect.succeed(downloadsSearchDefaults.tab)),
+  ),
 });
 
 const DOWNLOADS_SEARCH_FIELDS = [

@@ -1,15 +1,17 @@
-import { Effect, Exit, Ref, Scope } from "effect";
+import { Context, Effect, Exit, Layer, Ref, Scope, Semaphore } from "effect";
 
 /**
  * Shared gate that serializes download trigger and background-search queue operations
  * across the services that write queued downloads.
  */
-export class DownloadTriggerGate extends Effect.Service<DownloadTriggerGate>()(
-  "@bakarr/api/DownloadTriggerGate",
-  { effect: Effect.makeSemaphore(1) },
-) {}
+export class DownloadTriggerGate extends Context.Service<
+  DownloadTriggerGate,
+  Semaphore.Semaphore
+>()("@bakarr/api/DownloadTriggerGate") {
+  static readonly layer = Layer.effect(DownloadTriggerGate, Semaphore.make(1));
+}
 
-export const DownloadTriggerGateLive = DownloadTriggerGate.Default;
+export const DownloadTriggerGateLive = DownloadTriggerGate.layer;
 
 export interface UnmappedScanCoordinatorShape {
   readonly completeUnmappedScan: () => Effect.Effect<void>;
@@ -87,9 +89,11 @@ const makeUnmappedScanCoordinator = Effect.fn("RuntimeCoordinator.makeUnmappedSc
   },
 );
 
-export class UnmappedScanCoordinator extends Effect.Service<UnmappedScanCoordinator>()(
-  "@bakarr/api/UnmappedScanCoordinator",
-  { scoped: makeUnmappedScanCoordinator() },
-) {}
+export class UnmappedScanCoordinator extends Context.Service<
+  UnmappedScanCoordinator,
+  UnmappedScanCoordinatorShape
+>()("@bakarr/api/UnmappedScanCoordinator") {
+  static readonly layer = Layer.effect(UnmappedScanCoordinator, makeUnmappedScanCoordinator());
+}
 
-export const UnmappedScanCoordinatorLive = UnmappedScanCoordinator.Default;
+export const UnmappedScanCoordinatorLive = UnmappedScanCoordinator.layer;

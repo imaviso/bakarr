@@ -1,13 +1,17 @@
+import { Effect, Layer, Schema, Stream } from "effect";
+import type * as NodeSqliteClient from "@effect/sql-sqlite-node/SqliteClient";
 import { assert, it } from "@effect/vitest";
 import { eq } from "drizzle-orm";
-import { Effect, Layer, Schema, Stream } from "effect";
 import { brandMediaId } from "@packages/shared/index.ts";
 
 import type { AppDatabase } from "@/db/database.ts";
 import * as schema from "@/db/schema.ts";
 import { media, qualityProfiles } from "@/db/schema.ts";
 import { AddMediaInput } from "@/features/media/add/add-media-input.ts";
-import { MediaEnrollmentService } from "@/features/media/add/media-enrollment-service.ts";
+import {
+  MediaEnrollmentService,
+  makeMediaEnrollmentService,
+} from "@/features/media/add/media-enrollment-service.ts";
 import type { AnimeMetadata } from "@/features/media/metadata/anilist-model.ts";
 import { MediaImageCacheService } from "@/features/media/metadata/media-image-cache-service.ts";
 import { MediaMetadataProviderService } from "@/features/media/metadata/media-metadata-provider-service.ts";
@@ -17,7 +21,7 @@ import {
 } from "@/features/media/shared/decode-support.ts";
 import { FileSystemError, type FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import { FileSystem } from "@/infra/filesystem/filesystem.ts";
-import { tryDatabasePromise } from "@/infra/effect/db.ts";
+import type { DbExecutor } from "@/infra/effect/db.ts";
 import { EventBus } from "@/infra/effect/event-bus.ts";
 import { MediaRepository } from "@/features/media/shared/media-repository.ts";
 import { MediaUnitRepository } from "@/features/media/units/media-unit-repository.ts";
@@ -26,6 +30,7 @@ import { SystemConfigRepository } from "@/features/system/repository/system-conf
 import { SearchBackgroundMissingService } from "@/features/operations/background-search/background-search-missing-service.ts";
 import { OperationsTaskLauncherService } from "@/features/operations/tasks/operations-task-launcher-service.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
+
 import {
   makeMediaRepository,
   makeMediaUnitRepository,
@@ -33,14 +38,14 @@ import {
   makeSystemConfigRepository,
 } from "@/test/repository-factories.ts";
 
-it.scoped("MediaEnrollmentService.enroll persists MAL backfill and mapped relation metadata", () =>
+it.effect("MediaEnrollmentService.enroll persists MAL backfill and mapped relation metadata", () =>
   withSqliteTestDbEffect({
-    run: (db) =>
+    run: (db, _databaseFile, client, exec) =>
       Effect.gen(function* () {
         const appDb: AppDatabase = db;
         const mediaId = 601;
 
-        yield* insertQualityProfileEffect(appDb, "Default");
+        yield* insertQualityProfileEffect(appDb, exec, "Default");
 
         const metadata: AnimeMetadata = {
           ...makeMetadata(mediaId),
@@ -56,7 +61,7 @@ it.scoped("MediaEnrollmentService.enroll persists MAL backfill and mapped relati
         };
 
         const events: Array<{ type: string; message?: string }> = [];
-        const animeInput = yield* Schema.decodeUnknown(AddMediaInput)({
+        const animeInput = yield* Schema.decodeUnknownEffect(AddMediaInput)({
           id: mediaId,
           monitor_and_search: false,
           monitored: true,
@@ -66,8 +71,8 @@ it.scoped("MediaEnrollmentService.enroll persists MAL backfill and mapped relati
           use_existing_root: true,
         });
 
-        const layer = makeEnrollmentLayer(appDb, {
-          metadataProvider: MediaMetadataProviderService.make({
+        const layer = makeEnrollmentLayer(appDb, client, {
+          metadataProvider: MediaMetadataProviderService.of({
             getAnimeMetadataById: () =>
               Effect.succeed({
                 _tag: "Found",
@@ -77,17 +82,17 @@ it.scoped("MediaEnrollmentService.enroll persists MAL backfill and mapped relati
                 },
                 metadata,
               }),
-            getSeasonalAnime: () => Effect.dieMessage("not used in test"),
-            searchMedia: () => Effect.dieMessage("not used in test"),
+            getSeasonalAnime: () => Effect.die(new Error("not used in test")),
+            searchMedia: () => Effect.die(new Error("not used in test")),
           }),
-          imageCacheService: MediaImageCacheService.make({
+          imageCacheService: MediaImageCacheService.of({
             cacheMetadataImages: () =>
               Effect.succeed({
                 bannerImage: "/api/images/media/601/banner.jpg",
                 coverImage: "/api/images/media/601/cover.jpg",
               }),
           }),
-          eventBus: EventBus.make({
+          eventBus: EventBus.of({
             publish: (event) =>
               Effect.sync(() => {
                 events.push(
@@ -97,15 +102,16 @@ it.scoped("MediaEnrollmentService.enroll persists MAL backfill and mapped relati
                 );
               }),
             publishInfo: () => Effect.void,
-            withSubscriptionStream: () => Stream.dieMessage("not used in test"),
+            withSubscriptionStream: () => Stream.die(new Error("not used in test")),
           }),
         });
 
         const service = yield* MediaEnrollmentService.pipe(Effect.provide(layer));
         yield* service.enroll(animeInput);
 
-        const [row] = yield* tryDatabasePromise("Failed to query media for add assertion", () =>
-          appDb.select().from(media).where(eq(media.id, mediaId)),
+        const [row] = yield* exec.runQuery(
+          "Failed to query media for add assertion",
+          appDb.select().from(media).where(eq(media.id, mediaId)).prepare().effect(),
         );
         assert(row);
 
@@ -134,16 +140,16 @@ it.scoped("MediaEnrollmentService.enroll persists MAL backfill and mapped relati
   }),
 );
 
-it.scoped("MediaEnrollmentService.enroll infers light novel media kind when request omits it", () =>
+it.effect("MediaEnrollmentService.enroll infers light novel media kind when request omits it", () =>
   withSqliteTestDbEffect({
-    run: (db) =>
+    run: (db, _databaseFile, client, exec) =>
       Effect.gen(function* () {
         const appDb: AppDatabase = db;
         const mediaId = 701;
 
-        yield* insertQualityProfileEffect(appDb, "Default");
+        yield* insertQualityProfileEffect(appDb, exec, "Default");
 
-        const animeInput = yield* Schema.decodeUnknown(AddMediaInput)({
+        const animeInput = yield* Schema.decodeUnknownEffect(AddMediaInput)({
           id: mediaId,
           monitor_and_search: false,
           monitored: true,
@@ -153,8 +159,8 @@ it.scoped("MediaEnrollmentService.enroll infers light novel media kind when requ
           use_existing_root: true,
         });
 
-        const layer = makeEnrollmentLayer(appDb, {
-          metadataProvider: MediaMetadataProviderService.make({
+        const layer = makeEnrollmentLayer(appDb, client, {
+          metadataProvider: MediaMetadataProviderService.of({
             getAnimeMetadataById: () =>
               Effect.succeed({
                 _tag: "Found",
@@ -164,24 +170,25 @@ it.scoped("MediaEnrollmentService.enroll infers light novel media kind when requ
                 },
                 metadata: { ...makeMetadata(mediaId), format: "NOVEL", unitCount: 6 },
               }),
-            getSeasonalAnime: () => Effect.dieMessage("not used in test"),
-            searchMedia: () => Effect.dieMessage("not used in test"),
+            getSeasonalAnime: () => Effect.die(new Error("not used in test")),
+            searchMedia: () => Effect.die(new Error("not used in test")),
           }),
-          imageCacheService: MediaImageCacheService.make({
+          imageCacheService: MediaImageCacheService.of({
             cacheMetadataImages: () => Effect.succeed({}),
           }),
-          eventBus: EventBus.make({
+          eventBus: EventBus.of({
             publish: () => Effect.void,
             publishInfo: () => Effect.void,
-            withSubscriptionStream: () => Stream.dieMessage("not used in test"),
+            withSubscriptionStream: () => Stream.die(new Error("not used in test")),
           }),
         });
 
         const service = yield* MediaEnrollmentService.pipe(Effect.provide(layer));
         yield* service.enroll(animeInput);
 
-        const [row] = yield* tryDatabasePromise("Failed to query media for add assertion", () =>
-          appDb.select().from(media).where(eq(media.id, mediaId)),
+        const [row] = yield* exec.runQuery(
+          "Failed to query media for add assertion",
+          appDb.select().from(media).where(eq(media.id, mediaId)).prepare().effect(),
         );
         assert(row);
         assert.deepStrictEqual(row.mediaKind, "light_novel");
@@ -192,34 +199,38 @@ it.scoped("MediaEnrollmentService.enroll infers light novel media kind when requ
 
 function makeEnrollmentLayer(
   db: AppDatabase,
+  client: NodeSqliteClient.SqliteClient,
   stubs: {
     metadataProvider: typeof MediaMetadataProviderService.Service;
     imageCacheService: typeof MediaImageCacheService.Service;
     eventBus: typeof EventBus.Service;
   },
 ) {
-  return MediaEnrollmentService.DefaultWithoutDependencies.pipe(
+  // Build from the constructor directly (not `.layer`, which embeds the
+  // production dependency layers): tests stub every tag the constructor
+  // yields, so no transitive requirements leak into `it.effect`.
+  return Layer.effect(MediaEnrollmentService, makeMediaEnrollmentService()).pipe(
     Layer.provide(
       Layer.mergeAll(
         Layer.succeed(MediaMetadataProviderService, stubs.metadataProvider),
         Layer.succeed(MediaImageCacheService, stubs.imageCacheService),
         Layer.succeed(EventBus, stubs.eventBus),
-        Layer.succeed(FileSystem, FileSystem.make(makeFileSystemStub())),
-        Layer.succeed(MediaRepository, makeMediaRepository(db)),
-        Layer.succeed(MediaUnitRepository, makeMediaUnitRepository(db)),
-        Layer.succeed(QualityProfileRepository, makeQualityProfileRepository(db)),
-        Layer.succeed(SystemConfigRepository, makeSystemConfigRepository(db)),
+        Layer.succeed(FileSystem, FileSystem.of(makeFileSystemStub())),
+        Layer.succeed(MediaRepository, makeMediaRepository(db, client)),
+        Layer.succeed(MediaUnitRepository, makeMediaUnitRepository(db, client)),
+        Layer.succeed(QualityProfileRepository, makeQualityProfileRepository(db, client)),
+        Layer.succeed(SystemConfigRepository, makeSystemConfigRepository(db, client)),
         Layer.succeed(
           SearchBackgroundMissingService,
-          SearchBackgroundMissingService.make({
-            startMissingUnitSearch: () => Effect.dieMessage("not used in test"),
-            triggerSearchMissing: () => Effect.dieMessage("not used in test"),
+          SearchBackgroundMissingService.of({
+            startMissingUnitSearch: () => Effect.die(new Error("not used in test")),
+            triggerSearchMissing: () => Effect.die(new Error("not used in test")),
           }),
         ),
         Layer.succeed(
           OperationsTaskLauncherService,
-          OperationsTaskLauncherService.make({
-            launch: () => Effect.dieMessage("not used in test"),
+          OperationsTaskLauncherService.of({
+            launch: () => Effect.die(new Error("not used in test")),
           }),
         ),
       ),
@@ -229,18 +240,24 @@ function makeEnrollmentLayer(
 
 const insertQualityProfileEffect = Effect.fn("Test.insertQualityProfile")(function* (
   db: AppDatabase,
+  exec: DbExecutor,
   name: string,
 ) {
-  yield* tryDatabasePromise("Failed to insert quality profile for media add test", () =>
-    db.insert(qualityProfiles).values({
-      allowedQualities: "1080p",
-      cutoff: "720p",
-      maxSize: null,
-      minSize: null,
-      name,
-      seadexPreferred: false,
-      upgradeAllowed: true,
-    }),
+  yield* exec.runQuery(
+    "Failed to insert quality profile for media add test",
+    db
+      .insert(qualityProfiles)
+      .values({
+        allowedQualities: "1080p",
+        cutoff: "720p",
+        maxSize: null,
+        minSize: null,
+        name,
+        seadexPreferred: false,
+        upgradeAllowed: true,
+      })
+      .prepare()
+      .effect(),
   );
 });
 

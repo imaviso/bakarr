@@ -1,4 +1,3 @@
-import { Effect } from "effect";
 import { brandMediaId } from "@packages/shared/index.ts";
 
 import { DatabaseError } from "@/db/database.ts";
@@ -16,6 +15,7 @@ import { OperationsProgress } from "@/features/operations/tasks/operations-progr
 import { DownloadTriggerGate } from "@/features/operations/tasks/task-coordinators.ts";
 import { MediaRepository } from "@/features/media/shared/media-repository.ts";
 import { SystemLogRepository } from "@/features/system/repository/log-repository.ts";
+import { Context, Effect, Layer } from "effect";
 
 export interface DownloadTriggerServiceShape {
   readonly triggerDownload: (
@@ -31,18 +31,13 @@ export interface DownloadTriggerServiceShape {
   >;
 }
 
-export class DownloadTriggerService extends Effect.Service<DownloadTriggerService>()(
-  "@bakarr/api/DownloadTriggerService",
-  {
-    // Progress + torrent client provided by ops feature layer.
-    dependencies: [
-      DownloadRepository.Default,
-      DownloadTriggerGate.Default,
-      EventBus.Default,
-      MediaRepository.Default,
-      SystemLogRepository.Default,
-    ],
-    effect: Effect.gen(function* () {
+export class DownloadTriggerService extends Context.Service<
+  DownloadTriggerService,
+  DownloadTriggerServiceShape
+>()("@bakarr/api/DownloadTriggerService") {
+  static readonly layer = Layer.effect(
+    DownloadTriggerService,
+    Effect.gen(function* () {
       const triggerRepo = yield* DownloadRepository;
       const eventBus = yield* EventBus;
       const torrentClientService = yield* TorrentClientService;
@@ -62,7 +57,7 @@ export class DownloadTriggerService extends Effect.Service<DownloadTriggerServic
         });
 
         yield* Effect.annotateCurrentSpan("isBatch", plan.effectiveIsBatch);
-        yield* Effect.annotateCurrentSpan("hasMagnet", Boolean(triggerInput.magnet));
+        yield* Effect.annotateCurrentSpan("hasMagnet", globalThis.Boolean(triggerInput.magnet));
         yield* Effect.annotateCurrentSpan("unitNumber", plan.requestedEpisode);
 
         yield* queueDownload({
@@ -122,7 +117,7 @@ export class DownloadTriggerService extends Effect.Service<DownloadTriggerServic
         triggerDownload,
       } satisfies DownloadTriggerServiceShape;
     }),
-  },
-) {}
+  );
+}
 
-export const DownloadTriggerServiceLive = DownloadTriggerService.Default;
+export const DownloadTriggerServiceLive = DownloadTriggerService.layer;

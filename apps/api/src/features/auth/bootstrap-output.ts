@@ -1,7 +1,7 @@
-import { Terminal } from "@effect/platform";
-import { Cause, Effect } from "effect";
+import * as Terminal from "effect/Terminal";
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { Cause, Effect } from "effect";
 
 const CREDENTIALS_FILE_NAME = "bootstrap-credentials.txt";
 
@@ -11,7 +11,7 @@ export const announceBootstrapCredentials = Effect.fn(
   const terminal = yield* Effect.serviceOption(Terminal.Terminal);
 
   if (terminal._tag === "Some") {
-    const isTTY = yield* terminal.value.isTTY;
+    const isTTY = yield* Effect.sync(() => process.stdout?.isTTY ?? false);
 
     if (isTTY) {
       const details = input.password
@@ -21,7 +21,7 @@ export const announceBootstrapCredentials = Effect.fn(
 
       const displayed = yield* terminal.value.display(text).pipe(
         Effect.as(true),
-        Effect.catchAllCause((cause) =>
+        Effect.catchCause((cause) =>
           Effect.logWarning(
             "Failed to display bootstrap credentials in terminal; falling back to file output",
           ).pipe(Effect.annotateLogs({ cause: Cause.pretty(cause) }), Effect.as(false)),
@@ -51,7 +51,7 @@ export const announceBootstrapCredentials = Effect.fn(
     input.password,
   ).pipe(
     Effect.as(true),
-    Effect.catchAllCause((cause) =>
+    Effect.catchCause((cause) =>
       Effect.logError("Failed to write bootstrap credentials file").pipe(
         Effect.annotateLogs({ cause: Cause.pretty(cause), output_dir: input.outputDir }),
         Effect.as(false),

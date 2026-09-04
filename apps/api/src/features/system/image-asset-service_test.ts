@@ -23,7 +23,7 @@ import {
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 import { ImageAssetService, ImageAssetServiceLive } from "@/features/system/image-asset-service.ts";
 
-it.scoped("resolveImageAsset reads files inside the configured image root", () =>
+it.effect("resolveImageAsset reads files inside the configured image root", () =>
   withFileSystemSandboxEffect(({ fs, root }) =>
     Effect.gen(function* () {
       const imagesRoot = `${root}/images`;
@@ -43,7 +43,7 @@ it.scoped("resolveImageAsset reads files inside the configured image root", () =
   ),
 );
 
-it.scoped("resolveImageAsset rejects symlink escapes outside the configured image root", () =>
+it.effect("resolveImageAsset rejects symlink escapes outside the configured image root", () =>
   withFileSystemSandboxEffect(({ fs, root }) =>
     Effect.gen(function* () {
       const imagesRoot = `${root}/images`;
@@ -63,7 +63,7 @@ it.scoped("resolveImageAsset rejects symlink escapes outside the configured imag
       assert.deepStrictEqual(exit._tag, "Failure");
 
       if (exit._tag === "Failure") {
-        const failure = Cause.failureOption(exit.cause);
+        const failure = Cause.findErrorOption(exit.cause);
         assert.deepStrictEqual(failure._tag, "Some");
 
         if (failure._tag === "Some") {
@@ -76,7 +76,7 @@ it.scoped("resolveImageAsset rejects symlink escapes outside the configured imag
   ),
 );
 
-it.scoped("resolveImageAsset rejects oversized image files", () =>
+it.effect("resolveImageAsset rejects oversized image files", () =>
   withFileSystemSandboxEffect(({ fs, root }) =>
     Effect.gen(function* () {
       const imagesRoot = `${root}/images`;
@@ -94,7 +94,7 @@ it.scoped("resolveImageAsset rejects oversized image files", () =>
       assert.deepStrictEqual(exit._tag, "Failure");
 
       if (exit._tag === "Failure") {
-        const failure = Cause.failureOption(exit.cause);
+        const failure = Cause.findErrorOption(exit.cause);
         assert.deepStrictEqual(failure._tag, "Some");
 
         if (failure._tag === "Some") {
@@ -110,7 +110,7 @@ it.scoped("resolveImageAsset rejects oversized image files", () =>
   ),
 );
 
-it.scoped("resolveImageAsset preserves system config failures", () =>
+it.effect("resolveImageAsset preserves system config failures", () =>
   withFileSystemSandboxEffect(({ fs }) =>
     Effect.gen(function* () {
       const exit = yield* ImageAssetService.pipe(
@@ -119,7 +119,7 @@ it.scoped("resolveImageAsset preserves system config failures", () =>
           ImageAssetServiceLive.pipe(
             Layer.provide(
               Layer.mergeAll(
-                Layer.succeed(FileSystem, FileSystem.make(fs)),
+                Layer.succeed(FileSystem, FileSystem.of(fs)),
                 Layer.succeed(
                   RuntimeConfigSnapshotService,
                   makeFailingRuntimeConfigSnapshotStub(
@@ -139,7 +139,7 @@ it.scoped("resolveImageAsset preserves system config failures", () =>
       assert.deepStrictEqual(exit._tag, "Failure");
 
       if (exit._tag === "Failure") {
-        const failure = Cause.failureOption(exit.cause);
+        const failure = Cause.findErrorOption(exit.cause);
         assert.deepStrictEqual(failure._tag, "Some");
 
         if (failure._tag === "Some") {
@@ -151,7 +151,7 @@ it.scoped("resolveImageAsset preserves system config failures", () =>
   ),
 );
 
-it.scoped("resolveImageAsset keeps filesystem access failures as infrastructure errors", () =>
+it.effect("resolveImageAsset keeps filesystem access failures as infrastructure errors", () =>
   withFileSystemSandboxEffect(({ fs, root }) =>
     Effect.gen(function* () {
       const imagesRoot = `${root}/images`;
@@ -181,7 +181,7 @@ it.scoped("resolveImageAsset keeps filesystem access failures as infrastructure 
       assert.deepStrictEqual(exit._tag, "Failure");
 
       if (exit._tag === "Failure") {
-        const failure = Cause.failureOption(exit.cause);
+        const failure = Cause.findErrorOption(exit.cause);
         assert.deepStrictEqual(failure._tag, "Some");
 
         if (failure._tag === "Some") {
@@ -198,7 +198,7 @@ function makeImageAssetLayer(fs: FileSystemShape, imagesRoot: string) {
   return ImageAssetServiceLive.pipe(
     Layer.provide(
       Layer.mergeAll(
-        Layer.succeed(FileSystem, FileSystem.make(fs)),
+        Layer.succeed(FileSystem, FileSystem.of(fs)),
         Layer.succeed(
           RuntimeConfigSnapshotService,
           makeSharedRuntimeConfigSnapshotStub(

@@ -1,5 +1,3 @@
-import { Effect } from "effect";
-
 import type { QualityProfile } from "@packages/shared/index.ts";
 import { nowIso as currentNowIso } from "@/infra/time.ts";
 import { ConfigValidationError, SystemNotFoundError } from "@/features/system/errors.ts";
@@ -10,6 +8,7 @@ import {
 import { DEFAULT_QUALITIES } from "@/features/system/defaults.ts";
 import { SystemLogRepository } from "@/features/system/repository/log-repository.ts";
 import { QualityProfileRepository } from "@/features/system/repository/quality-profile-repository.ts";
+import { Context, Effect, Layer } from "effect";
 
 const makeQualityProfileService = Effect.fn("QualityProfileService.make")(function* () {
   const qualityProfileRepository = yield* QualityProfileRepository;
@@ -90,12 +89,15 @@ const makeQualityProfileService = Effect.fn("QualityProfileService.make")(functi
   };
 });
 
-export class QualityProfileService extends Effect.Service<QualityProfileService>()(
-  "@bakarr/api/QualityProfileService",
-  {
-    effect: makeQualityProfileService(),
-    dependencies: [QualityProfileRepository.Default, SystemLogRepository.Default],
-  },
-) {}
+export type QualityProfileServiceShape = Effect.Success<
+  ReturnType<typeof makeQualityProfileService>
+>;
 
-export const QualityProfileServiceLive = QualityProfileService.Default;
+export class QualityProfileService extends Context.Service<
+  QualityProfileService,
+  QualityProfileServiceShape
+>()("@bakarr/api/QualityProfileService") {
+  static readonly layer = Layer.effect(QualityProfileService, makeQualityProfileService());
+}
+
+export const QualityProfileServiceLive = QualityProfileService.layer;

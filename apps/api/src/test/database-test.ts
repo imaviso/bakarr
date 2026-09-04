@@ -1,12 +1,13 @@
-import * as SqlClient from "@effect/sql/SqlClient";
-import * as SqliteDrizzle from "@effect/sql-drizzle/Sqlite";
+import * as SqlClient from "effect/unstable/sql/SqlClient";
 import * as NodeSqliteClient from "@effect/sql-sqlite-node/SqliteClient";
-import type { SqliteRemoteDatabase } from "drizzle-orm/sqlite-proxy";
-import { Effect } from "effect";
+import type { EffectSQLiteDatabase } from "drizzle-orm/effect/sqlite/db";
+import { drizzle } from "drizzle-orm/effect/sqlite";
 
 import { setAndVerifyPragmas } from "@/db/database.ts";
 import { runEmbeddedDrizzleMigrations } from "@/db/migrate.ts";
+import { makeDbExecutor, type DbExecutor } from "@/infra/effect/db.ts";
 import { withFileSystemSandboxEffect } from "@/test/filesystem-test.ts";
+import { Effect, Record } from "effect";
 
 export const withSqliteRawClientEffect = Effect.fn("Test.withSqliteRawClientEffect")(function* <
   A,
@@ -41,9 +42,10 @@ export const withSqliteTestDbEffect = Effect.fn("Test.withSqliteTestDbEffect")(f
   R,
 >(input: {
   readonly run: (
-    db: SqliteRemoteDatabase<TSchema>,
+    db: EffectSQLiteDatabase<TSchema>,
     databaseFile: string,
     client: NodeSqliteClient.SqliteClient,
+    exec: DbExecutor,
   ) => Effect.Effect<A, E, R>;
   readonly schema: TSchema;
 }) {
@@ -55,16 +57,14 @@ export const withSqliteTestDbEffect = Effect.fn("Test.withSqliteTestDbEffect")(f
           databaseFile,
           run: (client) =>
             Effect.gen(function* () {
-              const db = yield* SqliteDrizzle.make<TSchema>({ schema: input.schema }).pipe(
-                Effect.provideService(SqlClient.SqlClient, client),
-              );
+              const db = drizzle<TSchema>({ schema: input.schema });
 
               yield* setAndVerifyPragmas(client);
               yield* runEmbeddedDrizzleMigrations().pipe(
                 Effect.provideService(SqlClient.SqlClient, client),
               );
 
-              return yield* input.run(db, databaseFile, client);
+              return yield* input.run(db, databaseFile, client, makeDbExecutor(client));
             }),
         });
       }),

@@ -1,6 +1,6 @@
 import { assert, describe, it } from "@effect/vitest";
-import { Effect } from "effect";
 
+import { Effect } from "effect";
 import {
   UnmappedScanCoordinator,
   UnmappedScanCoordinatorLive,
@@ -13,7 +13,7 @@ const tryBegin = (coordinator: typeof UnmappedScanCoordinator.Service) =>
   });
 
 describe("UnmappedScanCoordinator", () => {
-  it.scoped("acquires the lease when free", () =>
+  it.effect("acquires the lease when free", () =>
     Effect.gen(function* () {
       const coordinator = yield* UnmappedScanCoordinator;
       const started = yield* tryBegin(coordinator);
@@ -21,7 +21,7 @@ describe("UnmappedScanCoordinator", () => {
     }).pipe(Effect.provide(UnmappedScanCoordinatorLive)),
   );
 
-  it.scoped("returns busy while the lease is held", () =>
+  it.effect("returns busy while the lease is held", () =>
     Effect.gen(function* () {
       const coordinator = yield* UnmappedScanCoordinator;
       yield* tryBegin(coordinator);
@@ -30,7 +30,7 @@ describe("UnmappedScanCoordinator", () => {
     }).pipe(Effect.provide(UnmappedScanCoordinatorLive)),
   );
 
-  it.scoped("completeUnmappedScan allows re-start", () =>
+  it.effect("completeUnmappedScan allows re-start", () =>
     Effect.gen(function* () {
       const coordinator = yield* UnmappedScanCoordinator;
       yield* tryBegin(coordinator);
@@ -40,7 +40,7 @@ describe("UnmappedScanCoordinator", () => {
     }).pipe(Effect.provide(UnmappedScanCoordinatorLive)),
   );
 
-  it.scoped("completeUnmappedScan without start is no-op", () =>
+  it.effect("completeUnmappedScan without start is no-op", () =>
     Effect.gen(function* () {
       const coordinator = yield* UnmappedScanCoordinator;
       yield* coordinator.completeUnmappedScan();
@@ -49,7 +49,7 @@ describe("UnmappedScanCoordinator", () => {
     }).pipe(Effect.provide(UnmappedScanCoordinatorLive)),
   );
 
-  it.scoped("withUnmappedScanLease runs whenAcquired when free", () =>
+  it.effect("withUnmappedScanLease runs whenAcquired when free", () =>
     Effect.gen(function* () {
       const coordinator = yield* UnmappedScanCoordinator;
       const result = yield* coordinator.withUnmappedScanLease({
@@ -60,7 +60,7 @@ describe("UnmappedScanCoordinator", () => {
     }).pipe(Effect.provide(UnmappedScanCoordinatorLive)),
   );
 
-  it.scoped("withUnmappedScanLease runs whenBusy while a scan holds the lease", () =>
+  it.effect("withUnmappedScanLease runs whenBusy while a scan holds the lease", () =>
     Effect.gen(function* () {
       const coordinator = yield* UnmappedScanCoordinator;
       yield* tryBegin(coordinator);
@@ -72,7 +72,7 @@ describe("UnmappedScanCoordinator", () => {
     }).pipe(Effect.provide(UnmappedScanCoordinatorLive)),
   );
 
-  it.scoped("withUnmappedScanLease releases the lease unless keepLease", () =>
+  it.effect("withUnmappedScanLease releases the lease unless keepLease", () =>
     Effect.gen(function* () {
       const coordinator = yield* UnmappedScanCoordinator;
       yield* coordinator.withUnmappedScanLease({
@@ -84,7 +84,7 @@ describe("UnmappedScanCoordinator", () => {
     }).pipe(Effect.provide(UnmappedScanCoordinatorLive)),
   );
 
-  it.scoped("withUnmappedScanLease keeps the lease with keepLease", () =>
+  it.effect("withUnmappedScanLease keeps the lease with keepLease", () =>
     Effect.gen(function* () {
       const coordinator = yield* UnmappedScanCoordinator;
       yield* coordinator.withUnmappedScanLease({
@@ -96,7 +96,7 @@ describe("UnmappedScanCoordinator", () => {
     }).pipe(Effect.provide(UnmappedScanCoordinatorLive)),
   );
 
-  it.scoped("withUnmappedScanLease releases the lease on failure", () =>
+  it.effect("withUnmappedScanLease releases the lease on failure", () =>
     Effect.gen(function* () {
       const coordinator = yield* UnmappedScanCoordinator;
       const exit = yield* Effect.exit(

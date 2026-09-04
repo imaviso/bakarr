@@ -1,5 +1,3 @@
-import { Effect } from "effect";
-
 import { AppConfig } from "@/app/config/schema.ts";
 import { DatabaseError } from "@/db/database.ts";
 import { nowIso as currentNowIso } from "@/infra/time.ts";
@@ -9,6 +7,7 @@ import { decodeConfigCore, encodeConfigCore } from "@/features/system/config-cod
 import { encodeQualityProfileRow } from "@/features/system/profile-codec.ts";
 import { applyRuntimeLogLevelFromConfig } from "@/features/system/runtime-config.ts";
 import { SystemConfigRepository } from "@/features/system/repository/system-config-repository.ts";
+import { Context, Effect, Layer } from "effect";
 
 const makeSystemBootstrapService = Effect.fn("SystemBootstrapService.make")(function* () {
   const config = yield* AppConfig;
@@ -49,23 +48,26 @@ const makeSystemBootstrapService = Effect.fn("SystemBootstrapService.make")(func
     const storedConfig = yield* systemConfigRepository.loadSystemConfigRow();
 
     if (storedConfig) {
-      const decoded = yield* decodeConfigCore(storedConfig.data).pipe(Effect.either);
+      const decoded = yield* decodeConfigCore(storedConfig.data).pipe(Effect.result);
 
-      if (decoded._tag === "Right") {
-        yield* applyRuntimeLogLevelFromConfig(runtimeLogLevelState, decoded.right);
+      if (decoded._tag === "Success") {
+        yield* applyRuntimeLogLevelFromConfig(runtimeLogLevelState, decoded.success);
       }
     }
   });
 
-  return { ensureInitialized };
+  return { ensureInitialized } satisfies SystemBootstrapServiceShape;
 });
 
-export class SystemBootstrapService extends Effect.Service<SystemBootstrapService>()(
-  "@bakarr/api/SystemBootstrapService",
-  {
-    dependencies: [SystemConfigRepository.Default],
-    effect: makeSystemBootstrapService(),
-  },
-) {}
+export interface SystemBootstrapServiceShape {
+  readonly ensureInitialized: () => Effect.Effect<void, DatabaseError>;
+}
 
-export const SystemBootstrapServiceLive = SystemBootstrapService.Default;
+export class SystemBootstrapService extends Context.Service<
+  SystemBootstrapService,
+  SystemBootstrapServiceShape
+>()("@bakarr/api/SystemBootstrapService") {
+  static readonly layer = Layer.effect(SystemBootstrapService, makeSystemBootstrapService());
+}
+
+export const SystemBootstrapServiceLive = SystemBootstrapService.layer;

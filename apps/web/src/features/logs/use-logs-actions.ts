@@ -12,8 +12,8 @@ interface UseLogsActionsOptions {
   logsParams: LogsFilterParams;
   updateSearch: (patch: Partial<Record<string, string>>) => void;
   downloadEventsPage: {
-    nextCursor?: string | undefined;
-    prevCursor?: string | undefined;
+    nextCursor?: string | null | undefined;
+    prevCursor?: string | null | undefined;
   };
 }
 

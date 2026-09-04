@@ -1,100 +1,110 @@
 import { Cause, Effect, Exit } from "effect";
-
 import * as schema from "@/db/schema.ts";
 import { media, mediaUnits } from "@/db/schema.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 import { assert, it } from "@effect/vitest";
 import { encodeNumberList } from "@/features/system/profile-codec.ts";
-import { tryDatabasePromise } from "@/infra/effect/db.ts";
+import { tryDatabaseQuery } from "@/infra/effect/db.ts";
 import { StoredDataError } from "@/features/errors.ts";
 import { loadDownloadPresentationContexts } from "@/features/operations/repository/download-catalog-read.ts";
 
-it.scoped("download presentation contexts load imported paths", () =>
+it.effect("download presentation contexts load imported paths", () =>
   withSqliteTestDbEffect({
-    run: (db, _databaseFile) =>
+    run: (db, _databaseFile, _client, exec) =>
       Effect.gen(function* () {
         const releaseProfileIds = yield* encodeNumberList([]);
 
-        yield* tryDatabasePromise("Failed to seed media for presentation test", () =>
-          db.insert(media).values({
-            addedAt: "2024-01-01T00:00:00.000Z",
-            bannerImage: null,
-            coverImage: "https://example.com/naruto.jpg",
-            description: null,
-            endDate: null,
-            endYear: null,
-            unitCount: 12,
-            format: "TV",
-            genres: "[]",
-            id: 20,
-            malId: null,
-            monitored: true,
-            nextAiringAt: null,
-            nextAiringUnit: null,
-            profileName: "Default",
-            releaseProfileIds,
-            rootFolder: "/library/Naruto",
-            score: null,
-            startDate: null,
-            startYear: null,
-            status: "RELEASING",
-            studios: "[]",
-            titleEnglish: "Naruto",
-            titleNative: null,
-            titleRomaji: "Naruto",
-          }),
+        yield* tryDatabaseQuery(
+          "Failed to seed media for presentation test",
+          db
+            .insert(media)
+            .values({
+              addedAt: "2024-01-01T00:00:00.000Z",
+              bannerImage: null,
+              coverImage: "https://example.com/naruto.jpg",
+              description: null,
+              endDate: null,
+              endYear: null,
+              unitCount: 12,
+              format: "TV",
+              genres: "[]",
+              id: 20,
+              malId: null,
+              monitored: true,
+              nextAiringAt: null,
+              nextAiringUnit: null,
+              profileName: "Default",
+              releaseProfileIds,
+              rootFolder: "/library/Naruto",
+              score: null,
+              startDate: null,
+              startYear: null,
+              status: "RELEASING",
+              studios: "[]",
+              titleEnglish: "Naruto",
+              titleNative: null,
+              titleRomaji: "Naruto",
+            })
+            .prepare()
+            .effect(),
         );
-        yield* tryDatabasePromise("Failed to seed mediaUnits for presentation test", () =>
-          db.insert(mediaUnits).values({
-            aired: null,
-            mediaId: 20,
-            downloaded: true,
-            filePath: "/library/Naruto/Naruto - 01.mkv",
-            number: 1,
-            title: null,
-          }),
+        yield* tryDatabaseQuery(
+          "Failed to seed mediaUnits for presentation test",
+          db
+            .insert(mediaUnits)
+            .values({
+              aired: null,
+              mediaId: 20,
+              downloaded: true,
+              filePath: "/library/Naruto/Naruto - 01.mkv",
+              number: 1,
+              title: null,
+            })
+            .prepare()
+            .effect(),
         );
-        const [row] = yield* tryDatabasePromise(
+        const [row] = yield* tryDatabaseQuery(
           "Failed to insert download for presentation test",
-          () =>
-            db
-              .insert(schema.downloads)
-              .values({
-                addedAt: "2024-01-01T00:00:00.000Z",
-                mediaId: 20,
-                mediaTitle: "Naruto",
-                contentPath: "/downloads/Naruto - 01.mkv",
-                coveredUnits: "[1]",
-                downloadDate: null,
-                downloadedBytes: 0,
-                unitNumber: 1,
-                errorMessage: null,
-                etaSeconds: null,
-                externalState: "imported",
-                groupName: null,
-                infoHash: null,
-                isBatch: false,
-                lastErrorAt: null,
-                lastSyncedAt: null,
-                magnet: null,
-                progress: 100,
-                reconciledAt: "2024-01-01T00:10:00.000Z",
-                retryCount: 0,
-                savePath: "/downloads",
-                sourceMetadata: null,
-                speedBytes: 0,
-                status: "imported",
-                torrentName: "Naruto - 01",
-                totalBytes: 0,
-              })
-              .returning(),
+          db
+            .insert(schema.downloads)
+            .values({
+              addedAt: "2024-01-01T00:00:00.000Z",
+              mediaId: 20,
+              mediaTitle: "Naruto",
+              contentPath: "/downloads/Naruto - 01.mkv",
+              coveredUnits: "[1]",
+              downloadDate: null,
+              downloadedBytes: 0,
+              unitNumber: 1,
+              errorMessage: null,
+              etaSeconds: null,
+              externalState: "imported",
+              groupName: null,
+              infoHash: null,
+              isBatch: false,
+              lastErrorAt: null,
+              lastSyncedAt: null,
+              magnet: null,
+              progress: 100,
+              reconciledAt: "2024-01-01T00:10:00.000Z",
+              retryCount: 0,
+              savePath: "/downloads",
+              sourceMetadata: null,
+              speedBytes: 0,
+              status: "imported",
+              torrentName: "Naruto - 01",
+              totalBytes: 0,
+            })
+            .returning()
+            .prepare()
+            .effect(),
         );
         assert.deepStrictEqual(row !== undefined, true);
         if (!row) {
           return;
         }
 
-        const contexts = yield* loadDownloadPresentationContexts(db, [row]);
+        const contexts = yield* loadDownloadPresentationContexts(db, exec, [row]);
 
         assert.deepStrictEqual(contexts.get(row.id), {
           mediaImage: "https://example.com/naruto.jpg",
@@ -105,88 +115,94 @@ it.scoped("download presentation contexts load imported paths", () =>
   }),
 );
 
-it.scoped("download presentation contexts fail for corrupt covered episode metadata", () =>
+it.effect("download presentation contexts fail for corrupt covered episode metadata", () =>
   withSqliteTestDbEffect({
-    run: (db, _databaseFile) =>
+    run: (db, _databaseFile, _client, exec) =>
       Effect.gen(function* () {
-        yield* tryDatabasePromise("Failed to seed media for presentation test", () =>
-          db.insert(media).values({
-            addedAt: "2024-01-01T00:00:00.000Z",
-            bannerImage: null,
-            coverImage: "https://example.com/naruto.jpg",
-            description: null,
-            endDate: null,
-            endYear: null,
-            unitCount: 12,
-            format: "TV",
-            genres: "[]",
-            id: 99,
-            malId: null,
-            monitored: true,
-            nextAiringAt: null,
-            nextAiringUnit: null,
-            profileName: "Default",
-            releaseProfileIds: "[]",
-            rootFolder: "/library/Naruto",
-            score: null,
-            startDate: null,
-            startYear: null,
-            status: "FINISHED",
-            studios: "[]",
-            synonyms: null,
-            titleEnglish: null,
-            titleNative: null,
-            titleRomaji: "Naruto",
-            relatedMedia: null,
-            recommendedMedia: null,
-          }),
+        yield* tryDatabaseQuery(
+          "Failed to seed media for presentation test",
+          db
+            .insert(media)
+            .values({
+              addedAt: "2024-01-01T00:00:00.000Z",
+              bannerImage: null,
+              coverImage: "https://example.com/naruto.jpg",
+              description: null,
+              endDate: null,
+              endYear: null,
+              unitCount: 12,
+              format: "TV",
+              genres: "[]",
+              id: 99,
+              malId: null,
+              monitored: true,
+              nextAiringAt: null,
+              nextAiringUnit: null,
+              profileName: "Default",
+              releaseProfileIds: "[]",
+              rootFolder: "/library/Naruto",
+              score: null,
+              startDate: null,
+              startYear: null,
+              status: "FINISHED",
+              studios: "[]",
+              synonyms: null,
+              titleEnglish: null,
+              titleNative: null,
+              titleRomaji: "Naruto",
+              relatedMedia: null,
+              recommendedMedia: null,
+            })
+            .prepare()
+            .effect(),
         );
 
-        const [row] = yield* tryDatabasePromise(
+        const [row] = yield* tryDatabaseQuery(
           "Failed to insert download for presentation test",
-          () =>
-            db
-              .insert(schema.downloads)
-              .values({
-                addedAt: "2024-01-01T00:00:00.000Z",
-                mediaId: 99,
-                mediaTitle: "Naruto",
-                contentPath: null,
-                coveredUnits: "not-json",
-                downloadDate: null,
-                downloadedBytes: null,
-                unitNumber: 1,
-                errorMessage: null,
-                etaSeconds: null,
-                externalState: null,
-                groupName: null,
-                infoHash: null,
-                isBatch: true,
-                lastErrorAt: null,
-                lastSyncedAt: null,
-                magnet: null,
-                progress: 0,
-                reconciledAt: null,
-                retryCount: 0,
-                savePath: "/downloads",
-                sourceMetadata: null,
-                speedBytes: 0,
-                status: "queued",
-                torrentName: "Naruto - Batch",
-                totalBytes: 0,
-              })
-              .returning(),
+          db
+            .insert(schema.downloads)
+            .values({
+              addedAt: "2024-01-01T00:00:00.000Z",
+              mediaId: 99,
+              mediaTitle: "Naruto",
+              contentPath: null,
+              coveredUnits: "not-json",
+              downloadDate: null,
+              downloadedBytes: null,
+              unitNumber: 1,
+              errorMessage: null,
+              etaSeconds: null,
+              externalState: null,
+              groupName: null,
+              infoHash: null,
+              isBatch: true,
+              lastErrorAt: null,
+              lastSyncedAt: null,
+              magnet: null,
+              progress: 0,
+              reconciledAt: null,
+              retryCount: 0,
+              savePath: "/downloads",
+              sourceMetadata: null,
+              speedBytes: 0,
+              status: "queued",
+              torrentName: "Naruto - Batch",
+              totalBytes: 0,
+            })
+            .returning()
+            .prepare()
+            .effect(),
         );
         assert.deepStrictEqual(row !== undefined, true);
         if (!row) {
           return;
         }
 
-        const exit = yield* Effect.exit(loadDownloadPresentationContexts(db, [row]));
+        const exit = yield* Effect.exit(loadDownloadPresentationContexts(db, exec, [row]));
 
         assert.deepStrictEqual(Exit.isFailure(exit), true);
         if (Exit.isFailure(exit)) {
-          const failure = Cause.failureOption(exit.cause);
+          const failure = Cause.findErrorOption(exit.cause);
           assert.deepStrictEqual(failure._tag, "Some");
           if (failure._tag === "Some") {
             assert.deepStrictEqual(failure.value instanceof StoredDataError, true);

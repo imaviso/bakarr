@@ -1,5 +1,3 @@
-import { Effect, Layer, Option } from "effect";
-
 import { assert, describe, it } from "@effect/vitest";
 import { AniListClient } from "@/features/media/metadata/anilist.ts";
 import { brandMediaId, type MediaSearchResult } from "@packages/shared/index.ts";
@@ -11,6 +9,7 @@ import { JikanClient } from "@/features/media/metadata/jikan.ts";
 import type { JikanNormalizedSeasonalEntry } from "@/features/media/metadata/jikan-model.ts";
 import { ManamiClient } from "@/features/media/metadata/manami.ts";
 import { ExternalCallError } from "@/infra/effect/retry.ts";
+import { Effect, Layer, Option } from "effect";
 
 function makeAniListSearchResult(
   id: number,
@@ -77,7 +76,7 @@ describe("MediaSeasonalProviderService", () => {
         Layer.mergeAll(
           Layer.succeed(
             AniListClient,
-            AniListClient.make({
+            AniListClient.of({
               getAnimeMetadataById: () => Effect.succeed(Option.none()),
               getSeasonalAnime: () => Effect.succeed(anilistResults),
               searchAnimeMetadata: () => Effect.succeed([]),
@@ -85,14 +84,14 @@ describe("MediaSeasonalProviderService", () => {
           ),
           Layer.succeed(
             JikanClient,
-            JikanClient.make({
+            JikanClient.of({
               getAnimeByMalId: () => Effect.succeed(Option.none()),
               getSeasonalAnime: () => Effect.succeed([]),
             }),
           ),
           Layer.succeed(
             ManamiClient,
-            ManamiClient.make({
+            ManamiClient.of({
               getByAniListId: () => Effect.succeed(Option.none()),
               getByMalId: () => Effect.succeed(Option.none()),
               resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
@@ -130,7 +129,7 @@ describe("MediaSeasonalProviderService", () => {
         Layer.mergeAll(
           Layer.succeed(
             AniListClient,
-            AniListClient.make({
+            AniListClient.of({
               getAnimeMetadataById: () => Effect.succeed(Option.none()),
               getSeasonalAnime: () => Effect.succeed([]),
               searchAnimeMetadata: () => Effect.succeed([]),
@@ -138,14 +137,14 @@ describe("MediaSeasonalProviderService", () => {
           ),
           Layer.succeed(
             JikanClient,
-            JikanClient.make({
-              getAnimeByMalId: () => Effect.dieMessage("unexpected jikan lookup"),
-              getSeasonalAnime: () => Effect.dieMessage("unexpected jikan seasonal lookup"),
+            JikanClient.of({
+              getAnimeByMalId: () => Effect.die(new Error("unexpected jikan lookup")),
+              getSeasonalAnime: () => Effect.die(new Error("unexpected jikan seasonal lookup")),
             }),
           ),
           Layer.succeed(
             ManamiClient,
-            ManamiClient.make({
+            ManamiClient.of({
               getByAniListId: () => Effect.succeed(Option.none()),
               getByMalId: () => Effect.succeed(Option.none()),
               resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
@@ -202,7 +201,7 @@ describe("MediaSeasonalProviderService", () => {
         Layer.mergeAll(
           Layer.succeed(
             AniListClient,
-            AniListClient.make({
+            AniListClient.of({
               getAnimeMetadataById: () => Effect.succeed(Option.none()),
               getSeasonalAnime: () =>
                 Effect.fail(
@@ -217,14 +216,14 @@ describe("MediaSeasonalProviderService", () => {
           ),
           Layer.succeed(
             JikanClient,
-            JikanClient.make({
+            JikanClient.of({
               getAnimeByMalId: () => Effect.succeed(Option.none()),
               getSeasonalAnime: () => Effect.succeed(jikanEntries),
             }),
           ),
           Layer.succeed(
             ManamiClient,
-            ManamiClient.make({
+            ManamiClient.of({
               getByAniListId: () => Effect.succeed(Option.none()),
               getByMalId: () => Effect.succeed(Option.none()),
               resolveAniListIdFromMalId: (malId: number) =>
@@ -279,7 +278,7 @@ describe("MediaSeasonalProviderService", () => {
         Layer.mergeAll(
           Layer.succeed(
             AniListClient,
-            AniListClient.make({
+            AniListClient.of({
               getAnimeMetadataById: () => Effect.succeed(Option.none()),
               getSeasonalAnime: () =>
                 Effect.fail(
@@ -294,7 +293,7 @@ describe("MediaSeasonalProviderService", () => {
           ),
           Layer.succeed(
             JikanClient,
-            JikanClient.make({
+            JikanClient.of({
               getAnimeByMalId: () => Effect.succeed(Option.none()),
               getSeasonalAnime: () =>
                 Effect.succeed([
@@ -309,7 +308,7 @@ describe("MediaSeasonalProviderService", () => {
           ),
           Layer.succeed(
             ManamiClient,
-            ManamiClient.make({
+            ManamiClient.of({
               getByAniListId: () => Effect.succeed(Option.none()),
               getByMalId: () => Effect.succeed(Option.none()),
               resolveAniListIdFromMalId: () => Effect.succeed(Option.some(4404)),
@@ -356,7 +355,7 @@ describe("MediaSeasonalProviderService", () => {
         Layer.mergeAll(
           Layer.succeed(
             AniListClient,
-            AniListClient.make({
+            AniListClient.of({
               getAnimeMetadataById: () => Effect.succeed(Option.none()),
               getSeasonalAnime: () =>
                 Effect.fail(
@@ -371,14 +370,14 @@ describe("MediaSeasonalProviderService", () => {
           ),
           Layer.succeed(
             JikanClient,
-            JikanClient.make({
+            JikanClient.of({
               getAnimeByMalId: () => Effect.succeed(Option.none()),
               getSeasonalAnime: () => Effect.succeed(jikanEntries),
             }),
           ),
           Layer.succeed(
             ManamiClient,
-            ManamiClient.make({
+            ManamiClient.of({
               getByAniListId: () => Effect.succeed(Option.none()),
               getByMalId: () => Effect.succeed(Option.none()),
               resolveAniListIdFromMalId: (malId: number) =>
@@ -427,7 +426,7 @@ describe("MediaSeasonalProviderService", () => {
         Layer.mergeAll(
           Layer.succeed(
             AniListClient,
-            AniListClient.make({
+            AniListClient.of({
               getAnimeMetadataById: () => Effect.succeed(Option.none()),
               getSeasonalAnime: () =>
                 Effect.fail(
@@ -442,7 +441,7 @@ describe("MediaSeasonalProviderService", () => {
           ),
           Layer.succeed(
             JikanClient,
-            JikanClient.make({
+            JikanClient.of({
               getAnimeByMalId: () => Effect.succeed(Option.none()),
               getSeasonalAnime: () =>
                 Effect.fail(
@@ -456,7 +455,7 @@ describe("MediaSeasonalProviderService", () => {
           ),
           Layer.succeed(
             ManamiClient,
-            ManamiClient.make({
+            ManamiClient.of({
               getByAniListId: () => Effect.succeed(Option.none()),
               getByMalId: () => Effect.succeed(Option.none()),
               resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
@@ -484,7 +483,7 @@ describe("MediaSeasonalProviderService", () => {
         Layer.mergeAll(
           Layer.succeed(
             AniListClient,
-            AniListClient.make({
+            AniListClient.of({
               getAnimeMetadataById: () => Effect.succeed(Option.none()),
               getSeasonalAnime: () =>
                 Effect.fail(
@@ -499,14 +498,14 @@ describe("MediaSeasonalProviderService", () => {
           ),
           Layer.succeed(
             JikanClient,
-            JikanClient.make({
+            JikanClient.of({
               getAnimeByMalId: () => Effect.succeed(Option.none()),
-              getSeasonalAnime: () => Effect.dieMessage("unexpected jikan fallback"),
+              getSeasonalAnime: () => Effect.die(new Error("unexpected jikan fallback")),
             }),
           ),
           Layer.succeed(
             ManamiClient,
-            ManamiClient.make({
+            ManamiClient.of({
               getByAniListId: () => Effect.succeed(Option.none()),
               getByMalId: () => Effect.succeed(Option.none()),
               resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
@@ -537,7 +536,7 @@ describe("MediaSeasonalProviderService", () => {
         Layer.mergeAll(
           Layer.succeed(
             AniListClient,
-            AniListClient.make({
+            AniListClient.of({
               getAnimeMetadataById: () => Effect.succeed(Option.none()),
               getSeasonalAnime: () =>
                 Effect.fail(
@@ -552,7 +551,7 @@ describe("MediaSeasonalProviderService", () => {
           ),
           Layer.succeed(
             JikanClient,
-            JikanClient.make({
+            JikanClient.of({
               getAnimeByMalId: () => Effect.succeed(Option.none()),
               getSeasonalAnime: () =>
                 Effect.succeed([
@@ -564,7 +563,7 @@ describe("MediaSeasonalProviderService", () => {
           ),
           Layer.succeed(
             ManamiClient,
-            ManamiClient.make({
+            ManamiClient.of({
               getByAniListId: () => Effect.succeed(Option.none()),
               getByMalId: () => Effect.succeed(Option.none()),
               resolveAniListIdFromMalId: () =>

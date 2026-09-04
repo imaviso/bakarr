@@ -1,5 +1,3 @@
-import { Effect } from "effect";
-
 import { brandMediaId } from "@packages/shared/index.ts";
 import type { AsyncOperationAccepted, ImportResult, RenameResult } from "@packages/shared/index.ts";
 import type { DatabaseError } from "@/db/database.ts";
@@ -20,6 +18,7 @@ import { MediaRepository } from "@/features/media/shared/media-repository.ts";
 import { MediaUnitRepository } from "@/features/media/units/media-unit-repository.ts";
 import { OperationsTaskLauncherService } from "@/features/operations/tasks/operations-task-launcher-service.ts";
 import { OperationsTaskWriteService } from "@/features/operations/tasks/operations-task-service.ts";
+import { Context, Effect, Layer } from "effect";
 
 export interface CatalogLibraryWriteServiceShape {
   readonly importFiles: (
@@ -33,10 +32,13 @@ export interface CatalogLibraryWriteServiceShape {
   ) => Effect.Effect<AsyncOperationAccepted, DatabaseError | InfrastructureError>;
 }
 
-export class CatalogLibraryWriteService extends Effect.Service<CatalogLibraryWriteService>()(
-  "@bakarr/api/CatalogLibraryWriteService",
-  {
-    effect: Effect.gen(function* () {
+export class CatalogLibraryWriteService extends Context.Service<
+  CatalogLibraryWriteService,
+  CatalogLibraryWriteServiceShape
+>()("@bakarr/api/CatalogLibraryWriteService") {
+  static readonly layer = Layer.effect(
+    CatalogLibraryWriteService,
+    Effect.gen(function* () {
       const eventBus = yield* EventBus;
       const fs = yield* FileSystem;
       const mediaRepository = yield* MediaRepository;
@@ -123,16 +125,7 @@ export class CatalogLibraryWriteService extends Effect.Service<CatalogLibraryWri
         startLibraryImport,
       } satisfies CatalogLibraryWriteServiceShape;
     }),
-    // FS + RuntimeConfig provided by ops feature layer.
-    dependencies: [
-      EventBus.Default,
-      MediaRepository.Default,
-      MediaUnitRepository.Default,
-      OperationsTaskLauncherService.Default,
-      OperationsTaskWriteService.Default,
-      RandomService.Default,
-    ],
-  },
-) {}
+  );
+}
 
-export const CatalogLibraryWriteServiceLive = CatalogLibraryWriteService.Default;
+export const CatalogLibraryWriteServiceLive = CatalogLibraryWriteService.layer;

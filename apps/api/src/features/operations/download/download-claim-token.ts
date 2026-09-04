@@ -28,7 +28,7 @@ export function parseClaimTimestamp(value: string | null | undefined): Option.Op
   const separatorIndex = withoutPrefix.lastIndexOf(":");
   const timestamp = separatorIndex === -1 ? undefined : withoutPrefix.slice(0, separatorIndex);
 
-  if (!timestamp || Number.isNaN(Date.parse(timestamp))) {
+  if (!timestamp || globalThis.Number.isNaN(Date.parse(timestamp))) {
     return Option.none();
   }
 
@@ -54,5 +54,5 @@ export function isStaleClaimToken(
   const claimedMs = Date.parse(claimedAt.value);
   const nowMs = Date.parse(nowIso);
 
-  return Number.isNaN(nowMs) || nowMs - claimedMs >= thresholdMs;
+  return globalThis.Number.isNaN(nowMs) || nowMs - claimedMs >= thresholdMs;
 }

@@ -1,5 +1,4 @@
-import { Effect, Option, Ref } from "effect";
-
+import { Context, Effect, Layer, Option, Ref, Semaphore } from "effect";
 import type { Config } from "@packages/shared/index.ts";
 import type { DatabaseError } from "@/db/database.ts";
 import { SystemConfigService } from "@/features/system/system-config-service.ts";
@@ -19,7 +18,7 @@ const makeRuntimeConfigSnapshotService = Effect.fn("RuntimeConfigSnapshotService
   function* () {
     const systemConfigService = yield* SystemConfigService;
     const configRef = yield* Ref.make(Option.none<Config>());
-    const loadSemaphore = yield* Effect.makeSemaphore(1);
+    const loadSemaphore = yield* Semaphore.make(1);
 
     const getRuntimeConfig = Effect.fn("RuntimeConfigSnapshotService.getRuntimeConfig")(
       function* () {
@@ -65,12 +64,14 @@ const makeRuntimeConfigSnapshotService = Effect.fn("RuntimeConfigSnapshotService
   },
 );
 
-export class RuntimeConfigSnapshotService extends Effect.Service<RuntimeConfigSnapshotService>()(
-  "@bakarr/api/RuntimeConfigSnapshotService",
-  {
-    effect: makeRuntimeConfigSnapshotService(),
-    dependencies: [SystemConfigService.Default],
-  },
-) {}
+export class RuntimeConfigSnapshotService extends Context.Service<
+  RuntimeConfigSnapshotService,
+  RuntimeConfigSnapshotServiceShape
+>()("@bakarr/api/RuntimeConfigSnapshotService") {
+  static readonly layer = Layer.effect(
+    RuntimeConfigSnapshotService,
+    makeRuntimeConfigSnapshotService(),
+  );
+}
 
-export const RuntimeConfigSnapshotServiceLive = RuntimeConfigSnapshotService.Default;
+export const RuntimeConfigSnapshotServiceLive = RuntimeConfigSnapshotService.layer;

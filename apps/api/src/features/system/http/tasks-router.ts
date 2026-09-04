@@ -1,5 +1,5 @@
-import { HttpRouter } from "@effect/platform";
-import { Effect } from "effect";
+import * as HttpRouter from "effect/unstable/http/HttpRouter";
+import { Effect, Layer } from "effect";
 import { AsyncOperationAcceptedSchema } from "@packages/shared/index.ts";
 
 import { BackgroundTaskRunner } from "@/background/task-runner.ts";
@@ -7,22 +7,25 @@ import { authedRouteResponse, schemaAcceptedResponse } from "@/infra/http/router
 
 const acceptedOperationResponse = schemaAcceptedResponse(AsyncOperationAcceptedSchema);
 
-export const systemTasksRouter = HttpRouter.empty.pipe(
-  HttpRouter.post(
+export const systemTasksRouter = Layer.mergeAll(
+  HttpRouter.add(
+    "POST",
     "/api/system/tasks/scan",
     authedRouteResponse(
       Effect.flatMap(BackgroundTaskRunner, (runner) => runner.startLibraryScan()),
       acceptedOperationResponse,
     ),
   ),
-  HttpRouter.post(
+  HttpRouter.add(
+    "POST",
     "/api/system/tasks/rss",
     authedRouteResponse(
       Effect.flatMap(BackgroundTaskRunner, (runner) => runner.startRssProcessing()),
       acceptedOperationResponse,
     ),
   ),
-  HttpRouter.post(
+  HttpRouter.add(
+    "POST",
     "/api/system/tasks/metadata-refresh",
     authedRouteResponse(
       Effect.flatMap(BackgroundTaskRunner, (runner) => runner.startMetadataRefresh()),

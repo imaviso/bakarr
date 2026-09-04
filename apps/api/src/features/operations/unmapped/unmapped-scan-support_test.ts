@@ -11,7 +11,7 @@ import { encodeConfigCore } from "@/features/system/config-codec.ts";
 import { ConfigCoreSchema } from "@/features/system/config-schema.ts";
 import { makeDefaultConfig } from "@/features/system/defaults.ts";
 import { loadUnmappedFolderSnapshot } from "@/features/operations/unmapped/unmapped-scan-snapshot-support.ts";
-import { tryDatabasePromise } from "@/infra/effect/db.ts";
+import { tryDatabaseQuery } from "@/infra/effect/db.ts";
 import { makeMediaRepository, makeSystemUnmappedRepository } from "@/test/repository-factories.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 import { withFileSystemSandboxEffect } from "@/test/filesystem-test.ts";
@@ -32,11 +32,11 @@ function makeFolder(input: Partial<UnmappedFolder> & Pick<UnmappedFolder, "match
   } satisfies UnmappedFolder;
 }
 
-it.scoped("loadUnmappedFolderSnapshot scans anime, manga, and light novel roots", () =>
+it.effect("loadUnmappedFolderSnapshot scans anime, manga, and light novel roots", () =>
   withFileSystemSandboxEffect(({ fs, root }) =>
     withSqliteTestDbEffect({
       schema,
-      run: (db, databaseFile) =>
+      run: (db, databaseFile, client, _exec) =>
         Effect.gen(function* () {
           const animeRoot = `${root}/anime`;
           const mangaRoot = `${root}/manga`;
@@ -46,8 +46,8 @@ it.scoped("loadUnmappedFolderSnapshot scans anime, manga, and light novel roots"
           yield* fs.mkdir(`${lightNovelRoot}/Light Novel Folder`, { recursive: true });
 
           const defaults = makeDefaultConfig(databaseFile);
-          const encodedDefaults = yield* Schema.encode(ConfigCoreSchema)(defaults);
-          const decodedConfig = yield* Schema.decodeUnknown(ConfigCoreSchema)({
+          const encodedDefaults = yield* Schema.encodeEffect(ConfigCoreSchema)(defaults);
+          const decodedConfig = yield* Schema.decodeUnknownEffect(ConfigCoreSchema)({
             ...encodedDefaults,
             library: {
               ...encodedDefaults.library,
@@ -58,12 +58,17 @@ it.scoped("loadUnmappedFolderSnapshot scans anime, manga, and light novel roots"
           });
           const configData = yield* encodeConfigCore(decodedConfig);
 
-          yield* tryDatabasePromise("Failed to seed appConfig for unmapped scan test", () =>
-            db.insert(appConfig).values({
-              id: 1,
-              data: configData,
-              updatedAt: "2024-01-01T00:00:00.000Z",
-            }),
+          yield* tryDatabaseQuery(
+            "Failed to seed appConfig for unmapped scan test",
+            db
+              .insert(appConfig)
+              .values({
+                id: 1,
+                data: configData,
+                updatedAt: "2024-01-01T00:00:00.000Z",
+              })
+              .prepare()
+              .effect(),
           );
 
           const snapshot = yield* loadUnmappedFolderSnapshot({
@@ -75,8 +80,8 @@ it.scoped("loadUnmappedFolderSnapshot scans anime, manga, and light novel roots"
                 { mediaKind: "manga", path: mangaRoot },
                 { mediaKind: "light_novel", path: lightNovelRoot },
               ]),
-            systemUnmappedRepository: makeSystemUnmappedRepository(db),
-            mediaRepository: makeMediaRepository(db),
+            systemUnmappedRepository: makeSystemUnmappedRepository(db, client),
+            mediaRepository: makeMediaRepository(db, client),
           });
 
           assert.deepStrictEqual(

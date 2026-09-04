@@ -1,10 +1,8 @@
 // oxlint-disable typescript/no-restricted-types -- `unknown` is the honest type at error/cause boundaries (Effect error channels, try/catch causes, Logger messages)
-import { Effect } from "effect";
 
 import type { AsyncOperationAccepted } from "@packages/shared/index.ts";
 import { withLockEffectOrFail } from "@/background/workers.ts";
 import { BackgroundWorkerMonitor } from "@/background/monitor.ts";
-import { BackgroundWorkerTimeouts } from "@/background/worker-timeouts.ts";
 import type { WorkerTimeoutError } from "@/background/workers.ts";
 import type { DatabaseError } from "@/db/database.ts";
 import { InfrastructureError } from "@/features/errors.ts";
@@ -14,6 +12,7 @@ import { MediaMaintenanceService } from "@/features/media/metadata/media-mainten
 import { ManamiCacheRefreshClient } from "@/features/media/metadata/manami.ts";
 import { BackgroundSearchRssWorkerService } from "@/features/operations/background-search/background-search-rss-worker-service.ts";
 import { OperationsTaskLauncherService } from "@/features/operations/tasks/operations-task-launcher-service.ts";
+import { Context, Effect, Layer } from "effect";
 
 /** Job edge only — domain/infra tags mapped into InfrastructureError; timeout stays typed. */
 export type BackgroundTaskRunnerError = WorkerTimeoutError | InfrastructureError;
@@ -166,21 +165,11 @@ const makeBackgroundTaskRunner = Effect.fn("BackgroundTaskRunner.make")(function
   } satisfies BackgroundTaskRunnerShape;
 });
 
-export class BackgroundTaskRunner extends Effect.Service<BackgroundTaskRunner>()(
-  "@bakarr/api/BackgroundTaskRunner",
-  {
-    // BackgroundWorkerMonitor, ManamiCacheRefreshClient + OperationsProgress come
-    // from the lifecycle layer.
-    dependencies: [
-      BackgroundSearchRssWorkerService.Default,
-      BackgroundWorkerTimeouts.Default,
-      CatalogLibraryScanService.Default,
-      DownloadTorrentSyncService.Default,
-      MediaMaintenanceService.Default,
-      OperationsTaskLauncherService.Default,
-    ],
-    effect: makeBackgroundTaskRunner(),
-  },
-) {}
+export class BackgroundTaskRunner extends Context.Service<
+  BackgroundTaskRunner,
+  BackgroundTaskRunnerShape
+>()("@bakarr/api/BackgroundTaskRunner") {
+  static readonly layer = Layer.effect(BackgroundTaskRunner, makeBackgroundTaskRunner());
+}
 
-export const BackgroundTaskRunnerLive = BackgroundTaskRunner.Default;
+export const BackgroundTaskRunnerLive = BackgroundTaskRunner.layer;

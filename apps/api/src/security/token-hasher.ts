@@ -1,7 +1,7 @@
-import { Effect, Encoding, Schema } from "effect";
+import { Context, Effect, Encoding, Layer, Schema } from "effect";
 
 export class TokenHasherError extends Schema.TaggedError<TokenHasherError>()("TokenHasherError", {
-  cause: Schema.optional(Schema.Defect),
+  cause: Schema.optional(Schema.Defect()),
   message: Schema.String,
 }) {}
 
@@ -25,6 +25,8 @@ const hashToken = Effect.fn("TokenHasher.hashToken")(function* (token: string) {
   return Encoding.encodeHex(new Uint8Array(hashBuffer));
 });
 
-export class TokenHasher extends Effect.Service<TokenHasher>()("@bakarr/security/TokenHasher", {
-  succeed: { hashToken },
-}) {}
+export class TokenHasher extends Context.Service<TokenHasher, TokenHasherShape>()(
+  "@bakarr/security/TokenHasher",
+) {
+  static readonly layer = Layer.succeed(TokenHasher, { hashToken });
+}

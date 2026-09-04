@@ -1,5 +1,4 @@
 import { Stream } from "effect";
-
 import type { DownloadEvent } from "@packages/shared/index.ts";
 import type { DatabaseError } from "@/db/database.ts";
 import type { StoredDataError } from "@/features/errors.ts";
@@ -50,14 +49,14 @@ export function renderDownloadEventsExportCsv(
     Stream.map((event) =>
       textEncoder.encode(
         [
-          String(event.id),
+          globalThis.String(event.id),
           event.created_at,
           escapeCsv(event.event_type),
           escapeCsv(event.from_status ?? ""),
           escapeCsv(event.to_status ?? ""),
-          event.media_id === undefined ? "" : String(event.media_id),
+          event.media_id === undefined ? "" : globalThis.String(event.media_id),
           escapeCsv(event.media_title ?? ""),
-          event.download_id === undefined ? "" : String(event.download_id),
+          event.download_id === undefined ? "" : globalThis.String(event.download_id),
           escapeCsv(event.torrent_name ?? ""),
           escapeCsv(event.message),
           escapeCsv(event.metadata ?? ""),

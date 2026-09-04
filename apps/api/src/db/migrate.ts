@@ -1,9 +1,9 @@
-import * as Migrator from "@effect/sql/Migrator";
-import * as SqlClient from "@effect/sql/SqlClient";
-import { Effect } from "effect";
+import * as Migrator from "effect/unstable/sql/Migrator";
+import * as SqlClient from "effect/unstable/sql/SqlClient";
 
 import { AppSqlClient, DatabaseError } from "@/db/database.ts";
 import { embeddedDrizzleMigrations } from "@/generated/embedded-drizzle-migrations.ts";
+import { Effect } from "effect";
 
 const applyMigrationStatements = Effect.fn("Database.applyMigrationStatements")(function* (
   statements: readonly string[],

@@ -74,7 +74,7 @@ function resolveEpisodeNumbers(
     ...new Set(
       futureAiringSchedule
         .map((entry) => entry.episode)
-        .filter((episode) => Number.isInteger(episode) && episode > 0),
+        .filter((episode) => globalThis.Number.isInteger(episode) && episode > 0),
     ),
   ].toSorted((left, right) => left - right);
 

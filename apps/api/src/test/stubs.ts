@@ -1,31 +1,32 @@
-import { CommandExecutor } from "@effect/platform";
-import type { PlatformError } from "@effect/platform/Error";
 import { Effect, Predicate, Stream } from "effect";
+import * as CommandExecutor from "effect/unstable/process/ChildProcessSpawner";
+import type * as PlatformError from "effect/PlatformError";
 
 import type { Config } from "@packages/shared/index.ts";
 import type { RuntimeConfigSnapshotError } from "@/features/system/runtime-config-snapshot-service.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 
-export function makeCommandExecutorStub<E extends PlatformError = never>(
+export function makeCommandExecutorStub<E extends PlatformError.PlatformError = never>(
   runAsString: (
-    command: Parameters<CommandExecutor.CommandExecutor["string"]>[0],
+    command: Parameters<CommandExecutor.ChildProcessSpawner["Service"]["string"]>[0],
   ) => Effect.Effect<string, E>,
-): CommandExecutor.CommandExecutor {
+): CommandExecutor.ChildProcessSpawner["Service"] {
   return {
-    [CommandExecutor.TypeId]: CommandExecutor.TypeId,
-    exitCode: () => Effect.dieMessage("exitCode not implemented for test"),
-    lines: (command, _encoding) =>
+    exitCode: () => Effect.die(new Error("exitCode not implemented for test")),
+    lines: (command) =>
       runAsString(command).pipe(
         Effect.map((value) => value.split(/\r?\n/).filter((line) => line.length > 0)),
       ),
-    start: () => Effect.dieMessage("start not implemented for test"),
-    stream: () => Stream.dieMessage("stream not implemented for test"),
-    streamLines: () => Stream.dieMessage("streamLines not implemented for test"),
-    string: (command, _encoding) => runAsString(command),
+    spawn: () => Effect.die(new Error("spawn not implemented for test")),
+    streamLines: () => Stream.die(new Error("streamLines not implemented for test")),
+    streamString: () => Stream.die(new Error("streamString not implemented for test")),
+    string: (command) => runAsString(command),
   };
 }
 
-export function commandArgs(command: Parameters<CommandExecutor.CommandExecutor["string"]>[0]) {
+export function commandArgs(
+  command: Parameters<CommandExecutor.ChildProcessSpawner["Service"]["string"]>[0],
+) {
   if (Predicate.hasProperty(command, "args")) {
     const { args } = command;
     return Array.isArray(args)
@@ -36,7 +37,9 @@ export function commandArgs(command: Parameters<CommandExecutor.CommandExecutor[
   return [];
 }
 
-export function commandName(command: Parameters<CommandExecutor.CommandExecutor["string"]>[0]) {
+export function commandName(
+  command: Parameters<CommandExecutor.ChildProcessSpawner["Service"]["string"]>[0],
+) {
   if (Predicate.hasProperty(command, "command")) {
     return typeof command.command === "string" ? command.command : undefined;
   }
@@ -44,8 +47,10 @@ export function commandName(command: Parameters<CommandExecutor.CommandExecutor[
   return undefined;
 }
 
-export function makeRuntimeConfigSnapshotStub(config: Config): RuntimeConfigSnapshotService {
-  return RuntimeConfigSnapshotService.make({
+export function makeRuntimeConfigSnapshotStub(
+  config: Config,
+): typeof RuntimeConfigSnapshotService.Service {
+  return RuntimeConfigSnapshotService.of({
     getRuntimeConfig: () => Effect.succeed(config),
     replaceRuntimeConfig: () => Effect.void,
   });
@@ -53,8 +58,8 @@ export function makeRuntimeConfigSnapshotStub(config: Config): RuntimeConfigSnap
 
 export function makeFailingRuntimeConfigSnapshotStub(
   error: RuntimeConfigSnapshotError,
-): RuntimeConfigSnapshotService {
-  return RuntimeConfigSnapshotService.make({
+): typeof RuntimeConfigSnapshotService.Service {
+  return RuntimeConfigSnapshotService.of({
     getRuntimeConfig: () => Effect.fail(error),
     replaceRuntimeConfig: () => Effect.void,
   });

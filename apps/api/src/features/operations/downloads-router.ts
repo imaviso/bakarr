@@ -1,5 +1,5 @@
-import { HttpRouter } from "@effect/platform";
-import { Effect, Schema } from "effect";
+import * as HttpRouter from "effect/unstable/http/HttpRouter";
+import { Effect, Layer, Schema } from "effect";
 import {
   AsyncOperationAcceptedSchema,
   DownloadEventsPageSchema,
@@ -29,22 +29,25 @@ import {
   successResponse,
 } from "@/infra/http/router-helpers.ts";
 
-export const downloadsRouter = HttpRouter.empty.pipe(
-  HttpRouter.get(
+export const downloadsRouter = Layer.mergeAll(
+  HttpRouter.add(
+    "GET",
     "/downloads/queue",
     authedRouteResponse(
       Effect.flatMap(CatalogDownloadReadService, (service) => service.listDownloadQueue()),
       schemaJsonResponse(Schema.Array(DownloadStatusSchema)),
     ),
   ),
-  HttpRouter.get(
+  HttpRouter.add(
+    "GET",
     "/downloads/history",
     authedRouteResponse(
       Effect.flatMap(CatalogDownloadReadService, (service) => service.listDownloadHistory()),
       schemaJsonResponse(Schema.Array(DownloadSchema)),
     ),
   ),
-  HttpRouter.get(
+  HttpRouter.add(
+    "GET",
     "/downloads/events",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -56,7 +59,8 @@ export const downloadsRouter = HttpRouter.empty.pipe(
       schemaJsonResponse(DownloadEventsPageSchema),
     ),
   ),
-  HttpRouter.get(
+  HttpRouter.add(
+    "GET",
     "/downloads/events/export",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -102,7 +106,8 @@ export const downloadsRouter = HttpRouter.empty.pipe(
         ),
     ),
   ),
-  HttpRouter.post(
+  HttpRouter.add(
+    "POST",
     "/downloads/:id/pause",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -112,7 +117,8 @@ export const downloadsRouter = HttpRouter.empty.pipe(
       successResponse,
     ),
   ),
-  HttpRouter.post(
+  HttpRouter.add(
+    "POST",
     "/downloads/:id/resume",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -122,7 +128,8 @@ export const downloadsRouter = HttpRouter.empty.pipe(
       successResponse,
     ),
   ),
-  HttpRouter.post(
+  HttpRouter.add(
+    "POST",
     "/downloads/:id/retry",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -132,7 +139,8 @@ export const downloadsRouter = HttpRouter.empty.pipe(
       successResponse,
     ),
   ),
-  HttpRouter.post(
+  HttpRouter.add(
+    "POST",
     "/downloads/:id/reconcile",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -142,14 +150,16 @@ export const downloadsRouter = HttpRouter.empty.pipe(
       successResponse,
     ),
   ),
-  HttpRouter.post(
+  HttpRouter.add(
+    "POST",
     "/downloads/sync",
     authedRouteResponse(
       Effect.flatMap(DownloadTorrentSyncService, (service) => service.startDownloadSync()),
       schemaAcceptedResponse(AsyncOperationAcceptedSchema),
     ),
   ),
-  HttpRouter.del(
+  HttpRouter.add(
+    "DELETE",
     "/downloads/:id",
     authedRouteResponse(
       Effect.gen(function* () {

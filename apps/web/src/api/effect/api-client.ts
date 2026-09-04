@@ -1,4 +1,4 @@
-import { Cause, Effect, Exit, Option, Schema } from "effect";
+import { Cause, Effect, Exit, Option, Result, Schema } from "effect";
 import { getAuthHeaders } from "@/app/auth-state";
 import { API_BASE } from "@/api/constants";
 
@@ -8,7 +8,7 @@ export class ApiClientError extends Schema.TaggedError<ApiClientError>()("ApiCli
 }) {}
 
 export class ApiDecodeError extends Schema.TaggedError<ApiDecodeError>()("ApiDecodeError", {
-  cause: Schema.optional(Schema.Defect),
+  cause: Schema.optional(Schema.Defect()),
   message: Schema.String,
 }) {}
 
@@ -26,7 +26,7 @@ export async function runApiEffect<A, E>(effect: Effect.Effect<A, E>): Promise<A
 
   if (Exit.isSuccess(exit)) return exit.value;
 
-  const failure = Cause.failureOption(exit.cause);
+  const failure = Cause.findErrorOption(exit.cause);
   if (Option.isSome(failure)) throw failure.value;
 
   throw Cause.squash(exit.cause);
@@ -163,7 +163,7 @@ export const fetchResponse = Effect.fn("ApiClient.fetchResponse")(
 );
 
 export const fetchJson = <A, I>(
-  schema: Schema.Schema<A, I>,
+  schema: Schema.Codec<A, I>,
   endpoint: string,
   options?: ApiRequestOptions,
   signal?: AbortSignal,
@@ -183,11 +183,13 @@ export const fetchJson = <A, I>(
       },
     });
 
-    return yield* Schema.decodeUnknown(schema)(json).pipe(
-      Effect.mapError(
-        (cause) => new ApiDecodeError({ message: "Schema validation failed", cause }),
-      ),
-    );
+    const decoded = yield* Effect.result(Schema.decodeUnknownEffect(schema)(json));
+    if (Result.isFailure(decoded)) {
+      return yield* Effect.fail(
+        new ApiDecodeError({ message: "Schema validation failed", cause: decoded.failure }),
+      );
+    }
+    return decoded.success;
   });
 
 export const fetchUnit = (

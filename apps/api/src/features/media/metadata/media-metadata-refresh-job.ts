@@ -1,6 +1,6 @@
 // oxlint-disable typescript/no-restricted-types -- `unknown` is the honest type at error/cause boundaries (Effect error channels, try/catch causes, Logger messages)
-import { Cause, Effect, Option, Ref } from "effect";
 
+import { Cause, Effect, Option, Ref } from "effect";
 import { DatabaseError } from "@/db/database.ts";
 import { MediaImageCacheService } from "@/features/media/metadata/media-image-cache-service.ts";
 import type { MediaMetadataProviderService } from "@/features/media/metadata/media-metadata-provider-service.ts";
@@ -41,25 +41,23 @@ export const refreshMetadataForMonitoredMediaEffect = Effect.fn(
       markFailed: input.backgroundJobRepository.markFailed("metadata_refresh", error, nowIso),
     }).pipe(
       Effect.catchTag("JobFailurePersistenceError", () => Effect.void),
-      Effect.zipRight(
+      Effect.andThen(
         input.systemLogRepository
           .appendLog("system.task.metadata_refresh.failed", "error", message, nowIso)
           .pipe(
-            Effect.catchAllCause((appendLogCause) =>
+            Effect.catchCause((appendLogCause) =>
               Effect.logError("Failed to append metadata refresh failure log").pipe(
                 Effect.annotateLogs({
                   append_log_cause: Cause.pretty(appendLogCause),
                   job: "metadata_refresh",
                   run_failure: error.message,
                 }),
-                Effect.zipRight(
-                  Effect.failCause(Cause.sequential(Cause.fail(error), appendLogCause)),
-                ),
+                Effect.andThen(Effect.failCause(Cause.combine(Cause.fail(error), appendLogCause))),
               ),
             ),
           ),
       ),
-      Effect.zipRight(Effect.fail(error)),
+      Effect.andThen(Effect.fail(error)),
     );
 
   const markFailureCauseAndAppendSystemLog = (cause: Cause.Cause<unknown>) => {
@@ -76,7 +74,7 @@ export const refreshMetadataForMonitoredMediaEffect = Effect.fn(
       markFailed: input.backgroundJobRepository.markFailed("metadata_refresh", cause, nowIso),
     }).pipe(
       Effect.catchTag("JobFailurePersistenceError", () => Effect.void),
-      Effect.zipRight(
+      Effect.andThen(
         input.systemLogRepository
           .appendLog(
             "system.task.metadata_refresh.failed",
@@ -85,23 +83,21 @@ export const refreshMetadataForMonitoredMediaEffect = Effect.fn(
             nowIso,
           )
           .pipe(
-            Effect.catchAllCause((appendLogCause) =>
+            Effect.catchCause((appendLogCause) =>
               Effect.logError("Failed to append metadata refresh infrastructure failure log").pipe(
                 Effect.annotateLogs({
                   append_log_cause: Cause.pretty(appendLogCause),
                   job: "metadata_refresh",
                   run_failure_cause: Cause.pretty(cause),
                 }),
-                Effect.zipRight(
-                  Effect.failCause(
-                    Cause.sequential(Cause.fail(infrastructureError), appendLogCause),
-                  ),
+                Effect.andThen(
+                  Effect.failCause(Cause.combine(Cause.fail(infrastructureError), appendLogCause)),
                 ),
               ),
             ),
           ),
       ),
-      Effect.zipRight(Effect.fail(infrastructureError)),
+      Effect.andThen(Effect.fail(infrastructureError)),
     );
   };
 
@@ -146,8 +142,8 @@ export const refreshMetadataForMonitoredMediaEffect = Effect.fn(
           // library. Only a failure of the monitored-ids listing above fails
           // the whole job. Defects and interrupts are not swallowed — they
           // indicate programmer bugs / shutdown and must propagate.
-          Effect.catchAllCause((cause) =>
-            Cause.isInterruptedOnly(cause) || Cause.defects(cause).length > 0
+          Effect.catchCause((cause) =>
+            Cause.hasInterruptsOnly(cause) || cause.reasons.filter(Cause.isDieReason).length > 0
               ? Effect.failCause(cause)
               : Effect.logWarning("Skipping metadata refresh for media after failure").pipe(
                   Effect.annotateLogs({
@@ -179,8 +175,8 @@ export const refreshMetadataForMonitoredMediaEffect = Effect.fn(
 
     return { refreshed };
   }).pipe(
-    Effect.catchAllCause((cause) => {
-      const failure = Cause.failureOption(cause);
+    Effect.catchCause((cause) => {
+      const failure = Cause.findErrorOption(cause);
 
       if (Option.isSome(failure)) {
         if (failure.value instanceof ExternalCallError || failure.value instanceof DatabaseError) {

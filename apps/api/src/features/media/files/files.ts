@@ -1,12 +1,12 @@
 import type { VideoFile } from "@packages/shared/index.ts";
 import type { DirEntry, FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import { isNotFoundError } from "@/infra/filesystem/fs-errors.ts";
-import { Effect } from "effect";
 import {
   classifyMediaArtifact,
   parseFileSourceIdentity,
 } from "@/features/media/identity/identity.ts";
 import { parseVolumeNumbersFromTitle } from "@/features/operations/search/release-volume.ts";
+import { Effect } from "effect";
 import {
   VOLUME_UNIT_FILE_EXTENSIONS,
   VIDEO_UNIT_FILE_EXTENSIONS,

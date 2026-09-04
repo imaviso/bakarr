@@ -1,5 +1,4 @@
 import type { Config, QualityProfile, ReleaseProfileRule } from "@packages/shared/index.ts";
-import { Option } from "effect";
 import { assert, it } from "@effect/vitest";
 
 import { decideDownloadAction } from "@/features/operations/search/release-ranking-action.ts";
@@ -8,6 +7,7 @@ import type {
   RankedRelease,
 } from "@/features/operations/search/release-ranking-types.ts";
 import { makeTestConfig } from "@/test/config-fixture.ts";
+import { Option } from "effect";
 
 function makeProfile(overrides: Partial<QualityProfile> = {}): QualityProfile {
   return {

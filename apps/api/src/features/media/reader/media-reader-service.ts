@@ -1,6 +1,6 @@
-import { CommandExecutor } from "@effect/platform";
+import * as CommandExecutor from "effect/unstable/process/ChildProcessSpawner";
 import { dirname, join, resolve } from "node:path";
-import { Cache, Effect, Schema } from "effect";
+import { Cache, Context, Effect, Layer, Schema, Semaphore } from "effect";
 import type { ReaderPage, ReaderPagesResponse } from "@packages/shared/index.ts";
 
 import type { DatabaseError } from "@/db/database.ts";
@@ -94,7 +94,7 @@ const naturalPathCollator = new Intl.Collator(undefined, {
   sensitivity: "base",
 });
 
-const UnitFileCacheKeySchema = Schema.parseJson(
+const UnitFileCacheKeySchema = Schema.fromJsonString(
   Schema.Struct({
     fileName: Schema.String,
     filePath: Schema.String,
@@ -131,7 +131,7 @@ function cacheKeyFile(cacheKey: string): ReaderUnitFile {
 const makeMediaReaderService = Effect.fn("MediaReaderService.make")(function* () {
   const fs = yield* FileSystem;
   const mediaRepository = yield* MediaRepository;
-  const executor = yield* CommandExecutor.CommandExecutor;
+  const executor = yield* CommandExecutor.ChildProcessSpawner;
   const config = yield* AppConfig;
   const cacheRoot = join(dirname(resolve(config.databaseFile)), "reader-cache");
   // Effect Cache: per-key lookup dedup (concurrent lookups of the same key share
@@ -170,9 +170,12 @@ const makeMediaReaderService = Effect.fn("MediaReaderService.make")(function* ()
         unitFile: cacheKeyFile(cacheKey),
       }),
   });
-  const getPdfRenderSemaphore = yield* Effect.cachedFunction((_cacheDirectory: string) =>
-    Effect.makeSemaphore(1),
-  );
+  const pdfRenderSemaphores = yield* Cache.make<string, Semaphore.Semaphore>({
+    capacity: 32,
+    lookup: () => Semaphore.make(1),
+  });
+  const getPdfRenderSemaphore = (cacheDirectory: string) =>
+    Cache.get(pdfRenderSemaphores, cacheDirectory);
 
   const listPages = Effect.fn("MediaReaderService.listPages")(function* (
     mediaId: number,
@@ -184,7 +187,7 @@ const makeMediaReaderService = Effect.fn("MediaReaderService.make")(function* ()
       mediaRepository,
       unitNumber,
     });
-    const sources = yield* pageSourcesCache.get(unitFileCacheKey(unitFile));
+    const sources = yield* Cache.get(pageSourcesCache, unitFileCacheKey(unitFile));
 
     return {
       pages: sources.map((source, index) => toReaderPage(mediaId, unitNumber, source, index)),
@@ -202,7 +205,7 @@ const makeMediaReaderService = Effect.fn("MediaReaderService.make")(function* ()
       mediaRepository,
       unitNumber,
     });
-    const sources = yield* pageSourcesCache.get(unitFileCacheKey(unitFile));
+    const sources = yield* Cache.get(pageSourcesCache, unitFileCacheKey(unitFile));
     const source = sources[pageNumber - 1];
 
     if (!source) {
@@ -218,15 +221,14 @@ const makeMediaReaderService = Effect.fn("MediaReaderService.make")(function* ()
   return { listPages, readPageImage } satisfies MediaReaderServiceShape;
 });
 
-export class MediaReaderService extends Effect.Service<MediaReaderService>()(
-  "@bakarr/api/MediaReaderService",
-  {
-    dependencies: [MediaRepository.Default],
-    effect: makeMediaReaderService(),
-  },
-) {}
+export class MediaReaderService extends Context.Service<
+  MediaReaderService,
+  MediaReaderServiceShape
+>()("@bakarr/api/MediaReaderService") {
+  static readonly layer = Layer.effect(MediaReaderService, makeMediaReaderService());
+}
 
-export const MediaReaderServiceLive = MediaReaderService.Default;
+export const MediaReaderServiceLive = MediaReaderService.layer;
 
 const resolveReaderUnitFile = Effect.fn("MediaReader.resolveReaderUnitFile")(function* (input: {
   readonly fs: FileSystemShape;
@@ -274,7 +276,7 @@ const deriveReadablePageSources = Effect.fn("MediaReader.deriveReadablePageSourc
   function* (input: {
     readonly archiveCache: Cache.Cache<string, ZipArchive, ReaderAccessError>;
     readonly cacheRoot: string;
-    readonly executor: CommandExecutor.CommandExecutor;
+    readonly executor: CommandExecutor.ChildProcessSpawner["Service"];
     readonly fs: FileSystemShape;
     readonly unitFile: ReaderUnitFile;
   }) {
@@ -359,7 +361,7 @@ const listArchivePages = Effect.fn("MediaReader.listArchivePages")(function* (in
   }
 
   // Cache.get dedups concurrent lookups of the same key (one in-flight load).
-  const archive = yield* input.archiveCache.get(unitFileCacheKey(input.unitFile));
+  const archive = yield* Cache.get(input.archiveCache, unitFileCacheKey(input.unitFile));
   const pages = listArchiveImagePages(archive, input.format).flatMap((page): ReaderPageSource[] => {
     const entry = findZipEntry(archive, page.path);
     return entry
@@ -445,9 +447,9 @@ const listDirectoryImagePages = Effect.fn("MediaReader.listDirectoryImagePages")
 });
 
 const readPageSourceImage = Effect.fn("MediaReader.readPageSourceImage")(function* (input: {
-  readonly executor: CommandExecutor.CommandExecutor;
+  readonly executor: CommandExecutor.ChildProcessSpawner["Service"];
   readonly fs: FileSystemShape;
-  readonly getPdfRenderSemaphore: (cacheDirectory: string) => Effect.Effect<Effect.Semaphore>;
+  readonly getPdfRenderSemaphore: (cacheDirectory: string) => Effect.Effect<Semaphore.Semaphore>;
   readonly source: ReaderPageSource;
 }) {
   switch (input.source._tag) {
@@ -487,7 +489,7 @@ const readPageSourceImage = Effect.fn("MediaReader.readPageSourceImage")(functio
     }
   }
 
-  return yield* Effect.dieMessage("Unsupported reader page source");
+  return yield* Effect.die(new Error("Unsupported reader page source"));
 });
 
 function readImageFile(fs: FileSystemShape, filePath: string) {

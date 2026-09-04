@@ -1,6 +1,6 @@
 import { assert, describe, it } from "@effect/vitest";
-import { Option } from "effect";
 
+import { Option } from "effect";
 import {
   buildClaimToken,
   isClaimToken,

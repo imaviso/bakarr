@@ -11,7 +11,7 @@ export class UnitFileResolveError extends Schema.TaggedError<UnitFileResolveErro
     filePath: Schema.optional(Schema.String),
     mediaId: Schema.Number,
     message: Schema.String,
-    reason: Schema.Literal("unmapped", "missing", "root-inaccessible", "outside-root"),
+    reason: Schema.Literals(["unmapped", "missing", "root-inaccessible", "outside-root"]),
     rootFolder: Schema.optional(Schema.String),
     unitNumber: Schema.Number,
   },

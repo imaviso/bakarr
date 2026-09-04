@@ -1,5 +1,8 @@
+import type * as NodeSqliteClient from "@effect/sql-sqlite-node/SqliteClient";
+
+import * as TestClock from "effect/testing/TestClock";
+import { Effect, Layer, Ref } from "effect";
 import { assert, it } from "@effect/vitest";
-import { Effect, Layer, Ref, TestClock } from "effect";
 
 import * as schema from "@/db/schema.ts";
 import { AppDrizzleDatabase, type AppDatabase } from "@/db/database.ts";
@@ -22,23 +25,27 @@ import {
 } from "@/test/repository-factories.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 
-function makeEnrichmentLayer(db: AppDatabase, lookup: typeof AniDbClient.Service) {
-  return MediaMetadataEnrichmentService.DefaultWithoutDependencies.pipe(
+function makeEnrichmentLayer(
+  db: AppDatabase,
+  client: NodeSqliteClient.SqliteClient,
+  lookup: typeof AniDbClient.Service,
+) {
+  return MediaMetadataEnrichmentService.layer.pipe(
     Layer.provide(
       Layer.mergeAll(
         Layer.succeed(AniDbClient, lookup),
-        Layer.succeed(AppDrizzleDatabase, AppDrizzleDatabase.make(db)),
-        Layer.succeed(AniDbUnitCacheRepository, makeAniDbUnitCacheRepository(db)),
-        Layer.succeed(MediaRepository, makeMediaRepository(db)),
-        Layer.succeed(MediaUnitRepository, makeMediaUnitRepository(db)),
+        Layer.succeed(AppDrizzleDatabase, AppDrizzleDatabase.of(db)),
+        Layer.succeed(AniDbUnitCacheRepository, makeAniDbUnitCacheRepository(db, client)),
+        Layer.succeed(MediaRepository, makeMediaRepository(db, client)),
+        Layer.succeed(MediaUnitRepository, makeMediaUnitRepository(db, client)),
       ),
     ),
   );
 }
 
-it.scoped("transient AniDB skip does not poison the cache", () =>
+it.effect("transient AniDB skip does not poison the cache", () =>
   withSqliteTestDbEffect({
-    run: (db) =>
+    run: (db, _databaseFile, client, _exec) =>
       Effect.gen(function* () {
         const lookupCallsRef = yield* Ref.make(0);
         const skippedLookup = (
@@ -53,7 +60,7 @@ it.scoped("transient AniDB skip does not poison the cache", () =>
 
         yield* TestClock.setTime(new Date("2024-01-01T01:00:00.000Z").getTime());
 
-        const cacheRepository = makeAniDbUnitCacheRepository(db);
+        const cacheRepository = makeAniDbUnitCacheRepository(db, client);
         yield* cacheRepository.upsert({
           mediaId: 1,
           mediaUnits: [{ number: 1, title: "Cached Episode" }],
@@ -73,7 +80,7 @@ it.scoped("transient AniDB skip does not poison the cache", () =>
 
           let attempts = 0;
           while ((yield* Ref.get(lookupCallsRef)) === 0 && attempts < 10_000) {
-            yield* Effect.yieldNow();
+            yield* Effect.yieldNow;
             attempts += 1;
           }
           assert.deepStrictEqual(yield* Ref.get(lookupCallsRef), 1);
@@ -89,11 +96,11 @@ it.scoped("transient AniDB skip does not poison the cache", () =>
           }
         }).pipe(
           Effect.provide(
-            makeEnrichmentLayer(db, AniDbClient.make({ getEpisodeMetadata: skippedLookup })),
+            makeEnrichmentLayer(db, client, AniDbClient.of({ getEpisodeMetadata: skippedLookup })),
           ),
         );
 
-        const rows = yield* Effect.tryPromise(() => db.select().from(schema.anidbEpisodeCache));
+        const rows = yield* db.select().from(schema.anidbEpisodeCache).prepare().effect();
         assert.deepStrictEqual(rows.length, 1);
         assert.deepStrictEqual(rows[0]?.updatedAt, "2024-01-01T00:30:00.000Z");
       }),

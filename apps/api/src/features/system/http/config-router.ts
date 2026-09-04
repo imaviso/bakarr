@@ -1,5 +1,5 @@
-import { HttpRouter } from "@effect/platform";
-import { Effect, Schema } from "effect";
+import * as HttpRouter from "effect/unstable/http/HttpRouter";
+import { Effect, Layer, Schema } from "effect";
 import { QualitySchema, ReleaseProfileSchema } from "@packages/shared/index.ts";
 
 import { QualityProfileService } from "@/features/system/quality-profile-service.ts";
@@ -25,8 +25,9 @@ import {
   successResponse,
 } from "@/infra/http/router-helpers.ts";
 
-export const configRouter = HttpRouter.empty.pipe(
-  HttpRouter.get(
+export const configRouter = Layer.mergeAll(
+  HttpRouter.add(
+    "GET",
     "/api/system/config",
     authedRouteResponse(
       Effect.flatMap(SystemConfigService, (service) =>
@@ -35,7 +36,8 @@ export const configRouter = HttpRouter.empty.pipe(
       schemaJsonResponse(ConfigSchema),
     ),
   ),
-  HttpRouter.put(
+  HttpRouter.add(
+    "PUT",
     "/api/system/config",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -47,21 +49,24 @@ export const configRouter = HttpRouter.empty.pipe(
       schemaJsonResponse(ConfigSchema),
     ),
   ),
-  HttpRouter.get(
+  HttpRouter.add(
+    "GET",
     "/api/profiles",
     authedRouteResponse(
       Effect.flatMap(QualityProfileService, (service) => service.listProfiles()),
       schemaJsonResponse(Schema.Array(QualityProfileSchema)),
     ),
   ),
-  HttpRouter.get(
+  HttpRouter.add(
+    "GET",
     "/api/profiles/qualities",
     authedRouteResponse(
       Effect.flatMap(QualityProfileService, (service) => service.listQualities()),
       schemaJsonResponse(Schema.Array(QualitySchema)),
     ),
   ),
-  HttpRouter.post(
+  HttpRouter.add(
+    "POST",
     "/api/profiles",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -71,7 +76,8 @@ export const configRouter = HttpRouter.empty.pipe(
       schemaJsonResponse(QualityProfileSchema),
     ),
   ),
-  HttpRouter.put(
+  HttpRouter.add(
+    "PUT",
     "/api/profiles/:name",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -82,7 +88,8 @@ export const configRouter = HttpRouter.empty.pipe(
       schemaJsonResponse(QualityProfileSchema),
     ),
   ),
-  HttpRouter.del(
+  HttpRouter.add(
+    "DELETE",
     "/api/profiles/:name",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -92,14 +99,16 @@ export const configRouter = HttpRouter.empty.pipe(
       successResponse,
     ),
   ),
-  HttpRouter.get(
+  HttpRouter.add(
+    "GET",
     "/api/release-profiles",
     authedRouteResponse(
       Effect.flatMap(ReleaseProfileService, (service) => service.listReleaseProfiles()),
       schemaJsonResponse(Schema.Array(ReleaseProfileSchema)),
     ),
   ),
-  HttpRouter.post(
+  HttpRouter.add(
+    "POST",
     "/api/release-profiles",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -112,7 +121,8 @@ export const configRouter = HttpRouter.empty.pipe(
       schemaJsonResponse(ReleaseProfileSchema),
     ),
   ),
-  HttpRouter.put(
+  HttpRouter.add(
+    "PUT",
     "/api/release-profiles/:id",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -126,7 +136,8 @@ export const configRouter = HttpRouter.empty.pipe(
       successResponse,
     ),
   ),
-  HttpRouter.del(
+  HttpRouter.add(
+    "DELETE",
     "/api/release-profiles/:id",
     authedRouteResponse(
       Effect.gen(function* () {

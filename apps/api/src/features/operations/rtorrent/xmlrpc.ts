@@ -1,8 +1,8 @@
 // oxlint-disable typescript/no-restricted-types -- `unknown` is the honest type at error/cause boundaries (Effect error channels, try/catch causes, Logger messages)
 import { XMLParser } from "fast-xml-parser";
-import { Effect } from "effect";
 
 import { TorrentClientUnavailableError } from "@/features/operations/torrent/torrent-domain.ts";
+import { Effect, Record } from "effect";
 
 export interface XmlRpcValue {
   readonly kind: "int" | "string" | "boolean" | "double" | "array" | "struct";
@@ -184,7 +184,7 @@ function convertRpcValue(raw: unknown): XmlRpcValue {
   }
 
   if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
-    return scalarFromString(String(value));
+    return scalarFromString(globalThis.String(value));
   }
 
   if (!isRecord(value)) {
@@ -240,7 +240,7 @@ function scalarFromString(text: string): XmlRpcValue {
 export function structGetString(value: XmlRpcValue, key: string): string | undefined {
   const member = value.structValue?.[key];
   if (member?.stringValue !== undefined) return member.stringValue;
-  if (member?.intValue !== undefined) return String(member.intValue);
+  if (member?.intValue !== undefined) return globalThis.String(member.intValue);
   return undefined;
 }
 
@@ -264,5 +264,5 @@ export function expectString(value: XmlRpcValue): string {
   if (value.kind !== "string" && value.kind !== "int") {
     throw new Error("Unexpected rTorrent RPC response shape: expected scalar");
   }
-  return value.stringValue ?? String(value.intValue ?? "");
+  return value.stringValue ?? globalThis.String(value.intValue ?? "");
 }

@@ -27,15 +27,17 @@ import { copyToClipboard } from "@/infra/utils";
 
 const ChangePasswordSchema = Schema.Struct({
   currentPassword: Schema.String.pipe(
-    Schema.minLength(1, { message: () => "Current password is required" }),
-    Schema.maxLength(256, { message: () => "Current password must be 256 characters or less" }),
+    Schema.check(Schema.isMinLength(1, { message: "Current password is required" })),
+    Schema.check(
+      Schema.isMaxLength(256, { message: "Current password must be 256 characters or less" }),
+    ),
   ),
   newPassword: Schema.String.pipe(
-    Schema.minLength(8, { message: () => "Password must be at least 8 characters" }),
-    Schema.maxLength(256, { message: () => "Password must be 256 characters or less" }),
+    Schema.check(Schema.isMinLength(8, { message: "Password must be at least 8 characters" })),
+    Schema.check(Schema.isMaxLength(256, { message: "Password must be 256 characters or less" })),
   ),
   confirmPassword: Schema.String.pipe(
-    Schema.minLength(1, { message: () => "Please confirm your password" }),
+    Schema.check(Schema.isMinLength(1, { message: "Please confirm your password" })),
   ),
 });
 
@@ -59,7 +61,7 @@ export function AccountSettingsForm() {
       confirmPassword: "",
     },
     validators: {
-      onChange: Schema.standardSchemaV1(ChangePasswordSchema),
+      onChange: Schema.toStandardSchemaV1(ChangePasswordSchema),
     },
     onSubmit: ({ value, formApi }) => {
       changePassword.mutate(

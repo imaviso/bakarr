@@ -1,5 +1,4 @@
 // oxlint-disable typescript/no-restricted-types -- `unknown` is the honest type at error/cause boundaries (Effect error channels, try/catch causes, Logger messages)
-import { Effect } from "effect";
 
 import {
   TorrentClientUnavailableError,
@@ -8,6 +7,7 @@ import {
   type TorrentState,
 } from "@/features/operations/torrent/torrent-domain.ts";
 import type { ScgiTransportShape } from "@/features/operations/rtorrent/scgi-transport.ts";
+import { Effect } from "effect";
 import {
   decodeXmlRpcResponse,
   encodeXmlRpcCall,
@@ -212,7 +212,7 @@ export const makeRtorrentClient = (
     // placeholders ("<hash>.meta") and RPC faults for unknown hashes.
     const hasHashTorrent = Effect.fn("RtorrentClient.hasHashTorrent")(function* (hash: string) {
       const reply = yield* call("rtorrent.hasHashTorrent", "d.name", [str(hash)]).pipe(
-        Effect.catchAll(() => Effect.succeed(null)),
+        Effect.catch(() => Effect.succeed(null)),
       );
 
       if (reply === null || reply.kind === "array" || reply.kind === "struct") return false;

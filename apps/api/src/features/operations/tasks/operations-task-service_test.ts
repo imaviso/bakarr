@@ -15,17 +15,15 @@ import * as schema from "@/db/schema.ts";
 import { OperationsTaskRepository } from "@/features/operations/repository/task-repository.ts";
 
 describe("OperationsTaskService", () => {
-  it.scoped("creates and fetches tasks", () =>
+  it.effect("creates and fetches tasks", () =>
     withSqliteTestDbEffect({
-      run: (db) =>
+      run: (db, _databaseFile, _client, _exec) =>
         Effect.gen(function* () {
-          const databaseLayer = Layer.succeed(AppDrizzleDatabase, AppDrizzleDatabase.make(db));
-          const repositoryLayer = OperationsTaskRepository.DefaultWithoutDependencies.pipe(
-            Layer.provide(databaseLayer),
-          );
+          const databaseLayer = Layer.succeed(AppDrizzleDatabase, AppDrizzleDatabase.of(db));
+          const repositoryLayer = OperationsTaskRepository.layer.pipe(Layer.provide(databaseLayer));
           const serviceLayer = Layer.mergeAll(
-            OperationsTaskReadService.DefaultWithoutDependencies,
-            OperationsTaskWriteService.DefaultWithoutDependencies,
+            OperationsTaskReadService.layer,
+            OperationsTaskWriteService.layer,
           ).pipe(Layer.provide(Layer.mergeAll(repositoryLayer, EventBusNoopLive)));
 
           const accepted = yield* Effect.flatMap(OperationsTaskWriteService, (service) =>
@@ -57,17 +55,15 @@ describe("OperationsTaskService", () => {
     }),
   );
 
-  it.scoped("getTaskForTaskKey enforces task-key and media ownership", () =>
+  it.effect("getTaskForTaskKey enforces task-key and media ownership", () =>
     withSqliteTestDbEffect({
-      run: (db) =>
+      run: (db, _databaseFile, _client, _exec) =>
         Effect.gen(function* () {
-          const databaseLayer = Layer.succeed(AppDrizzleDatabase, AppDrizzleDatabase.make(db));
-          const repositoryLayer = OperationsTaskRepository.DefaultWithoutDependencies.pipe(
-            Layer.provide(databaseLayer),
-          );
+          const databaseLayer = Layer.succeed(AppDrizzleDatabase, AppDrizzleDatabase.of(db));
+          const repositoryLayer = OperationsTaskRepository.layer.pipe(Layer.provide(databaseLayer));
           const serviceLayer = Layer.mergeAll(
-            OperationsTaskReadService.DefaultWithoutDependencies,
-            OperationsTaskWriteService.DefaultWithoutDependencies,
+            OperationsTaskReadService.layer,
+            OperationsTaskWriteService.layer,
           ).pipe(Layer.provide(Layer.mergeAll(repositoryLayer, EventBusNoopLive)));
 
           const writeTask = (input: {
@@ -179,8 +175,8 @@ describe("OperationsTaskService", () => {
     Effect.gen(function* () {
       const payload = { imported: 5, failed: 0 };
       const result = yield* encodeTaskPayload(payload);
-      const parsed = yield* Schema.decodeUnknown(
-        Schema.parseJson(Schema.Struct({ imported: Schema.Number, failed: Schema.Number })),
+      const parsed = yield* Schema.decodeUnknownEffect(
+        Schema.fromJsonString(Schema.Struct({ imported: Schema.Number, failed: Schema.Number })),
       )(result);
       assert.deepStrictEqual(parsed, payload);
     }),

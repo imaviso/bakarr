@@ -1,4 +1,4 @@
-import { Schema } from "effect";
+import { Effect, Schema, SchemaTransformation } from "effect";
 
 export type DownloadEventsDirection = "next" | "prev";
 
@@ -81,40 +81,32 @@ export function createDownloadEventsSearchDefaults(
   };
 }
 
+const DirectionSchema = Schema.String.pipe(
+  Schema.decodeTo(
+    Schema.Literals(["next", "prev"]),
+    SchemaTransformation.transform({
+      decode: (direction) => toDownloadEventsDirection(direction),
+      encode: (direction) => direction,
+    }),
+  ),
+);
+
 export function createDownloadEventsSearchSchema(
   keys: DownloadEventsSearchKeys,
   defaults = createDownloadEventsSearchDefaults(keys),
 ) {
-  const DirectionSchema = Schema.transform(Schema.String, Schema.Literal("next", "prev"), {
-    decode: (direction) => toDownloadEventsDirection(direction),
-    encode: (direction) => direction,
-  });
+  const withDefault = (key: string) =>
+    Schema.String.pipe(Schema.withDecodingDefault(Effect.succeed(defaults[key] ?? "")));
 
   return Schema.Struct({
-    [keys.mediaId]: Schema.optionalWith(Schema.String, {
-      default: () => defaults[keys.mediaId] ?? "",
-    }),
-    [keys.cursor]: Schema.optionalWith(Schema.String, {
-      default: () => defaults[keys.cursor] ?? "",
-    }),
-    [keys.direction]: Schema.optionalWith(DirectionSchema, {
-      default: () => "next",
-    }),
-    [keys.downloadId]: Schema.optionalWith(Schema.String, {
-      default: () => defaults[keys.downloadId] ?? "",
-    }),
-    [keys.endDate]: Schema.optionalWith(Schema.String, {
-      default: () => defaults[keys.endDate] ?? "",
-    }),
-    [keys.eventType]: Schema.optionalWith(Schema.String, {
-      default: () => defaults[keys.eventType] ?? "",
-    }),
-    [keys.startDate]: Schema.optionalWith(Schema.String, {
-      default: () => defaults[keys.startDate] ?? "",
-    }),
-    [keys.status]: Schema.optionalWith(Schema.String, {
-      default: () => defaults[keys.status] ?? "",
-    }),
+    [keys.mediaId]: withDefault(keys.mediaId),
+    [keys.cursor]: withDefault(keys.cursor),
+    [keys.direction]: DirectionSchema.pipe(Schema.withDecodingDefaultType(Effect.succeed("next"))),
+    [keys.downloadId]: withDefault(keys.downloadId),
+    [keys.endDate]: withDefault(keys.endDate),
+    [keys.eventType]: withDefault(keys.eventType),
+    [keys.startDate]: withDefault(keys.startDate),
+    [keys.status]: withDefault(keys.status),
   });
 }
 

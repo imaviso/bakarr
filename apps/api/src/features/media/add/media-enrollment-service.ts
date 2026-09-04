@@ -1,5 +1,3 @@
-import { Effect, Option } from "effect";
-
 import type { DatabaseError } from "@/db/database.ts";
 import { MediaImageCacheService } from "@/features/media/metadata/media-image-cache-service.ts";
 import { EventBus } from "@/infra/effect/event-bus.ts";
@@ -35,6 +33,7 @@ import {
   requireMediaMetadataEffect,
 } from "@/features/media/add/media-add-validation.ts";
 import { mediaKindFromAniListFormat } from "@/features/media/shared/media-kind.ts";
+import { Context, Effect, Layer, Option } from "effect";
 
 export type MediaEnrollmentError =
   | DatabaseError
@@ -46,7 +45,7 @@ export type MediaEnrollmentError =
   | DomainPathError
   | InfrastructureError;
 
-const makeMediaEnrollmentService = Effect.fn("MediaEnrollmentService.make")(function* () {
+export const makeMediaEnrollmentService = Effect.fn("MediaEnrollmentService.make")(function* () {
   const eventBus = yield* EventBus;
   const metadataProvider = yield* MediaMetadataProviderService;
   const imageCacheService = yield* MediaImageCacheService;
@@ -235,23 +234,15 @@ const makeMediaEnrollmentService = Effect.fn("MediaEnrollmentService.make")(func
   return { enroll };
 });
 
-export class MediaEnrollmentService extends Effect.Service<MediaEnrollmentService>()(
-  "@bakarr/api/MediaEnrollmentService",
-  {
-    // Filesystem + RuntimeConfigSnapshotService come from the lifecycle layer.
-    dependencies: [
-      EventBus.Default,
-      MediaImageCacheService.Default,
-      MediaMetadataProviderService.Default,
-      MediaRepository.Default,
-      MediaUnitRepository.Default,
-      OperationsTaskLauncherService.Default,
-      QualityProfileRepository.Default,
-      SearchBackgroundMissingService.Default,
-      SystemConfigRepository.Default,
-    ],
-    effect: makeMediaEnrollmentService(),
-  },
-) {}
+export type MediaEnrollmentServiceShape = Effect.Success<
+  ReturnType<typeof makeMediaEnrollmentService>
+>;
 
-export const MediaEnrollmentServiceLive = MediaEnrollmentService.Default;
+export class MediaEnrollmentService extends Context.Service<
+  MediaEnrollmentService,
+  MediaEnrollmentServiceShape
+>()("@bakarr/api/MediaEnrollmentService") {
+  static readonly layer = Layer.effect(MediaEnrollmentService, makeMediaEnrollmentService());
+}
+
+export const MediaEnrollmentServiceLive = MediaEnrollmentService.layer;

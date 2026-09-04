@@ -1,10 +1,11 @@
-import { HttpServerRequest, HttpServerResponse } from "@effect/platform";
-import { Duration, Effect, Option } from "effect";
+import * as HttpServerRequest from "effect/unstable/http/HttpServerRequest";
+import * as HttpServerResponse from "effect/unstable/http/HttpServerResponse";
 import { LoginResponseSchema, type LoginResponse } from "@packages/shared/index.ts";
 
 import { AppConfig } from "@/app/config/schema.ts";
 import { AuthForbiddenError, AuthUnauthorizedError } from "@/features/auth/errors.ts";
 import { AuthSessionService } from "@/features/auth/session-service.ts";
+import { Duration, Effect, Option, Record } from "effect";
 
 function extractApiKeyFromHeaders(headers: Readonly<Record<string, string | undefined>>) {
   const headerApiKey = headers["x-api-key"];
@@ -50,11 +51,11 @@ export const persistSessionResponse = Effect.fn("Http.persistSessionResponse")(f
   // requests except top-level navigations. This is safe only because the API
   // has NO state-changing GET routes — every mutation is POST/PUT/DELETE,
   // which Lax never sends cookies on cross-site.
-  return HttpServerResponse.unsafeSetCookie(response, config.sessionCookieName, token, {
+  return HttpServerResponse.setCookieUnsafe(config.sessionCookieName, token, {
     httpOnly: true,
     maxAge: Duration.days(config.sessionDurationDays),
     path: "/",
     sameSite: "lax",
     secure: config.sessionCookieSecure,
-  });
+  })(response);
 });

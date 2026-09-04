@@ -1,4 +1,4 @@
-import { useCallback, useMemo, Suspense, lazy } from "react";
+import { useMemo, Suspense, lazy } from "react";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Schema } from "effect";
@@ -26,7 +26,7 @@ const AnimeDetailsDialogsLazy = lazy(() =>
   })),
 );
 
-const IdParamSchema = Schema.NumberFromString.pipe(Schema.int());
+const IdParamSchema = Schema.NumberFromString.pipe(Schema.check(Schema.isInt()));
 
 export const Route = createFileRoute("/_layout/media/$id")({
   loader: async ({ context: { queryClient }, params }) => {
@@ -59,71 +59,31 @@ function AnimeDetailsPage() {
 
   const actions = useAnimeDetailsActions({ mediaId });
   const dialogState = useAnimeDetailsDialogState();
-  const { setBulkMappingOpen, setEditPathOpen, setEditProfileOpen, setRenameDialogOpen } =
-    dialogState;
 
   const scanTaskQuery = useAnimeScanTaskQuery({
     mediaId,
     ...(actions.latestScanTaskId === undefined ? {} : { taskId: actions.latestScanTaskId }),
   });
-  const isScanTaskRunning = useMemo(
-    () => scanTaskQuery.data !== undefined && isTaskActive(scanTaskQuery.data),
-    [scanTaskQuery.data],
-  );
+  const isScanTaskRunning = scanTaskQuery.data !== undefined && isTaskActive(scanTaskQuery.data);
 
   const episodesData = episodesQuery.data;
 
-  const missingCount = useMemo(
-    () => episodesData.filter((e) => !e.downloaded && isAired(e.aired)).length,
-    [episodesData],
-  );
-  const availableCount = useMemo(
-    () => episodesData.filter((e) => e.downloaded).length,
-    [episodesData],
-  );
+  const missingCount = episodesData.filter((e) => !e.downloaded && isAired(e.aired)).length;
+  const availableCount = episodesData.filter((e) => e.downloaded).length;
   const totalUnits = episodesData.length || media.unit_count || 0;
   const isMonitored = media.monitored ?? true;
 
-  const libraryIds = useMemo(() => new Set(animeList.map((a) => a.id)), [animeList]);
+  const libraryIds = new Set(animeList.map((a) => a.id));
 
-  const handleDeleteEpisodeFile = useCallback(() => {
-    actions.handleDeleteEpisodeFile(dialogState.deleteEpisodeState.unitNumber);
-    dialogState.setDeleteEpisodeState((prev) => ({ ...prev, open: false }));
-  }, [actions, dialogState]);
-
-  const handleToggleMonitor = useCallback(
-    () => actions.handleToggleMonitor(isMonitored),
-    [actions, isMonitored],
-  );
-
-  const handleDeleteAnime = useCallback(() => {
-    actions.handleDeleteAnime(() => {
-      void navigate({
-        to: "/media",
-        search: { q: "", filter: "all", view: "grid" },
-      });
-    });
-  }, [actions, navigate]);
-
-  const handleRenameFiles = useCallback(() => setRenameDialogOpen(true), [setRenameDialogOpen]);
-
-  const handleOpenBulkMapping = useCallback(() => setBulkMappingOpen(true), [setBulkMappingOpen]);
-
-  const handleEditProfile = useCallback(() => setEditProfileOpen(true), [setEditProfileOpen]);
-
-  const handleEditPath = useCallback(() => setEditPathOpen(true), [setEditPathOpen]);
-
-  const animeInfo = useMemo(
+  const dialogsContext = useMemo(
     () => ({
+      mediaId,
+      episodes: episodesData,
       currentPath: media.root_folder || "",
       currentProfile: media.profile_name || "",
       currentReleaseProfileIds: media.release_profile_ids || [],
-    }),
-    [media.root_folder, media.profile_name, media.release_profile_ids],
-  );
-
-  const dialogFlags = useMemo(
-    () => ({
+      profiles: profilesQuery.data,
+      releaseProfiles: releaseProfilesQuery.data,
       searchModalState: dialogState.searchModalState,
       renameDialogOpen: dialogState.renameDialogOpen,
       mappingDialogState: dialogState.mappingDialogState,
@@ -131,41 +91,6 @@ function AnimeDetailsPage() {
       deleteEpisodeState: dialogState.deleteEpisodeState,
       editPathOpen: dialogState.editPathOpen,
       editProfileOpen: dialogState.editProfileOpen,
-    }),
-    [dialogState],
-  );
-
-  const profileData = useMemo(
-    () => ({
-      profiles: profilesQuery.data,
-      releaseProfiles: releaseProfilesQuery.data,
-    }),
-    [profilesQuery.data, releaseProfilesQuery.data],
-  );
-
-  const updateLoading = useMemo(
-    () => ({
-      isUpdatingPath: actions.isUpdatingPath,
-      isUpdatingProfile: actions.isUpdatingProfile,
-      isUpdatingReleaseProfiles: actions.isUpdatingReleaseProfiles,
-    }),
-    [actions.isUpdatingPath, actions.isUpdatingProfile, actions.isUpdatingReleaseProfiles],
-  );
-
-  const dialogsState = useMemo(
-    () => ({
-      mediaId,
-      episodes: episodesData,
-      ...animeInfo,
-      ...dialogFlags,
-      ...profileData,
-      ...updateLoading,
-    }),
-    [mediaId, episodesData, animeInfo, dialogFlags, profileData, updateLoading],
-  );
-
-  const dialogsDispatch = useMemo(
-    () => ({
       onSearchModalOpenChange: (open: boolean) =>
         dialogState.setSearchModalState((prev) => ({ ...prev, open })),
       onRenameDialogOpenChange: dialogState.setRenameDialogOpen,
@@ -174,25 +99,30 @@ function AnimeDetailsPage() {
       onBulkMappingOpenChange: dialogState.setBulkMappingOpen,
       onDeleteEpisodeDialogOpenChange: (open: boolean) =>
         dialogState.setDeleteEpisodeState((prev) => ({ ...prev, open })),
-      onConfirmDeleteEpisode: handleDeleteEpisodeFile,
+      onConfirmDeleteEpisode: () => {
+        actions.handleDeleteEpisodeFile(dialogState.deleteEpisodeState.unitNumber);
+        dialogState.setDeleteEpisodeState((prev) => ({ ...prev, open: false }));
+      },
       onEditPathOpenChange: dialogState.setEditPathOpen,
       updatePath: actions.updatePath,
+      isUpdatingPath: actions.isUpdatingPath,
       onEditProfileOpenChange: dialogState.setEditProfileOpen,
       updateProfile: actions.updateProfile,
+      isUpdatingProfile: actions.isUpdatingProfile,
       updateReleaseProfiles: actions.updateReleaseProfiles,
+      isUpdatingReleaseProfiles: actions.isUpdatingReleaseProfiles,
     }),
     [
+      mediaId,
+      episodesData,
+      media.root_folder,
+      media.profile_name,
+      media.release_profile_ids,
+      profilesQuery.data,
+      releaseProfilesQuery.data,
       dialogState,
-      handleDeleteEpisodeFile,
-      actions.updatePath,
-      actions.updateProfile,
-      actions.updateReleaseProfiles,
+      actions,
     ],
-  );
-
-  const dialogsContext = useMemo(
-    () => ({ ...dialogsState, ...dialogsDispatch }),
-    [dialogsState, dialogsDispatch],
   );
 
   return (
@@ -207,13 +137,20 @@ function AnimeDetailsPage() {
           isScanFolderPending={actions.isScanFolderPending || isScanTaskRunning}
           isSearchMissingPending={actions.isSearchMissingPending}
           isToggleMonitorPending={actions.isToggleMonitorPending}
-          onToggleMonitor={handleToggleMonitor}
+          onToggleMonitor={() => actions.handleToggleMonitor(isMonitored)}
           onRefreshEpisodes={actions.handleRefreshEpisodes}
           onSearchMissing={actions.handleSearchMissing}
           onScanFolder={actions.handleScanFolder}
-          onRenameFiles={handleRenameFiles}
-          onOpenBulkMapping={handleOpenBulkMapping}
-          onDeleteMedia={handleDeleteAnime}
+          onRenameFiles={() => dialogState.setRenameDialogOpen(true)}
+          onOpenBulkMapping={() => dialogState.setBulkMappingOpen(true)}
+          onDeleteMedia={() =>
+            actions.handleDeleteAnime(() => {
+              void navigate({
+                to: "/media",
+                search: { q: "", filter: "all", view: "grid" },
+              });
+            })
+          }
         />
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-4">
@@ -253,8 +190,8 @@ function AnimeDetailsPage() {
               profileName={media.profile_name}
               rootFolder={media.root_folder}
               addedAt={media.added_at}
-              onEditProfile={handleEditProfile}
-              onEditPath={handleEditPath}
+              onEditProfile={() => dialogState.setEditProfileOpen(true)}
+              onEditPath={() => dialogState.setEditPathOpen(true)}
             />
 
             <AnimeEpisodesPanel

@@ -1,5 +1,6 @@
 // oxlint-disable typescript/no-restricted-types -- `unknown` is the honest type at error/cause boundaries (Effect error channels, try/catch causes, Logger messages)
-import { Deferred, Effect, Exit, Fiber } from "effect";
+
+import { Deferred, Effect, Fiber, Record } from "effect";
 import type * as Net from "node:net";
 import * as NetSocket from "@effect/platform-node/NodeSocket";
 
@@ -68,7 +69,7 @@ export const makeScgiTransport = (target: ScgiTarget): Effect.Effect<ScgiTranspo
       Effect.gen(function* () {
         const encoded = encodeScgiRequest(
           {
-            CONTENT_LENGTH: String(Buffer.byteLength(xml, "utf8")),
+            CONTENT_LENGTH: globalThis.String(Buffer.byteLength(xml, "utf8")),
             SCGI: "1",
           },
           xml,
@@ -85,7 +86,7 @@ export const makeScgiTransport = (target: ScgiTarget): Effect.Effect<ScgiTranspo
         const chunks: Array<Buffer> = [];
 
         const complete = (body: string) =>
-          Deferred.unsafeDone(responseDeferred, Exit.succeed(body));
+          Deferred.doneUnsafe(responseDeferred, Effect.succeed(body));
 
         const readerFiber = yield* Effect.forkScoped(
           socket
@@ -97,9 +98,9 @@ export const makeScgiTransport = (target: ScgiTarget): Effect.Effect<ScgiTranspo
 
               if (separator === -1) {
                 if (concatenated.length > MAX_RESPONSE_BYTES) {
-                  Deferred.unsafeDone(
+                  Deferred.doneUnsafe(
                     responseDeferred,
-                    Exit.fail(transportError(undefined, "rTorrent SCGI header block too large")),
+                    Effect.fail(transportError(undefined, "rTorrent SCGI header block too large")),
                   );
                 }
                 return;
@@ -113,12 +114,12 @@ export const makeScgiTransport = (target: ScgiTarget): Effect.Effect<ScgiTranspo
                 return;
               }
 
-              if (bodyBytes >= Number(contentLength[1])) {
+              if (bodyBytes >= globalThis.Number(contentLength[1])) {
                 complete(text.slice(separator + 4));
               }
             })
             .pipe(
-              Effect.zipRight(
+              Effect.andThen(
                 Deferred.fail(
                   responseDeferred,
                   transportError(undefined, "rTorrent closed the SCGI connection"),
@@ -187,8 +188,8 @@ export const makeTransportFromUrl = (
     }
 
     const lastColon = target.lastIndexOf(":");
-    const port = Number(target.slice(lastColon + 1));
-    if (lastColon > 0 && Number.isInteger(port) && port > 0 && port <= 65535) {
+    const port = globalThis.Number(target.slice(lastColon + 1));
+    if (lastColon > 0 && globalThis.Number.isInteger(port) && port > 0 && port <= 65535) {
       return makeScgiTransport({ kind: "tcp", host: target.slice(0, lastColon), port });
     }
 

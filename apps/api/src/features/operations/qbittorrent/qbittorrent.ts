@@ -1,5 +1,7 @@
-import { HttpClient, HttpClientRequest, HttpClientResponse } from "@effect/platform";
-import { Deferred, Effect, HashMap, Ref, Schema } from "effect";
+import * as HttpClient from "effect/unstable/http/HttpClient";
+import * as HttpClientRequest from "effect/unstable/http/HttpClientRequest";
+import * as HttpClientResponse from "effect/unstable/http/HttpClientResponse";
+import { Context, Deferred, Effect, HashMap, Layer, Ref, Schema } from "effect";
 
 import { ExternalCall, ExternalCallError } from "@/infra/effect/retry.ts";
 import {
@@ -45,10 +47,12 @@ interface QBitTorrentClientShape {
   ) => Effect.Effect<void, ExternalCallError | QBitTorrentClientError>;
 }
 
-export class QBitTorrentClient extends Effect.Service<QBitTorrentClient>()(
+export class QBitTorrentClient extends Context.Service<QBitTorrentClient, QBitTorrentClientShape>()(
   "@bakarr/api/QBitTorrentClient",
-  {
-    effect: Effect.gen(function* () {
+) {
+  static readonly layer = Layer.effect(
+    QBitTorrentClient,
+    Effect.gen(function* () {
       const client = yield* HttpClient.HttpClient;
       const externalCall = yield* ExternalCall;
       const sessionsRef = yield* Ref.make<HashMap.HashMap<string, SessionEntry>>(HashMap.empty());
@@ -70,7 +74,9 @@ export class QBitTorrentClient extends Effect.Service<QBitTorrentClient>()(
       ) {
         const body = {
           ...(config.category ? { category: config.category } : {}),
-          ...(config.ratioLimit === undefined ? {} : { ratioLimit: String(config.ratioLimit) }),
+          ...(config.ratioLimit === undefined
+            ? {}
+            : { ratioLimit: globalThis.String(config.ratioLimit) }),
           ...(config.savePath ? { savepath: config.savePath } : {}),
           urls: url,
         };
@@ -227,10 +233,10 @@ export class QBitTorrentClient extends Effect.Service<QBitTorrentClient>()(
         resumeTorrent,
       } satisfies QBitTorrentClientShape;
     }),
-  },
-) {}
+  );
+}
 
-export const QBitTorrentClientLive = QBitTorrentClient.Default;
+export const QBitTorrentClientLive = QBitTorrentClient.layer;
 
 class QBitTorrentSchema extends Schema.Class<QBitTorrentSchema>("QBitTorrentSchema")({
   added_on: Schema.optional(Schema.Number),

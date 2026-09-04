@@ -1,8 +1,8 @@
 import { TextEncoder } from "node:util";
 import { deflateRawSync } from "node:zlib";
-import { Effect } from "effect";
 import { assert, it } from "@effect/vitest";
 
+import { Effect } from "effect";
 import {
   findZipEntry,
   listArchiveImagePages,

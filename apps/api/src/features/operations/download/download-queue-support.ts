@@ -1,5 +1,3 @@
-import { Effect } from "effect";
-
 import type { DownloadSourceMetadata } from "@packages/shared/index.ts";
 import { DatabaseError } from "@/db/database.ts";
 import { media } from "@/db/schema.ts";
@@ -16,6 +14,7 @@ import { OperationsConflictError } from "@/features/operations/errors.ts";
 import { resolveRequestedEpisodeNumber } from "@/features/operations/download/download-orchestration-shared.ts";
 import { parseReleaseName } from "@/features/operations/search/release-ranking.ts";
 import { parseVolumeNumbersFromTitle } from "@/features/operations/search/release-volume.ts";
+import { Effect } from "effect";
 
 /**
  * Single queue-download module. Manual-trigger (HTTP) and background-search
@@ -128,7 +127,7 @@ export const queueDownload = Effect.fn("Operations.queueDownload")(function* (in
   const encodedSourceMetadata = yield* encodeDownloadSourceMetadata(input.sourceMetadata);
   const now = yield* input.nowIso();
 
-  const insertResult = yield* Effect.either(
+  const insertResult = yield* Effect.result(
     input.downloadRepository.insertQueuedDownloadRow({
       addedAt: now,
       coveredUnits: input.coveredUnitsJson,
@@ -148,8 +147,8 @@ export const queueDownload = Effect.fn("Operations.queueDownload")(function* (in
     }),
   );
 
-  if (insertResult._tag === "Left") {
-    const insertError = insertResult.left;
+  if (insertResult._tag === "Failure") {
+    const insertError = insertResult.failure;
 
     if (insertError instanceof DatabaseError && insertError.isUniqueConstraint()) {
       if (input.conflictPolicy === "fail-with-conflict") {
@@ -161,24 +160,24 @@ export const queueDownload = Effect.fn("Operations.queueDownload")(function* (in
     return yield* insertError;
   }
 
-  const insertedId = insertResult.right;
+  const insertedId = insertResult.success;
   let status: "queued" | "downloading" = "queued";
 
-  const addResult = yield* Effect.either(
+  const addResult = yield* Effect.result(
     input.torrentClientService.addTorrentUrlIfEnabled(input.magnet),
   );
 
-  if (addResult._tag === "Left") {
-    const cleanupResult = yield* Effect.either(
+  if (addResult._tag === "Failure") {
+    const cleanupResult = yield* Effect.result(
       input.downloadRepository.deleteDownloadRow(insertedId),
     );
 
-    if (cleanupResult._tag === "Left") {
+    if (cleanupResult._tag === "Failure") {
       yield* Effect.logWarning(
         "Failed to clean up queued download after torrent client add failure",
       ).pipe(
         Effect.annotateLogs({
-          cleanupError: cleanupResult.left.message,
+          cleanupError: cleanupResult.failure.message,
           downloadId: insertedId,
         }),
       );
@@ -186,11 +185,11 @@ export const queueDownload = Effect.fn("Operations.queueDownload")(function* (in
 
     return yield* new InfrastructureError({
       message: "Failed to trigger download",
-      cause: addResult.left,
+      cause: addResult.failure,
     });
   }
 
-  if (addResult.right._tag === "Added") {
+  if (addResult.success._tag === "Added") {
     status = "downloading";
   }
 

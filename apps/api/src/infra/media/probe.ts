@@ -1,6 +1,16 @@
 // oxlint-disable typescript/no-restricted-types -- `unknown` is the honest type at error/cause boundaries (Effect error channels, try/catch causes, Logger messages)
-import { CommandExecutor } from "@effect/platform";
-import { Effect, Either, ParseResult, Schema } from "effect";
+import * as CommandExecutor from "effect/unstable/process/ChildProcessSpawner";
+import {
+  Context,
+  Effect,
+  Layer,
+  Record,
+  Result,
+  Schema,
+  SchemaGetter,
+  SchemaIssue,
+  Semaphore,
+} from "effect";
 
 import { MediaProbeFailure, runFfprobeCommandWith } from "@/infra/media/probe-command.ts";
 
@@ -53,7 +63,7 @@ class FFProbeOutputSchema extends Schema.Class<FFProbeOutputSchema>("FFProbeOutp
   streams: Schema.Array(FFProbeStreamSchema),
   format: Schema.optional(FFProbeFormatSchema),
 }) {}
-const FFProbeOutputJsonSchema = Schema.parseJson(FFProbeOutputSchema);
+const FFProbeOutputJsonSchema = Schema.fromJsonString(FFProbeOutputSchema);
 
 const VIDEO_CODEC_LABELS: Record<string, string> = {
   av1: "AV1",
@@ -159,19 +169,17 @@ const normalizeDurationSeconds = (value?: string) => {
     return undefined;
   }
 
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed) || parsed <= 0) {
+  const parsed = globalThis.Number(value);
+  if (!globalThis.Number.isFinite(parsed) || parsed <= 0) {
     return undefined;
   }
 
   return Math.round(parsed);
 };
 
-const ProbedMediaMetadataFromFFProbeOutputSchema = Schema.transform(
-  FFProbeOutputSchema,
-  Schema.NullOr(ProbedMediaMetadataSchema),
-  {
-    decode: (output) => {
+const ProbedMediaMetadataFromFFProbeOutputSchema = FFProbeOutputSchema.pipe(
+  Schema.decodeTo(Schema.NullOr(ProbedMediaMetadataSchema), {
+    decode: SchemaGetter.transform((output) => {
       const { streams } = output;
       const videoStream = streams.find((s) => s.codec_type === "video");
       const audioStream = streams.find((s) => s.codec_type === "audio");
@@ -204,13 +212,13 @@ const ProbedMediaMetadataFromFFProbeOutputSchema = Schema.transform(
         metadata.audio_channels
         ? metadata
         : null;
-    },
-    encode: (metadata) =>
+    }),
+    encode: SchemaGetter.transform((metadata) =>
       metadata === null
         ? { streams: [] }
         : {
             format: metadata.duration_seconds
-              ? { duration: String(metadata.duration_seconds) }
+              ? { duration: `${metadata.duration_seconds}` }
               : undefined,
             streams: [
               {
@@ -218,7 +226,7 @@ const ProbedMediaMetadataFromFFProbeOutputSchema = Schema.transform(
                 channels: undefined,
                 codec_name: metadata.audio_codec,
                 codec_type: "audio",
-                duration: metadata.duration_seconds ? String(metadata.duration_seconds) : undefined,
+                duration: metadata.duration_seconds ? `${metadata.duration_seconds}` : undefined,
                 height: undefined,
                 width: undefined,
               },
@@ -227,13 +235,16 @@ const ProbedMediaMetadataFromFFProbeOutputSchema = Schema.transform(
                 channels: undefined,
                 codec_name: metadata.video_codec,
                 codec_type: "video",
-                duration: metadata.duration_seconds ? String(metadata.duration_seconds) : undefined,
-                height: metadata.resolution ? Number.parseInt(metadata.resolution, 10) : undefined,
+                duration: metadata.duration_seconds ? `${metadata.duration_seconds}` : undefined,
+                height: metadata.resolution
+                  ? globalThis.Number.parseInt(metadata.resolution, 10)
+                  : undefined,
                 width: undefined,
               },
             ],
           },
-  },
+    ),
+  }),
 );
 
 export interface MediaProbeShape {
@@ -285,14 +296,14 @@ export function mergeProbedMediaMetadata<
 
 export const probeMediaMetadataOrUndefined = Effect.fn("MediaProbe.probeMediaMetadataOrUndefined")(
   function* (mediaProbe: MediaProbeShape, path: string) {
-    const probeResult = yield* Effect.either(mediaProbe.probeVideoFile(path));
+    const probeResult = yield* Effect.result(mediaProbe.probeVideoFile(path));
 
-    if (Either.isLeft(probeResult)) {
+    if (Result.isFailure(probeResult)) {
       return undefined;
     }
 
-    return probeResult.right._tag === "MediaProbeMetadataFound"
-      ? probeResult.right.metadata
+    return probeResult.success._tag === "MediaProbeMetadataFound"
+      ? probeResult.success.metadata
       : undefined;
   },
 );
@@ -300,7 +311,7 @@ export const probeMediaMetadataOrUndefined = Effect.fn("MediaProbe.probeMediaMet
 function decodeFfprobeOutput(
   input: unknown,
 ): Effect.Effect<Schema.Schema.Type<typeof FFProbeOutputSchema>, MediaProbeFailure> {
-  return Schema.decodeUnknown(FFProbeOutputJsonSchema)(input).pipe(
+  return Schema.decodeUnknownEffect(FFProbeOutputJsonSchema)(input).pipe(
     Effect.mapError(
       (cause) =>
         new MediaProbeFailure({
@@ -314,7 +325,7 @@ function decodeFfprobeOutput(
 function normalizeFfprobeDecodedOutput(
   output: Schema.Schema.Type<typeof FFProbeOutputSchema>,
 ): Effect.Effect<MediaProbeMetadataFound | MediaProbeNoMetadata, MediaProbeFailure> {
-  return Schema.decodeUnknown(ProbedMediaMetadataFromFFProbeOutputSchema)(output).pipe(
+  return Schema.decodeUnknownEffect(ProbedMediaMetadataFromFFProbeOutputSchema)(output).pipe(
     Effect.map((metadata) =>
       metadata ? new MediaProbeMetadataFound({ metadata }) : new MediaProbeNoMetadata({}),
     ),
@@ -334,8 +345,8 @@ export {
 } from "@/infra/media/probe-command.ts";
 
 function logProbeFailure(path: string, failure: MediaProbeFailure): Effect.Effect<void> {
-  const parseError = ParseResult.isParseError(failure.cause)
-    ? ParseResult.TreeFormatter.formatErrorSync(failure.cause)
+  const parseError = Schema.isSchemaError(failure.cause)
+    ? SchemaIssue.makeFormatterDefault()(failure.cause.issue)
     : undefined;
 
   return yieldLog(path, failure.message, parseError);
@@ -352,8 +363,8 @@ function yieldLog(
 }
 
 const makeMediaProbe = (
-  ffprobeSemaphore: Effect.Semaphore,
-  executor: CommandExecutor.CommandExecutor,
+  ffprobeSemaphore: Semaphore.Semaphore,
+  executor: CommandExecutor.ChildProcessSpawner["Service"],
 ): MediaProbeShape => {
   const probeVideoFile = Effect.fn("MediaProbe.probeVideoFile")(function* (path: string) {
     const output = yield* ffprobeSemaphore.withPermits(1)(
@@ -374,36 +385,41 @@ const makeMediaProbe = (
   return { probeVideoFile };
 };
 
-export class MediaProbe extends Effect.Service<MediaProbe>()("@bakarr/api/MediaProbe", {
-  effect: Effect.gen(function* () {
-    const ffprobeSemaphore = yield* Effect.makeSemaphore(FFPROBE_CONCURRENCY_LIMIT);
-    const executor = yield* CommandExecutor.CommandExecutor;
+export class MediaProbe extends Context.Service<MediaProbe, MediaProbeShape>()(
+  "@bakarr/api/MediaProbe",
+) {
+  static readonly layer = Layer.effect(
+    MediaProbe,
+    Effect.gen(function* () {
+      const ffprobeSemaphore = yield* Semaphore.make(FFPROBE_CONCURRENCY_LIMIT);
+      const executor = yield* CommandExecutor.ChildProcessSpawner;
 
-    const availability = yield* runFfprobeCommandWith(
-      executor,
-      ["-version"],
-      FFPROBE_VERSION_TIMEOUT_MS,
-    ).pipe(Effect.either);
+      const availability = yield* runFfprobeCommandWith(
+        executor,
+        ["-version"],
+        FFPROBE_VERSION_TIMEOUT_MS,
+      ).pipe(Effect.result);
 
-    if (Either.isLeft(availability)) {
-      const unavailable = availability.left;
-      yield* Effect.logWarning("ffprobe unavailable; media probing disabled").pipe(
-        Effect.annotateLogs({ message: unavailable.message }),
-      );
-      return {
-        probeVideoFile: Effect.fn("MediaProbe.probeVideoFile")((_path: string) =>
-          Effect.fail(
-            new MediaProbeFailure({
-              cause: unavailable.cause,
-              message: `ffprobe unavailable: ${unavailable.message}`,
-            }),
+      if (Result.isFailure(availability)) {
+        const unavailable = availability.failure;
+        yield* Effect.logWarning("ffprobe unavailable; media probing disabled").pipe(
+          Effect.annotateLogs({ message: unavailable.message }),
+        );
+        return {
+          probeVideoFile: Effect.fn("MediaProbe.probeVideoFile")((_path: string) =>
+            Effect.fail(
+              new MediaProbeFailure({
+                cause: unavailable.cause,
+                message: `ffprobe unavailable: ${unavailable.message}`,
+              }),
+            ),
           ),
-        ),
-      } satisfies MediaProbeShape;
-    }
+        } satisfies MediaProbeShape;
+      }
 
-    return makeMediaProbe(ffprobeSemaphore, executor);
-  }),
-}) {}
+      return makeMediaProbe(ffprobeSemaphore, executor);
+    }),
+  );
+}
 
-export const MediaProbeLive = MediaProbe.Default;
+export const MediaProbeLive = MediaProbe.layer;

@@ -1,5 +1,3 @@
-import { Effect, Option } from "effect";
-
 import type { DownloadAction, DownloadSourceMetadata } from "@packages/shared/index.ts";
 import { media } from "@/db/schema.ts";
 import { MediaRepository } from "@/features/media/shared/media-repository.ts";
@@ -12,6 +10,7 @@ import { toCoveredUnitsJson } from "@/features/operations/download/download-cove
 import { parseMagnetInfoHash } from "@/features/operations/download/download-paths.ts";
 import { DomainInputError } from "@/features/errors.ts";
 import type { TriggerDownloadInput } from "@/features/operations/download/download-orchestration-shared.ts";
+import { Effect, Option } from "effect";
 
 export interface PreparedTriggerDownload {
   readonly animeRow: typeof media.$inferSelect;

@@ -1,5 +1,4 @@
 import { assert, it } from "@effect/vitest";
-import { Effect } from "effect";
 
 import {
   brandMediaId,
@@ -7,6 +6,7 @@ import {
   type UnmappedFolder,
 } from "@packages/shared/index.ts";
 
+import { Effect } from "effect";
 import {
   buildUnmappedFolderSearchQueries,
   hasUnmappedFolderRetryAttemptsRemaining,

@@ -1,5 +1,4 @@
-import { Chunk, Effect, Option, Stream } from "effect";
-
+import { Effect, Option, Stream } from "effect";
 import { FileSystemError, type FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 
 export interface FileByteRange {
@@ -20,11 +19,11 @@ export function createFileChunkStream(
 ): Stream.Stream<Uint8Array, FileSystemError> {
   const chunkSize = options?.chunkSize ?? DEFAULT_STREAM_CHUNK_SIZE;
   const range = options?.range;
-  const initialRange = range ?? { end: Number.MAX_SAFE_INTEGER, start: 0 };
+  const initialRange = range ?? { end: globalThis.Number.MAX_SAFE_INTEGER, start: 0 };
 
-  return Stream.unwrapScoped(
+  return Stream.unwrap(
     Effect.map(fs.openFile(path, { read: true }), (file) =>
-      Stream.paginateChunkEffect(initialRange, (current) =>
+      Stream.paginate<FileByteRange, Uint8Array, FileSystemError>(initialRange, (current) =>
         Effect.gen(function* () {
           const requestedLength = range
             ? Math.min(chunkSize, current.end - current.start + 1)
@@ -35,8 +34,8 @@ export function createFileChunkStream(
           const read = yield* file.read(buffer);
 
           if (Option.isNone(read) || read.value === 0) {
-            const done: readonly [Chunk.Chunk<Uint8Array>, Option.Option<FileByteRange>] = [
-              Chunk.empty<Uint8Array>(),
+            const done: readonly [ReadonlyArray<Uint8Array>, Option.Option<FileByteRange>] = [
+              [],
               Option.none<FileByteRange>(),
             ];
             return done;
@@ -45,8 +44,8 @@ export function createFileChunkStream(
           const bytesRead = read.value;
           const nextStart = current.start + bytesRead;
 
-          const next: readonly [Chunk.Chunk<Uint8Array>, Option.Option<FileByteRange>] = [
-            Chunk.of(buffer.subarray(0, bytesRead)),
+          const next: readonly [ReadonlyArray<Uint8Array>, Option.Option<FileByteRange>] = [
+            [buffer.subarray(0, bytesRead)],
             range && nextStart > current.end
               ? Option.none<FileByteRange>()
               : Option.some({

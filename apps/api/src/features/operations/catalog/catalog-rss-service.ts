@@ -1,5 +1,3 @@
-import { Effect } from "effect";
-
 import type { RssFeed } from "@packages/shared/index.ts";
 import type { DatabaseError } from "@/db/database.ts";
 import { MediaNotFoundError } from "@/features/media/errors.ts";
@@ -9,6 +7,7 @@ import { RssFeedRepository } from "@/features/operations/repository/rss-feed-rep
 import { validateFeedUrlStatic } from "@/features/operations/rss/rss-client-ssrf.ts";
 import { SystemLogRepository } from "@/features/system/repository/log-repository.ts";
 import { nowIso as currentNowIso } from "@/infra/time.ts";
+import { Context, Effect, Layer } from "effect";
 
 export interface CatalogRssServiceShape {
   readonly addRssFeed: (input: {
@@ -22,10 +21,12 @@ export interface CatalogRssServiceShape {
   readonly setRssFeedEnabled: (id: number, enabled: boolean) => Effect.Effect<void, DatabaseError>;
 }
 
-export class CatalogRssService extends Effect.Service<CatalogRssService>()(
+export class CatalogRssService extends Context.Service<CatalogRssService, CatalogRssServiceShape>()(
   "@bakarr/api/CatalogRssService",
-  {
-    effect: Effect.gen(function* () {
+) {
+  static readonly layer = Layer.effect(
+    CatalogRssService,
+    Effect.gen(function* () {
       const mediaRepository = yield* MediaRepository;
       const rssFeedRepository = yield* RssFeedRepository;
       const systemLogRepository = yield* SystemLogRepository;
@@ -86,8 +87,7 @@ export class CatalogRssService extends Effect.Service<CatalogRssService>()(
         setRssFeedEnabled,
       } satisfies CatalogRssServiceShape;
     }),
-    dependencies: [MediaRepository.Default, RssFeedRepository.Default, SystemLogRepository.Default],
-  },
-) {}
+  );
+}
 
-export const CatalogRssServiceLive = CatalogRssService.Default;
+export const CatalogRssServiceLive = CatalogRssService.layer;

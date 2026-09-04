@@ -1,5 +1,3 @@
-import { Effect, Either, Ref } from "effect";
-
 import { DatabaseError } from "@/db/database.ts";
 import { BackgroundSearchRssFeedService } from "@/features/operations/background-search/background-search-rss-feed-service.ts";
 import { InfrastructureError } from "@/features/errors.ts";
@@ -7,6 +5,7 @@ import { RssFeedRepository } from "@/features/operations/repository/rss-feed-rep
 import { OperationsProgress } from "@/features/operations/tasks/operations-progress-service.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 import { ExternalCallError } from "@/infra/effect/retry.ts";
+import { Context, Effect, Layer, Ref, Result } from "effect";
 
 export interface SearchBackgroundRssServiceShape {
   readonly runRssCheck: () => Effect.Effect<
@@ -15,10 +14,13 @@ export interface SearchBackgroundRssServiceShape {
   >;
 }
 
-export class SearchBackgroundRssService extends Effect.Service<SearchBackgroundRssService>()(
-  "@bakarr/api/SearchBackgroundRssService",
-  {
-    effect: Effect.gen(function* () {
+export class SearchBackgroundRssService extends Context.Service<
+  SearchBackgroundRssService,
+  SearchBackgroundRssServiceShape
+>()("@bakarr/api/SearchBackgroundRssService") {
+  static readonly layer = Layer.effect(
+    SearchBackgroundRssService,
+    Effect.gen(function* () {
       const progress = yield* OperationsProgress;
       const rssFeedService = yield* BackgroundSearchRssFeedService;
       const rssFeedRepository = yield* RssFeedRepository;
@@ -50,27 +52,27 @@ export class SearchBackgroundRssService extends Effect.Service<SearchBackgroundR
                 Effect.tapError((error) =>
                   Effect.logWarning("RSS feed check failed; continuing with remaining feeds").pipe(
                     Effect.annotateLogs({
-                      error: String(error),
+                      error: globalThis.String(error),
                       feedId: feed.id,
                       feedName: feed.name ?? feed.url,
                     }),
                   ),
                 ),
-                Effect.either,
+                Effect.result,
               ),
             { concurrency: 4 },
           );
 
-          const failedCount = feedResults.filter(Either.isLeft).length;
+          const failedCount = feedResults.filter(Result.isFailure).length;
           if (feeds.length > 0 && failedCount === feeds.length) {
             return yield* new InfrastructureError({
               message: "All RSS feeds failed to process",
-              cause: feedResults.find(Either.isLeft)?.left,
+              cause: feedResults.find(Result.isFailure)?.failure,
             });
           }
 
           const newItems = feedResults.reduce(
-            (total, result) => (Either.isRight(result) ? total + result.right : total),
+            (total, result) => (Result.isSuccess(result) ? total + result.success : total),
             0,
           );
 
@@ -92,7 +94,7 @@ export class SearchBackgroundRssService extends Effect.Service<SearchBackgroundR
                   cause: error,
                 }),
           ),
-          Effect.catchAllDefect((defect) =>
+          Effect.catchDefect((defect) =>
             Effect.fail(
               new InfrastructureError({
                 message: "Failed to run RSS check",
@@ -105,9 +107,7 @@ export class SearchBackgroundRssService extends Effect.Service<SearchBackgroundR
 
       return { runRssCheck } satisfies SearchBackgroundRssServiceShape;
     }),
-    // OperationsProgress + RuntimeConfigSnapshotService come from the lifecycle layer.
-    dependencies: [BackgroundSearchRssFeedService.Default, RssFeedRepository.Default],
-  },
-) {}
+  );
+}
 
-export const SearchBackgroundRssServiceLive = SearchBackgroundRssService.Default;
+export const SearchBackgroundRssServiceLive = SearchBackgroundRssService.layer;

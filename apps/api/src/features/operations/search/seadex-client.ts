@@ -1,7 +1,9 @@
-import { HttpClient, HttpClientRequest, HttpClientResponse } from "@effect/platform";
-import { Effect, Option, Schema } from "effect";
+import * as HttpClient from "effect/unstable/http/HttpClient";
+import * as HttpClientRequest from "effect/unstable/http/HttpClientRequest";
+import * as HttpClientResponse from "effect/unstable/http/HttpClientResponse";
 
 import { ExternalCall, ExternalCallError } from "@/infra/effect/retry.ts";
+import { Context, Effect, Layer, Option, Schema } from "effect";
 
 interface SeaDexClientShape {
   readonly getEntryByAniListId: (
@@ -9,86 +11,91 @@ interface SeaDexClientShape {
   ) => Effect.Effect<Option.Option<SeaDexEntry>, ExternalCallError>;
 }
 
-export class SeaDexClient extends Effect.Service<SeaDexClient>()("@bakarr/api/SeaDexClient", {
-  effect: Effect.gen(function* () {
-    const client = yield* HttpClient.HttpClient;
-    const externalCall = yield* ExternalCall;
+export class SeaDexClient extends Context.Service<SeaDexClient, SeaDexClientShape>()(
+  "@bakarr/api/SeaDexClient",
+) {
+  static readonly layer = Layer.effect(
+    SeaDexClient,
+    Effect.gen(function* () {
+      const client = yield* HttpClient.HttpClient;
+      const externalCall = yield* ExternalCall;
 
-    const getEntryByAniListId = Effect.fn("SeaDexClient.getEntryByAniListId")(function* (
-      aniListId: number,
-    ) {
-      const params = new URLSearchParams({
-        filter: `alID=${aniListId}`,
-        perPage: "1",
-        expand: "trs",
-        fields: [
-          "id",
-          "alID",
-          "comparison",
-          "incomplete",
-          "notes",
-          "expand.trs.id",
-          "expand.trs.infoHash",
-          "expand.trs.isBest",
-          "expand.trs.releaseGroup",
-          "expand.trs.tags",
-          "expand.trs.tracker",
-          "expand.trs.url",
-          "expand.trs.groupedUrl",
-          "expand.trs.dualAudio",
-        ].join(","),
+      const getEntryByAniListId = Effect.fn("SeaDexClient.getEntryByAniListId")(function* (
+        aniListId: number,
+      ) {
+        const params = new URLSearchParams({
+          filter: `alID=${aniListId}`,
+          perPage: "1",
+          expand: "trs",
+          fields: [
+            "id",
+            "alID",
+            "comparison",
+            "incomplete",
+            "notes",
+            "expand.trs.id",
+            "expand.trs.infoHash",
+            "expand.trs.isBest",
+            "expand.trs.releaseGroup",
+            "expand.trs.tags",
+            "expand.trs.tracker",
+            "expand.trs.url",
+            "expand.trs.groupedUrl",
+            "expand.trs.dualAudio",
+          ].join(","),
+        });
+
+        const request = HttpClientRequest.get(
+          `${SEADEX_API_BASE}/entries/records?${params.toString()}`,
+        );
+        const response = yield* externalCall.tryExternalEffect(
+          "seadex.entry",
+          client.execute(request),
+        );
+
+        if (response.status < 200 || response.status >= 300) {
+          return yield* ExternalCallError.make({
+            cause: new Error(`SeaDex request failed with status ${response.status}`),
+            message: "SeaDex request failed",
+            operation: "seadex.entry.response",
+          });
+        }
+
+        const decoded = yield* HttpClientResponse.schemaBodyJson(SeaDexApiEntryListSchema)(
+          response,
+        ).pipe(
+          Effect.mapError((cause) =>
+            ExternalCallError.make({
+              cause,
+              message: "SeaDex response decode failed",
+              operation: "seadex.entry.json",
+            }),
+          ),
+        );
+
+        const entry = decoded.items.at(0);
+        if (!entry) {
+          return Option.none();
+        }
+
+        const result: SeaDexEntry = {
+          alID: entry.alID,
+          comparison: entry.comparison,
+          incomplete: entry.incomplete,
+          notes: entry.notes,
+          releases: entry.expand.trs,
+        };
+        return Option.some(result);
       });
 
-      const request = HttpClientRequest.get(
-        `${SEADEX_API_BASE}/entries/records?${params.toString()}`,
-      );
-      const response = yield* externalCall.tryExternalEffect(
-        "seadex.entry",
-        client.execute(request),
-      );
+      return {
+        getEntryByAniListId,
+      } satisfies SeaDexClientShape;
+    }),
+  );
+}
 
-      if (response.status < 200 || response.status >= 300) {
-        return yield* ExternalCallError.make({
-          cause: new Error(`SeaDex request failed with status ${response.status}`),
-          message: "SeaDex request failed",
-          operation: "seadex.entry.response",
-        });
-      }
-
-      const decoded = yield* HttpClientResponse.schemaBodyJson(SeaDexApiEntryListSchema)(
-        response,
-      ).pipe(
-        Effect.mapError((cause) =>
-          ExternalCallError.make({
-            cause,
-            message: "SeaDex response decode failed",
-            operation: "seadex.entry.json",
-          }),
-        ),
-      );
-
-      const entry = decoded.items.at(0);
-      if (!entry) {
-        return Option.none();
-      }
-
-      const result: SeaDexEntry = {
-        alID: entry.alID,
-        comparison: entry.comparison,
-        incomplete: entry.incomplete,
-        notes: entry.notes,
-        releases: entry.expand.trs,
-      };
-      return Option.some(result);
-    });
-
-    return {
-      getEntryByAniListId,
-    } satisfies SeaDexClientShape;
-  }),
-}) {}
-
-export const SeaDexClientLive = SeaDexClient.Default;
+export const SeaDexClientLive = SeaDexClient.layer;
 
 const SEADEX_API_BASE = "https://releases.moe/api/collections";
 class SeaDexTorrentSchema extends Schema.Class<SeaDexTorrentSchema>("SeaDexTorrentSchema")({

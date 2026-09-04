@@ -1,5 +1,4 @@
 import { Effect, Stream } from "effect";
-
 import {
   brandMediaId,
   type FileUnitMapping,
@@ -20,6 +19,7 @@ import {
 import { buildUnitFilenamePlan } from "@/features/operations/library/naming-canonical-support.ts";
 import { pathExtension } from "@/infra/path.ts";
 import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
+
 import {
   mergeProbedMediaMetadata,
   probeMediaMetadataOrUndefined,

@@ -1,5 +1,3 @@
-import { Effect } from "effect";
-
 import type { ScannerState } from "@packages/shared/index.ts";
 import { media } from "@/db/schema.ts";
 import { buildUnmappedFolderSearchQueries } from "@/features/operations/unmapped/unmapped-folders.ts";
@@ -8,6 +6,7 @@ import {
   scoreMediaRowMatch,
 } from "@/features/operations/library/library-import-analysis-support.ts";
 import { toMediaSearchCandidate } from "@/features/operations/library/library-import.ts";
+import { Effect } from "effect";
 
 export const findLocalFolderMediaMatch = Effect.fn("UnmappedFolderMatch.findLocalFolderMediaMatch")(
   function* (folderName: string, animeRows: ReadonlyArray<typeof media.$inferSelect>) {

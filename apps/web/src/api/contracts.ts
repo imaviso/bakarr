@@ -68,7 +68,7 @@ export interface AddAnimeRequest {
 
 export interface DownloadEventsFilterInput {
   mediaId?: number;
-  cursor?: string;
+  cursor?: string | null | undefined;
   downloadId?: number;
   direction?: "next" | "prev";
   endDate?: string;

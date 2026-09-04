@@ -1,22 +1,24 @@
-import { HttpApp } from "@effect/platform";
-import { Effect } from "effect";
+import * as HttpApp from "effect/unstable/http/HttpEffect";
 
 import { createHttpAppFallbackResponse } from "@/app/http-app.ts";
 import { type EmbeddedWebAsset } from "@/infra/http/embedded-web.ts";
 import { assert, it } from "@effect/vitest";
+import { Effect, Record } from "effect";
 
 it.effect(
   "http app fallback returns 404 for unknown api routes without serving the app shell",
   () =>
     Effect.gen(function* () {
       const handler = HttpApp.toWebHandler(
-        createHttpAppFallbackResponse({
-          assets: makeAssets({
-            "index.html": "<html><body>app shell</body></html>",
+        Effect.succeed(
+          createHttpAppFallbackResponse({
+            assets: makeAssets({
+              "index.html": "<html><body>app shell</body></html>",
+            }),
+            method: "GET",
+            pathname: "/api/unknown",
           }),
-          method: "GET",
-          pathname: "/api/unknown",
-        }),
+        ),
       );
 
       const response = yield* Effect.promise(() =>
@@ -31,13 +33,15 @@ it.effect(
 it.effect("http app fallback serves embedded index.html for app routes", () =>
   Effect.gen(function* () {
     const handler = HttpApp.toWebHandler(
-      createHttpAppFallbackResponse({
-        assets: makeAssets({
-          "index.html": "<html><body>app shell</body></html>",
+      Effect.succeed(
+        createHttpAppFallbackResponse({
+          assets: makeAssets({
+            "index.html": "<html><body>app shell</body></html>",
+          }),
+          method: "GET",
+          pathname: "/library",
         }),
-        method: "GET",
-        pathname: "/library",
-      }),
+      ),
     );
 
     const response = yield* Effect.promise(() =>

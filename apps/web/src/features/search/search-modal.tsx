@@ -6,8 +6,8 @@ import type { MediaUnitKind } from "@/api/contracts";
 interface SearchModalProps {
   mediaId: number;
   unitNumber: number;
-  unitTitle?: string;
-  unitKind?: MediaUnitKind | undefined;
+  unitTitle?: string | null | undefined;
+  unitKind?: MediaUnitKind | null | undefined;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }

@@ -1,6 +1,6 @@
 import { useEffect, useReducer, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Either } from "effect";
+import { Result } from "effect";
 import { decodeNotificationEventWire } from "@bakarr/shared";
 import { useAuth } from "@/app/auth";
 import { handleSocketEvent } from "@/infra/socket-event-handler";
@@ -50,10 +50,10 @@ export function useSocketEvents() {
       }
 
       const decoded = decodeNotificationEventWire(payload);
-      if (Either.isRight(decoded)) {
-        handleSocketEvent(queryClient, decoded.right);
+      if (Result.isSuccess(decoded)) {
+        handleSocketEvent(queryClient, decoded.success);
       } else if (import.meta.env.DEV) {
-        console.warn("Dropped undecodable socket event", decoded.left);
+        console.warn("Dropped undecodable socket event", decoded.failure);
       }
     };
 

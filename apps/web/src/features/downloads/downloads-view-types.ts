@@ -22,7 +22,7 @@ export interface DownloadsEventsSearchState {
   filterValue: DownloadEventsFilterValue;
   queryInput: {
     mediaId?: number;
-    cursor?: string;
+    cursor?: string | null | undefined;
     direction?: "next" | "prev";
     downloadId?: number;
     endDate?: string;
@@ -40,8 +40,8 @@ export interface DownloadsEventsQuery {
     | {
         events: DownloadEvent[];
         has_more?: boolean;
-        next_cursor?: string | undefined;
-        prev_cursor?: string | undefined;
+        next_cursor?: string | null | undefined;
+        prev_cursor?: string | null | undefined;
         total?: number;
       }
     | undefined;

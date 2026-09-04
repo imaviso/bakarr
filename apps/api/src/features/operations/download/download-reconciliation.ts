@@ -1,4 +1,3 @@
-import { Effect, Option } from "effect";
 import { brandMediaId, type Config, type DownloadSourceMetadata } from "@packages/shared/index.ts";
 
 import type { downloads } from "@/db/schema.ts";
@@ -42,6 +41,7 @@ import type {
   OperationsNotFoundError,
 } from "@/features/operations/errors.ts";
 import type { RuntimeConfigSnapshotError } from "@/features/system/runtime-config-snapshot-service.ts";
+import { Effect, Option } from "effect";
 
 type DownloadRow = typeof downloads.$inferSelect;
 type MediaRow = typeof media.$inferSelect;
@@ -266,7 +266,7 @@ export const reconcileBatchDownloadEffect = Effect.fn("DownloadReconcile.reconci
       // unmapped unit means this file still has work to do.
       const allEpisodesAlreadyImported = relevantEpisodes.every((ep) => {
         const existing = episodeMap.get(ep);
-        return Boolean(existing?.downloaded && existing?.filePath);
+        return globalThis.Boolean(existing?.downloaded && existing?.filePath);
       });
 
       if (allEpisodesAlreadyImported) {

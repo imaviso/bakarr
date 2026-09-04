@@ -9,7 +9,7 @@ import {
 } from "@packages/shared/index.ts";
 import { StoredDataError } from "@/features/errors.ts";
 
-const DownloadEventMetadataJsonSchema = Schema.parseJson(DownloadEventMetadataSchema);
+const DownloadEventMetadataJsonSchema = Schema.fromJsonString(DownloadEventMetadataSchema);
 
 export interface DownloadEventPresentationContext {
   readonly mediaImage?: string | undefined;
@@ -36,7 +36,7 @@ export const decodeDownloadEventMetadata = Effect.fn(
     return undefined;
   }
 
-  return yield* Schema.decodeUnknown(DownloadEventMetadataJsonSchema)(value).pipe(
+  return yield* Schema.decodeUnknownEffect(DownloadEventMetadataJsonSchema)(value).pipe(
     Effect.mapError(
       (cause) =>
         new StoredDataError({

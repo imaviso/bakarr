@@ -58,8 +58,8 @@ function parsePositiveInteger(value: string | undefined): number | undefined {
     return undefined;
   }
 
-  const parsed = Number.parseInt(value, 10);
-  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : undefined;
+  const parsed = globalThis.Number.parseInt(value, 10);
+  return globalThis.Number.isSafeInteger(parsed) && parsed > 0 ? parsed : undefined;
 }
 
 function tryParseUrl(value: string): URL | undefined {

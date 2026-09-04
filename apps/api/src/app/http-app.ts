@@ -1,5 +1,7 @@
-import { HttpRouter, HttpServerRequest, HttpServerResponse } from "@effect/platform";
-import { Effect } from "effect";
+import * as HttpRouter from "effect/unstable/http/HttpRouter";
+import * as HttpServerRequest from "effect/unstable/http/HttpServerRequest";
+import * as HttpServerResponse from "effect/unstable/http/HttpServerResponse";
+import { Effect, Layer } from "effect";
 
 import { AppConfig } from "@/app/config/schema.ts";
 import { embeddedWebAssets } from "@/generated/embedded-web-assets.ts";
@@ -13,28 +15,44 @@ import { rssRouter } from "@/features/operations/rss-router.ts";
 import { searchRouter } from "@/features/operations/search-router.ts";
 import { systemRouter } from "@/features/system/http/router.ts";
 
+const addPrefixed = <A, E, R>(
+  prefix: string,
+  routesLayer: Layer.Layer<A, E, R>,
+): Layer.Layer<A, E, R | HttpRouter.HttpRouter> =>
+  routesLayer.pipe(
+    Layer.provide(
+      Layer.effect(
+        HttpRouter.HttpRouter,
+        Effect.map(HttpRouter.HttpRouter, (router) => router.prefixed(prefix)),
+      ),
+    ),
+  );
+
+const spaFallbackRouter = (assets: Record<string, EmbeddedWebAsset>) =>
+  HttpRouter.add(
+    "*",
+    "*",
+    Effect.gen(function* () {
+      const request = yield* HttpServerRequest.HttpServerRequest;
+      const url = new URL(request.url, "http://bakarr.local");
+
+      return createHttpAppFallbackResponse({
+        assets,
+        method: request.method,
+        pathname: url.pathname,
+      });
+    }),
+  );
+
 export function createHttpApp(
   options: {
     readonly staticWebAssets?: Record<string, EmbeddedWebAsset>;
   } = {},
 ) {
   const staticWebAssets = options.staticWebAssets ?? embeddedWebAssets;
-  const operationsRouter = HttpRouter.concatAll(
-    downloadsRouter,
-    rssRouter,
-    libraryRouter,
-    searchRouter,
-  );
-  const apiRouter = HttpRouter.empty.pipe(
-    HttpRouter.concat(HttpRouter.prefixAll(authRouter, "/api/auth")),
-    HttpRouter.concat(HttpRouter.prefixAll(mediaRouter, "/api")),
-    HttpRouter.concat(HttpRouter.prefixAll(operationsRouter, "/api")),
-    HttpRouter.concat(systemRouter),
-  );
 
-  return apiRouter.pipe(
-    HttpRouter.concat(spaFallbackRouter(staticWebAssets)),
-    HttpRouter.use((route) =>
+  const globalGuard = HttpRouter.middleware(
+    (route) =>
       Effect.gen(function* () {
         // DNS-rebinding guard: reject attacker-chosen domain Host headers
         // before any route (including unauthenticated ones) runs.
@@ -53,26 +71,19 @@ export function createHttpApp(
 
         return yield* route;
       }),
-    ),
-    HttpRouter.toHttpApp,
+    { global: true },
   );
-}
 
-function spaFallbackRouter(assets: Record<string, EmbeddedWebAsset>) {
-  return HttpRouter.empty.pipe(
-    HttpRouter.get(
-      "*",
-      Effect.gen(function* () {
-        const request = yield* HttpServerRequest.HttpServerRequest;
-        const url = new URL(request.url, "http://bakarr.local");
-
-        return createHttpAppFallbackResponse({
-          assets,
-          method: request.method,
-          pathname: url.pathname,
-        });
-      }),
-    ),
+  return Layer.mergeAll(
+    addPrefixed("/api/auth", authRouter),
+    addPrefixed("/api", mediaRouter),
+    addPrefixed("/api", downloadsRouter),
+    addPrefixed("/api", rssRouter),
+    addPrefixed("/api", libraryRouter),
+    addPrefixed("/api", searchRouter),
+    systemRouter,
+    spaFallbackRouter(staticWebAssets),
+    globalGuard,
   );
 }
 

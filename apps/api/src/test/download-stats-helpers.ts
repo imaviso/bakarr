@@ -1,19 +1,22 @@
 import { eq, sql, type SQL } from "drizzle-orm";
-import { Effect } from "effect";
 
 import type { AppDatabase } from "@/db/database.ts";
 import { downloads } from "@/db/schema.ts";
-import { tryDatabasePromise } from "@/infra/effect/db.ts";
+import { tryDatabaseQuery } from "@/infra/effect/db.ts";
+import { Effect } from "effect";
 
 const countDownloadsWhere = Effect.fn("DownloadStatsHelpers.countDownloadsWhere")(function* (
   db: AppDatabase,
   condition: SQL,
 ) {
-  const countRows = yield* tryDatabasePromise("Failed to count downloads", () =>
+  const countRows = yield* tryDatabaseQuery(
+    "Failed to count downloads",
     db
       .select({ value: sql<number>`count(*)` })
       .from(downloads)
-      .where(condition),
+      .where(condition)
+      .prepare()
+      .effect(),
   );
   const countRow = countRows[0];
 

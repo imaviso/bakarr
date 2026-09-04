@@ -1,5 +1,5 @@
+import { Cause, Context, Effect, Layer, LogLevel, Logger, Option, Record, Ref } from "effect";
 // oxlint-disable typescript/no-restricted-types -- `unknown` is the honest type at error/cause boundaries (Effect error channels, try/catch causes, Logger messages)
-import { Effect, Layer, Logger, LogLevel, Option, Predicate, Ref } from "effect";
 
 export function compactLogAnnotations(
   annotations: Record<string, unknown>,
@@ -28,11 +28,11 @@ export function errorLogAnnotations(error: unknown): Record<string, unknown> {
 }
 
 const LOG_LEVELS: Record<"debug" | "error" | "info" | "trace" | "warn", LogLevel.LogLevel> = {
-  debug: LogLevel.Debug,
-  error: LogLevel.Error,
-  info: LogLevel.Info,
-  trace: LogLevel.Trace,
-  warn: LogLevel.Warning,
+  debug: "Debug",
+  error: "Error",
+  info: "Info",
+  trace: "Trace",
+  warn: "Warn",
 };
 
 const LOG_LEVEL_ALIASES: Record<string, LogLevel.LogLevel> = {
@@ -56,41 +56,46 @@ export interface RuntimeLogSinkShape {
   }) => Effect.Effect<void>;
 }
 
-export class RuntimeLogLevelState extends Effect.Service<RuntimeLogLevelState>()(
-  "@bakarr/api/RuntimeLogLevelState",
-  {
-    effect: Effect.gen(function* () {
-      const ref = yield* Ref.make(LogLevel.Info);
+export class RuntimeLogLevelState extends Context.Service<
+  RuntimeLogLevelState,
+  RuntimeLogLevelStateShape
+>()("@bakarr/api/RuntimeLogLevelState") {
+  static readonly layer = Layer.effect(
+    RuntimeLogLevelState,
+    Effect.gen(function* () {
+      const ref = yield* Ref.make<LogLevel.LogLevel>("Info");
 
       return {
         get: Ref.get(ref),
         set: (level) => Ref.set(ref, parseRuntimeLogLevel(level)),
       } satisfies RuntimeLogLevelStateShape;
     }),
-  },
-) {}
+  );
+}
 
-export class RuntimeLogSink extends Effect.Service<RuntimeLogSink>()("@bakarr/api/RuntimeLogSink", {
-  succeed: {
+export class RuntimeLogSink extends Context.Service<RuntimeLogSink, RuntimeLogSinkShape>()(
+  "@bakarr/api/RuntimeLogSink",
+) {
+  static readonly layer = Layer.succeed(RuntimeLogSink, {
     write: ({ level, line }) =>
       Effect.sync(() => {
-        if (level.ordinal >= LogLevel.Error.ordinal) {
+        if (LogLevel.getOrdinal(level) >= LogLevel.getOrdinal("Error")) {
           console.error(line);
           return;
         }
 
-        if (level.ordinal >= LogLevel.Warning.ordinal) {
+        if (LogLevel.getOrdinal(level) >= LogLevel.getOrdinal("Warn")) {
           console.warn(line);
           return;
         }
 
         console.log(line);
       }),
-  } satisfies RuntimeLogSinkShape,
-}) {}
+  } satisfies RuntimeLogSinkShape);
+}
 
-export const RuntimeLogLevelStateLive = RuntimeLogLevelState.Default;
-export const RuntimeLogSinkLive = RuntimeLogSink.Default;
+export const RuntimeLogLevelStateLive = RuntimeLogLevelState.layer;
+export const RuntimeLogSinkLive = RuntimeLogSink.layer;
 
 export const setRuntimeLogLevel = Effect.fn("Logging.setRuntimeLogLevel")(function* (
   level: string | undefined,
@@ -103,28 +108,35 @@ const makeRuntimeLoggerLayer = Effect.fn("Logging.makeRuntimeLoggerLayer")(funct
   const state = yield* RuntimeLogLevelState;
   const sink = yield* RuntimeLogSink;
 
-  return Logger.replace(
-    Logger.defaultLogger,
-    Logger.make<unknown, void>((options) =>
-      Effect.gen(function* () {
-        const runtimeLogLevel = yield* state.get;
+  // v4 loggers are synchronous: the level gate and the sink run via runSync.
+  // Both are synchronous under the hood (Ref.get, console writes), so this
+  // never blocks the fiber.
+  return Logger.layer([
+    Logger.make<unknown, void>((options) => {
+      const runtimeLogLevel = Effect.runSync(state.get);
 
-        if (options.logLevel.ordinal < runtimeLogLevel.ordinal) {
-          return;
-        }
+      if (LogLevel.getOrdinal(options.logLevel) < LogLevel.getOrdinal(runtimeLogLevel)) {
+        return;
+      }
 
-        const line = Logger.jsonLogger.log(options);
+      const line = JSON.stringify({
+        cause: Cause.pretty(options.cause),
+        level: options.logLevel,
+        message: options.message,
+        timestamp: options.date.toISOString(),
+      });
 
-        yield* sink.write({
+      Effect.runSync(
+        sink.write({
           level: options.logLevel,
           line,
-        });
-      }),
-    ),
-  );
+        }),
+      );
+    }),
+  ]);
 });
 
-const RuntimeLoggerLive = Layer.unwrapEffect(makeRuntimeLoggerLayer());
+const RuntimeLoggerLive = Layer.unwrap(makeRuntimeLoggerLayer());
 
 const RuntimeLoggerDependenciesLive = Layer.mergeAll(RuntimeLogLevelStateLive, RuntimeLogSinkLive);
 
@@ -155,12 +167,8 @@ function formatUnknown(value: unknown): string | undefined {
 
   return Option.liftThrowable(() => JSON.stringify(value))().pipe(
     Option.getOrElse(() => {
-      if (Predicate.isRecord(value)) {
-        return Object.prototype.toString.call(value);
-      }
-
       if (typeof value === "number" || typeof value === "bigint" || typeof value === "boolean") {
-        return String(value);
+        return globalThis.String(value);
       }
 
       return typeof value;

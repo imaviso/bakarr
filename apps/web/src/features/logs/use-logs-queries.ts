@@ -33,10 +33,10 @@ interface UseLogsQueriesOptions {
 export function useLogsQueries(options: UseLogsQueriesOptions) {
   const [autoRefresh, setAutoRefreshState] = useState(readStoredAutoRefresh);
 
-  const setAutoRefresh = useCallback((next: boolean) => {
+  const setAutoRefresh = (next: boolean) => {
     setAutoRefreshState(next);
     storeAutoRefresh(next);
-  }, []);
+  };
 
   const refetchInterval = autoRefresh ? 3000 : false;
 

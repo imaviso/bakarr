@@ -1,5 +1,8 @@
-import { HttpServerRequest, HttpServerResponse, Socket } from "@effect/platform";
 import { Effect, Stream } from "effect";
+import * as HttpServerRequest from "effect/unstable/http/HttpServerRequest";
+import * as HttpServerResponse from "effect/unstable/http/HttpServerResponse";
+import { SocketCloseError, SocketError } from "effect/unstable/socket/Socket";
+import * as SocketTypes from "effect/unstable/socket/Socket";
 
 import { assert, it } from "@effect/vitest";
 import type { NotificationEvent } from "@packages/shared/index.ts";
@@ -54,11 +57,13 @@ it.effect("events router treats websocket 1001 close as normal disconnect", () =
         },
       }),
     );
-    const closeError = new Socket.SocketCloseError({ code: 1001, reason: "Close" });
-    const closingSocket: Socket.Socket = {
-      [Socket.TypeId]: Socket.TypeId,
-      run: () => Effect.fail(closeError),
-      runRaw: () => Effect.fail(closeError),
+    const closeError = new SocketCloseError({ code: 1001, closeReason: "Close" });
+    const socketError = new SocketError({ reason: closeError });
+    const closingSocket: SocketTypes.Socket = {
+      [SocketTypes.TypeId]: SocketTypes.TypeId,
+      run: () => Effect.fail(socketError),
+      runRaw: () => Effect.fail(socketError),
+      runString: () => Effect.fail(socketError),
       writer: Effect.succeed(() => Effect.void),
     };
     const request: HttpServerRequest.HttpServerRequest = {

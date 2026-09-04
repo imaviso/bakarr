@@ -1,6 +1,6 @@
 // oxlint-disable typescript/no-restricted-types -- `unknown` is the honest type at error/cause boundaries (Effect error channels, try/catch causes, Logger messages)
-import { Effect, Either, Option, Stream } from "effect";
 
+import { Context, Effect, Layer, Option, Result, Stream } from "effect";
 import { DnsResolver } from "@/security/dns-resolver.ts";
 import { ExternalCall, ExternalCallError, type ExternalCallShape } from "@/infra/effect/retry.ts";
 import { parseUrlEffect } from "@/infra/url.ts";
@@ -14,6 +14,7 @@ import {
   resolvePinnedRequestTarget,
   type PinnedRequestTarget,
 } from "@/features/operations/rss/rss-client-ssrf.ts";
+
 import {
   RssTransport,
   RssTransportPayloadTooLargeError,
@@ -29,19 +30,24 @@ interface RssClientShape {
   >;
 }
 
-export class RssClient extends Effect.Service<RssClient>()("@bakarr/api/RssClient", {
-  effect: Effect.gen(function* () {
-    const dns = yield* DnsResolver;
-    const externalCall = yield* ExternalCall;
-    const transport = yield* RssTransport;
+export class RssClient extends Context.Service<RssClient, RssClientShape>()(
+  "@bakarr/api/RssClient",
+) {
+  static readonly layer = Layer.effect(
+    RssClient,
+    Effect.gen(function* () {
+      const dns = yield* DnsResolver;
+      const externalCall = yield* ExternalCall;
+      const transport = yield* RssTransport;
 
-    return {
-      fetchItems: makeFetchItems(transport.execute, dns, externalCall),
-    } satisfies RssClientShape;
-  }),
-}) {}
+      return {
+        fetchItems: makeFetchItems(transport.execute, dns, externalCall),
+      } satisfies RssClientShape;
+    }),
+  );
+}
 
-export const RssClientLive = RssClient.Default;
+export const RssClientLive = RssClient.layer;
 
 const MAX_REDIRECT_HOPS = 5;
 
@@ -119,16 +125,16 @@ const makeFetchItems = (
       }
 
       if (response.status >= 200 && response.status < 300) {
-        const itemsResult = yield* Effect.either(
+        const itemsResult = yield* Effect.result(
           readRssItems(Stream.fromIterable([response.body])),
         );
-        if (Either.isLeft(itemsResult)) {
-          yield* Effect.logWarning(itemsResult.left.message).pipe(
+        if (Result.isFailure(itemsResult)) {
+          yield* Effect.logWarning(itemsResult.failure.message).pipe(
             Effect.annotateLogs({ rss_url: sanitizeRssUrlForLogs(currentUrl) }),
           );
-          return yield* itemsResult.left;
+          return yield* itemsResult.failure;
         }
-        return itemsResult.right;
+        return itemsResult.success;
       }
 
       if (response.status >= 300 && response.status < 400) {
@@ -149,13 +155,13 @@ const makeFetchItems = (
               message: "Invalid redirect URL",
             }),
           currentUrl,
-        ).pipe(Effect.either);
+        ).pipe(Effect.result);
 
-        if (Either.isLeft(redirectResult)) {
-          return yield* redirectResult.left;
+        if (Result.isFailure(redirectResult)) {
+          return yield* redirectResult.failure;
         }
 
-        const redirectUrl = redirectResult.right;
+        const redirectUrl = redirectResult.success;
 
         if (redirectUrl.protocol !== "http:" && redirectUrl.protocol !== "https:") {
           yield* Effect.logWarning("RSS feed rejected: redirect to disallowed scheme").pipe(

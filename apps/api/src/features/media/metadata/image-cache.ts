@@ -1,5 +1,5 @@
 // oxlint-disable typescript/no-restricted-types -- `unknown` is the honest type at error/cause boundaries (Effect error channels, try/catch causes, Logger messages)
-import { HttpClient } from "@effect/platform";
+import * as HttpClient from "effect/unstable/http/HttpClient";
 import { Effect, Option, Schema } from "effect";
 
 import { collectBoundedBytes } from "@/infra/effect/bounded-stream.ts";
@@ -22,12 +22,12 @@ const CachedImageSidecarSchema = Schema.Struct({
   sourceUrl: Schema.String,
 });
 
-const CachedImageSidecarJsonSchema = Schema.parseJson(CachedImageSidecarSchema);
+const CachedImageSidecarJsonSchema = Schema.fromJsonString(CachedImageSidecarSchema);
 
 export class ImageTooLargeError extends Schema.TaggedError<ImageTooLargeError>()(
   "ImageTooLargeError",
   {
-    cause: Schema.optional(Schema.Defect),
+    cause: Schema.optional(Schema.Defect()),
     contentLength: Schema.optional(Schema.Number),
     maxBytes: Schema.Number,
   },
@@ -156,7 +156,7 @@ const cachedImageSidecarMatches = Effect.fn("MediaImageCache.sidecarMatches")(fu
     return false;
   }
 
-  const sidecar = yield* Schema.decodeUnknown(CachedImageSidecarJsonSchema)(
+  const sidecar = yield* Schema.decodeUnknownEffect(CachedImageSidecarJsonSchema)(
     new TextDecoder().decode(bytes),
   ).pipe(Effect.orElseSucceed(() => undefined));
 
@@ -169,11 +169,11 @@ const writeCachedImageSidecar = Effect.fn("MediaImageCache.writeSidecar")(functi
   kind: "banner" | "cover",
   sourceUrl: string,
 ) {
-  const json = yield* Schema.encode(CachedImageSidecarJsonSchema)({ sourceUrl });
+  const json = yield* Schema.encodeEffect(CachedImageSidecarJsonSchema)({ sourceUrl });
 
   yield* fs.writeFile(`${baseDir}/${kind}.json`, new TextEncoder().encode(json)).pipe(
     // A missing sidecar only costs one extra refresh — never fail the caching.
-    Effect.catchAll(() => Effect.void),
+    Effect.catch(() => Effect.void),
   );
 });
 
@@ -231,7 +231,7 @@ const downloadImage = Effect.fn("MediaService.downloadImage")(
       return { bytes, extension };
     }).pipe(
       Effect.timeout(IMAGE_DOWNLOAD_TIMEOUT),
-      Effect.catchTag("TimeoutException", (cause) =>
+      Effect.catchTag("TimeoutError", (cause) =>
         Effect.fail(new ImageCacheError({ mediaId, cause, message: "Image download timed out" })),
       ),
     ),

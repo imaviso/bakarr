@@ -1,20 +1,24 @@
-import { Effect, Encoding } from "effect";
+import { Context, Effect, Encoding, Layer } from "effect";
 
 export interface RandomServiceShape {
   readonly randomBytes: (bytes: number) => Effect.Effect<Uint8Array>;
   readonly randomUuid: Effect.Effect<string>;
 }
 
-export class RandomService extends Effect.Service<RandomService>()("@bakarr/lib/RandomService", {
-  sync: () => ({
-    randomBytes: Effect.fn("RandomService.randomBytes")(
-      (bytes: number): Effect.Effect<Uint8Array> => Effect.sync(() => randomBytesSync(bytes)),
-    ),
-    randomUuid: Effect.fn("RandomService.randomUuid")(
-      (): Effect.Effect<string> => Effect.sync(() => crypto.randomUUID()),
-    )(),
-  }),
-}) {}
+const makeRandomService: RandomServiceShape = {
+  randomBytes: Effect.fn("RandomService.randomBytes")(
+    (bytes: number): Effect.Effect<Uint8Array> => Effect.sync(() => randomBytesSync(bytes)),
+  ),
+  randomUuid: Effect.fn("RandomService.randomUuid")(
+    (): Effect.Effect<string> => Effect.sync(() => crypto.randomUUID()),
+  )(),
+};
+
+export class RandomService extends Context.Service<RandomService, RandomServiceShape>()(
+  "@bakarr/lib/RandomService",
+) {
+  static readonly layer = Layer.sync(RandomService, () => makeRandomService);
+}
 
 export const randomHexFrom = Effect.fn("Random.randomHexFrom")(
   (random: RandomServiceShape, bytes: number): Effect.Effect<string> =>

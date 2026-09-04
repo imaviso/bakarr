@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { RiErrorWarningLine, RiInformationLine, RiSearchLine } from "@remixicon/react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -23,7 +22,6 @@ function getSearchColCount(w: number) {
 }
 
 interface SearchResultsProps {
-  active: boolean;
   canSearch: boolean;
   searchQuery: ReturnType<typeof useMediaSearchQuery>;
   searchResults: MediaSearchResult[];
@@ -47,18 +45,7 @@ export function SearchResults(props: SearchResultsProps) {
     estimateSize: () => estimateRowSize,
     overscan: 4,
     getScrollElement: () => nodeRef.current,
-    enabled: props.active,
   });
-
-  useEffect(() => {
-    const el = nodeRef.current;
-    if (el) {
-      el.scrollTop = 0;
-    }
-
-    rowVirtualizer.scrollToOffset(0);
-    rowVirtualizer.measure();
-  }, [props.debouncedQuery, rowVirtualizer, nodeRef, props.active]);
 
   const virtualRows = rowVirtualizer.getVirtualItems();
 

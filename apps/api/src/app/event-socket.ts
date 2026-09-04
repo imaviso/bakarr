@@ -5,7 +5,7 @@ import { encodeNotificationEventWire, type NotificationEvent } from "@packages/s
 export class NotificationEventEncodeError extends Schema.TaggedError<NotificationEventEncodeError>()(
   "NotificationEventEncodeError",
   {
-    cause: Schema.optional(Schema.Defect),
+    cause: Schema.optional(Schema.Defect()),
     message: Schema.String,
   },
 ) {}

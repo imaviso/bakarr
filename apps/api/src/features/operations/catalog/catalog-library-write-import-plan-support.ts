@@ -1,4 +1,3 @@
-import { Effect } from "effect";
 import type { Config, DownloadSourceMetadata, ImportMode } from "@packages/shared/index.ts";
 
 import type { DatabaseError } from "@/db/database.ts";
@@ -13,6 +12,7 @@ import { isWithinPathRoot } from "@/infra/filesystem/filesystem.ts";
 import { buildLibraryFileWritePlan } from "@/features/operations/download/library-file-write-support.ts";
 import { selectNamingFormat } from "@/features/operations/library/naming-format-support.ts";
 import type { UnitFilenamePlan } from "@/features/operations/library/naming-types.ts";
+import { Effect } from "effect";
 
 export interface BuildLibraryImportPlanInput {
   readonly fs: FileSystemShape;

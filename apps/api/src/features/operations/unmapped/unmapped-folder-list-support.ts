@@ -1,7 +1,9 @@
 // oxlint-disable typescript/no-restricted-types -- `unknown` is the honest type at error/cause boundaries (Effect error channels, try/catch causes, Logger messages)
+
 import { Predicate } from "effect";
 import type { MediaKind, ScannerState, UnmappedFolder } from "@packages/shared/index.ts";
 import type { DirEntry } from "@/infra/filesystem/filesystem.ts";
+
 import {
   buildUnmappedFolderSearchQueries,
   hasUnmappedFolderRetryAttemptsRemaining,
@@ -122,5 +124,5 @@ export function toUnmappedMatchErrorMessage(error: unknown) {
     return error.message;
   }
 
-  return String(error);
+  return globalThis.String(error);
 }

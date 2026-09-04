@@ -1,6 +1,6 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { GeneralError } from "@/components/shared/general-error";
 import { PageShell } from "@/app/layout/page-shell";
 import { runBulkBackgroundMatchAction } from "@/features/scan/background-matching-actions";
@@ -45,11 +45,8 @@ function LibraryScanPage() {
 
   const folders = scanState.folders;
   const folderList = folders;
-  const foldersByPath = useMemo(
-    () => new Map(folderList.map((folder) => [folder.path, folder])),
-    [folderList],
-  );
-  const folderPaths = useMemo(() => [...foldersByPath.keys()], [foldersByPath]);
+  const foldersByPath = new Map(folderList.map((folder) => [folder.path, folder]));
+  const folderPaths = [...foldersByPath.keys()];
 
   const isScanning = scanState.is_scanning;
   const hasOutstandingMatches = scanState.has_outstanding_matches;

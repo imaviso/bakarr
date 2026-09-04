@@ -1,5 +1,3 @@
-import { Effect } from "effect";
-
 import {
   TorrentClientUnavailableError,
   type TorrentFile,
@@ -18,6 +16,7 @@ import {
   type RuntimeConfigSnapshotError,
 } from "@/features/system/runtime-config-snapshot-service.ts";
 import { DomainInputError } from "@/features/errors.ts";
+import { Context, Effect, Layer } from "effect";
 
 type TorrentClientServiceError =
   | TorrentClientUnavailableError
@@ -78,12 +77,13 @@ export interface TorrentClientServiceShape {
  * unreachable. When no client is enabled every call returns Disabled and
  * callers skip their torrent work.
  */
-export class TorrentClientService extends Effect.Service<TorrentClientService>()(
-  "@bakarr/api/TorrentClientService",
-  {
-    // QBitTorrentClient + RuntimeConfigSnapshotService come from the lifecycle
-    // layer, keeping the client replaceable in tests via its layer option.
-    effect: Effect.gen(function* () {
+export class TorrentClientService extends Context.Service<
+  TorrentClientService,
+  TorrentClientServiceShape
+>()("@bakarr/api/TorrentClientService") {
+  static readonly layer = Layer.effect(
+    TorrentClientService,
+    Effect.gen(function* () {
       const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
       const qbitClient = yield* QBitTorrentClient;
 
@@ -179,7 +179,7 @@ export class TorrentClientService extends Effect.Service<TorrentClientService>()
         resumeTorrentIfEnabled,
       } satisfies TorrentClientServiceShape;
     }),
-  },
-) {}
+  );
+}
 
-export const TorrentClientServiceLive = TorrentClientService.Default;
+export const TorrentClientServiceLive = TorrentClientService.layer;

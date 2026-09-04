@@ -1,9 +1,9 @@
-import { assert, it } from "@effect/vitest";
-
 import { Cause, Effect, Exit, Stream } from "effect";
+import { assert, it } from "@effect/vitest";
 
 import { type DirEntry, FileSystem, FileSystemError } from "@/infra/filesystem/filesystem.ts";
 import { makeNoopTestFileSystemWithOverridesEffect } from "@/test/filesystem-test.ts";
+
 import {
   scanVideoFiles,
   scanVideoFilesStream,
@@ -76,7 +76,7 @@ it.effect("scanVideoFiles fails when the root path is inaccessible", () =>
 
     assert.deepStrictEqual(exit._tag, "Failure");
     if (Exit.isFailure(exit)) {
-      const failure = Cause.failureOption(exit.cause);
+      const failure = Cause.findErrorOption(exit.cause);
       assert.deepStrictEqual(failure._tag, "Some");
       if (failure._tag === "Some") {
         assert.deepStrictEqual(failure.value instanceof FileSystemError, true);
@@ -96,12 +96,12 @@ it.effect("scanVideoFilesStream uses streaming dir reader when available", () =>
       message: "readDir should not be used",
       path: "/library",
     });
-    const streamingFs = FileSystem.make(
+    const streamingFs = FileSystem.of(
       Object.assign({}, mockFs, {
         readDir: () =>
           Effect.sync(() => {
             readDirCalls += 1;
-          }).pipe(Effect.zipRight(Effect.fail(readDirError))),
+          }).pipe(Effect.andThen(Effect.fail(readDirError))),
         readDirStream: (path: string | URL) => {
           streamed += 1;
           return Stream.fromIterable(tree.get(toPathString(path)) ?? []);
@@ -220,7 +220,7 @@ it.effect("scanVideoFilesStream fails when encountering inaccessible subdirector
 
     assert.deepStrictEqual(exit._tag, "Failure");
     if (Exit.isFailure(exit)) {
-      const failure = Cause.failureOption(exit.cause);
+      const failure = Cause.findErrorOption(exit.cause);
       assert.deepStrictEqual(failure._tag, "Some");
       if (failure._tag === "Some") {
         assert.deepStrictEqual(failure.value instanceof FileSystemError, true);

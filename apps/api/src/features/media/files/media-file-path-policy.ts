@@ -1,8 +1,7 @@
-import { Effect } from "effect";
-
 import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import { isWithinPathRoot } from "@/infra/filesystem/filesystem.ts";
 import { DomainPathError } from "@/features/errors.ts";
+import { Effect } from "effect";
 
 export const VIDEO_UNIT_FILE_EXTENSIONS: readonly string[] = [
   ".mkv",

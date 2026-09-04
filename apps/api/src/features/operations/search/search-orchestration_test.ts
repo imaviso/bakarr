@@ -1,5 +1,3 @@
-import { Effect, Layer, Option } from "effect";
-
 import * as dbSchema from "@/db/schema.ts";
 import { media } from "@/db/schema.ts";
 import { assert, it } from "@effect/vitest";
@@ -15,22 +13,25 @@ import { makeMediaRepository } from "@/test/repository-factories.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 import type { Config } from "@packages/shared/index.ts";
 import type { AppDatabase } from "@/db/database.ts";
+import type * as NodeSqliteClient from "@effect/sql-sqlite-node/SqliteClient";
+import { Effect, Layer, Option } from "effect";
 
 function withSearchReleaseService(input: {
+  readonly client: NodeSqliteClient.SqliteClient;
   readonly db: AppDatabase;
   readonly config: Config;
   readonly rssClient: typeof RssClient.Service;
   readonly seadexClient: typeof SeaDexClient.Service;
 }) {
-  const layer = SearchReleaseService.DefaultWithoutDependencies.pipe(
+  const layer = SearchReleaseService.layer.pipe(
     Layer.provide(
       Layer.mergeAll(
         Layer.succeed(RssClient, input.rssClient),
         Layer.succeed(SeaDexClient, input.seadexClient),
-        Layer.succeed(MediaRepository, makeMediaRepository(input.db)),
+        Layer.succeed(MediaRepository, makeMediaRepository(input.db, input.client)),
         Layer.succeed(
           RuntimeConfigSnapshotService,
-          RuntimeConfigSnapshotService.make({
+          RuntimeConfigSnapshotService.of({
             getRuntimeConfig: () => Effect.succeed(input.config),
             replaceRuntimeConfig: () => Effect.void,
           }),
@@ -44,19 +45,20 @@ function withSearchReleaseService(input: {
   }).pipe(Effect.provide(layer));
 }
 
-it.scoped("searchUnitReleases returns unenriched releases when SeaDex enrichment fails", () =>
+it.effect("searchUnitReleases returns unenriched releases when SeaDex enrichment fails", () =>
   withSqliteTestDbEffect({
-    run: (db) =>
+    run: (db, _databaseFile, client, _exec) =>
       Effect.gen(function* () {
         const config = makeTestConfig("/tmp/test.sqlite");
         const release = makeRelease();
         const searchReleaseService = yield* withSearchReleaseService({
+          client,
           config,
           db,
-          rssClient: RssClient.make({
+          rssClient: RssClient.of({
             fetchItems: () => Effect.succeed([release]),
           }),
-          seadexClient: SeaDexClient.make({
+          seadexClient: SeaDexClient.of({
             getEntryByAniListId: () =>
               Effect.fail(
                 new ExternalCallError({
@@ -77,16 +79,17 @@ it.scoped("searchUnitReleases returns unenriched releases when SeaDex enrichment
   }),
 );
 
-it.scoped("searchUnitReleases tries season episode query variants", () =>
+it.effect("searchUnitReleases tries season episode query variants", () =>
   withSqliteTestDbEffect({
-    run: (db) =>
+    run: (db, _databaseFile, client, _exec) =>
       Effect.gen(function* () {
         const requestedQueries: string[] = [];
         const config = makeTestConfig("/tmp/test.sqlite");
         const searchReleaseService = yield* withSearchReleaseService({
+          client,
           config,
           db,
-          rssClient: RssClient.make({
+          rssClient: RssClient.of({
             fetchItems: (url: string) => {
               const query = new URL(url).searchParams.get("q") ?? "";
               requestedQueries.push(query);
@@ -124,16 +127,17 @@ it.scoped("searchUnitReleases tries season episode query variants", () =>
   }),
 );
 
-it.scoped("searchUnitReleases searches stored synonyms and normalized aliases", () =>
+it.effect("searchUnitReleases searches stored synonyms and normalized aliases", () =>
   withSqliteTestDbEffect({
-    run: (db) =>
+    run: (db, _databaseFile, client, _exec) =>
       Effect.gen(function* () {
         const requestedQueries: string[] = [];
         const config = makeTestConfig("/tmp/test.sqlite");
         const searchReleaseService = yield* withSearchReleaseService({
+          client,
           config,
           db,
-          rssClient: RssClient.make({
+          rssClient: RssClient.of({
             fetchItems: (url: string) => {
               const query = new URL(url).searchParams.get("q") ?? "";
               requestedQueries.push(query);
@@ -171,16 +175,17 @@ it.scoped("searchUnitReleases searches stored synonyms and normalized aliases", 
   }),
 );
 
-it.scoped("searchUnitReleases falls back to broad title search and keeps requested episode", () =>
+it.effect("searchUnitReleases falls back to broad title search and keeps requested episode", () =>
   withSqliteTestDbEffect({
-    run: (db) =>
+    run: (db, _databaseFile, client, _exec) =>
       Effect.gen(function* () {
         const requestedQueries: string[] = [];
         const config = makeTestConfig("/tmp/test.sqlite");
         const searchReleaseService = yield* withSearchReleaseService({
+          client,
           config,
           db,
-          rssClient: RssClient.make({
+          rssClient: RssClient.of({
             fetchItems: (url: string) => {
               const query = new URL(url).searchParams.get("q") ?? "";
               requestedQueries.push(query);
@@ -220,16 +225,17 @@ it.scoped("searchUnitReleases falls back to broad title search and keeps request
   }),
 );
 
-it.scoped("searchUnitReleases uses Nyaa literature category for manga", () =>
+it.effect("searchUnitReleases uses Nyaa literature category for manga", () =>
   withSqliteTestDbEffect({
-    run: (db) =>
+    run: (db, _databaseFile, client, _exec) =>
       Effect.gen(function* () {
         const requestedCategories: string[] = [];
         const config = makeTestConfig("/tmp/test.sqlite");
         const searchReleaseService = yield* withSearchReleaseService({
+          client,
           config,
           db,
-          rssClient: RssClient.make({
+          rssClient: RssClient.of({
             fetchItems: (url: string) => {
               const parsedUrl = new URL(url);
               requestedCategories.push(parsedUrl.searchParams.get("c") ?? "");
@@ -270,16 +276,17 @@ it.scoped("searchUnitReleases uses Nyaa literature category for manga", () =>
   }),
 );
 
-it.scoped("searchUnitReleases finds hyphenated titles via sanitized alias", () =>
+it.effect("searchUnitReleases finds hyphenated titles via sanitized alias", () =>
   withSqliteTestDbEffect({
-    run: (db) =>
+    run: (db, _databaseFile, client, _exec) =>
       Effect.gen(function* () {
         const requestedQueries: string[] = [];
         const config = makeTestConfig("/tmp/test.sqlite");
         const searchReleaseService = yield* withSearchReleaseService({
+          client,
           config,
           db,
-          rssClient: RssClient.make({
+          rssClient: RssClient.of({
             fetchItems: (url: string) => {
               const query = new URL(url).searchParams.get("q") ?? "";
               requestedQueries.push(query);
@@ -324,16 +331,17 @@ it.scoped("searchUnitReleases finds hyphenated titles via sanitized alias", () =
   }),
 );
 
-it.scoped("searchUnitReleases finds long titles via truncated alias", () =>
+it.effect("searchUnitReleases finds long titles via truncated alias", () =>
   withSqliteTestDbEffect({
-    run: (db) =>
+    run: (db, _databaseFile, client, _exec) =>
       Effect.gen(function* () {
         const requestedQueries: string[] = [];
         const config = makeTestConfig("/tmp/test.sqlite");
         const searchReleaseService = yield* withSearchReleaseService({
+          client,
           config,
           db,
-          rssClient: RssClient.make({
+          rssClient: RssClient.of({
             fetchItems: (url: string) => {
               const query = new URL(url).searchParams.get("q") ?? "";
               requestedQueries.push(query);
@@ -437,7 +445,7 @@ function makeRelease(input: Partial<ParsedRelease> = {}): ParsedRelease {
 }
 
 function makeSeaDexNoneClient() {
-  return SeaDexClient.make({
+  return SeaDexClient.of({
     getEntryByAniListId: () => Effect.succeed(Option.none()),
   });
 }

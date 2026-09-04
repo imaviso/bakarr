@@ -10,8 +10,14 @@ import { formatFieldErrors } from "@/api/effect/errors";
 import { FieldError } from "@/components/shared/field-error";
 
 const EditMappingSchema = Schema.Struct({
-  episode: Schema.Number.pipe(Schema.int(), Schema.nonNegative()),
-  season: Schema.Number.pipe(Schema.int(), Schema.nonNegative()),
+  episode: Schema.Number.pipe(
+    Schema.check(Schema.isInt()),
+    Schema.check(Schema.isGreaterThanOrEqualTo(0)),
+  ),
+  season: Schema.Number.pipe(
+    Schema.check(Schema.isInt()),
+    Schema.check(Schema.isGreaterThanOrEqualTo(0)),
+  ),
 });
 
 interface EditMappingPopoverProps {
@@ -29,7 +35,7 @@ export function EditMappingPopover(props: EditMappingPopoverProps) {
       season: props.season ?? 1,
     },
     validators: {
-      onChange: Schema.standardSchemaV1(EditMappingSchema),
+      onChange: Schema.toStandardSchemaV1(EditMappingSchema),
     },
     onSubmit: ({ value }) => {
       props.onSave(value.season, value.episode);

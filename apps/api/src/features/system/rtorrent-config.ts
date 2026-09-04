@@ -1,9 +1,8 @@
-import { Effect } from "effect";
-
 import type { Config } from "@packages/shared/index.ts";
 import { ConfigValidationError } from "@/features/system/errors.ts";
 import { hostnameIsPrivate } from "@/security/private-host.ts";
 import { parseUrlEffect } from "@/infra/url.ts";
+import { Effect } from "effect";
 
 const configValidationError = (message: string) => new ConfigValidationError({ message });
 

@@ -1,5 +1,5 @@
-import { assert, it } from "@effect/vitest";
 import { Cause, Effect, Exit } from "effect";
+import { assert, it } from "@effect/vitest";
 
 import { media } from "@/db/schema.ts";
 import { FileSystemError, type FileSystemShape } from "@/infra/filesystem/filesystem.ts";
@@ -10,6 +10,7 @@ import {
   writeTextFile,
 } from "@/test/filesystem-test.ts";
 import { makeTestConfig } from "@/test/config-fixture.ts";
+
 import {
   importDownloadedFile,
   ImportFileError,
@@ -92,7 +93,7 @@ it("download support helpers use config values and defaults", () => {
   assert.deepStrictEqual(shouldDeleteImportedData(undefined), false);
 });
 
-it.scoped("importDownloadedFile keeps existing destination when staging copy fails", () =>
+it.effect("importDownloadedFile keeps existing destination when staging copy fails", () =>
   withFileSystemSandboxEffect(({ fs, root }) =>
     Effect.gen(function* () {
       const { animeRoot, sourceRoot } = yield* makeImportRoots(fs, root);
@@ -135,7 +136,7 @@ it.scoped("importDownloadedFile keeps existing destination when staging copy fai
   ),
 );
 
-it.scoped("importDownloadedFile surfaces stat access errors instead of treating as missing", () =>
+it.effect("importDownloadedFile surfaces stat access errors instead of treating as missing", () =>
   withFileSystemSandboxEffect(({ fs, root }) =>
     Effect.gen(function* () {
       const { animeRoot, sourceRoot } = yield* makeImportRoots(fs, root);
@@ -167,7 +168,7 @@ it.scoped("importDownloadedFile surfaces stat access errors instead of treating 
 
       assert.deepStrictEqual(Exit.isFailure(exit), true);
       if (Exit.isFailure(exit)) {
-        const failure = Cause.failureOption(exit.cause);
+        const failure = Cause.findErrorOption(exit.cause);
         assert.deepStrictEqual(failure._tag, "Some");
         if (failure._tag === "Some") {
           assert.deepStrictEqual(failure.value instanceof ImportFileError, true);
@@ -181,7 +182,7 @@ it.scoped("importDownloadedFile surfaces stat access errors instead of treating 
   ),
 );
 
-it.scoped("importDownloadedFile cleans staged temp file when backup rename fails", () =>
+it.effect("importDownloadedFile cleans staged temp file when backup rename fails", () =>
   withFileSystemSandboxEffect(({ fs, root }) =>
     Effect.gen(function* () {
       const { animeRoot, sourceRoot } = yield* makeImportRoots(fs, root);
@@ -216,7 +217,7 @@ it.scoped("importDownloadedFile cleans staged temp file when backup rename fails
 
       assert.deepStrictEqual(Exit.isFailure(exit), true);
       if (Exit.isFailure(exit)) {
-        const failure = Cause.failureOption(exit.cause);
+        const failure = Cause.findErrorOption(exit.cause);
         assert.deepStrictEqual(failure._tag, "Some");
         if (failure._tag === "Some") {
           assert.deepStrictEqual(failure.value instanceof ImportFileError, true);
@@ -232,7 +233,7 @@ it.scoped("importDownloadedFile cleans staged temp file when backup rename fails
   ),
 );
 
-it.scoped("importDownloadedFile returns composed failure when restore also fails", () =>
+it.effect("importDownloadedFile returns composed failure when restore also fails", () =>
   withFileSystemSandboxEffect(({ fs, root }) =>
     Effect.gen(function* () {
       const { animeRoot, sourceRoot } = yield* makeImportRoots(fs, root);
@@ -275,7 +276,7 @@ it.scoped("importDownloadedFile returns composed failure when restore also fails
 
       assert.deepStrictEqual(Exit.isFailure(exit), true);
       if (Exit.isFailure(exit)) {
-        const failure = Cause.failureOption(exit.cause);
+        const failure = Cause.findErrorOption(exit.cause);
         assert.deepStrictEqual(failure._tag, "Some");
         if (failure._tag === "Some") {
           assert.deepStrictEqual(failure.value instanceof ImportFileError, true);
@@ -294,7 +295,7 @@ it.scoped("importDownloadedFile returns composed failure when restore also fails
   ),
 );
 
-it.scoped(
+it.effect(
   "importDownloadedFile fails when cross-filesystem move cannot delete the source file",
   () =>
     withFileSystemSandboxEffect(({ fs, root }) =>
@@ -333,7 +334,7 @@ it.scoped(
         assert.deepStrictEqual(Exit.isFailure(exit), true);
         assert.deepStrictEqual(yield* readTextFile(fs, sourcePath), "incoming");
         if (Exit.isFailure(exit)) {
-          const failure = Cause.failureOption(exit.cause);
+          const failure = Cause.findErrorOption(exit.cause);
           assert.deepStrictEqual(failure._tag, "Some");
           if (failure._tag === "Some") {
             assert.deepStrictEqual(failure.value instanceof ImportFileError, true);
@@ -347,7 +348,7 @@ it.scoped(
     ),
 );
 
-it.scoped(
+it.effect(
   "importDownloadedFile applies configured naming tokens from source filename metadata",
   () => {
     const namingFormat =
@@ -383,7 +384,7 @@ it.scoped(
   },
 );
 
-it.scoped("importDownloadedFile respects preferred title when building destination", () =>
+it.effect("importDownloadedFile respects preferred title when building destination", () =>
   withFileSystemSandboxEffect(({ fs, root }) =>
     Effect.gen(function* () {
       const { animeRoot, sourceRoot } = yield* makeImportRoots(fs, root);
@@ -418,7 +419,7 @@ it.scoped("importDownloadedFile respects preferred title when building destinati
   ),
 );
 
-it.scoped("importDownloadedFile uses episode DB metadata and fallback naming plan", () =>
+it.effect("importDownloadedFile uses episode DB metadata and fallback naming plan", () =>
   withFileSystemSandboxEffect(({ fs, root }) =>
     Effect.gen(function* () {
       const { animeRoot, sourceRoot } = yield* makeImportRoots(fs, root);
@@ -452,7 +453,7 @@ it.scoped("importDownloadedFile uses episode DB metadata and fallback naming pla
   ),
 );
 
-it.scoped("importDownloadedFile reuses stored provenance when source path is weak", () =>
+it.effect("importDownloadedFile reuses stored provenance when source path is weak", () =>
   withFileSystemSandboxEffect(({ fs, root }) =>
     Effect.gen(function* () {
       const { animeRoot, sourceRoot } = yield* makeImportRoots(fs, root);
@@ -494,7 +495,7 @@ it.scoped("importDownloadedFile reuses stored provenance when source path is wea
   ),
 );
 
-it.scoped("importDownloadedFile uses local media metadata when heuristics are missing", () =>
+it.effect("importDownloadedFile uses local media metadata when heuristics are missing", () =>
   withFileSystemSandboxEffect(({ fs, root }) =>
     Effect.gen(function* () {
       const { animeRoot, sourceRoot } = yield* makeImportRoots(fs, root);

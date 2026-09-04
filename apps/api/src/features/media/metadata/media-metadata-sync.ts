@@ -1,5 +1,3 @@
-import { Effect, Option } from "effect";
-
 import { MediaImageCacheService } from "@/features/media/metadata/media-image-cache-service.ts";
 import { ImageCacheError } from "@/features/media/metadata/media-image-cache-service.ts";
 import type { AnimeMetadata } from "@/features/media/metadata/metadata-model.ts";
@@ -12,6 +10,7 @@ import {
 } from "@/features/media/metadata/discovery-metadata-codec.ts";
 import { toMediaRowFields } from "@/features/media/shared/media-metadata-row.ts";
 import type { SystemLogRepositoryShape } from "@/features/system/repository/log-repository.ts";
+import { Effect, Option } from "effect";
 
 type MediaEventPublisher = Pick<EventBusShape, "publish" | "publishInfo">;
 

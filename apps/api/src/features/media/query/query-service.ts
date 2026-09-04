@@ -1,5 +1,3 @@
-import { DateTime, Effect, Option } from "effect";
-
 import { DatabaseError } from "@/db/database.ts";
 import { AniListClient } from "@/features/media/metadata/anilist.ts";
 import { ManamiClient } from "@/features/media/metadata/manami.ts";
@@ -20,6 +18,7 @@ import {
   deriveDetailProgress,
   deriveListProgress,
 } from "@/features/media/shared/dto.ts";
+import { Context, DateTime, Effect, Layer, Option } from "effect";
 import {
   brandMediaId,
   type CalendarEvent,
@@ -85,7 +84,7 @@ export interface MediaQueryServiceShape {
   ) => Effect.Effect<CalendarEvent[], DatabaseError>;
 }
 
-const makeMediaQueryService = Effect.fn("MediaQueryService.make")(function* () {
+export const makeMediaQueryService = Effect.fn("MediaQueryService.make")(function* () {
   const aniList = yield* AniListClient;
   const manami = yield* ManamiClient;
   const mediaRepository = yield* MediaRepository;
@@ -190,7 +189,7 @@ const makeMediaQueryService = Effect.fn("MediaQueryService.make")(function* () {
       const mediaDtos: Media[] = [];
       for (let index = 0; index < mediaRows.length; index++) {
         if (index > 0 && index % DTO_PROGRESS_YIELD_INTERVAL === 0) {
-          yield* Effect.yieldNow();
+          yield* Effect.yieldNow;
         }
 
         const row = mediaRows[index];
@@ -377,17 +376,10 @@ const makeMediaQueryService = Effect.fn("MediaQueryService.make")(function* () {
   return service;
 });
 
-export class MediaQueryService extends Effect.Service<MediaQueryService>()(
+export class MediaQueryService extends Context.Service<MediaQueryService, MediaQueryServiceShape>()(
   "@bakarr/api/MediaQueryService",
-  {
-    // AniList/Manami clients come from the lifecycle layer.
-    dependencies: [
-      MediaRepository.Default,
-      MediaSeasonalProviderService.Default,
-      SeasonalMediaCacheRepository.Default,
-    ],
-    effect: makeMediaQueryService(),
-  },
-) {}
+) {
+  static readonly layer = Layer.effect(MediaQueryService, makeMediaQueryService());
+}
 
-export const MediaQueryServiceLive = MediaQueryService.Default;
+export const MediaQueryServiceLive = MediaQueryService.layer;

@@ -1,7 +1,7 @@
-import { FetchHttpClient, PlatformConfigProvider } from "@effect/platform";
-import * as NodeContext from "@effect/platform-node/NodeContext";
+import * as FetchHttpClient from "effect/unstable/http/FetchHttpClient";
+import * as NodeServices from "@effect/platform-node/NodeServices";
 import * as NodeFileSystem from "@effect/platform-node/NodeFileSystem";
-import { ConfigProvider, Layer } from "effect";
+import { ConfigProvider, Effect, Layer } from "effect";
 
 import { AppRuntime } from "@/app/runtime.ts";
 import {
@@ -34,7 +34,7 @@ export function makeAppPlatformCoreRuntimeLayer(
   overrides: AppConfigOverrides & BootstrapConfigOverrides & ObservabilityConfigOverrides = {},
   options?: AppPlatformRuntimeOptions,
 ) {
-  const httpAndRuntimeLayer = Layer.mergeAll(FetchHttpClient.layer, RandomService.Default);
+  const httpAndRuntimeLayer = Layer.mergeAll(FetchHttpClient.layer, RandomService.layer);
   const withRuntimeSupport = <A, E, R>(layer: Layer.Layer<A, E, R>) =>
     layer.pipe(Layer.provide(httpAndRuntimeLayer));
 
@@ -44,28 +44,32 @@ export function makeAppPlatformCoreRuntimeLayer(
     Layer.provide(appConfigLayer),
   );
   const configProviderLayer = options?.configProvider
-    ? Layer.setConfigProvider(options.configProvider)
-    : PlatformConfigProvider.layerDotEnvAdd(".env").pipe(Layer.provide(NodeFileSystem.layer));
+    ? ConfigProvider.layer(options.configProvider)
+    : ConfigProvider.layerAdd(
+        ConfigProvider.fromDotEnv({ path: ".env" }).pipe(
+          Effect.catch(() => Effect.succeed(ConfigProvider.fromEnvRecord({}))),
+        ),
+      ).pipe(Layer.provide(NodeFileSystem.layer));
 
   const configLayer = Layer.mergeAll(
     appConfigLayer,
     bootstrapConfigLayer,
     observabilityConfigLayer,
   ).pipe(Layer.provide(configProviderLayer));
-  const runtimeLayer = AppRuntime.Default.pipe(Layer.provide(httpAndRuntimeLayer));
+  const runtimeLayer = AppRuntime.layer.pipe(Layer.provide(httpAndRuntimeLayer));
   const externalCallLayer = ExternalCallLive;
   const databaseLayer = DatabaseLayerLive.pipe(
     Layer.provide(configLayer),
-    Layer.provide(NodeContext.layer),
+    Layer.provide(NodeServices.layer),
   );
-  const eventBusLayer = EventBus.Default;
+  const eventBusLayer = EventBus.layer;
   const backgroundMonitorLayer = withRuntimeSupport(BackgroundWorkerMonitorLive);
   const telemetryLayer = TelemetryLayer.pipe(
     Layer.provide(Layer.mergeAll(configLayer, httpAndRuntimeLayer)),
   );
 
   const platformCoreLayer = Layer.mergeAll(
-    NodeContext.layer,
+    NodeServices.layer,
     httpAndRuntimeLayer,
     configLayer,
     runtimeLayer,
@@ -79,8 +83,8 @@ export function makeAppPlatformCoreRuntimeLayer(
     eventBusLayer,
     backgroundMonitorLayer,
     FileSystemLive,
-    options?.passwordCryptoLayer ?? PasswordCrypto.Default,
-    TokenHasher.Default,
+    options?.passwordCryptoLayer ?? PasswordCrypto.layer,
+    TokenHasher.layer,
   );
 
   return Layer.mergeAll(platformCoreLayer, infrastructureLayer);

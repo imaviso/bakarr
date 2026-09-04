@@ -1,4 +1,4 @@
-import { Deferred, Effect, Exit, Option, Ref } from "effect";
+import { Deferred, Effect, Exit, Option, Ref, Semaphore } from "effect";
 
 /**
  * Serialized effect runners.
@@ -39,7 +39,7 @@ export const makeSerializedShareEffectRunner = Effect.fn(
     effect: Effect.Effect<A, E, R>,
   ): Effect.Effect<SerializedShareEffectRunner<A, E, R>, never, R> =>
     Effect.gen(function* () {
-      const semaphore = yield* Effect.makeSemaphore(1);
+      const semaphore = yield* Semaphore.make(1);
       const state = yield* Ref.make<{
         readonly completion: Deferred.Deferred<A, E> | null;
         readonly running: boolean;
@@ -93,7 +93,7 @@ export const makeSerializedDropEffectRunner = Effect.fn(
     effect: Effect.Effect<A, E, R>,
   ): Effect.Effect<SerializedDropEffectRunner<A, E, R>, never, R> =>
     Effect.gen(function* () {
-      const semaphore = yield* Effect.makeSemaphore(1);
+      const semaphore = yield* Semaphore.make(1);
 
       const trigger = semaphore.withPermitsIfAvailable(1)(effect);
 
@@ -122,8 +122,8 @@ export const makeSerializedDrainEffectRunner = Effect.fn(
       const settle = (completion: Deferred.Deferred<void, E>, exit: Exit.Exit<void, E>) =>
         Ref.set(state, { completion: null, pending: false }).pipe(
           exit._tag === "Success"
-            ? Effect.zipRight(Deferred.succeed(completion, void 0))
-            : Effect.zipRight(Deferred.failCause(completion, exit.cause)),
+            ? Effect.andThen(Deferred.succeed(completion, void 0))
+            : Effect.andThen(Deferred.failCause(completion, exit.cause)),
         );
 
       const runCycle = (): Effect.Effect<void, E, R> =>

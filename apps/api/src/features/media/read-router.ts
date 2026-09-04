@@ -1,5 +1,6 @@
-import { HttpRouter, HttpServerResponse } from "@effect/platform";
-import { Effect, Schema } from "effect";
+import * as HttpRouter from "effect/unstable/http/HttpRouter";
+import * as HttpServerResponse from "effect/unstable/http/HttpServerResponse";
+import { Effect, Layer, Schema } from "effect";
 import {
   MediaListResponseSchema,
   MediaSchema,
@@ -38,8 +39,9 @@ import {
 
 const StreamUrlResponseSchema = Schema.Struct({ url: Schema.String });
 
-export const mediaReadRouter = HttpRouter.empty.pipe(
-  HttpRouter.get(
+export const mediaReadRouter = Layer.mergeAll(
+  HttpRouter.add(
+    "GET",
     "/media",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -53,7 +55,8 @@ export const mediaReadRouter = HttpRouter.empty.pipe(
       schemaJsonResponse(MediaListResponseSchema),
     ),
   ),
-  HttpRouter.get(
+  HttpRouter.add(
+    "GET",
     "/media/seasonal",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -63,7 +66,8 @@ export const mediaReadRouter = HttpRouter.empty.pipe(
       schemaJsonResponse(SeasonalMediaResponseSchema),
     ),
   ),
-  HttpRouter.get(
+  HttpRouter.add(
+    "GET",
     "/media/search",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -73,7 +77,8 @@ export const mediaReadRouter = HttpRouter.empty.pipe(
       schemaJsonResponse(MediaSearchResponseSchema),
     ),
   ),
-  HttpRouter.get(
+  HttpRouter.add(
+    "GET",
     "/media/anilist/:id",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -84,7 +89,8 @@ export const mediaReadRouter = HttpRouter.empty.pipe(
       schemaJsonResponse(MediaSearchResultSchema),
     ),
   ),
-  HttpRouter.get(
+  HttpRouter.add(
+    "GET",
     "/media/:id",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -94,7 +100,8 @@ export const mediaReadRouter = HttpRouter.empty.pipe(
       schemaJsonResponse(MediaSchema),
     ),
   ),
-  HttpRouter.get(
+  HttpRouter.add(
+    "GET",
     "/media/:id/units",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -104,7 +111,8 @@ export const mediaReadRouter = HttpRouter.empty.pipe(
       schemaJsonResponse(Schema.Array(MediaUnitSchema)),
     ),
   ),
-  HttpRouter.get(
+  HttpRouter.add(
+    "GET",
     "/media/:id/units/:unitNumber/pages",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -114,7 +122,8 @@ export const mediaReadRouter = HttpRouter.empty.pipe(
       schemaJsonResponse(ReaderPagesResponseSchema),
     ),
   ),
-  HttpRouter.get(
+  HttpRouter.add(
+    "GET",
     "/media/:id/units/:unitNumber/pages/:pageNumber/image",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -137,7 +146,8 @@ export const mediaReadRouter = HttpRouter.empty.pipe(
         ),
     ),
   ),
-  HttpRouter.get(
+  HttpRouter.add(
+    "GET",
     "/media/:id/files",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -147,7 +157,8 @@ export const mediaReadRouter = HttpRouter.empty.pipe(
       schemaJsonResponse(Schema.Array(VideoFileSchema)),
     ),
   ),
-  HttpRouter.get(
+  HttpRouter.add(
+    "GET",
     "/media/:id/rss",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -157,7 +168,8 @@ export const mediaReadRouter = HttpRouter.empty.pipe(
       schemaJsonResponse(Schema.Array(RssFeedSchema)),
     ),
   ),
-  HttpRouter.get(
+  HttpRouter.add(
+    "GET",
     "/media/:id/rename-preview",
     authedRouteResponse(
       Effect.gen(function* () {
@@ -167,7 +179,8 @@ export const mediaReadRouter = HttpRouter.empty.pipe(
       schemaJsonResponse(Schema.Array(RenamePreviewItemSchema)),
     ),
   ),
-  HttpRouter.get(
+  HttpRouter.add(
+    "GET",
     "/media/:id/stream-url",
     authedRouteResponse(
       Effect.gen(function* () {

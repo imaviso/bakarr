@@ -1,12 +1,10 @@
-import { Brand, Option } from "effect";
-
 import type { Config } from "@packages/shared/index.ts";
 import type { ConfigCore } from "@/features/system/config-codec.ts";
+import { Brand, Option } from "effect";
 
 export type NonEmptyPassword = string & Brand.Brand<"NonEmptyPassword">;
-export const NonEmptyPassword = Brand.refined<NonEmptyPassword>(
-  (value) => value.trim().length > 0,
-  (value) => Brand.error(`Expected non-empty password but received "${value}"`),
+export const NonEmptyPassword = Brand.make<NonEmptyPassword>(
+  (value) => value.trim().length > 0 || `Expected non-empty password but received "${value}"`,
 );
 
 export function toNonEmptyPasswordOption(value: string | null | undefined): Option.Option<string> {
@@ -16,8 +14,8 @@ export function toNonEmptyPasswordOption(value: string | null | undefined): Opti
   if (value.trim().length === 0) {
     return Option.none();
   }
-  const branded = NonEmptyPassword.either(value);
-  return branded._tag === "Right" ? Option.some(value) : Option.none();
+  const branded = NonEmptyPassword.result(value);
+  return branded._tag === "Success" ? Option.some(value) : Option.none();
 }
 
 export function applyPasswordPreservation(storedConfig: ConfigCore, nextConfig: Config): Config {

@@ -1,8 +1,8 @@
-import { HttpServerResponse } from "@effect/platform";
-import { Effect } from "effect";
+import * as HttpServerResponse from "effect/unstable/http/HttpServerResponse";
 
 import { createEmbeddedWebResponse, type EmbeddedWebAsset } from "@/infra/http/embedded-web.ts";
 import { assert, it } from "@effect/vitest";
+import { Effect, Record } from "effect";
 
 it.effect("static app falls back to index.html for app routes", () =>
   Effect.gen(function* () {

@@ -46,12 +46,12 @@ export type AuthError =
   | AuthRateLimitedError
   | AuthUnauthorizedError;
 
-export const AuthErrorSchema = Schema.Union(
+export const AuthErrorSchema = Schema.Union([
   AuthBadRequestError,
   AuthForbiddenError,
   AuthNotFoundError,
   AuthRateLimitedError,
   AuthUnauthorizedError,
-);
+]);
 
 export type AuthCryptoError = PasswordError | TokenHasherError;

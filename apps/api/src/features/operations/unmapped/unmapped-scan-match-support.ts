@@ -1,5 +1,3 @@
-import { Effect } from "effect";
-
 import type { ScannerState } from "@packages/shared/index.ts";
 import type { AniListClient } from "@/features/media/metadata/anilist.ts";
 import { toMediaSearchResult } from "@/features/media/metadata/media-metadata-provider-service.ts";
@@ -11,6 +9,7 @@ import {
   mergeUnmappedFolderSuggestions,
 } from "@/features/operations/unmapped/unmapped-folders.ts";
 import { media } from "@/db/schema.ts";
+import { Effect } from "effect";
 
 export const matchSingleUnmappedFolder = Effect.fn("UnmappedScanMatch.matchSingleUnmappedFolder")(
   function* (input: {

@@ -1,35 +1,39 @@
 import { assert, it } from "@effect/vitest";
 import { eq } from "drizzle-orm";
-import type { SqliteRemoteDatabase } from "drizzle-orm/sqlite-proxy";
-import { Effect, Option } from "effect";
+import type { AppDatabase } from "@/db/database.ts";
 
 import * as schema from "@/db/schema.ts";
 import { appConfig, sessions, systemLogs, users } from "@/db/schema.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
-import { tryDatabasePromise } from "@/infra/effect/db.ts";
+import type { DbExecutor } from "@/infra/effect/db.ts";
 
 import { makeAuthUserRepository } from "@/test/repository-factories.ts";
+import { Effect, Option } from "effect";
 
-type TestDatabase = SqliteRemoteDatabase<typeof schema>;
-
-function seedUser(db: TestDatabase) {
-  return tryDatabasePromise("Failed to seed test user", () =>
-    db
-      .insert(users)
-      .values({
-        apiKey: "hashed-key-abc123",
-        createdAt: "2025-01-01T00:00:00.000Z",
-        mustChangePassword: false,
-        passwordHash: "pbkdf2_sha256$310000$abcd$deadbeef",
-        updatedAt: "2025-01-01T00:00:00.000Z",
-        username: "admin",
-      })
-      .returning(),
-  ).pipe(Effect.map((rows) => rows[0]!));
+function seedUser(db: AppDatabase, exec: DbExecutor) {
+  return exec
+    .runQuery(
+      "Failed to seed test user",
+      db
+        .insert(users)
+        .values({
+          apiKey: "hashed-key-abc123",
+          createdAt: "2025-01-01T00:00:00.000Z",
+          mustChangePassword: false,
+          passwordHash: "pbkdf2_sha256$310000$abcd$deadbeef",
+          updatedAt: "2025-01-01T00:00:00.000Z",
+          username: "admin",
+        })
+        .returning()
+        .prepare()
+        .effect(),
+    )
+    .pipe(Effect.map((rows) => rows[0]!));
 }
 
-function seedAppConfig(db: TestDatabase) {
-  return tryDatabasePromise("Failed to seed test appConfig", () =>
+function seedAppConfig(db: AppDatabase, exec: DbExecutor) {
+  return exec.runQuery(
+    "Failed to seed test appConfig",
     db
       .insert(appConfig)
       .values({
@@ -38,15 +42,17 @@ function seedAppConfig(db: TestDatabase) {
         id: 1,
         updatedAt: "2025-01-01T00:00:00.000Z",
       })
-      .onConflictDoNothing(),
+      .onConflictDoNothing()
+      .prepare()
+      .effect(),
   );
 }
 
-it.scoped("findUserByUsername returns none for missing user", () =>
+it.effect("findUserByUsername returns none for missing user", () =>
   withSqliteTestDbEffect({
-    run: (db) =>
+    run: (db, _databaseFile, client, _exec) =>
       Effect.gen(function* () {
-        const repo = makeAuthUserRepository(db);
+        const repo = makeAuthUserRepository(db, client);
         const result = yield* repo.findUserByUsername("nobody");
         assert.ok(Option.isNone(result));
       }),
@@ -54,12 +60,12 @@ it.scoped("findUserByUsername returns none for missing user", () =>
   }),
 );
 
-it.scoped("findUserByUsername finds existing user", () =>
+it.effect("findUserByUsername finds existing user", () =>
   withSqliteTestDbEffect({
-    run: (db) =>
+    run: (db, _databaseFile, client, exec) =>
       Effect.gen(function* () {
-        const repo = makeAuthUserRepository(db);
-        yield* seedUser(db);
+        const repo = makeAuthUserRepository(db, client);
+        yield* seedUser(db, exec);
         const result = yield* repo.findUserByUsername("admin");
         assert.ok(Option.isSome(result));
         assert.deepStrictEqual(result.value.username, "admin");
@@ -68,12 +74,12 @@ it.scoped("findUserByUsername finds existing user", () =>
   }),
 );
 
-it.scoped("findUserByUsername is case sensitive", () =>
+it.effect("findUserByUsername is case sensitive", () =>
   withSqliteTestDbEffect({
-    run: (db) =>
+    run: (db, _databaseFile, client, exec) =>
       Effect.gen(function* () {
-        const repo = makeAuthUserRepository(db);
-        yield* seedUser(db);
+        const repo = makeAuthUserRepository(db, client);
+        yield* seedUser(db, exec);
         const result = yield* repo.findUserByUsername("Admin");
         assert.ok(Option.isNone(result));
       }),
@@ -81,11 +87,11 @@ it.scoped("findUserByUsername is case sensitive", () =>
   }),
 );
 
-it.scoped("findUserByApiKey returns none for non-matching key", () =>
+it.effect("findUserByApiKey returns none for non-matching key", () =>
   withSqliteTestDbEffect({
-    run: (db) =>
+    run: (db, _databaseFile, client, _exec) =>
       Effect.gen(function* () {
-        const repo = makeAuthUserRepository(db);
+        const repo = makeAuthUserRepository(db, client);
         const result = yield* repo.findUserByApiKey("wrong-key");
         assert.ok(Option.isNone(result));
       }),
@@ -93,12 +99,12 @@ it.scoped("findUserByApiKey returns none for non-matching key", () =>
   }),
 );
 
-it.scoped("findUserByApiKey finds user by hashed key", () =>
+it.effect("findUserByApiKey finds user by hashed key", () =>
   withSqliteTestDbEffect({
-    run: (db) =>
+    run: (db, _databaseFile, client, exec) =>
       Effect.gen(function* () {
-        const repo = makeAuthUserRepository(db);
-        yield* seedUser(db);
+        const repo = makeAuthUserRepository(db, client);
+        yield* seedUser(db, exec);
         const result = yield* repo.findUserByApiKey("hashed-key-abc123");
         assert.ok(Option.isSome(result));
         assert.deepStrictEqual(result.value.username, "admin");
@@ -107,11 +113,11 @@ it.scoped("findUserByApiKey finds user by hashed key", () =>
   }),
 );
 
-it.scoped("findUserById returns none for non-existent id", () =>
+it.effect("findUserById returns none for non-existent id", () =>
   withSqliteTestDbEffect({
-    run: (db) =>
+    run: (db, _databaseFile, client, _exec) =>
       Effect.gen(function* () {
-        const repo = makeAuthUserRepository(db);
+        const repo = makeAuthUserRepository(db, client);
         const result = yield* repo.findUserById(999);
         assert.ok(Option.isNone(result));
       }),
@@ -119,12 +125,12 @@ it.scoped("findUserById returns none for non-existent id", () =>
   }),
 );
 
-it.scoped("findUserById finds existing user by id", () =>
+it.effect("findUserById finds existing user by id", () =>
   withSqliteTestDbEffect({
-    run: (db) =>
+    run: (db, _databaseFile, client, exec) =>
       Effect.gen(function* () {
-        const repo = makeAuthUserRepository(db);
-        const user = yield* seedUser(db);
+        const repo = makeAuthUserRepository(db, client);
+        const user = yield* seedUser(db, exec);
         const result = yield* repo.findUserById(user.id);
         assert.ok(Option.isSome(result));
         assert.deepStrictEqual(result.value.id, user.id);
@@ -133,13 +139,13 @@ it.scoped("findUserById finds existing user by id", () =>
   }),
 );
 
-it.scoped("changePasswordState updates password and sets mustChangePassword to false", () =>
+it.effect("changePasswordState updates password and sets mustChangePassword to false", () =>
   withSqliteTestDbEffect({
-    run: (db) =>
+    run: (db, _databaseFile, client, exec) =>
       Effect.gen(function* () {
-        const repo = makeAuthUserRepository(db);
-        const user = yield* seedUser(db);
-        yield* seedAppConfig(db);
+        const repo = makeAuthUserRepository(db, client);
+        const user = yield* seedUser(db, exec);
+        yield* seedAppConfig(db, exec);
 
         yield* repo.changePasswordState({
           apiKeyHash: "new-api-key-hash",
@@ -149,17 +155,17 @@ it.scoped("changePasswordState updates password and sets mustChangePassword to f
           username: user.username,
         });
 
-        const updated = yield* tryDatabasePromise(
+        const updated = yield* exec.runQuery(
           "Failed to query users after password change",
-          () => db.select().from(users).where(eq(users.id, user.id)).limit(1),
+          db.select().from(users).where(eq(users.id, user.id)).limit(1).prepare().effect(),
         );
         assert.deepStrictEqual(updated[0]?.passwordHash, "new-hash");
         assert.deepStrictEqual(updated[0]?.apiKey, "new-api-key-hash");
         assert.deepStrictEqual(updated[0]?.mustChangePassword, false);
 
-        const configRow = yield* tryDatabasePromise(
+        const configRow = yield* exec.runQuery(
           "Failed to query appConfig after password change",
-          () => db.select().from(appConfig).where(eq(appConfig.id, 1)).limit(1),
+          db.select().from(appConfig).where(eq(appConfig.id, 1)).limit(1).prepare().effect(),
         );
         assert.deepStrictEqual(configRow[0]?.bootstrapPassword, null);
       }),
@@ -167,31 +173,41 @@ it.scoped("changePasswordState updates password and sets mustChangePassword to f
   }),
 );
 
-it.scoped("changePasswordState deletes all existing sessions", () =>
+it.effect("changePasswordState deletes all existing sessions", () =>
   withSqliteTestDbEffect({
-    run: (db) =>
+    run: (db, _databaseFile, client, exec) =>
       Effect.gen(function* () {
-        const repo = makeAuthUserRepository(db);
-        const user = yield* seedUser(db);
-        yield* seedAppConfig(db);
+        const repo = makeAuthUserRepository(db, client);
+        const user = yield* seedUser(db, exec);
+        yield* seedAppConfig(db, exec);
 
-        yield* tryDatabasePromise("Failed to seed session 1", () =>
-          db.insert(sessions).values({
-            createdAt: "2025-01-01T00:00:00.000Z",
-            expiresAt: "2025-12-01T00:00:00.000Z",
-            lastSeenAt: "2025-01-01T00:00:00.000Z",
-            token: "session-token-1",
-            userId: user.id,
-          }),
+        yield* exec.runQuery(
+          "Failed to seed session 1",
+          db
+            .insert(sessions)
+            .values({
+              createdAt: "2025-01-01T00:00:00.000Z",
+              expiresAt: "2025-12-01T00:00:00.000Z",
+              lastSeenAt: "2025-01-01T00:00:00.000Z",
+              token: "session-token-1",
+              userId: user.id,
+            })
+            .prepare()
+            .effect(),
         );
-        yield* tryDatabasePromise("Failed to seed session 2", () =>
-          db.insert(sessions).values({
-            createdAt: "2025-01-02T00:00:00.000Z",
-            expiresAt: "2025-12-02T00:00:00.000Z",
-            lastSeenAt: "2025-01-02T00:00:00.000Z",
-            token: "session-token-2",
-            userId: user.id,
-          }),
+        yield* exec.runQuery(
+          "Failed to seed session 2",
+          db
+            .insert(sessions)
+            .values({
+              createdAt: "2025-01-02T00:00:00.000Z",
+              expiresAt: "2025-12-02T00:00:00.000Z",
+              lastSeenAt: "2025-01-02T00:00:00.000Z",
+              token: "session-token-2",
+              userId: user.id,
+            })
+            .prepare()
+            .effect(),
         );
 
         yield* repo.changePasswordState({
@@ -202,9 +218,9 @@ it.scoped("changePasswordState deletes all existing sessions", () =>
           username: user.username,
         });
 
-        const remainingSessions = yield* tryDatabasePromise(
+        const remainingSessions = yield* exec.runQuery(
           "Failed to query sessions after deletion",
-          () => db.select().from(sessions).where(eq(sessions.userId, user.id)),
+          db.select().from(sessions).where(eq(sessions.userId, user.id)).prepare().effect(),
         );
         assert.deepStrictEqual(remainingSessions.length, 0);
       }),
@@ -212,13 +228,13 @@ it.scoped("changePasswordState deletes all existing sessions", () =>
   }),
 );
 
-it.scoped("changePasswordState writes system log entry", () =>
+it.effect("changePasswordState writes system log entry", () =>
   withSqliteTestDbEffect({
-    run: (db) =>
+    run: (db, _databaseFile, client, exec) =>
       Effect.gen(function* () {
-        const repo = makeAuthUserRepository(db);
-        const user = yield* seedUser(db);
-        yield* seedAppConfig(db);
+        const repo = makeAuthUserRepository(db, client);
+        const user = yield* seedUser(db, exec);
+        yield* seedAppConfig(db, exec);
 
         yield* repo.changePasswordState({
           apiKeyHash: "new-api-key-hash",
@@ -228,10 +244,14 @@ it.scoped("changePasswordState writes system log entry", () =>
           username: user.username,
         });
 
-        const logs = yield* tryDatabasePromise(
+        const logs = yield* exec.runQuery(
           "Failed to query systemLogs for password change",
-          () =>
-            db.select().from(systemLogs).where(eq(systemLogs.eventType, "auth.password.changed")),
+          db
+            .select()
+            .from(systemLogs)
+            .where(eq(systemLogs.eventType, "auth.password.changed"))
+            .prepare()
+            .effect(),
         );
         assert.deepStrictEqual(logs.length, 1);
         assert.deepStrictEqual(logs[0]?.message.includes("changed"), true);
@@ -240,36 +260,47 @@ it.scoped("changePasswordState writes system log entry", () =>
   }),
 );
 
-it.scoped("pruneExpiredSessions deletes only expired rows", () =>
+it.effect("pruneExpiredSessions deletes only expired rows", () =>
   withSqliteTestDbEffect({
-    run: (db) =>
+    run: (db, _databaseFile, client, exec) =>
       Effect.gen(function* () {
-        const repo = makeAuthUserRepository(db);
-        const user = yield* seedUser(db);
+        const repo = makeAuthUserRepository(db, client);
+        const user = yield* seedUser(db, exec);
 
-        yield* tryDatabasePromise("Failed to seed expired session", () =>
-          db.insert(sessions).values({
-            createdAt: "2025-01-01T00:00:00.000Z",
-            expiresAt: "2025-01-31T00:00:00.000Z",
-            lastSeenAt: "2025-01-01T00:00:00.000Z",
-            token: "expired-session-token",
-            userId: user.id,
-          }),
+        yield* exec.runQuery(
+          "Failed to seed expired session",
+          db
+            .insert(sessions)
+            .values({
+              createdAt: "2025-01-01T00:00:00.000Z",
+              expiresAt: "2025-01-31T00:00:00.000Z",
+              lastSeenAt: "2025-01-01T00:00:00.000Z",
+              token: "expired-session-token",
+              userId: user.id,
+            })
+            .prepare()
+            .effect(),
         );
-        yield* tryDatabasePromise("Failed to seed active session", () =>
-          db.insert(sessions).values({
-            createdAt: "2025-06-01T00:00:00.000Z",
-            expiresAt: "2025-12-01T00:00:00.000Z",
-            lastSeenAt: "2025-06-01T00:00:00.000Z",
-            token: "active-session-token",
-            userId: user.id,
-          }),
+        yield* exec.runQuery(
+          "Failed to seed active session",
+          db
+            .insert(sessions)
+            .values({
+              createdAt: "2025-06-01T00:00:00.000Z",
+              expiresAt: "2025-12-01T00:00:00.000Z",
+              lastSeenAt: "2025-06-01T00:00:00.000Z",
+              token: "active-session-token",
+              userId: user.id,
+            })
+            .prepare()
+            .effect(),
         );
 
         yield* repo.pruneExpiredSessions("2025-06-15T00:00:00.000Z");
 
-        const remaining = yield* tryDatabasePromise("Failed to query sessions after pruning", () =>
-          db.select().from(sessions),
+        const remaining = yield* exec.runQuery(
+          "Failed to query sessions after pruning",
+          db.select().from(sessions).prepare().effect(),
         );
         assert.deepStrictEqual(remaining.length, 1);
         assert.deepStrictEqual(remaining[0]?.token, "active-session-token");
@@ -278,28 +309,33 @@ it.scoped("pruneExpiredSessions deletes only expired rows", () =>
   }),
 );
 
-it.scoped("pruneExpiredSessions keeps rows expiring exactly at the boundary", () =>
+it.effect("pruneExpiredSessions keeps rows expiring exactly at the boundary", () =>
   withSqliteTestDbEffect({
-    run: (db) =>
+    run: (db, _databaseFile, client, exec) =>
       Effect.gen(function* () {
-        const repo = makeAuthUserRepository(db);
-        const user = yield* seedUser(db);
+        const repo = makeAuthUserRepository(db, client);
+        const user = yield* seedUser(db, exec);
 
-        yield* tryDatabasePromise("Failed to seed boundary session", () =>
-          db.insert(sessions).values({
-            createdAt: "2025-01-01T00:00:00.000Z",
-            expiresAt: "2025-06-15T00:00:00.000Z",
-            lastSeenAt: "2025-01-01T00:00:00.000Z",
-            token: "boundary-session-token",
-            userId: user.id,
-          }),
+        yield* exec.runQuery(
+          "Failed to seed boundary session",
+          db
+            .insert(sessions)
+            .values({
+              createdAt: "2025-01-01T00:00:00.000Z",
+              expiresAt: "2025-06-15T00:00:00.000Z",
+              lastSeenAt: "2025-01-01T00:00:00.000Z",
+              token: "boundary-session-token",
+              userId: user.id,
+            })
+            .prepare()
+            .effect(),
         );
 
         yield* repo.pruneExpiredSessions("2025-06-15T00:00:00.000Z");
 
-        const remaining = yield* tryDatabasePromise(
+        const remaining = yield* exec.runQuery(
           "Failed to query sessions after boundary pruning",
-          () => db.select().from(sessions),
+          db.select().from(sessions).prepare().effect(),
         );
         assert.deepStrictEqual(remaining.length, 1);
       }),
@@ -307,21 +343,26 @@ it.scoped("pruneExpiredSessions keeps rows expiring exactly at the boundary", ()
   }),
 );
 
-it.scoped("regenerateApiKeyState updates apiKey and deletes sessions", () =>
+it.effect("regenerateApiKeyState updates apiKey and deletes sessions", () =>
   withSqliteTestDbEffect({
-    run: (db) =>
+    run: (db, _databaseFile, client, exec) =>
       Effect.gen(function* () {
-        const repo = makeAuthUserRepository(db);
-        const user = yield* seedUser(db);
+        const repo = makeAuthUserRepository(db, client);
+        const user = yield* seedUser(db, exec);
 
-        yield* tryDatabasePromise("Failed to seed session for api key regeneration", () =>
-          db.insert(sessions).values({
-            createdAt: "2025-01-01T00:00:00.000Z",
-            expiresAt: "2025-12-01T00:00:00.000Z",
-            lastSeenAt: "2025-01-01T00:00:00.000Z",
-            token: "session-token-1",
-            userId: user.id,
-          }),
+        yield* exec.runQuery(
+          "Failed to seed session for api key regeneration",
+          db
+            .insert(sessions)
+            .values({
+              createdAt: "2025-01-01T00:00:00.000Z",
+              expiresAt: "2025-12-01T00:00:00.000Z",
+              lastSeenAt: "2025-01-01T00:00:00.000Z",
+              token: "session-token-1",
+              userId: user.id,
+            })
+            .prepare()
+            .effect(),
         );
 
         yield* repo.regenerateApiKeyState({
@@ -331,25 +372,26 @@ it.scoped("regenerateApiKeyState updates apiKey and deletes sessions", () =>
           username: user.username,
         });
 
-        const updated = yield* tryDatabasePromise(
+        const updated = yield* exec.runQuery(
           "Failed to query users after api key regeneration",
-          () => db.select().from(users).where(eq(users.id, user.id)).limit(1),
+          db.select().from(users).where(eq(users.id, user.id)).limit(1).prepare().effect(),
         );
         assert.deepStrictEqual(updated[0]?.apiKey, "new-api-key-hash");
 
-        const remainingSessions = yield* tryDatabasePromise(
+        const remainingSessions = yield* exec.runQuery(
           "Failed to query sessions after api key regeneration",
-          () => db.select().from(sessions).where(eq(sessions.userId, user.id)),
+          db.select().from(sessions).where(eq(sessions.userId, user.id)).prepare().effect(),
         );
         assert.deepStrictEqual(remainingSessions.length, 0);
 
-        const logs = yield* tryDatabasePromise(
+        const logs = yield* exec.runQuery(
           "Failed to query systemLogs for api key regeneration",
-          () =>
-            db
-              .select()
-              .from(systemLogs)
-              .where(eq(systemLogs.eventType, "auth.api_key.regenerated")),
+          db
+            .select()
+            .from(systemLogs)
+            .where(eq(systemLogs.eventType, "auth.api_key.regenerated"))
+            .prepare()
+            .effect(),
         );
         assert.deepStrictEqual(logs.length, 1);
       }),

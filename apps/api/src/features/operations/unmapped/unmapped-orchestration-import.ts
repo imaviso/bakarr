@@ -1,5 +1,4 @@
-import { Effect, Stream } from "effect";
-
+import { Array, Context, Effect, Layer, Stream } from "effect";
 import { DatabaseError } from "@/db/database.ts";
 import {
   type FileSystemShape,
@@ -54,24 +53,24 @@ export const cleanupPreviousMediaRootFolderAfterImport = Effect.fn(
     return;
   }
 
-  const previousEntries = yield* Effect.either(fs.readDir(previousRootFolder));
+  const previousEntries = yield* Effect.result(fs.readDir(previousRootFolder));
 
-  if (previousEntries._tag === "Left") {
+  if (previousEntries._tag === "Failure") {
     yield* Effect.logWarning("Skipped previous media folder cleanup after import").pipe(
       Effect.annotateLogs({
-        error: String(previousEntries.left),
+        error: globalThis.String(previousEntries.failure),
         folder_path: previousRootFolder,
       }),
     );
     return;
   }
 
-  if (previousEntries.right.length === 0) {
+  if (previousEntries.success.length === 0) {
     yield* fs.remove(previousRootFolder, { recursive: true }).pipe(
       Effect.catchTag("FileSystemError", (fsError) =>
         Effect.logWarning("Failed to remove empty media folder after import").pipe(
           Effect.annotateLogs({
-            error: String(fsError),
+            error: globalThis.String(fsError),
             folder_path: previousRootFolder,
           }),
           Effect.asVoid,
@@ -173,47 +172,47 @@ function buildUnmappedImportWorkflow(input: {
           : animeRow.profileName;
 
       const fallbackNowIso = yield* nowIso();
-      const episodeMappings = yield* Stream.runFold(
-        scanVideoFilesStream(fs, folderPath).pipe(
-          Stream.mapError(
-            (cause) =>
-              new DomainPathError({
-                cause,
-                message: `Folder is inaccessible: ${folderPath}`,
-              }),
-          ),
+      const episodeMappings = yield* scanVideoFilesStream(fs, folderPath).pipe(
+        Stream.mapError(
+          (cause) =>
+            new DomainPathError({
+              cause,
+              message: `Folder is inaccessible: ${folderPath}`,
+            }),
         ),
-        Array<EpisodeImportMapping>(),
-        (acc, file) => {
-          const classification = classifyMediaArtifact(file.path, file.name);
-          if (classification.kind === "extra" || classification.kind === "sample") {
-            return acc;
-          }
+        Stream.runFold(
+          () => Array.empty<EpisodeImportMapping>(),
+          (acc, file) => {
+            const classification = classifyMediaArtifact(file.path, file.name);
+            if (classification.kind === "extra" || classification.kind === "sample") {
+              return acc;
+            }
 
-          const isVolumeMedia = animeRow.mediaKind !== "anime";
-          const unitNumbers = extractUnitNumbersFromFile(file.name, file.path, isVolumeMedia);
-          if (unitNumbers.length === 0) {
-            return acc;
-          }
+            const isVolumeMedia = animeRow.mediaKind !== "anime";
+            const unitNumbers = extractUnitNumbersFromFile(file.name, file.path, isVolumeMedia);
+            if (unitNumbers.length === 0) {
+              return acc;
+            }
 
-          for (const unitNumber of unitNumbers) {
-            acc.push({
-              aired: inferAiredAt(
-                animeRow.status,
+            for (const unitNumber of unitNumbers) {
+              acc.push({
+                aired: inferAiredAt(
+                  animeRow.status,
+                  unitNumber,
+                  animeRow.unitCount ?? undefined,
+                  animeRow.startDate ?? undefined,
+                  animeRow.endDate ?? undefined,
+                  undefined,
+                  fallbackNowIso,
+                ),
                 unitNumber,
-                animeRow.unitCount ?? undefined,
-                animeRow.startDate ?? undefined,
-                animeRow.endDate ?? undefined,
-                undefined,
-                fallbackNowIso,
-              ),
-              unitNumber,
-              filePath: file.path,
-            });
-          }
+                filePath: file.path,
+              });
+            }
 
-          return acc;
-        },
+            return acc;
+          },
+        ),
       );
 
       yield* mediaUnitRepository.setMediaRootAndMapUnits(
@@ -248,17 +247,13 @@ function buildUnmappedImportWorkflow(input: {
   } satisfies UnmappedImportWorkflowShape;
 }
 
-export class UnmappedImportService extends Effect.Service<UnmappedImportService>()(
-  "@bakarr/api/UnmappedImportService",
-  {
-    // FS + media + runtime config provided by ops feature layer.
-    dependencies: [
-      MediaRepository.Default,
-      MediaUnitRepository.Default,
-      SystemConfigRepository.Default,
-      SystemLogRepository.Default,
-    ],
-    effect: Effect.gen(function* () {
+export class UnmappedImportService extends Context.Service<
+  UnmappedImportService,
+  UnmappedImportWorkflowShape
+>()("@bakarr/api/UnmappedImportService") {
+  static readonly layer = Layer.effect(
+    UnmappedImportService,
+    Effect.gen(function* () {
       const fs = yield* FileSystem;
       const mediaRepository = yield* MediaRepository;
       const mediaUnitRepository = yield* MediaUnitRepository;
@@ -288,10 +283,10 @@ export class UnmappedImportService extends Effect.Service<UnmappedImportService>
         systemLogRepository,
       });
     }),
-  },
-) {}
+  );
+}
 
-export const UnmappedImportServiceLive = UnmappedImportService.Default;
+export const UnmappedImportServiceLive = UnmappedImportService.layer;
 
-/** Test factory — production uses UnmappedImportService.Default. */
+/** Test factory — production uses UnmappedImportService.layer. */
 export const makeUnmappedImportWorkflow = buildUnmappedImportWorkflow;

@@ -1,63 +1,74 @@
 import { assert, it } from "@effect/vitest";
 import { eq } from "drizzle-orm";
-import { Effect } from "effect";
 
 import type { AppDatabase } from "@/db/database.ts";
 import * as schema from "@/db/schema.ts";
 import { media, mediaUnits } from "@/db/schema.ts";
 import { makeMediaUnitRepository } from "@/test/repository-factories.ts";
 import { MAX_INFERRED_EPISODE_NUMBER } from "@/features/media/units/unit-backfill-policy.ts";
-import { tryDatabasePromise } from "@/infra/effect/db.ts";
+import { tryDatabaseQuery } from "@/infra/effect/db.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
+import { Effect } from "effect";
 
-it.scoped("backfillFromNextAiring inserts previous missing mediaUnits", () =>
+it.effect("backfillFromNextAiring inserts previous missing mediaUnits", () =>
   withSqliteTestDbEffect({
-    run: (db) =>
+    run: (db, _databaseFile, client, _exec) =>
       Effect.gen(function* () {
         const appDb: AppDatabase = db;
-        const units = makeMediaUnitRepository(appDb);
+        const units = makeMediaUnitRepository(appDb, client);
 
-        yield* tryDatabasePromise("Failed to seed media for backfill test", () =>
-          appDb.insert(media).values({
-            id: 991,
-            titleRomaji: "Backfill Show",
-            rootFolder: "/test/backfill-show",
-            format: "TV",
-            status: "RELEASING",
-            genres: "[]",
-            studios: "[]",
-            profileName: "Default",
-            releaseProfileIds: "[]",
-            nextAiringAt: "2026-04-11T14:30:00.000Z",
-            nextAiringUnit: 2,
-            addedAt: "2026-04-01T00:00:00.000Z",
-            monitored: true,
-          }),
+        yield* tryDatabaseQuery(
+          "Failed to seed media for backfill test",
+          appDb
+            .insert(media)
+            .values({
+              id: 991,
+              titleRomaji: "Backfill Show",
+              rootFolder: "/test/backfill-show",
+              format: "TV",
+              status: "RELEASING",
+              genres: "[]",
+              studios: "[]",
+              profileName: "Default",
+              releaseProfileIds: "[]",
+              nextAiringAt: "2026-04-11T14:30:00.000Z",
+              nextAiringUnit: 2,
+              addedAt: "2026-04-01T00:00:00.000Z",
+              monitored: true,
+            })
+            .prepare()
+            .effect(),
         );
 
-        yield* tryDatabasePromise("Failed to seed media for backfill test", () =>
-          appDb.insert(mediaUnits).values({
-            mediaId: 991,
-            number: 2,
-            aired: "2026-04-11T14:30:00.000Z",
-            downloaded: false,
-            filePath: null,
-            title: null,
-          }),
+        yield* tryDatabaseQuery(
+          "Failed to seed media for backfill test",
+          appDb
+            .insert(mediaUnits)
+            .values({
+              mediaId: 991,
+              number: 2,
+              aired: "2026-04-11T14:30:00.000Z",
+              downloaded: false,
+              filePath: null,
+              title: null,
+            })
+            .prepare()
+            .effect(),
         );
 
         yield* units.backfillFromNextAiring({
           monitoredOnly: true,
         });
 
-        const rows = yield* tryDatabasePromise(
+        const rows = yield* tryDatabaseQuery(
           "Failed to query mediaUnits for backfill assertion",
-          () =>
-            appDb
-              .select()
-              .from(mediaUnits)
-              .where(eq(mediaUnits.mediaId, 991))
-              .orderBy(mediaUnits.number),
+          appDb
+            .select()
+            .from(mediaUnits)
+            .where(eq(mediaUnits.mediaId, 991))
+            .orderBy(mediaUnits.number)
+            .prepare()
+            .effect(),
         );
 
         assert.deepStrictEqual(
@@ -72,46 +83,51 @@ it.scoped("backfillFromNextAiring inserts previous missing mediaUnits", () =>
   }),
 );
 
-it.scoped("backfillFromNextAiring scopes to mediaId when provided", () =>
+it.effect("backfillFromNextAiring scopes to mediaId when provided", () =>
   withSqliteTestDbEffect({
-    run: (db) =>
+    run: (db, _databaseFile, client, _exec) =>
       Effect.gen(function* () {
         const appDb: AppDatabase = db;
-        const units = makeMediaUnitRepository(appDb);
+        const units = makeMediaUnitRepository(appDb, client);
 
-        yield* tryDatabasePromise("Failed to seed media for backfill test", () =>
-          appDb.insert(media).values([
-            {
-              id: 991,
-              titleRomaji: "Backfill Show A",
-              rootFolder: "/test/backfill-show-a",
-              format: "TV",
-              status: "RELEASING",
-              genres: "[]",
-              studios: "[]",
-              profileName: "Default",
-              releaseProfileIds: "[]",
-              nextAiringAt: "2026-04-11T14:30:00.000Z",
-              nextAiringUnit: 2,
-              addedAt: "2026-04-01T00:00:00.000Z",
-              monitored: false,
-            },
-            {
-              id: 992,
-              titleRomaji: "Backfill Show B",
-              rootFolder: "/test/backfill-show-b",
-              format: "TV",
-              status: "RELEASING",
-              genres: "[]",
-              studios: "[]",
-              profileName: "Default",
-              releaseProfileIds: "[]",
-              nextAiringAt: "2026-04-11T14:30:00.000Z",
-              nextAiringUnit: 2,
-              addedAt: "2026-04-01T00:00:00.000Z",
-              monitored: false,
-            },
-          ]),
+        yield* tryDatabaseQuery(
+          "Failed to seed media for backfill test",
+          appDb
+            .insert(media)
+            .values([
+              {
+                id: 991,
+                titleRomaji: "Backfill Show A",
+                rootFolder: "/test/backfill-show-a",
+                format: "TV",
+                status: "RELEASING",
+                genres: "[]",
+                studios: "[]",
+                profileName: "Default",
+                releaseProfileIds: "[]",
+                nextAiringAt: "2026-04-11T14:30:00.000Z",
+                nextAiringUnit: 2,
+                addedAt: "2026-04-01T00:00:00.000Z",
+                monitored: false,
+              },
+              {
+                id: 992,
+                titleRomaji: "Backfill Show B",
+                rootFolder: "/test/backfill-show-b",
+                format: "TV",
+                status: "RELEASING",
+                genres: "[]",
+                studios: "[]",
+                profileName: "Default",
+                releaseProfileIds: "[]",
+                nextAiringAt: "2026-04-11T14:30:00.000Z",
+                nextAiringUnit: 2,
+                addedAt: "2026-04-01T00:00:00.000Z",
+                monitored: false,
+              },
+            ])
+            .prepare()
+            .effect(),
         );
 
         yield* units.backfillFromNextAiring({
@@ -119,13 +135,14 @@ it.scoped("backfillFromNextAiring scopes to mediaId when provided", () =>
           monitoredOnly: false,
         });
 
-        const rows = yield* tryDatabasePromise(
+        const rows = yield* tryDatabaseQuery(
           "Failed to query mediaUnits for backfill assertion",
-          () =>
-            appDb
-              .select({ mediaId: mediaUnits.mediaId, number: mediaUnits.number })
-              .from(mediaUnits)
-              .orderBy(mediaUnits.mediaId, mediaUnits.number),
+          appDb
+            .select({ mediaId: mediaUnits.mediaId, number: mediaUnits.number })
+            .from(mediaUnits)
+            .orderBy(mediaUnits.mediaId, mediaUnits.number)
+            .prepare()
+            .effect(),
         );
 
         assert.deepStrictEqual(rows, [{ mediaId: 991, number: 1 }]);
@@ -134,43 +151,49 @@ it.scoped("backfillFromNextAiring scopes to mediaId when provided", () =>
   }),
 );
 
-it.scoped("backfillFromNextAiring caps inferred rows", () =>
+it.effect("backfillFromNextAiring caps inferred rows", () =>
   withSqliteTestDbEffect({
-    run: (db) =>
+    run: (db, _databaseFile, client, _exec) =>
       Effect.gen(function* () {
         const appDb: AppDatabase = db;
-        const units = makeMediaUnitRepository(appDb);
+        const units = makeMediaUnitRepository(appDb, client);
 
-        yield* tryDatabasePromise("Failed to seed media for backfill test", () =>
-          appDb.insert(media).values({
-            id: 993,
-            titleRomaji: "Backfill Long Show",
-            rootFolder: "/test/backfill-long-show",
-            format: "TV",
-            status: "RELEASING",
-            genres: "[]",
-            studios: "[]",
-            profileName: "Default",
-            releaseProfileIds: "[]",
-            nextAiringAt: "2026-04-11T14:30:00.000Z",
-            nextAiringUnit: MAX_INFERRED_EPISODE_NUMBER + 500,
-            addedAt: "2026-04-01T00:00:00.000Z",
-            monitored: true,
-          }),
+        yield* tryDatabaseQuery(
+          "Failed to seed media for backfill test",
+          appDb
+            .insert(media)
+            .values({
+              id: 993,
+              titleRomaji: "Backfill Long Show",
+              rootFolder: "/test/backfill-long-show",
+              format: "TV",
+              status: "RELEASING",
+              genres: "[]",
+              studios: "[]",
+              profileName: "Default",
+              releaseProfileIds: "[]",
+              nextAiringAt: "2026-04-11T14:30:00.000Z",
+              nextAiringUnit: MAX_INFERRED_EPISODE_NUMBER + 500,
+              addedAt: "2026-04-01T00:00:00.000Z",
+              monitored: true,
+            })
+            .prepare()
+            .effect(),
         );
 
         yield* units.backfillFromNextAiring({
           monitoredOnly: true,
         });
 
-        const rows = yield* tryDatabasePromise(
+        const rows = yield* tryDatabaseQuery(
           "Failed to query mediaUnits for backfill assertion",
-          () =>
-            appDb
-              .select({ number: mediaUnits.number })
-              .from(mediaUnits)
-              .where(eq(mediaUnits.mediaId, 993))
-              .orderBy(mediaUnits.number),
+          appDb
+            .select({ number: mediaUnits.number })
+            .from(mediaUnits)
+            .where(eq(mediaUnits.mediaId, 993))
+            .orderBy(mediaUnits.number)
+            .prepare()
+            .effect(),
         );
 
         assert.deepStrictEqual(rows.length, MAX_INFERRED_EPISODE_NUMBER);

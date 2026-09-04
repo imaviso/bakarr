@@ -1,5 +1,4 @@
-import { Clock, DateTime, Duration, Effect, Option, Ref } from "effect";
-
+import { Clock, Context, DateTime, Duration, Effect, Layer, Option, Ref } from "effect";
 import {
   brandUserId,
   type ApiKeyLoginRequest,
@@ -120,10 +119,10 @@ const makeAuthSessionService = Effect.fn("AuthSessionService.make")(function* ()
       yield* usersRepository
         .pruneExpiredSessions(nowIsoValue)
         .pipe(
-          Effect.catchAll((cause) =>
+          Effect.catch((cause) =>
             Effect.logWarning("Failed to prune expired sessions; will retry next interval").pipe(
-              Effect.annotateLogs({ cause: String(cause) }),
-              Effect.zipRight(Effect.void),
+              Effect.annotateLogs({ cause: globalThis.String(cause) }),
+              Effect.andThen(Effect.void),
             ),
           ),
         );
@@ -132,7 +131,7 @@ const makeAuthSessionService = Effect.fn("AuthSessionService.make")(function* ()
 
   const guardLogin = <A>(clientKey: string, attempt: Effect.Effect<A, LoginAttemptError>) =>
     loginRateLimiter.rejectWhileLocked(clientKey).pipe(
-      Effect.zipRight(
+      Effect.andThen(
         attempt.pipe(
           Effect.tapErrorTag("AuthUnauthorizedError", () =>
             loginRateLimiter.recordFailure(clientKey),
@@ -164,10 +163,10 @@ const makeAuthSessionService = Effect.fn("AuthSessionService.make")(function* ()
 
       if (isPasswordHashOutdated(row.passwordHash)) {
         const newHash = yield* hashPassword(passwordCrypto, request.password).pipe(
-          Effect.catchAll((cause) =>
+          Effect.catch((cause) =>
             Effect.logWarning("Failed to rehash outdated password hash").pipe(
-              Effect.annotateLogs({ cause: String(cause), userId: row.id }),
-              Effect.zipRight(Effect.succeed(undefined)),
+              Effect.annotateLogs({ cause: globalThis.String(cause), userId: row.id }),
+              Effect.andThen(Effect.succeed(undefined)),
             ),
           ),
         );
@@ -176,9 +175,9 @@ const makeAuthSessionService = Effect.fn("AuthSessionService.make")(function* ()
           yield* usersRepository
             .updatePasswordHash({ passwordHash: newHash, updatedAt: now, userId: row.id })
             .pipe(
-              Effect.catchAll((cause) =>
+              Effect.catch((cause) =>
                 Effect.logWarning("Failed to persist rehashed password").pipe(
-                  Effect.annotateLogs({ cause: String(cause), userId: row.id }),
+                  Effect.annotateLogs({ cause: globalThis.String(cause), userId: row.id }),
                 ),
               ),
             );
@@ -255,9 +254,9 @@ const makeAuthSessionService = Effect.fn("AuthSessionService.make")(function* ()
       if (Option.isSome(result)) {
         const row = result.value;
         const now = yield* DateTime.now;
-        const lastSeenAt = DateTime.unsafeFromDate(new Date(row.lastSeenAt));
-        const needsRefresh = Duration.greaterThanOrEqualTo(
-          DateTime.distanceDuration(now, lastSeenAt),
+        const lastSeenAt = DateTime.makeUnsafe(new Date(row.lastSeenAt));
+        const needsRefresh = Duration.isGreaterThanOrEqualTo(
+          DateTime.distance(now, lastSeenAt),
           SESSION_REFRESH_INTERVAL,
         );
 
@@ -304,20 +303,14 @@ const makeAuthSessionService = Effect.fn("AuthSessionService.make")(function* ()
   } satisfies AuthSessionServiceShape;
 });
 
-export class AuthSessionService extends Effect.Service<AuthSessionService>()(
-  "@bakarr/api/AuthSessionService",
-  {
-    dependencies: [
-      AuthUserRepository.Default,
-      PasswordCrypto.Default,
-      RandomService.Default,
-      TokenHasher.Default,
-    ],
-    effect: makeAuthSessionService(),
-  },
-) {}
+export class AuthSessionService extends Context.Service<
+  AuthSessionService,
+  AuthSessionServiceShape
+>()("@bakarr/api/AuthSessionService") {
+  static readonly layer = Layer.effect(AuthSessionService, makeAuthSessionService());
+}
 
-export const AuthSessionServiceLive = AuthSessionService.Default;
+export const AuthSessionServiceLive = AuthSessionService.layer;
 
 function toLoginResult(userRow: typeof users.$inferSelect, token: string) {
   return {

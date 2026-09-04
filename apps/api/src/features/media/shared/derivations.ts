@@ -1,6 +1,5 @@
-import { DateTime, Option } from "effect";
-
 import type { MediaSearchResult, MediaUnit } from "@packages/shared/index.ts";
+import { DateTime, Duration, Option } from "effect";
 
 export function deriveEpisodeTimelineMetadata(
   aired?: string,
@@ -15,7 +14,7 @@ export function deriveEpisodeTimelineMetadata(
   }
 
   const airedAt = new Date(aired);
-  if (Number.isNaN(airedAt.getTime())) {
+  if (globalThis.Number.isNaN(airedAt.getTime())) {
     return { airing_status: "unknown", is_future: undefined };
   }
 
@@ -41,7 +40,7 @@ export function summarizeEpisodeCoverage(input: {
   }
 
   const unitNumbers = [...new Set(input.unitNumbers ?? [])]
-    .filter((value) => Number.isFinite(value) && value > 0)
+    .filter((value) => globalThis.Number.isFinite(value) && value > 0)
     .toSorted((left, right) => left - right);
 
   if (unitNumbers.length <= 1) {
@@ -101,9 +100,11 @@ export function inferAiredAt(
     const endOption = DateTime.make(new Date(`${endDate}T00:00:00Z`));
 
     if (Option.isSome(endOption)) {
-      const spanMs = Math.max(DateTime.distance(start, endOption.value), 0);
+      const spanMs = Math.max(Duration.toMillis(DateTime.distance(start, endOption.value)), 0);
       const intervalMs = unitCount > 1 ? Math.floor(spanMs / (unitCount - 1)) : 0;
-      return DateTime.formatIso(DateTime.add(start, { millis: intervalMs * (unitNumber - 1) }));
+      return DateTime.formatIso(
+        DateTime.add(start, { milliseconds: intervalMs * (unitNumber - 1) }),
+      );
     }
   }
 
@@ -210,8 +211,8 @@ function scoreTitleMatch(left: string, right: string) {
     return 0.8;
   }
 
-  const leftTokens = new Set(left.split(" ").filter(Boolean));
-  const rightTokens = new Set(right.split(" ").filter(Boolean));
+  const leftTokens = new Set(left.split(" ").filter((token) => token.length > 0));
+  const rightTokens = new Set(right.split(" ").filter((token) => token.length > 0));
   const intersection = [...leftTokens].filter((token) => rightTokens.has(token)).length;
   const union = new Set([...leftTokens, ...rightTokens]).size;
 

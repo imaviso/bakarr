@@ -1,6 +1,6 @@
 // oxlint-disable typescript/no-restricted-types -- `unknown` is the honest type at error/cause boundaries (Effect error channels, try/catch causes, Logger messages)
-import { Effect, Redacted } from "effect";
 
+import { Effect, Redacted } from "effect";
 import type { Config } from "@packages/shared/index.ts";
 import {
   TorrentClientUnavailableError,
@@ -14,6 +14,7 @@ import {
   type QBitTorrent,
   type QBitTorrentFile,
 } from "@/features/operations/qbittorrent/qbittorrent.ts";
+
 import {
   type QBitConfig,
   QBitConfigModel,

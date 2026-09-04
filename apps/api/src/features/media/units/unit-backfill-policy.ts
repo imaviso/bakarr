@@ -1,7 +1,7 @@
 export const MAX_INFERRED_EPISODE_NUMBER = 2000;
 
 export function clampInferredEpisodeUpperBound(value: number | undefined) {
-  if (typeof value !== "number" || !Number.isInteger(value) || value <= 0) {
+  if (typeof value !== "number" || !globalThis.Number.isInteger(value) || value <= 0) {
     return undefined;
   }
 

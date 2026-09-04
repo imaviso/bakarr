@@ -1,5 +1,7 @@
-import { HttpRouter, HttpServerRequest, HttpServerResponse } from "@effect/platform";
-import { Effect, Option } from "effect";
+import * as HttpRouter from "effect/unstable/http/HttpRouter";
+import * as HttpServerRequest from "effect/unstable/http/HttpServerRequest";
+import * as HttpServerResponse from "effect/unstable/http/HttpServerResponse";
+import { Effect, Layer, Option } from "effect";
 
 import {
   ApiKeyLoginRequestSchema,
@@ -19,8 +21,9 @@ import {
 } from "@/infra/http/router-helpers.ts";
 import { persistSessionResponse, requireViewerFromHttpRequest } from "@/infra/http/route-auth.ts";
 
-export const authRouter = HttpRouter.empty.pipe(
-  HttpRouter.post(
+export const authRouter = Layer.mergeAll(
+  HttpRouter.add(
+    "POST",
     "/login",
     routeResponse(
       Effect.gen(function* () {
@@ -36,7 +39,8 @@ export const authRouter = HttpRouter.empty.pipe(
       (value) => persistSessionResponse(value.token, value.response),
     ),
   ),
-  HttpRouter.post(
+  HttpRouter.add(
+    "POST",
     "/login/api-key",
     routeResponse(
       Effect.gen(function* () {
@@ -51,7 +55,8 @@ export const authRouter = HttpRouter.empty.pipe(
       (value) => persistSessionResponse(value.token, value.response),
     ),
   ),
-  HttpRouter.post(
+  HttpRouter.add(
+    "POST",
     "/logout",
     routeResponse(
       Effect.gen(function* () {
@@ -66,23 +71,25 @@ export const authRouter = HttpRouter.empty.pipe(
           const config = yield* AppConfig;
           const response = yield* successResponse();
 
-          return HttpServerResponse.expireCookie(response, config.sessionCookieName, {
+          return yield* HttpServerResponse.expireCookie(config.sessionCookieName, {
             httpOnly: true,
             path: "/",
             sameSite: "lax",
             secure: config.sessionCookieSecure,
-          });
+          })(response);
         }),
     ),
   ),
-  HttpRouter.get(
+  HttpRouter.add(
+    "GET",
     "/me",
     routeResponse(
       requireViewerFromHttpRequest({ allowPasswordChangeRequired: true }),
       schemaJsonResponse(AuthUserSchema),
     ),
   ),
-  HttpRouter.get(
+  HttpRouter.add(
+    "GET",
     "/api-key",
     routeResponse(
       requireViewerFromHttpRequest().pipe(
@@ -96,7 +103,8 @@ export const authRouter = HttpRouter.empty.pipe(
       schemaJsonResponse(ApiKeyResponseSchema),
     ),
   ),
-  HttpRouter.post(
+  HttpRouter.add(
+    "POST",
     "/api-key/regenerate",
     routeResponse(
       requireViewerFromHttpRequest().pipe(
@@ -110,7 +118,8 @@ export const authRouter = HttpRouter.empty.pipe(
       schemaJsonResponse(ApiKeyResponseSchema),
     ),
   ),
-  HttpRouter.put(
+  HttpRouter.add(
+    "PUT",
     "/password",
     routeResponse(
       requireViewerFromHttpRequest({ allowPasswordChangeRequired: true }).pipe(

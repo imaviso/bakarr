@@ -1,5 +1,3 @@
-import { Effect } from "effect";
-
 import {
   FileSystem,
   isWithinPathRoot,
@@ -11,6 +9,7 @@ import {
 } from "@/features/system/runtime-config-snapshot-service.ts";
 import { DomainInputError, DomainPathError } from "@/features/errors.ts";
 import { getConfiguredLibraryPaths } from "@/features/media/shared/config-support.ts";
+import { Context, Effect, Layer } from "effect";
 
 const MAX_BROWSE_LIMIT = 500;
 const DEFAULT_BROWSE_LIMIT = 100;
@@ -123,12 +122,14 @@ const makeLibraryBrowseService = Effect.fn("LibraryBrowseService.make")(function
   return { browse } satisfies LibraryBrowseServiceShape;
 });
 
-export class LibraryBrowseService extends Effect.Service<LibraryBrowseService>()(
-  "@bakarr/api/LibraryBrowseService",
-  { effect: makeLibraryBrowseService() },
-) {}
+export class LibraryBrowseService extends Context.Service<
+  LibraryBrowseService,
+  LibraryBrowseServiceShape
+>()("@bakarr/api/LibraryBrowseService") {
+  static readonly layer = Layer.effect(LibraryBrowseService, makeLibraryBrowseService());
+}
 
-export const LibraryBrowseServiceLive = LibraryBrowseService.Default;
+export const LibraryBrowseServiceLive = LibraryBrowseService.layer;
 
 // ---------------------------------------------------------------------------
 // Internal filesystem browse helper

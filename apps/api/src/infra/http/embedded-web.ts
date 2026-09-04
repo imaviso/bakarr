@@ -1,4 +1,5 @@
-import { HttpServerResponse } from "@effect/platform";
+import * as HttpServerResponse from "effect/unstable/http/HttpServerResponse";
+import { Record } from "effect";
 
 export interface EmbeddedWebAsset {
   readonly body: Uint8Array;
@@ -58,7 +59,7 @@ function createAssetResponse(input: {
 }) {
   const headers = {
     "Cache-Control": input.cacheControl,
-    "Content-Length": String(input.asset.size),
+    "Content-Length": globalThis.String(input.asset.size),
     "Content-Type": input.asset.contentType,
   };
 

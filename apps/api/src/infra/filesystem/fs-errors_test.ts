@@ -11,8 +11,9 @@ describe("isNotFoundError", () => {
 
   it("detects Effect SystemError not-found causes", () => {
     const cause = {
-      _tag: "SystemError",
-      reason: "NotFound",
+      _tag: "NotFound",
+      method: "readFileString",
+      module: "FileSystem",
     };
 
     assert.deepStrictEqual(isNotFoundError({ cause }), true);

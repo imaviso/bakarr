@@ -1,6 +1,6 @@
 // oxlint-disable typescript/no-restricted-types -- `unknown` is the honest type at error/cause boundaries (Effect error channels, try/catch causes, Logger messages)
-import { Cause, Effect, Queue, Ref } from "effect";
 
+import { Cause, Context, Effect, Layer, Queue, Ref, Semaphore } from "effect";
 import {
   brandOperationTaskId,
   type AsyncOperationAccepted,
@@ -10,6 +10,7 @@ import type { DatabaseError } from "@/db/database.ts";
 import { InfrastructureError } from "@/features/errors.ts";
 import { compactLogAnnotations, errorLogAnnotations } from "@/infra/logging.ts";
 import { nowIso as currentNowIso } from "@/infra/time.ts";
+
 import {
   type OperationsTaskKey,
   OperationsTaskWriteService,
@@ -53,12 +54,12 @@ const makeOperationsTaskLauncherService = Effect.fn("OperationsTaskLauncherServi
     // Serializes the coalescing check + task creation so two concurrent
     // launches for the same key cannot both observe "no active task" and
     // enqueue duplicate work.
-    const launchSemaphore = yield* Effect.makeSemaphore(1);
+    const launchSemaphore = yield* Semaphore.make(1);
 
     const runQueuedTask = Effect.fn("OperationsTaskLauncherService.runQueuedTask")(
       (taskEffect: Effect.Effect<void, DatabaseError | InfrastructureError>) =>
         taskEffect.pipe(
-          Effect.catchAllCause((cause) =>
+          Effect.catchCause((cause) =>
             Effect.logError("Operations task launcher worker failed").pipe(
               Effect.annotateLogs({
                 cause: Cause.pretty(cause),
@@ -144,7 +145,7 @@ const makeOperationsTaskLauncherService = Effect.fn("OperationsTaskLauncherServi
                   return next;
                 }),
               ),
-              Effect.catchAllCause((cause) => {
+              Effect.catchCause((cause) => {
                 const error = Cause.squash(cause);
 
                 return Effect.logError("Operations task failed").pipe(
@@ -159,7 +160,7 @@ const makeOperationsTaskLauncherService = Effect.fn("OperationsTaskLauncherServi
                       taskKey: input.taskKey,
                     }),
                   ),
-                  Effect.zipRight(
+                  Effect.andThen(
                     tasks.completeFailedTask({
                       error,
                       message: input.failureMessage,
@@ -184,12 +185,14 @@ const makeOperationsTaskLauncherService = Effect.fn("OperationsTaskLauncherServi
   },
 );
 
-export class OperationsTaskLauncherService extends Effect.Service<OperationsTaskLauncherService>()(
-  "@bakarr/api/OperationsTaskLauncherService",
-  {
-    scoped: makeOperationsTaskLauncherService(),
-    dependencies: [OperationsTaskWriteService.Default],
-  },
-) {}
+export class OperationsTaskLauncherService extends Context.Service<
+  OperationsTaskLauncherService,
+  OperationsTaskLauncherServiceShape
+>()("@bakarr/api/OperationsTaskLauncherService") {
+  static readonly layer = Layer.effect(
+    OperationsTaskLauncherService,
+    makeOperationsTaskLauncherService(),
+  );
+}
 
-export const OperationsTaskLauncherServiceLive = OperationsTaskLauncherService.Default;
+export const OperationsTaskLauncherServiceLive = OperationsTaskLauncherService.layer;

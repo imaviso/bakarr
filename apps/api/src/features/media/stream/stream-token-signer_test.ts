@@ -10,7 +10,7 @@ import { RandomService } from "@/infra/random.ts";
 
 const randomLayer = Layer.succeed(
   RandomService,
-  RandomService.make({
+  RandomService.of({
     randomBytes: (bytes: number) => Effect.succeed(new Uint8Array(bytes).fill(7)),
     randomUuid: Effect.succeed("test-uuid"),
   }),

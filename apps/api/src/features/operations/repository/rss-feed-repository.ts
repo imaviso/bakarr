@@ -1,11 +1,12 @@
 import { desc, eq } from "drizzle-orm";
-import { Effect } from "effect";
+import * as NodeSqliteClient from "@effect/sql-sqlite-node/SqliteClient";
 
 import type { RssFeed } from "@packages/shared/index.ts";
 import { AppDrizzleDatabase, DatabaseError, type AppDatabase } from "@/db/database.ts";
 import { rssFeeds } from "@/db/schema.ts";
 import { toRssFeed } from "@/features/operations/repository/rss-repository.ts";
-import { tryDatabasePromise } from "@/infra/effect/db.ts";
+import { makeDbExecutor, type DbExecutor } from "@/infra/effect/db.ts";
+import { Context, Effect, Layer } from "effect";
 
 type RssFeedRow = typeof rssFeeds.$inferSelect;
 
@@ -24,54 +25,71 @@ export interface RssFeedRepositoryShape {
   readonly setEnabled: (id: number, enabled: boolean) => Effect.Effect<void, DatabaseError>;
 }
 
-export class RssFeedRepository extends Effect.Service<RssFeedRepository>()(
+export class RssFeedRepository extends Context.Service<RssFeedRepository, RssFeedRepositoryShape>()(
   "@bakarr/api/RssFeedRepository",
-  {
-    effect: Effect.gen(function* () {
+) {
+  static readonly layer = Layer.effect(
+    RssFeedRepository,
+    Effect.gen(function* () {
       const db = yield* AppDrizzleDatabase;
-      return makeRssFeedRepositoryShape(db);
+      const sqlClient = yield* NodeSqliteClient.SqliteClient;
+      return makeRssFeedRepositoryShape(db, sqlClient);
     }),
-    dependencies: [AppDrizzleDatabase.Default],
-  },
-) {}
+  );
+}
 
-export function makeRssFeedRepositoryShape(db: AppDatabase): RssFeedRepositoryShape {
+export function makeRssFeedRepositoryShape(
+  db: AppDatabase,
+  sqlClient: NodeSqliteClient.SqliteClient,
+): RssFeedRepositoryShape {
+  const exec = makeDbExecutor(sqlClient);
   return {
-    deleteById: (id) => deleteById(db, id),
-    insertFeed: (input) => insertFeed(db, input),
-    listAll: () => listAll(db),
-    listByMediaId: (mediaId) => listByMediaId(db, mediaId),
-    listEnabledRows: () => listEnabledRows(db),
-    markLastChecked: (id, lastChecked) => markLastChecked(db, id, lastChecked),
-    setEnabled: (id, enabled) => setEnabled(db, id, enabled),
+    deleteById: (id) => deleteById(db, exec, id),
+    insertFeed: (input) => insertFeed(db, exec, input),
+    listAll: () => listAll(db, exec),
+    listByMediaId: (mediaId) => listByMediaId(db, exec, mediaId),
+    listEnabledRows: () => listEnabledRows(db, exec),
+    markLastChecked: (id, lastChecked) => markLastChecked(db, exec, id, lastChecked),
+    setEnabled: (id, enabled) => setEnabled(db, exec, id, enabled),
   } satisfies RssFeedRepositoryShape;
 }
 
-const listAll = Effect.fn("RssFeedRepository.listAll")(function* (db: AppDatabase) {
-  const rows = yield* tryDatabasePromise("Failed to list RSS feeds", () =>
-    db.select().from(rssFeeds).orderBy(desc(rssFeeds.id)),
+const listAll = Effect.fn("RssFeedRepository.listAll")(function* (
+  db: AppDatabase,
+  exec: DbExecutor,
+) {
+  const rows = yield* exec.runQuery(
+    "Failed to list RSS feeds",
+    db.select().from(rssFeeds).orderBy(desc(rssFeeds.id)).prepare().effect(),
   );
   return rows.map((row) => toRssFeed(row));
 });
 
 const listByMediaId = Effect.fn("RssFeedRepository.listByMediaId")(function* (
   db: AppDatabase,
+  exec: DbExecutor,
   mediaId: number,
 ) {
-  const rows = yield* tryDatabasePromise("Failed to list media RSS feeds", () =>
-    db.select().from(rssFeeds).where(eq(rssFeeds.mediaId, mediaId)),
+  const rows = yield* exec.runQuery(
+    "Failed to list media RSS feeds",
+    db.select().from(rssFeeds).where(eq(rssFeeds.mediaId, mediaId)).prepare().effect(),
   );
   return rows.map((row) => toRssFeed(row));
 });
 
-const listEnabledRows = Effect.fn("RssFeedRepository.listEnabledRows")(function* (db: AppDatabase) {
-  return yield* tryDatabasePromise("Failed to run RSS check", () =>
-    db.select().from(rssFeeds).where(eq(rssFeeds.enabled, true)),
+const listEnabledRows = Effect.fn("RssFeedRepository.listEnabledRows")(function* (
+  db: AppDatabase,
+  exec: DbExecutor,
+) {
+  return yield* exec.runQuery(
+    "Failed to run RSS check",
+    db.select().from(rssFeeds).where(eq(rssFeeds.enabled, true)).prepare().effect(),
   );
 });
 
 const insertFeed = Effect.fn("RssFeedRepository.insertFeed")(function* (
   db: AppDatabase,
+  exec: DbExecutor,
   input: {
     readonly createdAt: string;
     readonly mediaId: number;
@@ -79,7 +97,8 @@ const insertFeed = Effect.fn("RssFeedRepository.insertFeed")(function* (
     readonly url: string;
   },
 ) {
-  const [row] = yield* tryDatabasePromise("Failed to add RSS feed", () =>
+  const [row] = yield* exec.runQuery(
+    "Failed to add RSS feed",
     db
       .insert(rssFeeds)
       .values({
@@ -90,7 +109,9 @@ const insertFeed = Effect.fn("RssFeedRepository.insertFeed")(function* (
         name: input.name,
         url: input.url,
       })
-      .returning(),
+      .returning()
+      .prepare()
+      .effect(),
   );
 
   if (!row) {
@@ -105,29 +126,35 @@ const insertFeed = Effect.fn("RssFeedRepository.insertFeed")(function* (
 
 const deleteById = Effect.fn("RssFeedRepository.deleteById")(function* (
   db: AppDatabase,
+  exec: DbExecutor,
   id: number,
 ) {
-  yield* tryDatabasePromise("Failed to delete RSS feed", () =>
-    db.delete(rssFeeds).where(eq(rssFeeds.id, id)),
+  yield* exec.runQuery(
+    "Failed to delete RSS feed",
+    db.delete(rssFeeds).where(eq(rssFeeds.id, id)).prepare().effect(),
   );
 });
 
 const setEnabled = Effect.fn("RssFeedRepository.setEnabled")(function* (
   db: AppDatabase,
+  exec: DbExecutor,
   id: number,
   enabled: boolean,
 ) {
-  yield* tryDatabasePromise("Failed to toggle RSS feed", () =>
-    db.update(rssFeeds).set({ enabled }).where(eq(rssFeeds.id, id)),
+  yield* exec.runQuery(
+    "Failed to toggle RSS feed",
+    db.update(rssFeeds).set({ enabled }).where(eq(rssFeeds.id, id)).prepare().effect(),
   );
 });
 
 const markLastChecked = Effect.fn("RssFeedRepository.markLastChecked")(function* (
   db: AppDatabase,
+  exec: DbExecutor,
   id: number,
   lastChecked: string,
 ) {
-  yield* tryDatabasePromise("Failed to run RSS check", () =>
-    db.update(rssFeeds).set({ lastChecked }).where(eq(rssFeeds.id, id)),
+  yield* exec.runQuery(
+    "Failed to run RSS check",
+    db.update(rssFeeds).set({ lastChecked }).where(eq(rssFeeds.id, id)).prepare().effect(),
   );
 });

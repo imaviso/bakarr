@@ -1,5 +1,4 @@
 import { assert, it } from "@effect/vitest";
-import { Effect } from "effect";
 
 import type { AppDatabase } from "@/db/database.ts";
 import * as schema from "@/db/schema.ts";
@@ -7,46 +6,62 @@ import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 import { withFileSystemSandboxEffect, writeTextFile } from "@/test/filesystem-test.ts";
 import { resolveUnitFileEffect } from "@/features/media/files/media-file-read.ts";
 import { makeMediaRepository } from "@/test/repository-factories.ts";
+import { type DbExecutor } from "@/infra/effect/db.ts";
+import { Effect } from "effect";
 
-const insertAnime = Effect.fn("Test.insertAnime")(function* (db: AppDatabase, rootFolder: string) {
-  yield* Effect.tryPromise(() =>
-    db.insert(schema.media).values({
-      addedAt: "2024-01-01T00:00:00Z",
-      format: "TV",
-      genres: "[]",
-      id: 1,
-      monitored: true,
-      profileName: "Default",
-      releaseProfileIds: "[]",
-      rootFolder,
-      status: "RELEASING",
-      studios: "[]",
-      titleRomaji: "Test Show",
-    }),
+const insertAnime = Effect.fn("Test.insertAnime")(function* (
+  db: AppDatabase,
+  exec: DbExecutor,
+  rootFolder: string,
+) {
+  yield* exec.runQuery(
+    "Failed to seed media for file mapping test",
+    db
+      .insert(schema.media)
+      .values({
+        addedAt: "2024-01-01T00:00:00Z",
+        format: "TV",
+        genres: "[]",
+        id: 1,
+        monitored: true,
+        profileName: "Default",
+        releaseProfileIds: "[]",
+        rootFolder,
+        status: "RELEASING",
+        studios: "[]",
+        titleRomaji: "Test Show",
+      })
+      .prepare()
+      .effect(),
   );
 });
 
-it.scoped("resolveUnitFileEffect returns resolved file when mapping is valid", () =>
+it.effect("resolveUnitFileEffect returns resolved file when mapping is valid", () =>
   withSqliteTestDbEffect({
-    run: (db) =>
+    run: (db, _databaseFile, client, exec) =>
       withFileSystemSandboxEffect(({ fs, root }) =>
         Effect.gen(function* () {
           const appDb: AppDatabase = db;
           const filePath = `${root}/MediaUnit 1.mkv`;
           yield* writeTextFile(fs, filePath, "video");
-          yield* insertAnime(appDb, root);
-          yield* Effect.tryPromise(() =>
-            appDb.insert(schema.mediaUnits).values({
-              mediaId: 1,
-              downloaded: true,
-              filePath,
-              number: 1,
-            }),
+          yield* insertAnime(appDb, exec, root);
+          yield* exec.runQuery(
+            "Failed to seed mediaUnits for file mapping test",
+            appDb
+              .insert(schema.mediaUnits)
+              .values({
+                mediaId: 1,
+                downloaded: true,
+                filePath,
+                number: 1,
+              })
+              .prepare()
+              .effect(),
           );
 
           const result = yield* resolveUnitFileEffect({
             mediaId: 1,
-            mediaRepository: makeMediaRepository(appDb),
+            mediaRepository: makeMediaRepository(appDb, client),
             unitNumber: 1,
             fs,
           });
@@ -62,34 +77,39 @@ it.scoped("resolveUnitFileEffect returns resolved file when mapping is valid", (
   }),
 );
 
-it.scoped("resolveUnitFileEffect returns unmapped state when no file path is stored", () =>
+it.effect("resolveUnitFileEffect returns unmapped state when no file path is stored", () =>
   withSqliteTestDbEffect({
-    run: (db) =>
+    run: (db, _databaseFile, client, exec) =>
       withFileSystemSandboxEffect(({ fs, root }) =>
         Effect.gen(function* () {
           const appDb: AppDatabase = db;
-          yield* insertAnime(appDb, root);
-          yield* Effect.tryPromise(() =>
-            appDb.insert(schema.mediaUnits).values({
-              mediaId: 1,
-              downloaded: false,
-              filePath: null,
-              number: 1,
-            }),
+          yield* insertAnime(appDb, exec, root);
+          yield* exec.runQuery(
+            "Failed to seed mediaUnits for file mapping test",
+            appDb
+              .insert(schema.mediaUnits)
+              .values({
+                mediaId: 1,
+                downloaded: false,
+                filePath: null,
+                number: 1,
+              })
+              .prepare()
+              .effect(),
           );
 
-          const result = yield* Effect.either(
+          const result = yield* Effect.result(
             resolveUnitFileEffect({
               mediaId: 1,
-              mediaRepository: makeMediaRepository(appDb),
+              mediaRepository: makeMediaRepository(appDb, client),
               unitNumber: 1,
               fs,
             }),
           );
 
-          assert.deepStrictEqual(result._tag, "Left");
-          if (result._tag === "Left" && result.left._tag === "UnitFileResolveError") {
-            assert.deepStrictEqual(result.left.reason, "unmapped");
+          assert.deepStrictEqual(result._tag, "Failure");
+          if (result._tag === "Failure" && result.failure._tag === "UnitFileResolveError") {
+            assert.deepStrictEqual(result.failure.reason, "unmapped");
           }
         }),
       ),
@@ -97,35 +117,40 @@ it.scoped("resolveUnitFileEffect returns unmapped state when no file path is sto
   }),
 );
 
-it.scoped("resolveUnitFileEffect returns missing state when mapped file is inaccessible", () =>
+it.effect("resolveUnitFileEffect returns missing state when mapped file is inaccessible", () =>
   withSqliteTestDbEffect({
-    run: (db) =>
+    run: (db, _databaseFile, client, exec) =>
       withFileSystemSandboxEffect(({ fs, root }) =>
         Effect.gen(function* () {
           const appDb: AppDatabase = db;
           const filePath = `${root}/Missing MediaUnit.mkv`;
-          yield* insertAnime(appDb, root);
-          yield* Effect.tryPromise(() =>
-            appDb.insert(schema.mediaUnits).values({
-              mediaId: 1,
-              downloaded: true,
-              filePath,
-              number: 1,
-            }),
+          yield* insertAnime(appDb, exec, root);
+          yield* exec.runQuery(
+            "Failed to seed mediaUnits for file mapping test",
+            appDb
+              .insert(schema.mediaUnits)
+              .values({
+                mediaId: 1,
+                downloaded: true,
+                filePath,
+                number: 1,
+              })
+              .prepare()
+              .effect(),
           );
 
-          const result = yield* Effect.either(
+          const result = yield* Effect.result(
             resolveUnitFileEffect({
               mediaId: 1,
-              mediaRepository: makeMediaRepository(appDb),
+              mediaRepository: makeMediaRepository(appDb, client),
               unitNumber: 1,
               fs,
             }),
           );
 
-          assert.deepStrictEqual(result._tag, "Left");
-          if (result._tag === "Left" && result.left._tag === "UnitFileResolveError") {
-            assert.deepStrictEqual(result.left.reason, "missing");
+          assert.deepStrictEqual(result._tag, "Failure");
+          if (result._tag === "Failure" && result.failure._tag === "UnitFileResolveError") {
+            assert.deepStrictEqual(result.failure.reason, "missing");
           }
         }),
       ),
@@ -133,38 +158,40 @@ it.scoped("resolveUnitFileEffect returns missing state when mapped file is inacc
   }),
 );
 
-it.scoped(
+it.effect(
   "resolveUnitFileEffect returns root inaccessible state when media root is inaccessible",
   () =>
     withSqliteTestDbEffect({
-      run: (db) =>
+      run: (db, _databaseFile, client, exec) =>
         withFileSystemSandboxEffect(({ fs, root }) =>
           Effect.gen(function* () {
             const appDb: AppDatabase = db;
             const filePath = `${root}/MediaUnit 1.mkv`;
             yield* writeTextFile(fs, filePath, "video");
-            yield* insertAnime(appDb, `${root}/missing-root`);
-            yield* Effect.tryPromise(() =>
-              appDb.insert(schema.mediaUnits).values({
+            yield* insertAnime(appDb, exec, `${root}/missing-root`);
+            yield* appDb
+              .insert(schema.mediaUnits)
+              .values({
                 mediaId: 1,
                 downloaded: true,
                 filePath,
                 number: 1,
-              }),
-            );
+              })
+              .prepare()
+              .effect();
 
-            const result = yield* Effect.either(
+            const result = yield* Effect.result(
               resolveUnitFileEffect({
                 mediaId: 1,
-                mediaRepository: makeMediaRepository(appDb),
+                mediaRepository: makeMediaRepository(appDb, client),
                 unitNumber: 1,
                 fs,
               }),
             );
 
-            assert.deepStrictEqual(result._tag, "Left");
-            if (result._tag === "Left" && result.left._tag === "UnitFileResolveError") {
-              assert.deepStrictEqual(result.left.reason, "root-inaccessible");
+            assert.deepStrictEqual(result._tag, "Failure");
+            if (result._tag === "Failure" && result.failure._tag === "UnitFileResolveError") {
+              assert.deepStrictEqual(result.failure.reason, "root-inaccessible");
             }
           }),
         ),
@@ -172,9 +199,9 @@ it.scoped(
     }),
 );
 
-it.scoped("resolveUnitFileEffect returns outside-root state when mapping escapes media root", () =>
+it.effect("resolveUnitFileEffect returns outside-root state when mapping escapes media root", () =>
   withSqliteTestDbEffect({
-    run: (db) =>
+    run: (db, _databaseFile, client, exec) =>
       withFileSystemSandboxEffect(({ fs, root }) =>
         Effect.gen(function* () {
           const appDb: AppDatabase = db;
@@ -186,28 +213,33 @@ it.scoped("resolveUnitFileEffect returns outside-root state when mapping escapes
           yield* fs.mkdir(externalRoot, { recursive: true });
           yield* writeTextFile(fs, filePath, "video");
 
-          yield* insertAnime(appDb, animeRoot);
-          yield* Effect.tryPromise(() =>
-            appDb.insert(schema.mediaUnits).values({
-              mediaId: 1,
-              downloaded: true,
-              filePath,
-              number: 1,
-            }),
+          yield* insertAnime(appDb, exec, animeRoot);
+          yield* exec.runQuery(
+            "Failed to seed mediaUnits for file mapping test",
+            appDb
+              .insert(schema.mediaUnits)
+              .values({
+                mediaId: 1,
+                downloaded: true,
+                filePath,
+                number: 1,
+              })
+              .prepare()
+              .effect(),
           );
 
-          const result = yield* Effect.either(
+          const result = yield* Effect.result(
             resolveUnitFileEffect({
               mediaId: 1,
-              mediaRepository: makeMediaRepository(appDb),
+              mediaRepository: makeMediaRepository(appDb, client),
               unitNumber: 1,
               fs,
             }),
           );
 
-          assert.deepStrictEqual(result._tag, "Left");
-          if (result._tag === "Left" && result.left._tag === "UnitFileResolveError") {
-            assert.deepStrictEqual(result.left.reason, "outside-root");
+          assert.deepStrictEqual(result._tag, "Failure");
+          if (result._tag === "Failure" && result.failure._tag === "UnitFileResolveError") {
+            assert.deepStrictEqual(result.failure.reason, "outside-root");
           }
         }),
       ),

@@ -1,5 +1,4 @@
 // oxlint-disable typescript-eslint/consistent-return
-import { Cause, Effect, Either } from "effect";
 
 import {
   brandMediaId,
@@ -24,6 +23,7 @@ import { buildUnitFilenamePlan } from "@/features/operations/library/naming-cano
 import { hasMissingLocalMediaNamingFields } from "@/features/operations/library/naming-format-support.ts";
 import type { UnitFilenamePlan } from "@/features/operations/library/naming-types.ts";
 import type { MediaUnitRepositoryShape } from "@/features/media/units/media-unit-repository.ts";
+import { Cause, Effect, Result } from "effect";
 
 export { ImportFileError };
 
@@ -221,7 +221,7 @@ export const stageSourceIntoTempFile = Effect.fn("Operations.stageSourceIntoTemp
     readonly sourcePath: string;
     readonly tempDestination: string;
   }) {
-    const stageResult = yield* Effect.either(
+    const stageResult = yield* Effect.result(
       input.importMode === "copy"
         ? input.fs.copyFile(input.sourcePath, input.tempDestination)
         : input.fs
@@ -235,24 +235,24 @@ export const stageSourceIntoTempFile = Effect.fn("Operations.stageSourceIntoTemp
             ),
     );
 
-    if (stageResult._tag === "Right") {
+    if (stageResult._tag === "Success") {
       return;
     }
 
-    const cleanupResult = yield* Effect.either(
+    const cleanupResult = yield* Effect.result(
       removeStagedTempFileStrict(input.fs, input.tempDestination),
     );
 
-    if (cleanupResult._tag === "Left") {
+    if (cleanupResult._tag === "Failure") {
       return yield* new ImportFileError({
         message: `Failed to ${input.importMode} file to temp destination and cleanup temp file`,
-        cause: Cause.sequential(Cause.fail(stageResult.left), Cause.fail(cleanupResult.left)),
+        cause: Cause.combine(Cause.fail(stageResult.failure), Cause.fail(cleanupResult.failure)),
       });
     }
 
     return yield* new ImportFileError({
       message: `Failed to ${input.importMode} file to temp destination`,
-      cause: stageResult.left,
+      cause: stageResult.failure,
     });
   },
 );
@@ -262,7 +262,7 @@ export function cleanupStagedTempFile(fs: FileSystemShape, tempDestination: stri
     Effect.catchTag("FileSystemError", (error) =>
       Effect.logWarning("Failed to clean up staged temp file").pipe(
         Effect.annotateLogs({
-          error: String(error),
+          error: globalThis.String(error),
           temp_path: tempDestination,
         }),
         Effect.asVoid,
@@ -304,17 +304,17 @@ export const replaceDestinationWithStagedFile = Effect.fn(
     ),
   );
 
-  const commitResult = yield* Effect.either(
+  const commitResult = yield* Effect.result(
     input.fs.rename(input.tempDestination, input.destination),
   );
 
-  if (commitResult._tag === "Right") {
+  if (commitResult._tag === "Success") {
     yield* input.fs.remove(input.backupDestination).pipe(
       Effect.catchTag("FileSystemError", (error) =>
         Effect.logWarning("Failed to remove backup file after successful import").pipe(
           Effect.annotateLogs({
             backup_path: input.backupDestination,
-            error: String(error),
+            error: globalThis.String(error),
           }),
           Effect.asVoid,
         ),
@@ -323,28 +323,28 @@ export const replaceDestinationWithStagedFile = Effect.fn(
     return;
   }
 
-  const restoreResult = yield* Effect.either(
+  const restoreResult = yield* Effect.result(
     input.fs.rename(input.backupDestination, input.destination),
   );
 
-  if (restoreResult._tag === "Left") {
+  if (restoreResult._tag === "Failure") {
     yield* Effect.logError("Failed to restore backup after rename failure").pipe(
       Effect.annotateLogs({
         backup_path: input.backupDestination,
         destination_path: input.destination,
-        error: String(restoreResult.left),
+        error: globalThis.String(restoreResult.failure),
       }),
     );
 
     return yield* new ImportFileError({
       message: "Failed to rename temp file to destination and restore backup",
-      cause: Cause.sequential(Cause.fail(commitResult.left), Cause.fail(restoreResult.left)),
+      cause: Cause.combine(Cause.fail(commitResult.failure), Cause.fail(restoreResult.failure)),
     });
   }
 
   return yield* new ImportFileError({
     message: "Failed to rename temp file to destination",
-    cause: commitResult.left,
+    cause: commitResult.failure,
   });
 });
 
@@ -389,10 +389,10 @@ export const writeLibraryImportFile = Effect.fn("Operations.writeLibraryImportFi
               message: "Failed to import episode files atomically",
             }),
         ),
-        Effect.either,
+        Effect.result,
       );
 
-    if (Either.isLeft(dbResult)) {
+    if (Result.isFailure(dbResult)) {
       const rollbackEffect =
         plan.importMode === "move"
           ? fs.rename(plan.destination, plan.resolvedSource)
@@ -404,13 +404,13 @@ export const writeLibraryImportFile = Effect.fn("Operations.writeLibraryImportFi
             Effect.annotateLogs({
               destination_path: plan.destination,
               source_path: plan.sourcePath,
-              error: String(error),
+              error: globalThis.String(error),
             }),
           ),
         ),
       );
 
-      return yield* dbResult.left;
+      return yield* dbResult.failure;
     }
 
     return {
@@ -436,21 +436,21 @@ const stageMoveAcrossFilesystems = Effect.fn("Operations.stageMoveAcrossFilesyst
   tempDestination: string,
 ) {
   yield* fs.copyFile(sourcePath, tempDestination);
-  const removeResult = yield* Effect.either(fs.remove(sourcePath));
+  const removeResult = yield* Effect.result(fs.remove(sourcePath));
 
-  if (removeResult._tag === "Right") {
+  if (removeResult._tag === "Success") {
     return;
   }
 
-  const cleanupResult = yield* Effect.either(removeStagedTempFileStrict(fs, tempDestination));
+  const cleanupResult = yield* Effect.result(removeStagedTempFileStrict(fs, tempDestination));
 
-  if (cleanupResult._tag === "Left") {
+  if (cleanupResult._tag === "Failure") {
     return yield* Effect.failCause(
-      Cause.sequential(Cause.fail(removeResult.left), Cause.fail(cleanupResult.left)),
+      Cause.combine(Cause.fail(removeResult.failure), Cause.fail(cleanupResult.failure)),
     );
   }
 
-  return yield* removeResult.left;
+  return yield* removeResult.failure;
 });
 
 const hasExistingFile = Effect.fn("Operations.hasExistingImportDestination")(function* (
