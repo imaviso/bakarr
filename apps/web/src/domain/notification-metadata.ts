@@ -9,13 +9,13 @@ import {
 } from "@/domain/release/metadata";
 
 export function formatDownloadNotificationDescription(input: {
-  imported_path?: string | undefined;
-  covered_units?: number[] | undefined;
-  is_batch?: boolean | undefined;
-  source_metadata?: DownloadSourceMetadata | undefined;
+  imported_path?: string | null | undefined;
+  covered_units?: number[] | null | undefined;
+  is_batch?: boolean | null | undefined;
+  source_metadata?: DownloadSourceMetadata | null | undefined;
 }) {
   const releaseSummary = formatReleaseSourceSummary(
-    buildReleaseSourceSummaryInput(input.source_metadata),
+    buildReleaseSourceSummaryInput(input.source_metadata ?? undefined),
   );
   const parsedSummary = formatDownloadParsedMeta({
     source_metadata: input.source_metadata,

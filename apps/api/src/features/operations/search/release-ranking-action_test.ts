@@ -48,7 +48,7 @@ it("decideDownloadAction accepts new download when no current episode", () => {
     makeRelease(),
     makeConfig(),
   );
-  assert.ok(action.Accept !== undefined);
+  assert.ok(action.Accept != null);
   assert.deepStrictEqual(action.Accept.quality.name, "WEB-DL 1080p");
 });
 
@@ -60,7 +60,7 @@ it("decideDownloadAction rejects when quality not in profile allowed_qualities",
     makeRelease(),
     makeConfig(),
   );
-  assert.ok(action.Reject !== undefined);
+  assert.ok(action.Reject != null);
   assert.deepStrictEqual(action.Reject.reason, "quality not allowed in profile");
 });
 
@@ -73,7 +73,7 @@ it("decideDownloadAction can allow unknown quality for non-video releases", () =
     makeConfig(),
     { allowUnknownQuality: true },
   );
-  assert.ok(action.Accept !== undefined);
+  assert.ok(action.Accept != null);
   assert.deepStrictEqual(action.Accept.quality.name, "Unknown");
 });
 
@@ -85,7 +85,7 @@ it("decideDownloadAction rejects when size too small", () => {
     makeRelease({ sizeBytes: 1024 }),
     makeConfig(),
   );
-  assert.ok(action.Reject !== undefined);
+  assert.ok(action.Reject != null);
   assert.deepStrictEqual(action.Reject.reason, "size too small");
 });
 
@@ -97,7 +97,7 @@ it("decideDownloadAction rejects when size too big", () => {
     makeRelease({ sizeBytes: 1024 * 1024 * 100 }),
     makeConfig(),
   );
-  assert.ok(action.Reject !== undefined);
+  assert.ok(action.Reject != null);
   assert.deepStrictEqual(action.Reject.reason, "size too big");
 });
 
@@ -110,7 +110,7 @@ it("decideDownloadAction rejects when must rule is not satisfied", () => {
     makeRelease({ title: "[TestGroup] Media - 01 [1080p WEB-DL]" }),
     makeConfig(),
   );
-  assert.ok(action.Reject !== undefined);
+  assert.ok(action.Reject != null);
   assert.ok(action.Reject.reason.includes("Missing required term"));
 });
 
@@ -123,7 +123,7 @@ it("decideDownloadAction rejects when must_not rule is violated", () => {
     makeRelease(),
     makeConfig(),
   );
-  assert.ok(action.Reject !== undefined);
+  assert.ok(action.Reject != null);
   assert.ok(action.Reject.reason.includes("Contains forbidden term"));
 });
 
@@ -139,7 +139,7 @@ it("decideDownloadAction rejects upgrade when upgrades disabled", () => {
     makeRelease({ title: "[TestGroup] Media - 01 [1080p BluRay]" }),
     makeConfig(),
   );
-  assert.ok(action.Reject !== undefined);
+  assert.ok(action.Reject != null);
   assert.deepStrictEqual(action.Reject.reason, "upgrades disabled");
 });
 
@@ -155,7 +155,7 @@ it("decideDownloadAction rejects when already at quality cutoff", () => {
     makeRelease({ title: "[TestGroup] Media - 01 [1080p WEB-DL]" }),
     makeConfig(),
   );
-  assert.ok(action.Reject !== undefined);
+  assert.ok(action.Reject != null);
   assert.deepStrictEqual(action.Reject.reason, "already at quality cutoff");
 });
 
@@ -171,7 +171,7 @@ it("decideDownloadAction upgrades when better quality available", () => {
     makeRelease({ title: "[TestGroup] Media - 01 [1080p BluRay]" }),
     makeConfig(),
   );
-  assert.ok(action.Upgrade !== undefined);
+  assert.ok(action.Upgrade != null);
   assert.deepStrictEqual(action.Upgrade.reason, "better quality available");
 });
 
@@ -187,7 +187,7 @@ it("decideDownloadAction upgrades when SeaDex preferred and current is not", () 
     makeRelease({ title: "[TestGroup] Media - 01 [1080p WEB-DL]", isSeaDex: true }),
     makeConfig(),
   );
-  assert.ok(action.Upgrade !== undefined);
+  assert.ok(action.Upgrade != null);
   assert.deepStrictEqual(action.Upgrade.reason, "SeaDex release available");
 });
 
@@ -203,6 +203,6 @@ it("decideDownloadAction rejects when no quality improvement", () => {
     makeRelease({ title: "[OtherGroup] Media - 01 [1080p WEBRip]" }),
     makeConfig(),
   );
-  assert.ok(action.Reject !== undefined);
+  assert.ok(action.Reject != null);
   assert.deepStrictEqual(action.Reject.reason, "no quality improvement");
 });

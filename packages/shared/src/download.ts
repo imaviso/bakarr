@@ -7,33 +7,33 @@ export interface Download {
   id: DownloadId;
   media_id: MediaId;
   media_title: string;
-  media_image?: string | undefined;
+  media_image?: string | undefined | null;
   unit_number: number;
   torrent_name: string;
-  is_batch?: boolean | undefined;
-  covered_units?: number[] | undefined;
-  coverage_pending?: boolean | undefined;
-  decision_reason?: string | undefined;
-  imported_path?: string | undefined;
-  status?: string | undefined;
-  progress?: number | undefined;
-  added_at?: string | undefined;
-  download_date?: string | undefined;
-  group_name?: string | undefined;
-  external_state?: string | undefined;
-  error_message?: string | undefined;
-  save_path?: string | undefined;
-  content_path?: string | undefined;
-  total_bytes?: number | undefined;
-  downloaded_bytes?: number | undefined;
-  speed_bytes?: number | undefined;
-  eta_seconds?: number | undefined;
-  last_synced_at?: string | undefined;
-  retry_count?: number | undefined;
-  last_error_at?: string | undefined;
-  reconciled_at?: string | undefined;
-  source_metadata?: DownloadSourceMetadata | undefined;
-  allowed_actions?: DownloadAllowedAction[] | undefined;
+  is_batch?: boolean | undefined | null;
+  covered_units?: number[] | undefined | null;
+  coverage_pending?: boolean | undefined | null;
+  decision_reason?: string | undefined | null;
+  imported_path?: string | undefined | null;
+  status?: string | undefined | null;
+  progress?: number | undefined | null;
+  added_at?: string | undefined | null;
+  download_date?: string | undefined | null;
+  group_name?: string | undefined | null;
+  external_state?: string | undefined | null;
+  error_message?: string | undefined | null;
+  save_path?: string | undefined | null;
+  content_path?: string | undefined | null;
+  total_bytes?: number | undefined | null;
+  downloaded_bytes?: number | undefined | null;
+  speed_bytes?: number | undefined | null;
+  eta_seconds?: number | undefined | null;
+  last_synced_at?: string | undefined | null;
+  retry_count?: number | undefined | null;
+  last_error_at?: string | undefined | null;
+  reconciled_at?: string | undefined | null;
+  source_metadata?: DownloadSourceMetadata | undefined | null;
+  allowed_actions?: DownloadAllowedAction[] | undefined | null;
 }
 
 export const DOWNLOAD_ALLOWED_ACTION_VALUES = [
@@ -52,33 +52,37 @@ export const DownloadSchema = Schema.Struct({
   id: DownloadIdSchema,
   media_id: MediaIdSchema,
   media_title: Schema.String,
-  media_image: Schema.optional(Schema.String),
+  media_image: Schema.optional(Schema.NullishOr(Schema.String)),
   unit_number: Schema.Number,
   torrent_name: Schema.String,
-  is_batch: Schema.optional(Schema.Boolean),
-  covered_units: Schema.optional(Schema.mutable(Schema.Array(Schema.Number))),
-  coverage_pending: Schema.optional(Schema.Boolean),
-  decision_reason: Schema.optional(Schema.String),
-  imported_path: Schema.optional(Schema.String),
-  status: Schema.optional(Schema.String),
-  progress: Schema.optional(Schema.Number),
-  added_at: Schema.optional(Schema.String),
-  download_date: Schema.optional(Schema.String),
-  group_name: Schema.optional(Schema.String),
-  external_state: Schema.optional(Schema.String),
-  error_message: Schema.optional(Schema.String),
-  save_path: Schema.optional(Schema.String),
-  content_path: Schema.optional(Schema.String),
-  total_bytes: Schema.optional(Schema.Number),
-  downloaded_bytes: Schema.optional(Schema.Number),
-  speed_bytes: Schema.optional(Schema.Number),
-  eta_seconds: Schema.optional(Schema.Number),
-  last_synced_at: Schema.optional(Schema.String),
-  retry_count: Schema.optional(Schema.Number),
-  last_error_at: Schema.optional(Schema.String),
-  reconciled_at: Schema.optional(Schema.String),
-  source_metadata: Schema.optional(Schema.suspend(() => DownloadSourceMetadataSchema)),
-  allowed_actions: Schema.optional(Schema.mutable(Schema.Array(DownloadAllowedActionSchema))),
+  is_batch: Schema.optional(Schema.NullishOr(Schema.Boolean)),
+  covered_units: Schema.optional(Schema.NullishOr(Schema.mutable(Schema.Array(Schema.Number)))),
+  coverage_pending: Schema.optional(Schema.NullishOr(Schema.Boolean)),
+  decision_reason: Schema.optional(Schema.NullishOr(Schema.String)),
+  imported_path: Schema.optional(Schema.NullishOr(Schema.String)),
+  status: Schema.optional(Schema.NullishOr(Schema.String)),
+  progress: Schema.optional(Schema.NullishOr(Schema.Number)),
+  added_at: Schema.optional(Schema.NullishOr(Schema.String)),
+  download_date: Schema.optional(Schema.NullishOr(Schema.String)),
+  group_name: Schema.optional(Schema.NullishOr(Schema.String)),
+  external_state: Schema.optional(Schema.NullishOr(Schema.String)),
+  error_message: Schema.optional(Schema.NullishOr(Schema.String)),
+  save_path: Schema.optional(Schema.NullishOr(Schema.String)),
+  content_path: Schema.optional(Schema.NullishOr(Schema.String)),
+  total_bytes: Schema.optional(Schema.NullishOr(Schema.Number)),
+  downloaded_bytes: Schema.optional(Schema.NullishOr(Schema.Number)),
+  speed_bytes: Schema.optional(Schema.NullishOr(Schema.Number)),
+  eta_seconds: Schema.optional(Schema.NullishOr(Schema.Number)),
+  last_synced_at: Schema.optional(Schema.NullishOr(Schema.String)),
+  retry_count: Schema.optional(Schema.NullishOr(Schema.Number)),
+  last_error_at: Schema.optional(Schema.NullishOr(Schema.String)),
+  reconciled_at: Schema.optional(Schema.NullishOr(Schema.String)),
+  source_metadata: Schema.optional(
+    Schema.NullishOr(Schema.suspend(() => DownloadSourceMetadataSchema)),
+  ),
+  allowed_actions: Schema.optional(
+    Schema.NullishOr(Schema.mutable(Schema.Array(DownloadAllowedActionSchema))),
+  ),
 }).mapFields(Struct.map(Schema.mutableKey));
 
 export interface DownloadHistoryPage {

@@ -4,9 +4,9 @@ import { isAired } from "@/domain/date-time";
 
 type AnimeDateContext = {
   season?: Media["season"];
-  season_year?: number | undefined;
-  start_date?: string | undefined;
-  start_year?: number | undefined;
+  season_year?: number | null | undefined;
+  start_date?: string | null | undefined;
+  start_year?: number | null | undefined;
 };
 
 type NextAiringUnitContext = Media["next_airing_unit"];
@@ -27,7 +27,7 @@ export function getAiringDisplayPreferences(library?: Config["library"]): Airing
   };
 }
 
-export function formatAnimeDate(date?: string, year?: number) {
+export function formatAnimeDate(date?: string | null, year?: number | null) {
   if (date) {
     const parsed = parseISO(`${date}T00:00:00Z`);
     return isValid(parsed) ? format(parsed, "MMM d, yyyy") : null;
@@ -36,7 +36,10 @@ export function formatAnimeDate(date?: string, year?: number) {
   return year ? String(year) : null;
 }
 
-export function formatAnimeSeason(season?: MediaSearchResult["season"], year?: number) {
+export function formatAnimeSeason(
+  season?: MediaSearchResult["season"] | null,
+  year?: number | null,
+) {
   if (!season) {
     return year ? String(year) : null;
   }
@@ -54,10 +57,10 @@ export function animeDateSubtitle(media: AnimeDateContext) {
 
 export function animeSearchSubtitle(media: MediaSearchResult) {
   return animeDateSubtitle({
-    ...(media.season === undefined ? {} : { season: media.season }),
-    ...(media.season_year === undefined ? {} : { season_year: media.season_year }),
-    ...(media.start_date === undefined ? {} : { start_date: media.start_date }),
-    ...(media.start_year === undefined ? {} : { start_year: media.start_year }),
+    ...(media.season == null ? {} : { season: media.season }),
+    ...(media.season_year == null ? {} : { season_year: media.season_year }),
+    ...(media.start_date == null ? {} : { start_date: media.start_date }),
+    ...(media.start_year == null ? {} : { start_year: media.start_year }),
   });
 }
 
@@ -66,12 +69,12 @@ export function animeDisplayTitle(media: Pick<Media, "title"> | Pick<MediaSearch
 }
 
 export function animeDiscoverySubtitle(input: {
-  format?: string | undefined;
-  relation_type?: string | undefined;
+  format?: string | null | undefined;
+  relation_type?: string | null | undefined;
   season?: MediaSearchResult["season"];
-  season_year?: number | undefined;
-  start_year?: number | undefined;
-  status?: string | undefined;
+  season_year?: number | null | undefined;
+  start_year?: number | null | undefined;
+  status?: string | null | undefined;
 }) {
   return [
     input.relation_type ? formatRelationType(input.relation_type) : undefined,

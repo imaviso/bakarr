@@ -387,7 +387,7 @@ function ReleaseRow(props: {
         )}
       </TableCell>
       <TableCell className="py-2.5 text-xs text-muted-foreground">
-        <span title={props.result.parsed_quality || props.result.parsed_resolution}>
+        <span title={(props.result.parsed_quality || props.result.parsed_resolution) ?? undefined}>
           {props.result.parsed_resolution || props.result.parsed_quality || "-"}
         </span>
       </TableCell>

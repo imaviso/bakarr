@@ -17,9 +17,9 @@ import {
 import { formatDateTime } from "@/domain/date-time";
 
 interface ActiveDownloadActionsProps {
-  allowedActions?: readonly string[] | undefined;
-  downloadId?: number | undefined;
-  mediaTitle?: string | undefined;
+  allowedActions?: readonly string[] | null | undefined;
+  downloadId?: number | null | undefined;
+  mediaTitle?: string | null | undefined;
 }
 
 export function ActiveDownloadActions(props: ActiveDownloadActionsProps) {
@@ -122,7 +122,7 @@ export function ActiveDownloadActions(props: ActiveDownloadActionsProps) {
 }
 
 interface HistoryDownloadActionsProps {
-  allowedActions?: readonly string[] | undefined;
+  allowedActions?: readonly string[] | null | undefined;
   downloadId: number;
   mediaTitle: string;
 }

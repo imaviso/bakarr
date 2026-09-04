@@ -19,8 +19,8 @@ export function formatDownloadParsedMeta(item: DownloadLike) {
 
 export function formatEpisodeCoverage(
   unitNumber: number,
-  coveredUnits?: number[],
-  coveragePending?: boolean,
+  coveredUnits?: number[] | null,
+  coveragePending?: boolean | null,
 ) {
   if (coveragePending) {
     return "Batch pending";
@@ -47,7 +47,10 @@ export function formatEpisodeCoverage(
   return `Batch ${first.toString().padStart(2, "0")}-${last.toString().padStart(2, "0")}`;
 }
 
-export function formatCoverageMeta(coveredUnits?: number[], coveragePending?: boolean) {
+export function formatCoverageMeta(
+  coveredUnits?: number[] | null,
+  coveragePending?: boolean | null,
+) {
   if (coveragePending) {
     return "Waiting for qBittorrent file metadata";
   }
@@ -85,7 +88,12 @@ export function formatDownloadDecisionBadge(item: DownloadLike) {
 }
 
 export function formatDownloadDecisionSummary(item: DownloadLike) {
-  const summary = formatSelectionSummary(item.source_metadata ?? {});
+  const summary = formatSelectionSummary({
+    previous_quality: item.source_metadata?.previous_quality,
+    previous_score: item.source_metadata?.previous_score,
+    selection_kind: item.source_metadata?.selection_kind,
+    selection_score: item.source_metadata?.selection_score,
+  });
   const reason = normalizeLegacyManualDecisionReason(item) ?? item.decision_reason;
 
   if (!summary) {
@@ -140,17 +148,22 @@ function normalizeLegacyManualDecisionReason(item: DownloadLike) {
 }
 
 export function formatDownloadRankingMeta(item: DownloadLike) {
-  return formatSelectionSummary(item.source_metadata ?? {});
+  return formatSelectionSummary({
+    previous_quality: item.source_metadata?.previous_quality,
+    previous_score: item.source_metadata?.previous_score,
+    selection_kind: item.source_metadata?.selection_kind,
+    selection_score: item.source_metadata?.selection_score,
+  });
 }
 
 export function getDownloadReleaseConfidence(item: DownloadLike) {
   const sourceMetadata = item.source_metadata;
   return getReleaseConfidence({
-    ...(sourceMetadata?.is_seadex === undefined ? {} : { is_seadex: sourceMetadata.is_seadex }),
-    ...(sourceMetadata?.is_seadex_best === undefined
+    ...(sourceMetadata?.is_seadex == null ? {} : { is_seadex: sourceMetadata.is_seadex }),
+    ...(sourceMetadata?.is_seadex_best == null
       ? {}
       : { is_seadex_best: sourceMetadata.is_seadex_best }),
-    ...(sourceMetadata?.remake === undefined ? {} : { remake: sourceMetadata.remake }),
-    ...(sourceMetadata?.trusted === undefined ? {} : { trusted: sourceMetadata.trusted }),
+    ...(sourceMetadata?.remake == null ? {} : { remake: sourceMetadata.remake }),
+    ...(sourceMetadata?.trusted == null ? {} : { trusted: sourceMetadata.trusted }),
   });
 }

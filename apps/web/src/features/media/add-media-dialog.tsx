@@ -91,8 +91,8 @@ export function AddAnimeDialog(props: AddAnimeDialogProps) {
         <DialogTitle className="flex items-center gap-3">
           {props.media.cover_image ? (
             <img
-              src={props.media.cover_image}
-              alt={props.media.title.romaji}
+              src={props.media.cover_image ?? undefined}
+              alt={props.media.title.romaji ?? undefined}
               className="w-12 h-16 object-cover rounded-none"
             />
           ) : (
@@ -229,7 +229,7 @@ export function AddAnimeDialog(props: AddAnimeDialogProps) {
 
 function libraryPathForMediaKind(
   library: { anime_path: string; manga_path: string; light_novel_path: string },
-  mediaKind: MediaKind | undefined,
+  mediaKind: MediaKind | null | undefined,
 ) {
   if (mediaKind === "manga") {
     return library.manga_path;
@@ -276,7 +276,7 @@ function AddAnimeForm(props: AddAnimeFormProps) {
     onSubmit: async ({ value }) => {
       await addAnimeMutation.mutateAsync({
         id: props.media.id,
-        ...(props.media.media_kind === undefined ? {} : { media_kind: props.media.media_kind }),
+        ...(props.media.media_kind == null ? {} : { media_kind: props.media.media_kind }),
         profile_name: value.profile_name,
         root_folder: value.root_folder,
         monitor_and_search: value.search_now,

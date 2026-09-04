@@ -1,7 +1,7 @@
 const BYTE_UNITS = ["B", "KB", "MB", "GB", "TB"] as const;
 const SPEED_UNITS = ["B/s", "KB/s", "MB/s", "GB/s"] as const;
 
-export function clampConfidencePercent(value?: number): number | undefined {
+export function clampConfidencePercent(value?: number | null): number | undefined {
   if (typeof value !== "number" || !Number.isFinite(value)) {
     return undefined;
   }
@@ -79,7 +79,7 @@ export function formatDurationSeconds(value?: number | null): string | undefined
  * Preserves the `scanned-file` `formatFileSize` behavior (MB/GB-only display for
  * import/scan file sizes; a byte count below 1 MB renders as "0.0 MB").
  */
-export function formatFileSize(size?: number): string | undefined {
+export function formatFileSize(size?: number | null): string | undefined {
   if (typeof size !== "number" || !Number.isFinite(size) || size <= 0) {
     return undefined;
   }

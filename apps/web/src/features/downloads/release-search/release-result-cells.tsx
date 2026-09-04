@@ -11,25 +11,25 @@ import { Tooltip, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn, safeExternalUrl } from "@/infra/utils";
 
 interface ReleasePrimaryCellProps {
-  confidence?: ReleaseConfidenceMetadata | undefined;
+  confidence?: ReleaseConfidenceMetadata | null | undefined;
   flags: ReleaseFlag[];
   metadataPrefix?: ReactNode | undefined;
-  parsedSummary?: string | undefined;
-  seadexComparison?: string | undefined;
-  seadexNotes?: string | undefined;
-  seadexTagClass?: string | undefined;
-  seadexTags?: string[] | undefined;
-  seadexClass?: string | undefined;
-  selectionClass?: string | undefined;
-  selectionDetail?: string | undefined;
-  selectionKind?: DownloadSelectionKind | undefined;
-  selectionLabel?: string | undefined;
-  selectionSummary?: string | undefined;
-  sourceSummary?: string | undefined;
-  sourceUrl?: string | undefined;
+  parsedSummary?: string | null | undefined;
+  seadexComparison?: string | null | undefined;
+  seadexNotes?: string | null | undefined;
+  seadexTagClass?: string | null | undefined;
+  seadexTags?: string[] | null | undefined;
+  seadexClass?: string | null | undefined;
+  selectionClass?: string | null | undefined;
+  selectionDetail?: string | null | undefined;
+  selectionKind?: DownloadSelectionKind | null | undefined;
+  selectionLabel?: string | null | undefined;
+  selectionSummary?: string | null | undefined;
+  sourceSummary?: string | null | undefined;
+  sourceUrl?: string | null | undefined;
   summaryCompact?: boolean | undefined;
   title: string;
-  titleClass?: string | undefined;
+  titleClass?: string | null | undefined;
   useTooltip?: boolean | undefined;
 }
 

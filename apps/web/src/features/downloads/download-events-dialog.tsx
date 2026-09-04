@@ -22,7 +22,7 @@ import { DownloadEventsFeed } from "@/features/downloads/download-events/downloa
 
 interface DownloadEventsDialogProps {
   mediaId?: number | undefined;
-  downloadId?: number | undefined;
+  downloadId?: number | null | undefined;
   eventType?: string | undefined;
   formatTimestamp: (value: string) => string;
   limit?: number | undefined;
@@ -49,14 +49,14 @@ export function DownloadEventsDialog(props: DownloadEventsDialogProps) {
     limit: props.limit ?? 25,
     ...(props.mediaId === undefined ? {} : { mediaId: props.mediaId }),
     ...(pagination.cursor === undefined ? {} : { cursor: pagination.cursor }),
-    ...(props.downloadId === undefined ? {} : { downloadId: props.downloadId }),
+    ...(props.downloadId == null ? {} : { downloadId: props.downloadId }),
     ...(props.eventType === undefined ? {} : { eventType: props.eventType }),
   };
   const query = useDownloadEventsQuery(queryInput, { enabled: open });
   const { exportDownloadEvents, lastExport } = useDownloadEventsExport();
   const exportBaseInput: DownloadEventsExportInput = {
     ...(props.mediaId === undefined ? {} : { mediaId: props.mediaId }),
-    ...(props.downloadId === undefined ? {} : { downloadId: props.downloadId }),
+    ...(props.downloadId == null ? {} : { downloadId: props.downloadId }),
     ...(props.eventType === undefined ? {} : { eventType: props.eventType }),
     limit: props.exportLimit ?? 10_000,
     order: "desc" as const,

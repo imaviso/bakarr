@@ -4,7 +4,7 @@ export function mediaUnitKindFromMediaKind(mediaKind: MediaKind): MediaUnitKind 
   return mediaKind === "anime" ? "episode" : "volume";
 }
 
-export function mediaKindLabel(mediaKind: MediaKind | undefined) {
+export function mediaKindLabel(mediaKind: MediaKind | null | undefined) {
   if (mediaKind === "manga") {
     return "Manga";
   }

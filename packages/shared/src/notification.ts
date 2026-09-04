@@ -13,28 +13,28 @@ export type NotificationEvent =
       type: "DownloadStarted";
       payload: {
         title: string;
-        media_id?: MediaId | undefined;
-        source_metadata?: DownloadSourceMetadata | undefined;
+        media_id?: MediaId | undefined | null;
+        source_metadata?: DownloadSourceMetadata | undefined | null;
       };
     }
   | {
       type: "DownloadFinished";
       payload: {
         title: string;
-        media_id?: MediaId | undefined;
-        imported_path?: string | undefined;
-        source_metadata?: DownloadSourceMetadata | undefined;
+        media_id?: MediaId | undefined | null;
+        imported_path?: string | undefined | null;
+        source_metadata?: DownloadSourceMetadata | undefined | null;
       };
     }
   | { type: "RefreshStarted"; payload: { media_id: MediaId; title: string } }
   | { type: "RefreshFinished"; payload: { media_id: MediaId; title: string } }
   | {
       type: "SearchMissingStarted";
-      payload: { media_id?: MediaId | undefined; title: string };
+      payload: { media_id?: MediaId | null | undefined; title: string };
     }
   | {
       type: "SearchMissingFinished";
-      payload: { media_id?: MediaId | undefined; title: string; count: number };
+      payload: { media_id?: MediaId | null | undefined; title: string; count: number };
     }
   | { type: "ScanFolderStarted"; payload: { media_id: MediaId; title: string } }
   | {
@@ -54,13 +54,13 @@ export type NotificationEvent =
   | { type: "LibraryScanStarted" }
   | {
       type: "LibraryScanFinished";
-      payload: { scanned: number; matched: number; updated?: number | undefined };
+      payload: { scanned: number; matched: number; updated?: number | null | undefined };
     }
   | { type: "LibraryScanProgress"; payload: { scanned: number } }
   | { type: "RssCheckStarted" }
   | {
       type: "RssCheckFinished";
-      payload: { total_feeds?: number | undefined; new_items: number };
+      payload: { total_feeds?: number | null | undefined; new_items: number };
     }
   | {
       type: "RssCheckProgress";
@@ -87,17 +87,21 @@ export const NotificationEventSchema = Schema.Union([
     type: Schema.Literal("DownloadStarted"),
     payload: Schema.Struct({
       title: Schema.String,
-      media_id: Schema.optional(MediaIdSchema),
-      source_metadata: Schema.optional(Schema.suspend(() => DownloadSourceMetadataSchema)),
+      media_id: Schema.optional(Schema.NullishOr(MediaIdSchema)),
+      source_metadata: Schema.optional(
+        Schema.NullishOr(Schema.suspend(() => DownloadSourceMetadataSchema)),
+      ),
     }),
   }),
   Schema.Struct({
     type: Schema.Literal("DownloadFinished"),
     payload: Schema.Struct({
       title: Schema.String,
-      media_id: Schema.optional(MediaIdSchema),
-      imported_path: Schema.optional(Schema.String),
-      source_metadata: Schema.optional(Schema.suspend(() => DownloadSourceMetadataSchema)),
+      media_id: Schema.optional(Schema.NullishOr(MediaIdSchema)),
+      imported_path: Schema.optional(Schema.NullishOr(Schema.String)),
+      source_metadata: Schema.optional(
+        Schema.NullishOr(Schema.suspend(() => DownloadSourceMetadataSchema)),
+      ),
     }),
   }),
   Schema.Struct({
@@ -117,14 +121,14 @@ export const NotificationEventSchema = Schema.Union([
   Schema.Struct({
     type: Schema.Literal("SearchMissingStarted"),
     payload: Schema.Struct({
-      media_id: Schema.optional(MediaIdSchema),
+      media_id: Schema.optional(Schema.NullishOr(MediaIdSchema)),
       title: Schema.String,
     }),
   }),
   Schema.Struct({
     type: Schema.Literal("SearchMissingFinished"),
     payload: Schema.Struct({
-      media_id: Schema.optional(MediaIdSchema),
+      media_id: Schema.optional(Schema.NullishOr(MediaIdSchema)),
       title: Schema.String,
       count: Schema.Number,
     }),
@@ -177,7 +181,7 @@ export const NotificationEventSchema = Schema.Union([
     payload: Schema.Struct({
       scanned: Schema.Number,
       matched: Schema.Number,
-      updated: Schema.optional(Schema.Number),
+      updated: Schema.optional(Schema.NullishOr(Schema.Number)),
     }),
   }),
   Schema.Struct({
@@ -188,7 +192,7 @@ export const NotificationEventSchema = Schema.Union([
   Schema.Struct({
     type: Schema.Literal("RssCheckFinished"),
     payload: Schema.Struct({
-      total_feeds: Schema.optional(Schema.Number),
+      total_feeds: Schema.optional(Schema.NullishOr(Schema.Number)),
       new_items: Schema.Number,
     }),
   }),

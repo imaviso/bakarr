@@ -9,11 +9,11 @@ import {
 import { cn, safeExternalUrl } from "@/infra/utils";
 
 interface ReleaseSeaDexMetaProps {
-  notes?: string | undefined;
-  tags?: string[] | undefined;
-  comparisonUrl?: string | undefined;
-  className?: string | undefined;
-  tagClass?: string | undefined;
+  notes?: string | null | undefined;
+  tags?: string[] | null | undefined;
+  comparisonUrl?: string | null | undefined;
+  className?: string | null | undefined;
+  tagClass?: string | null | undefined;
 }
 
 export function ReleaseSeaDexMeta(props: ReleaseSeaDexMetaProps) {
@@ -56,15 +56,15 @@ export function ReleaseSeaDexMeta(props: ReleaseSeaDexMetaProps) {
 }
 
 interface ReleaseSelectionMetaProps {
-  selectionKind?: DownloadSelectionKind | undefined;
-  selectionLabel?: string | undefined;
-  selectionSummary?: string | undefined;
-  selectionDetail?: string | undefined;
-  confidence?: ReleaseConfidenceMetadata | undefined;
-  className?: string | undefined;
-  selectionClass?: string | undefined;
-  confidenceClass?: string | undefined;
-  detailClass?: string | undefined;
+  selectionKind?: DownloadSelectionKind | null | undefined;
+  selectionLabel?: string | null | undefined;
+  selectionSummary?: string | null | undefined;
+  selectionDetail?: string | null | undefined;
+  confidence?: ReleaseConfidenceMetadata | null | undefined;
+  className?: string | null | undefined;
+  selectionClass?: string | null | undefined;
+  confidenceClass?: string | null | undefined;
+  detailClass?: string | null | undefined;
 }
 
 export function ReleaseSelectionMeta(props: ReleaseSelectionMetaProps) {

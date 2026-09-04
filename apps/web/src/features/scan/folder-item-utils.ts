@@ -101,7 +101,7 @@ export function normalizeApiErrorMessage(message: string) {
   return trimmed;
 }
 
-export function formatConfidencePercent(value?: number) {
+export function formatConfidencePercent(value?: number | null) {
   const percent = clampConfidencePercent(value);
   return percent === undefined ? "Unknown" : `${percent}%`;
 }

@@ -201,7 +201,7 @@ const makeAniDbClient = Effect.fn("AniDbClient.make")(function* () {
 
     const config = resolveAniDbRuntimeConfig(runtimeConfig.value);
 
-    const unitCount = normalizeEpisodeCount(input.unitCount, config.episodeLimit);
+    const unitCount = normalizeEpisodeCount(input.unitCount ?? undefined, config.episodeLimit);
 
     if (!config.enabled) {
       return { _tag: "AniDbLookupSkipped", reason: "disabled" } satisfies AniDbEpisodeLookupResult;
@@ -217,7 +217,7 @@ const makeAniDbClient = Effect.fn("AniDbClient.make")(function* () {
     const username = config.username;
     const password = config.password;
 
-    const titleCandidates = buildTitleCandidates(input.title, input.synonyms);
+    const titleCandidates = buildTitleCandidates(input.title, input.synonyms ?? undefined);
 
     if (titleCandidates.length === 0) {
       return {

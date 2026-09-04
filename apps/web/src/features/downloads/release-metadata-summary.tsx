@@ -6,10 +6,10 @@ import { safeExternalUrl } from "@/infra/utils";
 
 interface ReleaseMetadataSummaryProps {
   flags?: readonly ReleaseFlag[] | undefined;
-  sourceSummary?: string | undefined;
-  parsedSummary?: string | undefined;
-  sourceUrl?: string | undefined;
-  compact?: boolean | undefined;
+  sourceSummary?: string | null | undefined;
+  parsedSummary?: string | null | undefined;
+  sourceUrl?: string | null | undefined;
+  compact?: boolean | null | undefined;
 }
 
 export function ReleaseMetadataSummary(props: ReleaseMetadataSummaryProps) {

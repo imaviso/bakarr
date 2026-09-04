@@ -90,8 +90,8 @@ export const FolderItem = memo(function FolderItem(props: {
           <div className="flex items-start gap-3">
             {state.selectedAnime.cover_image && (
               <img
-                src={state.selectedAnime.cover_image}
-                alt={state.selectedAnime.title.romaji}
+                src={state.selectedAnime.cover_image ?? undefined}
+                alt={state.selectedAnime.title.romaji ?? undefined}
                 className="h-16 w-11 shrink-0 border border-border object-cover"
               />
             )}
@@ -99,7 +99,7 @@ export const FolderItem = memo(function FolderItem(props: {
               <div className="flex flex-wrap items-center gap-2">
                 <p
                   className="truncate text-sm font-medium text-foreground"
-                  title={state.selectedAnime.title.romaji}
+                  title={state.selectedAnime.title.romaji ?? undefined}
                 >
                   {animeDisplayTitle(state.selectedAnime)}
                 </p>

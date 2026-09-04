@@ -13,7 +13,7 @@ export interface FileRowProps {
   animeOptions: FileRowAnimeOption[];
   isSelected: boolean;
   selectedAnimeId?: MediaId | undefined;
-  currentEpisode?: number | undefined;
+  currentEpisode?: number | null | undefined;
   currentSeason?: number | null | undefined;
   onToggle: (mediaId: MediaId) => void;
   onAnimeChange: (mediaId: MediaId) => void;

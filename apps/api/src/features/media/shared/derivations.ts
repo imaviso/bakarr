@@ -32,8 +32,8 @@ export function deriveEpisodeTimelineMetadata(
 }
 
 export function summarizeEpisodeCoverage(input: {
-  airDate?: string;
-  unitNumbers?: readonly number[];
+  airDate?: string | null;
+  unitNumbers?: readonly number[] | null;
 }) {
   if (input.airDate) {
     return `Air date ${input.airDate}`;

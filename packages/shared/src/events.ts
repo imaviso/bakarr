@@ -11,46 +11,48 @@ import {
 import { DownloadSourceMetadataSchema, type DownloadSourceMetadata } from "./source-metadata.ts";
 
 export interface DownloadEventMetadata {
-  covered_units?: number[] | undefined;
-  imported_path?: string | undefined;
-  source_metadata?: DownloadSourceMetadata | undefined;
+  covered_units?: number[] | undefined | null;
+  imported_path?: string | undefined | null;
+  source_metadata?: DownloadSourceMetadata | undefined | null;
 }
 
 export interface DownloadEvent {
   id: DownloadEventId;
-  download_id?: DownloadId | undefined;
-  media_id?: MediaId | undefined;
-  media_image?: string | undefined;
-  media_title?: string | undefined;
+  download_id?: DownloadId | undefined | null;
+  media_id?: MediaId | undefined | null;
+  media_image?: string | undefined | null;
+  media_title?: string | undefined | null;
   event_type: string;
-  from_status?: string | undefined;
-  to_status?: string | undefined;
+  from_status?: string | undefined | null;
+  to_status?: string | undefined | null;
   message: string;
-  metadata?: string | undefined;
-  metadata_json?: DownloadEventMetadata | undefined;
-  torrent_name?: string | undefined;
+  metadata?: string | undefined | null;
+  metadata_json?: DownloadEventMetadata | undefined | null;
+  torrent_name?: string | undefined | null;
   created_at: string;
 }
 
 export const DownloadEventMetadataSchema = Schema.Struct({
-  covered_units: Schema.optional(Schema.mutable(Schema.Array(Schema.Number))),
-  imported_path: Schema.optional(Schema.String),
-  source_metadata: Schema.optional(Schema.suspend(() => DownloadSourceMetadataSchema)),
+  covered_units: Schema.optional(Schema.NullishOr(Schema.mutable(Schema.Array(Schema.Number)))),
+  imported_path: Schema.optional(Schema.NullishOr(Schema.String)),
+  source_metadata: Schema.optional(
+    Schema.NullishOr(Schema.suspend(() => DownloadSourceMetadataSchema)),
+  ),
 });
 
 export const DownloadEventSchema = Schema.Struct({
   id: DownloadEventIdSchema,
-  download_id: Schema.optional(DownloadIdSchema),
-  media_id: Schema.optional(MediaIdSchema),
-  media_image: Schema.optional(Schema.String),
-  media_title: Schema.optional(Schema.String),
+  download_id: Schema.optional(Schema.NullishOr(DownloadIdSchema)),
+  media_id: Schema.optional(Schema.NullishOr(MediaIdSchema)),
+  media_image: Schema.optional(Schema.NullishOr(Schema.String)),
+  media_title: Schema.optional(Schema.NullishOr(Schema.String)),
   event_type: Schema.String,
-  from_status: Schema.optional(Schema.String),
-  to_status: Schema.optional(Schema.String),
+  from_status: Schema.optional(Schema.NullishOr(Schema.String)),
+  to_status: Schema.optional(Schema.NullishOr(Schema.String)),
   message: Schema.String,
-  metadata: Schema.optional(Schema.String),
-  metadata_json: Schema.optional(DownloadEventMetadataSchema),
-  torrent_name: Schema.optional(Schema.String),
+  metadata: Schema.optional(Schema.NullishOr(Schema.String)),
+  metadata_json: Schema.optional(Schema.NullishOr(DownloadEventMetadataSchema)),
+  torrent_name: Schema.optional(Schema.NullishOr(Schema.String)),
   created_at: Schema.String,
 });
 

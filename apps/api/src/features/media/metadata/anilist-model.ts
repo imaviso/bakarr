@@ -252,7 +252,7 @@ export const AnimeSearchResultFromAniListSchema = AniListSearchMediaSchema.pipe(
       episodes: entry.unit_count,
       favourites: entry.favorites,
       format: entry.format,
-      genres: entry.genres,
+      genres: entry.genres ?? undefined,
       id: entry.id,
       popularity: entry.members ?? entry.popularity,
       rankings: undefined,
@@ -261,7 +261,7 @@ export const AnimeSearchResultFromAniListSchema = AniListSearchMediaSchema.pipe(
       source: entry.source,
       startDate: undefined,
       status: entry.status,
-      synonyms: entry.synonyms,
+      synonyms: entry.synonyms ?? undefined,
       title: {
         english: entry.title.english,
         native: entry.title.native,
@@ -393,7 +393,7 @@ function normalizeDuration(durationMinutes: number | null | undefined) {
   return `${Math.trunc(durationMinutes)} min`;
 }
 
-function parseDurationMinutes(duration: string | undefined) {
+function parseDurationMinutes(duration: string | null | undefined) {
   if (!duration) {
     return undefined;
   }

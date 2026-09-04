@@ -27,10 +27,10 @@ export function getDownloadEventMetadataSummary(input: DownloadEventLike) {
   const isBatch =
     inferBatchKind({ coveredUnits, sourceIdentity: sourceMetadata?.source_identity }) !== undefined;
 
-  const sourceSummaryInput = buildReleaseSourceSummaryInput(sourceMetadata);
+  const sourceSummaryInput = buildReleaseSourceSummaryInput(sourceMetadata ?? undefined);
 
   return {
-    coverage: formatDownloadEventCoverage(coveredUnits),
+    coverage: formatDownloadEventCoverage(coveredUnits ?? undefined),
     decision: formatDownloadDecisionSummary({
       covered_units: coveredUnits,
       decision_reason: sourceMetadata?.decision_reason,

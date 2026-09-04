@@ -101,7 +101,7 @@ export const queueDownload = Effect.fn("Operations.queueDownload")(function* (in
   readonly isBatch: boolean;
   readonly coveredUnitsJson: string | null;
   readonly sourceMetadata: DownloadSourceMetadata;
-  readonly group?: string;
+  readonly group?: string | null;
   readonly totalBytes?: number | null;
   readonly event: { readonly type: string; readonly message: string };
   readonly conflictPolicy: "fail-with-conflict" | "skip";

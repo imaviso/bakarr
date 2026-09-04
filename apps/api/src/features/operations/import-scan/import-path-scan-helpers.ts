@@ -156,7 +156,7 @@ export function buildUnitFileMappingIndex(
 export function buildScannedFileLibrarySignals(input: {
   file: Pick<ScannedFile, "unit_number" | "unit_numbers" | "source_path">;
   mappingIndex: UnitFileMappingIndex;
-  targetAnime?: { id: number; title: string } | undefined;
+  targetAnime?: { id: number; title: string } | null | undefined;
 }) {
   const existing_mapping = input.mappingIndex.byPath.get(input.file.source_path);
   const unitNumbers = toUnitNumbers(input.file);

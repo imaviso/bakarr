@@ -150,7 +150,9 @@ export const makeMediaQueryService = Effect.fn("MediaQueryService.make")(functio
       const limit = Math.min(Math.max(params?.limit ?? 100, 1), 500);
       const offset = Math.max(params?.offset ?? 0, 0);
       const monitoredFilter =
-        params?.monitored === undefined ? {} : { monitored: params.monitored };
+        params?.monitored === undefined || params.monitored === null
+          ? {}
+          : { monitored: params.monitored };
 
       const [mediaRows, total] = yield* Effect.all([
         mediaRepository.listMediaRows({ ...monitoredFilter, limit, offset }),

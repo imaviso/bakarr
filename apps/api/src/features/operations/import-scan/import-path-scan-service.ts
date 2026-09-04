@@ -175,7 +175,7 @@ const scanImportPathEffect = Effect.fn("ImportPathScanService.scanImportPathEffe
         if (input.mediaId) {
           targetAnime = selectedAnimeRow
             ? { id: brandMediaId(selectedAnimeRow.id), title: selectedAnimeRow.titleRomaji }
-            : undefined;
+            : null;
         } else if (localMatch) {
           targetAnime = { id: brandMediaId(localMatch.id), title: localMatch.titleRomaji };
         }

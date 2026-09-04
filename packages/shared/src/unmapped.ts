@@ -20,27 +20,27 @@ export const UnmappedFolderMatchStatusSchema = Schema.Literals([
 export const MAX_UNMAPPED_FOLDER_MATCH_ATTEMPTS = 3;
 
 export interface UnmappedFolder {
-  match_attempts?: number | undefined;
-  last_match_error?: string | undefined;
-  last_matched_at?: string | undefined;
-  match_status?: UnmappedFolderMatchStatus | undefined;
-  media_kind?: MediaKind | undefined;
+  match_attempts?: number | undefined | null;
+  last_match_error?: string | undefined | null;
+  last_matched_at?: string | undefined | null;
+  match_status?: UnmappedFolderMatchStatus | undefined | null;
+  media_kind?: MediaKind | undefined | null;
   name: string;
   path: string;
-  search_queries?: string[] | undefined;
+  search_queries?: string[] | undefined | null;
   size: number;
   suggested_matches: MediaSearchResult[];
 }
 
 export const UnmappedFolderSchema = Schema.Struct({
-  match_attempts: Schema.optional(Schema.Number),
-  last_match_error: Schema.optional(Schema.String),
-  last_matched_at: Schema.optional(Schema.String),
-  match_status: Schema.optional(UnmappedFolderMatchStatusSchema),
-  media_kind: Schema.optional(MediaKindSchema),
+  match_attempts: Schema.optional(Schema.NullishOr(Schema.Number)),
+  last_match_error: Schema.optional(Schema.NullishOr(Schema.String)),
+  last_matched_at: Schema.optional(Schema.NullishOr(Schema.String)),
+  match_status: Schema.optional(Schema.NullishOr(UnmappedFolderMatchStatusSchema)),
+  media_kind: Schema.optional(Schema.NullishOr(MediaKindSchema)),
   name: Schema.String,
   path: Schema.String,
-  search_queries: Schema.optional(Schema.mutable(Schema.Array(Schema.String))),
+  search_queries: Schema.optional(Schema.NullishOr(Schema.mutable(Schema.Array(Schema.String)))),
   size: Schema.Number,
   suggested_matches: Schema.mutable(Schema.Array(MediaSearchResultSchema)),
 }).mapFields(Struct.map(Schema.mutableKey));
@@ -49,7 +49,7 @@ export interface ScannerState {
   has_outstanding_matches: boolean;
   is_scanning: boolean;
   folders: UnmappedFolder[];
-  last_updated?: string | undefined;
+  last_updated?: string | undefined | null;
   match_status: ScannerMatchStatus;
   match_counts: ScannerMatchCounts;
 }
@@ -87,7 +87,7 @@ export const ScannerStateSchema = Schema.Struct({
   has_outstanding_matches: Schema.Boolean,
   is_scanning: Schema.Boolean,
   folders: Schema.mutable(Schema.Array(UnmappedFolderSchema)),
-  last_updated: Schema.optional(Schema.String),
+  last_updated: Schema.optional(Schema.NullishOr(Schema.String)),
   match_status: ScannerMatchStatusSchema,
   match_counts: ScannerMatchCountsSchema,
 }).mapFields(Struct.map(Schema.mutableKey));

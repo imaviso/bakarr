@@ -1,24 +1,24 @@
 import type { DownloadAction, DownloadSelectionKind } from "@bakarr/shared";
 
 export interface CompactSelectionMetadata {
-  chosen_from_seadex?: boolean | undefined;
-  previous_quality?: string | undefined;
-  previous_score?: number | undefined;
+  chosen_from_seadex?: boolean | null | undefined;
+  previous_quality?: string | null | undefined;
+  previous_score?: number | null | undefined;
   selection_kind: DownloadSelectionKind;
   selection_score?: number | undefined;
 }
 
 export interface SelectionDetailInput {
-  previous_quality?: string | undefined;
-  previous_score?: number | undefined;
-  selection_score?: number | undefined;
+  previous_quality?: string | null | undefined;
+  previous_score?: number | null | undefined;
+  selection_score?: number | null | undefined;
 }
 
 export interface ReleaseConfidenceInput {
-  is_seadex?: boolean | undefined;
-  is_seadex_best?: boolean | undefined;
-  remake?: boolean | undefined;
-  trusted?: boolean | undefined;
+  is_seadex?: boolean | null | undefined;
+  is_seadex_best?: boolean | null | undefined;
+  remake?: boolean | null | undefined;
+  trusted?: boolean | null | undefined;
 }
 
 export interface ReleaseConfidenceMetadata {
@@ -27,14 +27,14 @@ export interface ReleaseConfidenceMetadata {
   tone: "info" | "success" | "warning";
 }
 
-export function selectionKindLabel(kind?: DownloadSelectionKind) {
+export function selectionKindLabel(kind?: DownloadSelectionKind | null) {
   if (kind === "upgrade") return "Upgrade";
   if (kind === "accept") return "Accepted";
   if (kind === "manual") return "Manual";
   return undefined;
 }
 
-export function selectionKindBadgeClass(kind?: DownloadSelectionKind) {
+export function selectionKindBadgeClass(kind?: DownloadSelectionKind | null) {
   if (kind === "upgrade") {
     return "bg-info/10 text-info border-transparent";
   }
@@ -71,13 +71,17 @@ export function selectionMetadataFromDownloadAction(
 }
 
 export function formatSelectionSummary(input: {
-  previous_quality?: string | undefined;
-  previous_score?: number | undefined;
-  selection_kind?: DownloadSelectionKind | undefined;
-  selection_score?: number | undefined;
+  previous_quality?: string | null | undefined;
+  previous_score?: number | null | undefined;
+  selection_kind?: DownloadSelectionKind | null | undefined;
+  selection_score?: number | null | undefined;
 }) {
-  const label = selectionKindLabel(input.selection_kind);
-  const detail = formatSelectionDetail(input);
+  const label = selectionKindLabel(input.selection_kind ?? undefined);
+  const detail = formatSelectionDetail({
+    previous_quality: input.previous_quality,
+    previous_score: input.previous_score,
+    selection_score: input.selection_score,
+  });
 
   if (input.selection_kind === "manual" && !detail) {
     return undefined;
@@ -92,7 +96,10 @@ export function formatSelectionSummary(input: {
     .join(" • ");
 }
 
-export function formatSelectionDetail(input: SelectionDetailInput) {
+export function formatSelectionDetail(input?: SelectionDetailInput | null) {
+  if (input == null) {
+    return undefined;
+  }
   const parts = [
     typeof input.selection_score === "number" ? `score ${input.selection_score}` : undefined,
     input.previous_quality ? `from ${input.previous_quality}` : undefined,

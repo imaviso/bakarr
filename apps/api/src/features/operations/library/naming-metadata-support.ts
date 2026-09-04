@@ -23,7 +23,7 @@ export function buildEpisodeNamingInputFromPath(input: {
   unitTitle?: string | null;
   filePath: string;
   rootFolder?: string;
-  season?: number;
+  season?: number | null;
 }): NamingInput {
   const context =
     input.rootFolder &&
@@ -50,7 +50,10 @@ export function buildEpisodeNamingInputFromPath(input: {
     group,
     quality: extractQualitySourceLabel(input.filePath),
     resolution: parsed.resolution,
-    season: sourceIdentity?.scheme === "season" ? sourceIdentity.season : input.season,
+    season:
+      sourceIdentity?.scheme === "season"
+        ? (sourceIdentity.season ?? input.season ?? undefined)
+        : (input.season ?? undefined),
     sourceIdentity: sourceIdentityDto,
     title: input.mediaTitle,
     videoCodec: extractVideoCodec(input.filePath),

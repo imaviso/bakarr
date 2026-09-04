@@ -85,9 +85,9 @@ export function useSearchDialogResultsState(input: {
       const leftValue = left[column];
       const rightValue = right[column];
 
-      if (leftValue === undefined && rightValue === undefined) return 0;
-      if (leftValue === undefined) return 1;
-      if (rightValue === undefined) return -1;
+      if (leftValue == null && rightValue == null) return 0;
+      if (leftValue == null) return 1;
+      if (rightValue == null) return -1;
 
       if (leftValue < rightValue) return sortAsc ? -1 : 1;
       if (leftValue > rightValue) return sortAsc ? 1 : -1;

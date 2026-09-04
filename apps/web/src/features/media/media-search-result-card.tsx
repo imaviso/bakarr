@@ -76,7 +76,7 @@ export function MediaSearchResultCard(props: MediaSearchResultCardProps) {
             "font-medium leading-tight line-clamp-2 mb-1",
             props.compact ? "text-sm" : "",
           )}
-          title={props.media.title.romaji}
+          title={props.media.title.romaji ?? undefined}
         >
           {animeDisplayTitle(props.media)}
         </h3>

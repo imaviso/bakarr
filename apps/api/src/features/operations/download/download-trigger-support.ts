@@ -93,11 +93,11 @@ export const prepareTriggerDownload = Effect.fn("Operations.prepareTriggerDownlo
 );
 
 export function deriveTriggerDecisionReason(input: {
-  action?: DownloadAction | undefined;
+  action?: DownloadAction | null | undefined;
   isBatch: boolean;
-  isSeadex?: boolean | undefined;
-  isSeadexBest?: boolean | undefined;
-  trusted?: boolean | undefined;
+  isSeadex?: boolean | null | undefined;
+  isSeadexBest?: boolean | null | undefined;
+  trusted?: boolean | null | undefined;
 }) {
   if (input.action?.Upgrade) {
     return input.action.Upgrade.reason;

@@ -10,7 +10,7 @@ import { formatReleaseSearchDecisionReason, inferBatchKind } from "@/domain/batc
 import { buildParsedEpisodeIdentity } from "@/domain/release/download";
 
 export interface NyaaSelectionMetadata {
-  chosen_from_seadex?: boolean | undefined;
+  chosen_from_seadex?: boolean | null | undefined;
   selection_kind: "accept" | "manual";
 }
 
@@ -27,7 +27,7 @@ export function selectionMetadataFromNyaaResult(result: NyaaSearchResult): NyaaS
 
 export function decisionReasonFromNyaaResult(input: {
   coveredUnits?: readonly number[] | undefined;
-  isBatch?: boolean | undefined;
+  isBatch?: boolean | null | undefined;
   isSeaDex: boolean;
   isSeaDexBest: boolean;
   trusted: boolean;
@@ -47,7 +47,7 @@ export function buildGrabInputFromNyaaResult(input: {
   mediaId: number;
   result: NyaaSearchResult;
   unitNumber?: number | undefined;
-  isBatch?: boolean | undefined;
+  isBatch?: boolean | null | undefined;
 }): SearchDownloadRequest {
   const { mediaId, unitNumber, isBatch, result } = input;
 
@@ -118,20 +118,20 @@ export function actionReasonFromDownloadAction(action: DownloadAction) {
 
 interface ReleaseContextSource {
   indexer: string;
-  group?: string | undefined;
-  info_hash?: string | undefined;
-  parsed_resolution?: string | undefined;
-  trusted?: boolean | undefined;
-  remake?: boolean | undefined;
-  view_url?: string | undefined;
-  is_seadex?: boolean | undefined;
-  is_seadex_best?: boolean | undefined;
-  seadex_release_group?: string | undefined;
-  seadex_tags?: string[] | undefined;
-  seadex_notes?: string | undefined;
-  seadex_comparison?: string | undefined;
-  seadex_dual_audio?: boolean | undefined;
-  download_action?: DownloadAction | undefined;
+  group?: string | null | undefined;
+  info_hash?: string | null | undefined;
+  parsed_resolution?: string | null | undefined;
+  trusted?: boolean | null | undefined;
+  remake?: boolean | null | undefined;
+  view_url?: string | null | undefined;
+  is_seadex?: boolean | null | undefined;
+  is_seadex_best?: boolean | null | undefined;
+  seadex_release_group?: string | null | undefined;
+  seadex_tags?: string[] | null | undefined;
+  seadex_notes?: string | null | undefined;
+  seadex_comparison?: string | null | undefined;
+  seadex_dual_audio?: boolean | null | undefined;
+  download_action?: DownloadAction | null | undefined;
 }
 
 function toReleaseContext(
@@ -139,29 +139,23 @@ function toReleaseContext(
   opts?: { includeDownloadAction?: boolean },
 ): SearchDownloadReleaseContext {
   return {
-    ...(source.group === undefined ? {} : { group: source.group }),
+    ...(source.group == null ? {} : { group: source.group }),
     indexer: source.indexer,
-    ...(source.info_hash === undefined ? {} : { info_hash: source.info_hash }),
-    ...(source.parsed_resolution === undefined
-      ? {}
-      : { parsed_resolution: source.parsed_resolution }),
-    ...(source.trusted === undefined ? {} : { trusted: source.trusted }),
-    ...(source.remake === undefined ? {} : { remake: source.remake }),
-    ...(source.view_url === undefined ? {} : { source_url: source.view_url }),
-    ...(source.is_seadex === undefined ? {} : { is_seadex: source.is_seadex }),
-    ...(source.is_seadex_best === undefined ? {} : { is_seadex_best: source.is_seadex_best }),
-    ...(source.seadex_release_group === undefined
+    ...(source.info_hash == null ? {} : { info_hash: source.info_hash }),
+    ...(source.parsed_resolution == null ? {} : { parsed_resolution: source.parsed_resolution }),
+    ...(source.trusted == null ? {} : { trusted: source.trusted }),
+    ...(source.remake == null ? {} : { remake: source.remake }),
+    ...(source.view_url == null ? {} : { source_url: source.view_url }),
+    ...(source.is_seadex == null ? {} : { is_seadex: source.is_seadex }),
+    ...(source.is_seadex_best == null ? {} : { is_seadex_best: source.is_seadex_best }),
+    ...(source.seadex_release_group == null
       ? {}
       : { seadex_release_group: source.seadex_release_group }),
-    ...(source.seadex_tags === undefined ? {} : { seadex_tags: source.seadex_tags }),
-    ...(source.seadex_notes === undefined ? {} : { seadex_notes: source.seadex_notes }),
-    ...(source.seadex_comparison === undefined
-      ? {}
-      : { seadex_comparison: source.seadex_comparison }),
-    ...(source.seadex_dual_audio === undefined
-      ? {}
-      : { seadex_dual_audio: source.seadex_dual_audio }),
-    ...(source.download_action === undefined || !opts?.includeDownloadAction
+    ...(source.seadex_tags == null ? {} : { seadex_tags: source.seadex_tags }),
+    ...(source.seadex_notes == null ? {} : { seadex_notes: source.seadex_notes }),
+    ...(source.seadex_comparison == null ? {} : { seadex_comparison: source.seadex_comparison }),
+    ...(source.seadex_dual_audio == null ? {} : { seadex_dual_audio: source.seadex_dual_audio }),
+    ...(source.download_action == null || !opts?.includeDownloadAction
       ? {}
       : { download_action: source.download_action }),
   };

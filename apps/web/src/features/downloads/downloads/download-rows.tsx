@@ -52,7 +52,7 @@ function DownloadStatusIcon(props: { status?: string | undefined }) {
 
 export function ActiveDownloadRow(props: { item: DownloadStatus }) {
   const statusPresentation = () => getDownloadStatusPresentation(props.item.state);
-  const selectionDetail = () => formatSelectionDetail(props.item.source_metadata ?? {});
+  const selectionDetail = () => formatSelectionDetail(props.item.source_metadata ?? null);
 
   return (
     <TableRow className="group h-12 align-top">
@@ -71,10 +71,10 @@ export function ActiveDownloadRow(props: { item: DownloadStatus }) {
           parsedSummary={formatDownloadParsedMeta(props.item)}
           releaseName={props.item.name}
           releaseSummary={formatDownloadReleaseMeta({
-            group: props.item.source_metadata?.group,
-            indexer: props.item.source_metadata?.indexer,
-            quality: props.item.source_metadata?.quality,
-            resolution: props.item.source_metadata?.resolution,
+            group: props.item.source_metadata?.group ?? undefined,
+            indexer: props.item.source_metadata?.indexer ?? undefined,
+            quality: props.item.source_metadata?.quality ?? undefined,
+            resolution: props.item.source_metadata?.resolution ?? undefined,
           })}
           selectionDetail={formatDownloadRankingMeta(props.item) ? selectionDetail() : undefined}
           selectionKind={props.item.source_metadata?.selection_kind}
@@ -88,8 +88,8 @@ export function ActiveDownloadRow(props: { item: DownloadStatus }) {
             <span className="text-xs text-muted-foreground line-clamp-1">
               {formatEpisodeCoverage(
                 props.item.unit_number ?? 1,
-                props.item.covered_units,
-                props.item.coverage_pending,
+                props.item.covered_units ?? undefined,
+                props.item.coverage_pending ?? undefined,
               )}
             </span>
           )}
@@ -129,15 +129,13 @@ export function ActiveDownloadRow(props: { item: DownloadStatus }) {
 
 export function DownloadRow(props: { item: Download; isHistory?: boolean }) {
   const statusPresentation = () => getDownloadStatusPresentation(props.item.status);
-  const selectionDetail = () => formatSelectionDetail(props.item.source_metadata ?? {});
+  const selectionDetail = () => formatSelectionDetail(props.item.source_metadata ?? null);
   const dateStr = props.item.download_date || props.item.added_at;
 
   return (
     <TableRow className="group h-12 align-top">
       <TableCell className="py-2 pl-4 w-[42px]">
-        <DownloadStatusIcon
-          {...(props.item.status === undefined ? {} : { status: props.item.status })}
-        />
+        <DownloadStatusIcon {...(props.item.status == null ? {} : { status: props.item.status })} />
       </TableCell>
       <TableCell className="font-medium py-2 min-w-[280px] md:min-w-[320px]">
         <DownloadRowMeta
@@ -152,10 +150,10 @@ export function DownloadRow(props: { item: Download; isHistory?: boolean }) {
           parsedSummary={formatDownloadParsedMeta(props.item)}
           releaseName={props.item.torrent_name}
           releaseSummary={formatDownloadReleaseMeta({
-            group: props.item.source_metadata?.group ?? props.item.group_name,
-            indexer: props.item.source_metadata?.indexer,
-            quality: props.item.source_metadata?.quality,
-            resolution: props.item.source_metadata?.resolution,
+            group: props.item.source_metadata?.group ?? props.item.group_name ?? undefined,
+            indexer: props.item.source_metadata?.indexer ?? undefined,
+            quality: props.item.source_metadata?.quality ?? undefined,
+            resolution: props.item.source_metadata?.resolution ?? undefined,
           })}
           selectionDetail={formatDownloadRankingMeta(props.item) ? selectionDetail() : undefined}
           selectionKind={props.item.source_metadata?.selection_kind}
@@ -168,13 +166,13 @@ export function DownloadRow(props: { item: Download; isHistory?: boolean }) {
         <Badge variant="outline" className="tabular-nums text-xs">
           {formatEpisodeCoverage(
             props.item.unit_number,
-            props.item.covered_units,
+            props.item.covered_units ?? undefined,
             props.item.coverage_pending,
           )}
         </Badge>
-        {formatCoverageMeta(props.item.covered_units, props.item.coverage_pending) && (
+        {formatCoverageMeta(props.item.covered_units ?? undefined, props.item.coverage_pending) && (
           <div className="mt-1 text-xs text-muted-foreground">
-            {formatCoverageMeta(props.item.covered_units, props.item.coverage_pending)}
+            {formatCoverageMeta(props.item.covered_units ?? undefined, props.item.coverage_pending)}
           </div>
         )}
       </TableCell>

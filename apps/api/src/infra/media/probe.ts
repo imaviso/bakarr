@@ -29,6 +29,15 @@ export const ProbedMediaMetadataSchema = Schema.Struct({
 
 export type ProbedMediaMetadata = Schema.Schema.Type<typeof ProbedMediaMetadataSchema>;
 
+/** Nullable-field variant of {@link ProbedMediaMetadata} matching shared response DTOs. */
+export type NullableProbedMediaMetadata = {
+  audio_channels?: string | null | undefined;
+  audio_codec?: string | null | undefined;
+  duration_seconds?: number | null | undefined;
+  resolution?: string | null | undefined;
+  video_codec?: string | null | undefined;
+};
+
 export class MediaProbeMetadataFound extends Schema.TaggedClass<MediaProbeMetadataFound>()(
   "MediaProbeMetadataFound",
   {
@@ -252,32 +261,32 @@ export interface MediaProbeShape {
 }
 
 export function shouldProbeMediaMetadata(input: {
-  duration_seconds?: number | undefined;
-  resolution?: string | undefined;
-  video_codec?: string | undefined;
-  audio_codec?: string | undefined;
-  audio_channels?: string | undefined;
+  duration_seconds?: number | null | undefined;
+  resolution?: string | null | undefined;
+  video_codec?: string | null | undefined;
+  audio_codec?: string | null | undefined;
+  audio_channels?: string | null | undefined;
 }) {
   return !input.resolution || !input.video_codec || !input.audio_codec || !input.audio_channels;
 }
 
 export function shouldProbeDetailedMediaMetadata(input: {
-  duration_seconds?: number | undefined;
-  resolution?: string | undefined;
-  video_codec?: string | undefined;
-  audio_codec?: string | undefined;
-  audio_channels?: string | undefined;
+  duration_seconds?: number | null | undefined;
+  resolution?: string | null | undefined;
+  video_codec?: string | null | undefined;
+  audio_codec?: string | null | undefined;
+  audio_channels?: string | null | undefined;
 }) {
   return !input.duration_seconds || shouldProbeMediaMetadata(input);
 }
 
 export function mergeProbedMediaMetadata<
   T extends {
-    duration_seconds?: number | undefined;
-    resolution?: string | undefined;
-    video_codec?: string | undefined;
-    audio_codec?: string | undefined;
-    audio_channels?: string | undefined;
+    duration_seconds?: number | null | undefined;
+    resolution?: string | null | undefined;
+    video_codec?: string | null | undefined;
+    audio_codec?: string | null | undefined;
+    audio_channels?: string | null | undefined;
   },
 >(input: T, probed?: ProbedMediaMetadata): T {
   if (!probed) {

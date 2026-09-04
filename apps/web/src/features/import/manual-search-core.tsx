@@ -35,7 +35,7 @@ interface ManualSearchCoreProps {
   disableSelectionForAdded: boolean;
   emptyPrompt: string;
   existingIds?: ReadonlySet<number>;
-  initialMediaKind?: MediaKind | undefined;
+  initialMediaKind?: MediaKind | null | undefined;
   onSelect: (anime: MediaSearchResult) => void;
 }
 

@@ -61,13 +61,13 @@ export function getSourceIdentityAirDate(
 export function getSourceIdentitySeason(
   identity?: ParsedUnitIdentity | SharedParsedEpisodeIdentity,
 ): number | undefined {
-  return identity?.scheme === "season" ? identity.season : undefined;
+  return identity?.scheme === "season" ? (identity.season ?? undefined) : undefined;
 }
 
 export function toSharedParsedEpisodeIdentity(
   identity?: ParsedUnitIdentity | SharedParsedEpisodeIdentity,
 ): SharedParsedEpisodeIdentity | undefined {
-  if (!identity) {
+  if (identity === null || identity === undefined) {
     return undefined;
   }
 
@@ -77,7 +77,7 @@ export function toSharedParsedEpisodeIdentity(
         unit_numbers: [...(identity.unit_numbers ?? [])],
         label: identity.label,
         scheme: "season",
-        season: identity.season,
+        season: identity.season ?? 0,
       };
     case "absolute":
       return {

@@ -4,17 +4,17 @@ import type { RenamePreviewMetadataSnapshot } from "@/api/contracts";
 export { formatDurationSeconds, formatFileSize } from "@/domain/format";
 
 type MediaMetadataInput = {
-  audio_channels?: string | undefined;
-  audio_codec?: string | undefined;
-  duration_seconds?: number | undefined;
-  group?: string | undefined;
-  quality?: string | undefined;
-  resolution?: string | undefined;
-  video_codec?: string | undefined;
+  audio_channels?: string | null | undefined;
+  audio_codec?: string | null | undefined;
+  duration_seconds?: number | null | undefined;
+  group?: string | null | undefined;
+  quality?: string | null | undefined;
+  resolution?: string | null | undefined;
+  video_codec?: string | null | undefined;
 };
 
-type NamingMetadataSnapshot = Omit<RenamePreviewMetadataSnapshot, "title"> & {
-  duration_seconds?: number | undefined;
+type NamingMetadataSnapshot = RenamePreviewMetadataSnapshot & {
+  duration_seconds?: number | null | undefined;
 };
 
 export function mediaMetadataBadges(input: MediaMetadataInput) {
@@ -32,12 +32,12 @@ export function mediaMetadataBadges(input: MediaMetadataInput) {
   ].filter((value): value is string => typeof value === "string" && value.length > 0);
 }
 
-export function formatMatchConfidence(value?: number) {
+export function formatMatchConfidence(value?: number | null) {
   const percent = clampConfidencePercent(value);
   return percent === undefined ? undefined : `${percent}% match`;
 }
 
-export function formatEpisodeNumberList(numbers?: readonly number[]) {
+export function formatEpisodeNumberList(numbers?: readonly number[] | null) {
   if (!numbers?.length) {
     return undefined;
   }
@@ -45,10 +45,12 @@ export function formatEpisodeNumberList(numbers?: readonly number[]) {
   return numbers.length === 1 ? `MediaUnit ${numbers[0]}` : `Episodes ${numbers.join(", ")}`;
 }
 
-export function formatFileEpisodeMapping(input?: {
-  media_title: string;
-  unit_numbers?: readonly number[] | undefined;
-}) {
+export function formatFileEpisodeMapping(
+  input?: {
+    media_title: string;
+    unit_numbers?: readonly number[] | null | undefined;
+  } | null,
+) {
   if (!input) {
     return undefined;
   }
@@ -59,21 +61,23 @@ export function formatFileEpisodeMapping(input?: {
 }
 
 export function buildFileDecisionSummary(input: {
-  coverage_summary?: string | undefined;
+  coverage_summary?: string | null | undefined;
   existing_mapping?:
     | {
         media_title: string;
-        unit_numbers?: readonly number[] | undefined;
+        unit_numbers?: readonly number[] | null | undefined;
       }
+    | null
     | undefined;
   unit_conflict?:
     | {
         media_title: string;
-        unit_numbers?: readonly number[] | undefined;
+        unit_numbers?: readonly number[] | null | undefined;
       }
+    | null
     | undefined;
-  match_reason?: string | undefined;
-  warnings?: readonly string[] | undefined;
+  match_reason?: string | null | undefined;
+  warnings?: readonly string[] | null | undefined;
 }) {
   const details: string[] = [];
 
@@ -121,7 +125,7 @@ export function formatNamingTitleSource(value?: NamingMetadataSnapshot["title_so
   }
 }
 
-export function namingMetadataBadges(snapshot?: NamingMetadataSnapshot) {
+export function namingMetadataBadges(snapshot?: NamingMetadataSnapshot | null) {
   if (!snapshot) {
     return [];
   }

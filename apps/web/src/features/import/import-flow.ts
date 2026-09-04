@@ -53,25 +53,25 @@ export function buildImportFileRequest(input: {
     | "source_path"
     | "video_codec"
   >;
-  unitNumber?: number;
-  unitNumbers?: number[];
-  season?: number;
-  sourceMetadata?: DownloadSourceMetadata;
+  unitNumber?: number | null;
+  unitNumbers?: number[] | null;
+  season?: number | null;
+  sourceMetadata?: DownloadSourceMetadata | null;
 }) {
   return {
     media_id: input.mediaId,
     unit_number: input.unitNumber ?? Math.floor(input.file.unit_number),
     ...(() => {
       const unitNumbers = input.unitNumbers ?? input.file.unit_numbers;
-      return unitNumbers === undefined ? {} : { unit_numbers: unitNumbers };
+      return unitNumbers == null ? {} : { unit_numbers: unitNumbers };
     })(),
     ...(() => {
       const season = input.season ?? input.file.season;
-      return season === undefined ? {} : { season };
+      return season == null ? {} : { season };
     })(),
     ...(() => {
       const sourceMetadata = input.sourceMetadata ?? buildImportSourceMetadata(input.file);
-      return sourceMetadata === undefined ? {} : { source_metadata: sourceMetadata };
+      return sourceMetadata == null ? {} : { source_metadata: sourceMetadata };
     })(),
     source_path: input.file.source_path,
   } satisfies ImportFileRequest;

@@ -23,34 +23,34 @@ function animeInitials(title: string) {
 }
 
 interface DownloadRowMetaProps {
-  mediaId?: number | undefined;
-  mediaImage?: string | undefined;
+  mediaId?: number | null | undefined;
+  mediaImage?: string | null | undefined;
   mediaTitle: string;
-  confidence?: ReleaseConfidenceMetadata | undefined;
-  decisionBadge?: string | undefined;
-  decisionSummary?: string | undefined;
-  downloadId?: number | undefined;
-  errorMessage?: string | undefined;
-  importedPath?: string | undefined;
-  parsedSummary?: string | undefined;
+  confidence?: ReleaseConfidenceMetadata | null | undefined;
+  decisionBadge?: string | null | undefined;
+  decisionSummary?: string | null | undefined;
+  downloadId?: number | null | undefined;
+  errorMessage?: string | null | undefined;
+  importedPath?: string | null | undefined;
+  parsedSummary?: string | null | undefined;
   releaseName: string;
-  releaseSummary?: string | undefined;
-  selectionDetail?: string | undefined;
-  selectionKind?: DownloadSelectionKind | undefined;
-  sourceUrl?: string | undefined;
-  trusted?: boolean | undefined;
-  remake?: boolean | undefined;
+  releaseSummary?: string | null | undefined;
+  selectionDetail?: string | null | undefined;
+  selectionKind?: DownloadSelectionKind | null | undefined;
+  sourceUrl?: string | null | undefined;
+  trusted?: boolean | null | undefined;
+  remake?: boolean | null | undefined;
   children?: ReactNode;
 }
 
 export function DownloadRowMeta(props: DownloadRowMetaProps) {
-  const sourceUrl = safeExternalUrl(props.sourceUrl);
+  const sourceUrl = safeExternalUrl(props.sourceUrl ?? undefined);
 
   return (
     <div className="flex items-start gap-3">
       <Avatar className="size-8 rounded-none">
         <AvatarImage
-          {...(props.mediaImage === undefined ? {} : { src: props.mediaImage })}
+          {...(props.mediaImage ? { src: props.mediaImage } : {})}
           alt={props.mediaTitle}
         />
         <AvatarFallback className="rounded-none text-xs font-medium">
@@ -59,7 +59,7 @@ export function DownloadRowMeta(props: DownloadRowMetaProps) {
       </Avatar>
       <div className="flex flex-col justify-center min-w-0">
         <div className="flex items-center gap-2 min-w-0 flex-wrap">
-          {props.mediaId !== undefined ? (
+          {props.mediaId != null ? (
             <Link
               to="/media/$id"
               params={{ id: props.mediaId.toString() }}
@@ -122,12 +122,12 @@ export function DownloadRowMeta(props: DownloadRowMetaProps) {
         </div>
         {(props.selectionKind || props.selectionDetail) && (
           <div className="flex flex-wrap items-center gap-1.5 text-xs leading-tight">
-            {selectionKindLabel(props.selectionKind) && (
+            {selectionKindLabel(props.selectionKind ?? undefined) && (
               <Badge
                 variant="secondary"
-                className={`h-4 px-1.5 ${selectionKindBadgeClass(props.selectionKind)}`}
+                className={`h-4 px-1.5 ${selectionKindBadgeClass(props.selectionKind ?? undefined)}`}
               >
-                {selectionKindLabel(props.selectionKind)}
+                {selectionKindLabel(props.selectionKind ?? undefined)}
               </Badge>
             )}
             {props.selectionDetail && (
@@ -155,7 +155,7 @@ export function DownloadRowMeta(props: DownloadRowMetaProps) {
         {props.errorMessage && (
           <span className="text-xs text-destructive line-clamp-1">{props.errorMessage}</span>
         )}
-        {props.downloadId !== undefined && (
+        {props.downloadId != null && (
           <span className="text-xs text-muted-foreground">#{props.downloadId}</span>
         )}
       </div>

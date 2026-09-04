@@ -7,7 +7,7 @@ export interface SystemLog {
   event_type: string;
   level: "info" | "warn" | "error" | "success";
   message: string;
-  details?: string | undefined;
+  details?: string | undefined | null;
   created_at: string;
 }
 
@@ -20,7 +20,7 @@ export const SystemLogSchema = Schema.Struct({
   event_type: Schema.String,
   level: SystemLogLevelSchema,
   message: Schema.String,
-  details: Schema.optional(Schema.String),
+  details: Schema.optional(Schema.NullishOr(Schema.String)),
   created_at: Schema.String,
 });
 
@@ -37,15 +37,15 @@ export const SystemLogsResponseSchema = Schema.Struct({
 export interface BackgroundJobStatus {
   name: string;
   is_running: boolean;
-  last_run_at?: string | undefined;
-  last_success_at?: string | undefined;
-  last_status?: string | undefined;
-  last_message?: string | undefined;
-  progress_current?: number | undefined;
-  progress_total?: number | undefined;
+  last_run_at?: string | undefined | null;
+  last_success_at?: string | undefined | null;
+  last_status?: string | undefined | null;
+  last_message?: string | undefined | null;
+  progress_current?: number | undefined | null;
+  progress_total?: number | undefined | null;
   run_count: number;
-  schedule_mode?: "cron" | "interval" | "manual" | "disabled" | undefined;
-  schedule_value?: string | undefined;
+  schedule_mode?: "cron" | "interval" | "manual" | "disabled" | undefined | null;
+  schedule_value?: string | undefined | null;
 }
 
 export const BACKGROUND_JOB_SCHEDULE_MODE_VALUES = [
@@ -62,13 +62,13 @@ export const BackgroundJobScheduleModeSchema = Schema.Literals([
 export const BackgroundJobStatusSchema = Schema.Struct({
   name: Schema.String,
   is_running: Schema.Boolean,
-  last_run_at: Schema.optional(Schema.String),
-  last_success_at: Schema.optional(Schema.String),
-  last_status: Schema.optional(Schema.String),
-  last_message: Schema.optional(Schema.String),
-  progress_current: Schema.optional(Schema.Number),
-  progress_total: Schema.optional(Schema.Number),
+  last_run_at: Schema.optional(Schema.NullishOr(Schema.String)),
+  last_success_at: Schema.optional(Schema.NullishOr(Schema.String)),
+  last_status: Schema.optional(Schema.NullishOr(Schema.String)),
+  last_message: Schema.optional(Schema.NullishOr(Schema.String)),
+  progress_current: Schema.optional(Schema.NullishOr(Schema.Number)),
+  progress_total: Schema.optional(Schema.NullishOr(Schema.Number)),
   run_count: Schema.Number,
-  schedule_mode: Schema.optional(BackgroundJobScheduleModeSchema),
-  schedule_value: Schema.optional(Schema.String),
+  schedule_mode: Schema.optional(Schema.NullishOr(BackgroundJobScheduleModeSchema)),
+  schedule_value: Schema.optional(Schema.NullishOr(Schema.String)),
 });

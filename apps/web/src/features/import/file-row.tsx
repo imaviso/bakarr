@@ -25,13 +25,12 @@ export function FileRow(props: FileRowProps) {
   const matchedAnimeId = props.file.matched_media?.id || props.selectedAnimeId;
   const hasMatch = !!matchedAnimeId;
 
-  const displayEpisode =
-    props.currentEpisode !== undefined ? props.currentEpisode : Math.floor(props.file.unit_number);
-  const displaySeason = props.currentSeason !== undefined ? props.currentSeason : props.file.season;
+  const displayEpisode = props.currentEpisode ?? Math.floor(props.file.unit_number);
+  const displaySeason = props.currentSeason ?? props.file.season;
 
   const metadataBadges = mediaMetadataBadges(props.file);
   const fileSize = formatFileSize(props.file.size);
-  const matchConfidence = formatMatchConfidence(props.file.match_confidence);
+  const matchConfidence = formatMatchConfidence(props.file.match_confidence ?? undefined);
   const decisionSummary = buildFileDecisionSummary({
     coverage_summary: props.file.coverage_summary,
     unit_conflict: props.file.unit_conflict,
@@ -201,7 +200,7 @@ export function FileRow(props: FileRowProps) {
             )}
           <EditMappingPopover
             episode={displayEpisode}
-            season={displaySeason ?? null}
+            season={displaySeason ?? undefined}
             disabled={!props.isSelected}
             onSave={props.onMappingChange}
           />

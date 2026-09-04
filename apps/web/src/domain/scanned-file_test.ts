@@ -20,6 +20,7 @@ it("scanned file naming helpers format title source and badges", () => {
     resolution: "1080p",
     season: 1,
     source_identity: { scheme: "season", label: "S01E01" },
+    title: "Test",
     video_codec: "HEVC",
     year: 2025,
   });

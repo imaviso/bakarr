@@ -6,18 +6,18 @@ export interface ReleaseFlag {
 }
 
 interface ReleaseSourceLike {
-  group?: string | undefined;
-  indexer?: string | undefined;
-  quality?: string | undefined;
-  resolution?: string | undefined;
+  group?: string | null | undefined;
+  indexer?: string | null | undefined;
+  quality?: string | null | undefined;
+  resolution?: string | null | undefined;
 }
 
 export function buildReleaseSourceSummaryInput(input?: ReleaseSourceLike) {
   return {
-    ...(input?.group === undefined ? {} : { group: input.group }),
-    ...(input?.indexer === undefined ? {} : { indexer: input.indexer }),
-    ...(input?.quality === undefined ? {} : { quality: input.quality }),
-    ...(input?.resolution === undefined ? {} : { resolution: input.resolution }),
+    ...(input?.group == null ? {} : { group: input.group }),
+    ...(input?.indexer == null ? {} : { indexer: input.indexer }),
+    ...(input?.quality == null ? {} : { quality: input.quality }),
+    ...(input?.resolution == null ? {} : { resolution: input.resolution }),
   };
 }
 
@@ -37,8 +37,8 @@ export function formatReleaseSourceSummary(input: ReleaseSourceLike) {
 }
 
 export function formatReleaseParsedSummary(input: {
-  parsed_air_date?: string | undefined;
-  parsed_unit_label?: string | undefined;
+  parsed_air_date?: string | null | undefined;
+  parsed_unit_label?: string | null | undefined;
 }) {
   if (
     input.parsed_unit_label &&
@@ -52,11 +52,11 @@ export function formatReleaseParsedSummary(input: {
 }
 
 export function getReleaseFlags(input: {
-  is_seadex?: boolean | undefined;
-  is_seadex_best?: boolean | undefined;
-  remake?: boolean | undefined;
-  seadex_dual_audio?: boolean | undefined;
-  trusted?: boolean | undefined;
+  is_seadex?: boolean | null | undefined;
+  is_seadex_best?: boolean | null | undefined;
+  remake?: boolean | null | undefined;
+  seadex_dual_audio?: boolean | null | undefined;
+  trusted?: boolean | null | undefined;
 }) {
   const flags: ReleaseFlag[] = [];
 

@@ -22,60 +22,62 @@ export const NamingTitleSourceSchema = Schema.Literals([
 
 export interface RenamePreviewMetadataSnapshot {
   title: string;
-  title_source?: NamingTitleSource | undefined;
-  season?: number | undefined;
-  year?: number | undefined;
-  unit_title?: string | undefined;
-  air_date?: string | undefined;
-  group?: string | undefined;
-  resolution?: string | undefined;
-  quality?: string | undefined;
-  video_codec?: string | undefined;
-  audio_codec?: string | undefined;
-  audio_channels?: string | undefined;
-  source_identity?: ParsedUnitIdentity | undefined;
+  title_source?: NamingTitleSource | undefined | null;
+  season?: number | undefined | null;
+  year?: number | undefined | null;
+  unit_title?: string | undefined | null;
+  air_date?: string | undefined | null;
+  group?: string | undefined | null;
+  resolution?: string | undefined | null;
+  quality?: string | undefined | null;
+  video_codec?: string | undefined | null;
+  audio_codec?: string | undefined | null;
+  audio_channels?: string | undefined | null;
+  source_identity?: ParsedUnitIdentity | undefined | null;
 }
 
 export const RenamePreviewMetadataSnapshotSchema = Schema.Struct({
   title: Schema.String,
-  title_source: Schema.optional(NamingTitleSourceSchema),
-  season: Schema.optional(Schema.Number),
-  year: Schema.optional(Schema.Number),
-  unit_title: Schema.optional(Schema.String),
-  air_date: Schema.optional(Schema.String),
-  group: Schema.optional(Schema.String),
-  resolution: Schema.optional(Schema.String),
-  quality: Schema.optional(Schema.String),
-  video_codec: Schema.optional(Schema.String),
-  audio_codec: Schema.optional(Schema.String),
-  audio_channels: Schema.optional(Schema.String),
-  source_identity: Schema.optional(Schema.suspend(() => ParsedUnitIdentitySchema)),
+  title_source: Schema.optional(Schema.NullishOr(NamingTitleSourceSchema)),
+  season: Schema.optional(Schema.NullishOr(Schema.Number)),
+  year: Schema.optional(Schema.NullishOr(Schema.Number)),
+  unit_title: Schema.optional(Schema.NullishOr(Schema.String)),
+  air_date: Schema.optional(Schema.NullishOr(Schema.String)),
+  group: Schema.optional(Schema.NullishOr(Schema.String)),
+  resolution: Schema.optional(Schema.NullishOr(Schema.String)),
+  quality: Schema.optional(Schema.NullishOr(Schema.String)),
+  video_codec: Schema.optional(Schema.NullishOr(Schema.String)),
+  audio_codec: Schema.optional(Schema.NullishOr(Schema.String)),
+  audio_channels: Schema.optional(Schema.NullishOr(Schema.String)),
+  source_identity: Schema.optional(
+    Schema.NullishOr(Schema.suspend(() => ParsedUnitIdentitySchema)),
+  ),
 });
 
 export interface RenamePreviewItem {
   unit_number: number;
-  unit_numbers?: number[] | undefined;
+  unit_numbers?: number[] | undefined | null;
   current_path: string;
   new_path: string;
   new_filename: string;
-  format_used?: string | undefined;
-  fallback_used?: boolean | undefined;
-  warnings?: string[] | undefined;
-  missing_fields?: string[] | undefined;
-  metadata_snapshot?: RenamePreviewMetadataSnapshot | undefined;
+  format_used?: string | undefined | null;
+  fallback_used?: boolean | undefined | null;
+  warnings?: string[] | undefined | null;
+  missing_fields?: string[] | undefined | null;
+  metadata_snapshot?: RenamePreviewMetadataSnapshot | undefined | null;
 }
 
 export const RenamePreviewItemSchema = Schema.Struct({
   unit_number: Schema.Number,
-  unit_numbers: Schema.optional(Schema.mutable(Schema.Array(Schema.Number))),
+  unit_numbers: Schema.optional(Schema.NullishOr(Schema.mutable(Schema.Array(Schema.Number)))),
   current_path: Schema.String,
   new_path: Schema.String,
   new_filename: Schema.String,
-  format_used: Schema.optional(Schema.String),
-  fallback_used: Schema.optional(Schema.Boolean),
-  warnings: Schema.optional(Schema.mutable(Schema.Array(Schema.String))),
-  missing_fields: Schema.optional(Schema.mutable(Schema.Array(Schema.String))),
-  metadata_snapshot: Schema.optional(RenamePreviewMetadataSnapshotSchema),
+  format_used: Schema.optional(Schema.NullishOr(Schema.String)),
+  fallback_used: Schema.optional(Schema.NullishOr(Schema.Boolean)),
+  warnings: Schema.optional(Schema.NullishOr(Schema.mutable(Schema.Array(Schema.String)))),
+  missing_fields: Schema.optional(Schema.NullishOr(Schema.mutable(Schema.Array(Schema.String)))),
+  metadata_snapshot: Schema.optional(Schema.NullishOr(RenamePreviewMetadataSnapshotSchema)),
 });
 
 export interface RenameResult {

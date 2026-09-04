@@ -1,11 +1,11 @@
 const ANIDB_MAX_TITLE_CANDIDATES = 8;
 
 export interface AniDbEpisodeLookupInput {
-  readonly unitCount?: number | undefined;
-  readonly synonyms?: ReadonlyArray<string> | undefined;
+  readonly unitCount?: number | null | undefined;
+  readonly synonyms?: ReadonlyArray<string> | null | undefined;
   readonly title: {
-    readonly english?: string | undefined;
-    readonly native?: string | undefined;
+    readonly english?: string | null | undefined;
+    readonly native?: string | null | undefined;
     readonly romaji: string;
   };
 }
@@ -147,10 +147,10 @@ export function buildTitleCandidates(
 ) {
   const candidates: ReadonlyArray<AniDbTitleCandidate> = [
     { source: "romaji", value: title.romaji },
-    ...(title.english === undefined
+    ...(title.english == null
       ? []
       : [{ source: "english", value: title.english } satisfies AniDbTitleCandidate]),
-    ...(title.native === undefined
+    ...(title.native == null
       ? []
       : [{ source: "native", value: title.native } satisfies AniDbTitleCandidate]),
     ...(synonyms ?? []).map((value): AniDbTitleCandidate => ({ source: "synonym", value })),

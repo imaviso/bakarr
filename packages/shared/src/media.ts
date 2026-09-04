@@ -15,22 +15,22 @@ import { ParsedUnitIdentitySchema, type ParsedUnitIdentity } from "./parsed-iden
 
 export interface MediaUnitProgress {
   downloaded: number;
-  downloaded_percent?: number | undefined;
-  is_up_to_date?: boolean | undefined;
-  latest_downloaded_unit?: number | undefined;
-  total?: number | undefined;
+  downloaded_percent?: number | undefined | null;
+  is_up_to_date?: boolean | undefined | null;
+  latest_downloaded_unit?: number | undefined | null;
+  total?: number | undefined | null;
   missing: number[];
-  next_missing_unit?: number | undefined;
+  next_missing_unit?: number | undefined | null;
 }
 
 export const MediaUnitProgressSchema = Schema.Struct({
   downloaded: Schema.Number,
-  downloaded_percent: Schema.optional(Schema.Number),
-  is_up_to_date: Schema.optional(Schema.Boolean),
-  latest_downloaded_unit: Schema.optional(Schema.Number),
-  total: Schema.optional(Schema.Number),
+  downloaded_percent: Schema.optional(Schema.NullishOr(Schema.Number)),
+  is_up_to_date: Schema.optional(Schema.NullishOr(Schema.Boolean)),
+  latest_downloaded_unit: Schema.optional(Schema.NullishOr(Schema.Number)),
+  total: Schema.optional(Schema.NullishOr(Schema.Number)),
   missing: Schema.mutable(Schema.Array(Schema.Number)),
-  next_missing_unit: Schema.optional(Schema.Number),
+  next_missing_unit: Schema.optional(Schema.NullishOr(Schema.Number)),
 }).mapFields(Struct.map(Schema.mutableKey));
 
 export type MediaSeason = "winter" | "spring" | "summer" | "fall";
@@ -39,8 +39,8 @@ export const MediaSeasonSchema = Schema.Literals(["winter", "spring", "summer", 
 
 export const MediaTitleSchema = Schema.Struct({
   romaji: Schema.String,
-  english: Schema.optional(Schema.String),
-  native: Schema.optional(Schema.String),
+  english: Schema.optional(Schema.NullishOr(Schema.String)),
+  native: Schema.optional(Schema.NullishOr(Schema.String)),
 });
 
 export interface NextAiringUnit {
@@ -56,35 +56,35 @@ export const NextAiringUnitSchema = Schema.Struct({
 export interface MediaDiscoveryEntry {
   id: MediaId;
   title: {
-    romaji?: string | undefined;
-    english?: string | undefined;
-    native?: string | undefined;
+    romaji?: string | undefined | null;
+    english?: string | undefined | null;
+    native?: string | undefined | null;
   };
-  relation_type?: string | undefined;
-  format?: string | undefined;
-  status?: string | undefined;
-  season?: MediaSeason | undefined;
-  season_year?: number | undefined;
-  start_year?: number | undefined;
-  cover_image?: string | undefined;
-  rating?: number | undefined;
+  relation_type?: string | undefined | null;
+  format?: string | undefined | null;
+  status?: string | undefined | null;
+  season?: MediaSeason | undefined | null;
+  season_year?: number | undefined | null;
+  start_year?: number | undefined | null;
+  cover_image?: string | undefined | null;
+  rating?: number | undefined | null;
 }
 
 export const MediaDiscoveryEntrySchema = Schema.Struct({
   id: MediaIdSchema,
   title: Schema.Struct({
-    romaji: Schema.optional(Schema.String),
-    english: Schema.optional(Schema.String),
-    native: Schema.optional(Schema.String),
+    romaji: Schema.optional(Schema.NullishOr(Schema.String)),
+    english: Schema.optional(Schema.NullishOr(Schema.String)),
+    native: Schema.optional(Schema.NullishOr(Schema.String)),
   }),
-  relation_type: Schema.optional(Schema.String),
-  format: Schema.optional(Schema.String),
-  status: Schema.optional(Schema.String),
-  season: Schema.optional(MediaSeasonSchema),
-  season_year: Schema.optional(Schema.Number),
-  start_year: Schema.optional(Schema.Number),
-  cover_image: Schema.optional(Schema.String),
-  rating: Schema.optional(Schema.Number),
+  relation_type: Schema.optional(Schema.NullishOr(Schema.String)),
+  format: Schema.optional(Schema.NullishOr(Schema.String)),
+  status: Schema.optional(Schema.NullishOr(Schema.String)),
+  season: Schema.optional(Schema.NullishOr(MediaSeasonSchema)),
+  season_year: Schema.optional(Schema.NullishOr(Schema.Number)),
+  start_year: Schema.optional(Schema.NullishOr(Schema.Number)),
+  cover_image: Schema.optional(Schema.NullishOr(Schema.String)),
+  rating: Schema.optional(Schema.NullishOr(Schema.Number)),
 });
 
 export type UnitAiringStatus = "aired" | "future" | "unknown";
@@ -94,39 +94,39 @@ export const UnitAiringStatusSchema = Schema.Literals(["aired", "future", "unkno
 export interface Media {
   id: MediaId;
   media_kind: MediaKind;
-  mal_id?: number | undefined;
+  mal_id?: number | undefined | null;
   title: {
     romaji: string;
-    english?: string | undefined;
-    native?: string | undefined;
+    english?: string | undefined | null;
+    native?: string | undefined | null;
   };
   format: string;
-  source?: string | undefined;
-  description?: string | undefined;
-  background?: string | undefined;
-  duration?: string | undefined;
-  rating?: string | undefined;
-  rank?: number | undefined;
-  popularity?: number | undefined;
-  members?: number | undefined;
-  favorites?: number | undefined;
-  score?: number | undefined;
-  genres?: string[] | undefined;
-  studios?: string[] | undefined;
-  cover_image?: string | undefined;
-  banner_image?: string | undefined;
+  source?: string | undefined | null;
+  description?: string | undefined | null;
+  background?: string | undefined | null;
+  duration?: string | undefined | null;
+  rating?: string | undefined | null;
+  rank?: number | undefined | null;
+  popularity?: number | undefined | null;
+  members?: number | undefined | null;
+  favorites?: number | undefined | null;
+  score?: number | undefined | null;
+  genres?: string[] | undefined | null;
+  studios?: string[] | undefined | null;
+  cover_image?: string | undefined | null;
+  banner_image?: string | undefined | null;
   status: string;
-  unit_count?: number | undefined;
-  start_date?: string | undefined;
-  end_date?: string | undefined;
-  start_year?: number | undefined;
-  end_year?: number | undefined;
-  synonyms?: string[] | undefined;
-  related_media?: MediaDiscoveryEntry[] | undefined;
-  recommended_media?: MediaDiscoveryEntry[] | undefined;
-  next_airing_unit?: NextAiringUnit | undefined;
-  season?: MediaSeason | undefined;
-  season_year?: number | undefined;
+  unit_count?: number | undefined | null;
+  start_date?: string | undefined | null;
+  end_date?: string | undefined | null;
+  start_year?: number | undefined | null;
+  end_year?: number | undefined | null;
+  synonyms?: string[] | undefined | null;
+  related_media?: MediaDiscoveryEntry[] | undefined | null;
+  recommended_media?: MediaDiscoveryEntry[] | undefined | null;
+  next_airing_unit?: NextAiringUnit | undefined | null;
+  season?: MediaSeason | undefined | null;
+  season_year?: number | undefined | null;
   profile_name: string;
   root_folder: string;
   added_at: string;
@@ -138,35 +138,39 @@ export interface Media {
 export const MediaSchema = Schema.Struct({
   id: MediaIdSchema,
   media_kind: MediaKindSchema,
-  mal_id: Schema.optional(Schema.Number),
+  mal_id: Schema.optional(Schema.NullishOr(Schema.Number)),
   title: MediaTitleSchema,
   format: Schema.String,
-  source: Schema.optional(Schema.String),
-  description: Schema.optional(Schema.String),
-  background: Schema.optional(Schema.String),
-  duration: Schema.optional(Schema.String),
-  rating: Schema.optional(Schema.String),
-  rank: Schema.optional(Schema.Number),
-  popularity: Schema.optional(Schema.Number),
-  members: Schema.optional(Schema.Number),
-  favorites: Schema.optional(Schema.Number),
-  score: Schema.optional(Schema.Number),
-  genres: Schema.optional(Schema.mutable(Schema.Array(Schema.String))),
-  studios: Schema.optional(Schema.mutable(Schema.Array(Schema.String))),
-  cover_image: Schema.optional(Schema.String),
-  banner_image: Schema.optional(Schema.String),
+  source: Schema.optional(Schema.NullishOr(Schema.String)),
+  description: Schema.optional(Schema.NullishOr(Schema.String)),
+  background: Schema.optional(Schema.NullishOr(Schema.String)),
+  duration: Schema.optional(Schema.NullishOr(Schema.String)),
+  rating: Schema.optional(Schema.NullishOr(Schema.String)),
+  rank: Schema.optional(Schema.NullishOr(Schema.Number)),
+  popularity: Schema.optional(Schema.NullishOr(Schema.Number)),
+  members: Schema.optional(Schema.NullishOr(Schema.Number)),
+  favorites: Schema.optional(Schema.NullishOr(Schema.Number)),
+  score: Schema.optional(Schema.NullishOr(Schema.Number)),
+  genres: Schema.optional(Schema.NullishOr(Schema.mutable(Schema.Array(Schema.String)))),
+  studios: Schema.optional(Schema.NullishOr(Schema.mutable(Schema.Array(Schema.String)))),
+  cover_image: Schema.optional(Schema.NullishOr(Schema.String)),
+  banner_image: Schema.optional(Schema.NullishOr(Schema.String)),
   status: Schema.String,
-  unit_count: Schema.optional(Schema.Number),
-  start_date: Schema.optional(Schema.String),
-  end_date: Schema.optional(Schema.String),
-  start_year: Schema.optional(Schema.Number),
-  end_year: Schema.optional(Schema.Number),
-  synonyms: Schema.optional(Schema.mutable(Schema.Array(Schema.String))),
-  related_media: Schema.optional(Schema.mutable(Schema.Array(MediaDiscoveryEntrySchema))),
-  recommended_media: Schema.optional(Schema.mutable(Schema.Array(MediaDiscoveryEntrySchema))),
-  next_airing_unit: Schema.optional(NextAiringUnitSchema),
-  season: Schema.optional(MediaSeasonSchema),
-  season_year: Schema.optional(Schema.Number),
+  unit_count: Schema.optional(Schema.NullishOr(Schema.Number)),
+  start_date: Schema.optional(Schema.NullishOr(Schema.String)),
+  end_date: Schema.optional(Schema.NullishOr(Schema.String)),
+  start_year: Schema.optional(Schema.NullishOr(Schema.Number)),
+  end_year: Schema.optional(Schema.NullishOr(Schema.Number)),
+  synonyms: Schema.optional(Schema.NullishOr(Schema.mutable(Schema.Array(Schema.String)))),
+  related_media: Schema.optional(
+    Schema.NullishOr(Schema.mutable(Schema.Array(MediaDiscoveryEntrySchema))),
+  ),
+  recommended_media: Schema.optional(
+    Schema.NullishOr(Schema.mutable(Schema.Array(MediaDiscoveryEntrySchema))),
+  ),
+  next_airing_unit: Schema.optional(Schema.NullishOr(NextAiringUnitSchema)),
+  season: Schema.optional(Schema.NullishOr(MediaSeasonSchema)),
+  season_year: Schema.optional(Schema.NullishOr(Schema.Number)),
   profile_name: Schema.String,
   root_folder: Schema.String,
   added_at: Schema.String,
@@ -176,9 +180,9 @@ export const MediaSchema = Schema.Struct({
 }).mapFields(Struct.map(Schema.mutableKey));
 
 export interface MediaListQueryParams {
-  limit?: number | undefined;
-  offset?: number | undefined;
-  monitored?: boolean | undefined;
+  limit?: number | undefined | null;
+  offset?: number | undefined | null;
+  monitored?: boolean | undefined | null;
 }
 
 export const MediaListQueryParamsSchema = Schema.Struct({
@@ -247,14 +251,14 @@ export interface ReaderPage {
   index: number;
   page_number: number;
   url: string;
-  media_type?: string | undefined;
+  media_type?: string | undefined | null;
 }
 
 export const ReaderPageSchema = Schema.Struct({
   index: Schema.Number,
   page_number: Schema.Number,
   url: Schema.String,
-  media_type: Schema.optional(Schema.String),
+  media_type: Schema.optional(Schema.NullishOr(Schema.String)),
 });
 
 export interface ReaderPagesResponse {
@@ -269,38 +273,40 @@ export interface VideoFile {
   name: string;
   path: string;
   size: number;
-  duration_seconds?: number | undefined;
-  unit_number?: number | undefined;
-  unit_numbers?: number[] | undefined;
-  coverage_summary?: string | undefined;
-  source_identity?: ParsedUnitIdentity | undefined;
-  unit_title?: string | undefined;
-  air_date?: string | undefined;
-  group?: string | undefined;
-  resolution?: string | undefined;
-  quality?: string | undefined;
-  video_codec?: string | undefined;
-  audio_codec?: string | undefined;
-  audio_channels?: string | undefined;
+  duration_seconds?: number | undefined | null;
+  unit_number?: number | undefined | null;
+  unit_numbers?: number[] | undefined | null;
+  coverage_summary?: string | undefined | null;
+  source_identity?: ParsedUnitIdentity | undefined | null;
+  unit_title?: string | undefined | null;
+  air_date?: string | undefined | null;
+  group?: string | undefined | null;
+  resolution?: string | undefined | null;
+  quality?: string | undefined | null;
+  video_codec?: string | undefined | null;
+  audio_codec?: string | undefined | null;
+  audio_channels?: string | undefined | null;
 }
 
 export const VideoFileSchema = Schema.Struct({
   name: Schema.String,
   path: Schema.String,
   size: Schema.Number,
-  duration_seconds: Schema.optional(Schema.Number),
-  unit_number: Schema.optional(Schema.Number),
-  unit_numbers: Schema.optional(Schema.mutable(Schema.Array(Schema.Number))),
-  coverage_summary: Schema.optional(Schema.String),
-  source_identity: Schema.optional(Schema.suspend(() => ParsedUnitIdentitySchema)),
-  unit_title: Schema.optional(Schema.String),
-  air_date: Schema.optional(Schema.String),
-  group: Schema.optional(Schema.String),
-  resolution: Schema.optional(Schema.String),
-  quality: Schema.optional(Schema.String),
-  video_codec: Schema.optional(Schema.String),
-  audio_codec: Schema.optional(Schema.String),
-  audio_channels: Schema.optional(Schema.String),
+  duration_seconds: Schema.optional(Schema.NullishOr(Schema.Number)),
+  unit_number: Schema.optional(Schema.NullishOr(Schema.Number)),
+  unit_numbers: Schema.optional(Schema.NullishOr(Schema.mutable(Schema.Array(Schema.Number)))),
+  coverage_summary: Schema.optional(Schema.NullishOr(Schema.String)),
+  source_identity: Schema.optional(
+    Schema.NullishOr(Schema.suspend(() => ParsedUnitIdentitySchema)),
+  ),
+  unit_title: Schema.optional(Schema.NullishOr(Schema.String)),
+  air_date: Schema.optional(Schema.NullishOr(Schema.String)),
+  group: Schema.optional(Schema.NullishOr(Schema.String)),
+  resolution: Schema.optional(Schema.NullishOr(Schema.String)),
+  quality: Schema.optional(Schema.NullishOr(Schema.String)),
+  video_codec: Schema.optional(Schema.NullishOr(Schema.String)),
+  audio_codec: Schema.optional(Schema.NullishOr(Schema.String)),
+  audio_channels: Schema.optional(Schema.NullishOr(Schema.String)),
 });
 
 export interface CalendarEvent {
@@ -353,7 +359,7 @@ export interface MissingUnit {
   airing_status?: UnitAiringStatus | null | undefined;
   media_image?: string | null | undefined;
   is_future?: boolean | null | undefined;
-  next_airing_unit?: NextAiringUnit | undefined;
+  next_airing_unit?: NextAiringUnit | undefined | null;
 }
 
 export const MissingUnitSchema = Schema.Struct({
@@ -366,5 +372,5 @@ export const MissingUnitSchema = Schema.Struct({
   airing_status: Schema.optional(Schema.NullishOr(UnitAiringStatusSchema)),
   media_image: Schema.optional(Schema.NullishOr(Schema.String)),
   is_future: Schema.optional(Schema.NullishOr(Schema.Boolean)),
-  next_airing_unit: Schema.optional(NextAiringUnitSchema),
+  next_airing_unit: Schema.optional(Schema.NullishOr(NextAiringUnitSchema)),
 });

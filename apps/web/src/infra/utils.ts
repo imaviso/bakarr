@@ -18,7 +18,7 @@ export const copyToClipboard = Effect.fn("Clipboard.copyToClipboard")((text: str
   }),
 );
 
-export function safeExternalUrl(input: string | undefined): string | undefined {
+export function safeExternalUrl(input: string | null | undefined): string | undefined {
   if (!input) return undefined;
 
   const value = input.trim();

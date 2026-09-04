@@ -15,29 +15,29 @@ import {
 
 export function buildDownloadSourceMetadataFromRelease(input: {
   title: string;
-  group?: string;
-  resolution?: string;
+  group?: string | null;
+  resolution?: string | null;
   decisionReason?: string;
   selectionKind?: DownloadSourceMetadata["selection_kind"];
-  selectionScore?: number;
-  previousQuality?: string;
-  previousScore?: number;
-  chosenFromSeadex?: boolean;
-  trusted?: boolean;
-  remake?: boolean;
-  sourceUrl?: string;
-  indexer?: string;
-  isSeadex?: boolean;
-  isSeadexBest?: boolean;
-  seadexReleaseGroup?: string;
-  seadexTags?: readonly string[];
-  seadexNotes?: string;
-  seadexComparison?: string;
-  seadexDualAudio?: boolean;
+  selectionScore?: number | null;
+  previousQuality?: string | null;
+  previousScore?: number | null;
+  chosenFromSeadex?: boolean | null;
+  trusted?: boolean | null;
+  remake?: boolean | null;
+  sourceUrl?: string | null;
+  indexer?: string | null;
+  isSeadex?: boolean | null;
+  isSeadexBest?: boolean | null;
+  seadexReleaseGroup?: string | null;
+  seadexTags?: readonly string[] | null;
+  seadexNotes?: string | null;
+  seadexComparison?: string | null;
+  seadexDualAudio?: boolean | null;
 }): DownloadSourceMetadata {
   const parsed = parseReleaseSourceIdentity(input.title);
   const sourceIdentity = toSharedParsedEpisodeIdentity(parsed.source_identity);
-  const group = normalizeText(input.group) ?? parsed.group;
+  const group = normalizeText(input.group ?? undefined) ?? parsed.group;
 
   return {
     air_date:
@@ -77,6 +77,13 @@ export function buildDownloadSourceMetadataFromRelease(input: {
   };
 }
 
+function pickOverride<T>(
+  overrideValue: T | null | undefined,
+  baseValue: T | null | undefined,
+): T | undefined {
+  return overrideValue ?? baseValue ?? undefined;
+}
+
 export function mergeDownloadSourceMetadata(
   base: DownloadSourceMetadata,
   override?: DownloadSourceMetadata,
@@ -87,7 +94,7 @@ export function mergeDownloadSourceMetadata(
     return {
       ...base,
       seadex_tags: base.seadex_tags ? [...base.seadex_tags] : undefined,
-      source_identity: toSharedParsedEpisodeIdentity(base.source_identity),
+      source_identity: toSharedParsedEpisodeIdentity(base.source_identity ?? undefined),
     };
   }
 
@@ -116,7 +123,7 @@ export function mergeDownloadSourceMetadata(
     seadex_release_group: pickOverride(override.seadex_release_group, base.seadex_release_group),
     seadex_tags: seadexTags ? [...seadexTags] : undefined,
     source_identity: toSharedParsedEpisodeIdentity(
-      override.source_identity ?? base.source_identity,
+      override.source_identity ?? base.source_identity ?? undefined,
     ),
     source_url: pickOverride(override.source_url, base.source_url),
     trusted: pickOverride(override.trusted, base.trusted),
@@ -125,7 +132,7 @@ export function mergeDownloadSourceMetadata(
 }
 
 export function buildDownloadSelectionMetadata(
-  action: DownloadAction | undefined,
+  action: DownloadAction | null | undefined,
 ): Pick<
   DownloadSourceMetadata,
   | "selection_kind"
@@ -155,10 +162,6 @@ export function buildDownloadSelectionMetadata(
   return {};
 }
 
-function pickOverride<T>(override: T | undefined, base: T | undefined): T | undefined {
-  return override !== undefined ? override : base;
-}
-
-function normalizeFiniteNumber(value: number | undefined) {
+function normalizeFiniteNumber(value: number | null | undefined) {
   return typeof value === "number" && globalThis.Number.isFinite(value) ? value : undefined;
 }

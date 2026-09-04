@@ -10,7 +10,7 @@ import {
   getSourceIdentitySeason,
   toSharedParsedEpisodeIdentity,
 } from "@/features/media/identity/identity.ts";
-import type { ProbedMediaMetadata } from "@/infra/media/probe.ts";
+import type { NullableProbedMediaMetadata } from "@/infra/media/probe.ts";
 import {
   buildEpisodeNamingInputFromPath,
   selectMediaYearForNaming,
@@ -35,10 +35,10 @@ export function buildCanonicalEpisodeNamingInput(input: {
   unitNumbers: readonly number[];
   filePath: string;
   rootFolder?: string;
-  season?: number;
+  season?: number | null;
   episodeRows?: readonly { title?: string | null; aired?: string | null }[];
   downloadSourceMetadata?: DownloadSourceMetadata;
-  localMediaMetadata?: ProbedMediaMetadata;
+  localMediaMetadata?: NullableProbedMediaMetadata;
 }): CanonicalEpisodeNamingInput {
   const warnings = deriveCanonicalInputWarnings(input.unitNumbers, input.episodeRows);
   const pathInput = buildEpisodeNamingInputFromPath({
@@ -67,25 +67,29 @@ export function buildCanonicalEpisodeNamingInput(input: {
       audioChannels:
         normalizeText(input.downloadSourceMetadata?.audio_channels) ??
         pathInput.audioChannels ??
-        input.localMediaMetadata?.audio_channels,
+        input.localMediaMetadata?.audio_channels ??
+        undefined,
       audioCodec:
         normalizeText(input.downloadSourceMetadata?.audio_codec) ??
         pathInput.audioCodec ??
-        input.localMediaMetadata?.audio_codec,
+        input.localMediaMetadata?.audio_codec ??
+        undefined,
       unitTitle: explicitEpisodeTitle ?? pathInput.unitTitle,
       group: normalizeText(input.downloadSourceMetadata?.group) ?? pathInput.group,
       quality: normalizeText(input.downloadSourceMetadata?.quality) ?? pathInput.quality,
       resolution:
         normalizeText(input.downloadSourceMetadata?.resolution) ??
         pathInput.resolution ??
-        input.localMediaMetadata?.resolution,
+        input.localMediaMetadata?.resolution ??
+        undefined,
       season: seasonFromMetadata(input.downloadSourceMetadata) ?? pathInput.season,
       sourceIdentity:
         sourceIdentityFromMetadata(input.downloadSourceMetadata) ?? pathInput.sourceIdentity,
       videoCodec:
         normalizeText(input.downloadSourceMetadata?.video_codec) ??
         pathInput.videoCodec ??
-        input.localMediaMetadata?.video_codec,
+        input.localMediaMetadata?.video_codec ??
+        undefined,
       year: selectMediaYearForNaming({
         ...(input.animeEndDate === undefined ? {} : { endDate: input.animeEndDate }),
         ...(input.animeEndYear === undefined ? {} : { endYear: input.animeEndYear }),
@@ -113,10 +117,10 @@ export function buildUnitFilenamePlan(input: {
   filePath: string;
   namingFormat?: string;
   preferredTitle: PreferredTitle;
-  season?: number;
+  season?: number | null;
   episodeRows?: readonly { title?: string | null; aired?: string | null }[];
   downloadSourceMetadata?: DownloadSourceMetadata;
-  localMediaMetadata?: ProbedMediaMetadata;
+  localMediaMetadata?: NullableProbedMediaMetadata;
 }): UnitFilenamePlan {
   const titleSelection = selectMediaTitleForNamingDetails(input.animeRow, input.preferredTitle);
   const canonical = buildCanonicalEpisodeNamingInput({

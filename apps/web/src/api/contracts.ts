@@ -26,9 +26,9 @@ export type {
 } from "@bakarr/shared";
 
 export type ImportFileRequest = Pick<ImportedFile, "media_id" | "unit_number" | "source_path"> & {
-  season?: number | undefined;
-  unit_numbers?: number[] | undefined;
-  source_metadata?: DownloadSourceMetadata | undefined;
+  season?: number | null | undefined;
+  unit_numbers?: number[] | null | undefined;
+  source_metadata?: DownloadSourceMetadata | null | undefined;
 };
 
 export type ReleaseProfileCreateRequest = Pick<ReleaseProfile, "is_global" | "name" | "rules">;
@@ -57,7 +57,7 @@ export interface BulkUnmappedFolderControlRequest {
 
 export interface AddAnimeRequest {
   id: number;
-  media_kind?: MediaKind;
+  media_kind?: MediaKind | null;
   profile_name: string;
   root_folder: string;
   monitor_and_search: boolean;

@@ -234,7 +234,9 @@ function mergeStringGroups(
   return values.length > 0 ? values : undefined;
 }
 
-function normalizeStringList(values: ReadonlyArray<string | undefined> | undefined): string[] {
+function normalizeStringList(
+  values: ReadonlyArray<string | null | undefined> | null | undefined,
+): string[] {
   const output: string[] = [];
   const seen = new Set<string>();
 
@@ -251,7 +253,7 @@ function normalizeStringList(values: ReadonlyArray<string | undefined> | undefin
   return output;
 }
 
-function pickFirst(...values: ReadonlyArray<string | undefined>) {
+function pickFirst(...values: ReadonlyArray<string | null | undefined>) {
   for (const value of values) {
     const normalized = normalizeString(value);
     if (normalized) {
@@ -284,8 +286,8 @@ function fillFormat(primary: string, fallback?: string) {
   return fillRequiredString(primary, fallback);
 }
 
-function normalizeString(value: string | undefined) {
-  if (value === undefined) {
+function normalizeString(value: string | null | undefined) {
+  if (value === undefined || value === null) {
     return undefined;
   }
 

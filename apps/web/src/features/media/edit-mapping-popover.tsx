@@ -21,7 +21,7 @@ const EditMappingSchema = Schema.Struct({
 });
 
 interface EditMappingPopoverProps {
-  season?: number | null;
+  season?: number | null | undefined;
   episode: number;
   disabled?: boolean;
   onSave: (season: number, episode: number) => void;

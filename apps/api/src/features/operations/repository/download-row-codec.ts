@@ -75,7 +75,7 @@ function cloneDownloadSourceMetadata(value: DownloadSourceMetadata): DownloadSou
   return {
     ...value,
     ...(value.seadex_tags ? { seadex_tags: [...value.seadex_tags] } : {}),
-    source_identity: toSharedParsedEpisodeIdentity(value.source_identity),
+    source_identity: toSharedParsedEpisodeIdentity(value.source_identity ?? undefined),
   };
 }
 

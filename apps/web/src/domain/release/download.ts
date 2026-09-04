@@ -1,9 +1,9 @@
 import type { DownloadSourceMetadata, ParsedUnitIdentity } from "@/api/contracts";
 
 interface ParsedIdentityInput {
-  parsedAirDate?: string | undefined;
-  parsedEpisodeLabel?: string | undefined;
-  parsedEpisodeNumbers?: number[] | undefined;
+  parsedAirDate?: string | null | undefined;
+  parsedEpisodeLabel?: string | null | undefined;
+  parsedEpisodeNumbers?: number[] | null | undefined;
 }
 
 export function buildParsedEpisodeIdentity(

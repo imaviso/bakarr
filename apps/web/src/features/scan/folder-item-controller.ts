@@ -113,7 +113,7 @@ export function buildAddMediaRequestFromFolderMatch(
 ): AddAnimeRequest {
   return {
     id: media.id,
-    ...(media.media_kind === undefined ? {} : { media_kind: media.media_kind }),
+    ...(media.media_kind == null ? {} : { media_kind: media.media_kind }),
     monitor_and_search: false,
     monitored: true,
     profile_name: profileName,

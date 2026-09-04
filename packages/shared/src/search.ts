@@ -5,57 +5,57 @@ import { StringListSchema } from "./config.ts";
 import { DownloadActionSchema, type DownloadAction } from "./download-action.ts";
 
 export interface SearchDownloadReleaseContext {
-  group?: string | undefined;
-  indexer?: string | undefined;
-  info_hash?: string | undefined;
-  parsed_resolution?: string | undefined;
-  trusted?: boolean | undefined;
-  remake?: boolean | undefined;
-  source_url?: string | undefined;
-  is_seadex?: boolean | undefined;
-  is_seadex_best?: boolean | undefined;
-  seadex_release_group?: string | undefined;
-  seadex_tags?: string[] | undefined;
-  seadex_notes?: string | undefined;
-  seadex_comparison?: string | undefined;
-  seadex_dual_audio?: boolean | undefined;
-  download_action?: DownloadAction | undefined;
+  group?: string | undefined | null;
+  indexer?: string | undefined | null;
+  info_hash?: string | undefined | null;
+  parsed_resolution?: string | undefined | null;
+  trusted?: boolean | undefined | null;
+  remake?: boolean | undefined | null;
+  source_url?: string | undefined | null;
+  is_seadex?: boolean | undefined | null;
+  is_seadex_best?: boolean | undefined | null;
+  seadex_release_group?: string | undefined | null;
+  seadex_tags?: string[] | undefined | null;
+  seadex_notes?: string | undefined | null;
+  seadex_comparison?: string | undefined | null;
+  seadex_dual_audio?: boolean | undefined | null;
+  download_action?: DownloadAction | undefined | null;
 }
 
 export const SearchDownloadReleaseContextSchema = Schema.Struct({
-  group: Schema.optional(Schema.String),
-  indexer: Schema.optional(Schema.String),
-  info_hash: Schema.optional(Schema.String),
-  parsed_resolution: Schema.optional(Schema.String),
-  trusted: Schema.optional(Schema.Boolean),
-  remake: Schema.optional(Schema.Boolean),
-  source_url: Schema.optional(Schema.String),
-  is_seadex: Schema.optional(Schema.Boolean),
-  is_seadex_best: Schema.optional(Schema.Boolean),
-  seadex_release_group: Schema.optional(Schema.String),
-  seadex_tags: Schema.optional(Schema.mutable(Schema.Array(Schema.String))),
-  seadex_notes: Schema.optional(Schema.String),
-  seadex_comparison: Schema.optional(Schema.String),
-  seadex_dual_audio: Schema.optional(Schema.Boolean),
-  download_action: Schema.optional(DownloadActionSchema),
+  group: Schema.optional(Schema.NullishOr(Schema.String)),
+  indexer: Schema.optional(Schema.NullishOr(Schema.String)),
+  info_hash: Schema.optional(Schema.NullishOr(Schema.String)),
+  parsed_resolution: Schema.optional(Schema.NullishOr(Schema.String)),
+  trusted: Schema.optional(Schema.NullishOr(Schema.Boolean)),
+  remake: Schema.optional(Schema.NullishOr(Schema.Boolean)),
+  source_url: Schema.optional(Schema.NullishOr(Schema.String)),
+  is_seadex: Schema.optional(Schema.NullishOr(Schema.Boolean)),
+  is_seadex_best: Schema.optional(Schema.NullishOr(Schema.Boolean)),
+  seadex_release_group: Schema.optional(Schema.NullishOr(Schema.String)),
+  seadex_tags: Schema.optional(Schema.NullishOr(Schema.mutable(Schema.Array(Schema.String)))),
+  seadex_notes: Schema.optional(Schema.NullishOr(Schema.String)),
+  seadex_comparison: Schema.optional(Schema.NullishOr(Schema.String)),
+  seadex_dual_audio: Schema.optional(Schema.NullishOr(Schema.Boolean)),
+  download_action: Schema.optional(Schema.NullishOr(DownloadActionSchema)),
 });
 
 export interface SearchDownloadRequest {
   media_id: MediaId;
   magnet: string;
   title: string;
-  unit_number?: number | undefined;
-  is_batch?: boolean | undefined;
-  release_context?: SearchDownloadReleaseContext | undefined;
+  unit_number?: number | undefined | null;
+  is_batch?: boolean | undefined | null;
+  release_context?: SearchDownloadReleaseContext | undefined | null;
 }
 
 export const SearchDownloadRequestSchema = Schema.Struct({
   media_id: MediaIdSchema,
   magnet: Schema.String,
   title: Schema.String,
-  unit_number: Schema.optional(Schema.Number),
-  is_batch: Schema.optional(Schema.Boolean),
-  release_context: Schema.optional(SearchDownloadReleaseContextSchema),
+  unit_number: Schema.optional(Schema.NullishOr(Schema.Number)),
+  is_batch: Schema.optional(Schema.NullishOr(Schema.Boolean)),
+  release_context: Schema.optional(Schema.NullishOr(SearchDownloadReleaseContextSchema)),
 });
 
 export interface NyaaSearchResult {
@@ -68,21 +68,21 @@ export interface NyaaSearchResult {
   leechers: number;
   pub_date: string;
   view_url: string;
-  parsed_unit?: string | undefined;
-  parsed_group?: string | undefined;
-  parsed_quality?: string | undefined;
-  parsed_resolution?: string | undefined;
-  parsed_unit_label?: string | undefined;
-  parsed_unit_numbers?: number[] | undefined;
-  parsed_air_date?: string | undefined;
+  parsed_unit?: string | undefined | null;
+  parsed_group?: string | undefined | null;
+  parsed_quality?: string | undefined | null;
+  parsed_resolution?: string | undefined | null;
+  parsed_unit_label?: string | undefined | null;
+  parsed_unit_numbers?: number[] | undefined | null;
+  parsed_air_date?: string | undefined | null;
   trusted: boolean;
   is_seadex: boolean;
   is_seadex_best: boolean;
-  seadex_release_group?: string | undefined;
-  seadex_tags?: string[] | undefined;
-  seadex_notes?: string | undefined;
-  seadex_comparison?: string | undefined;
-  seadex_dual_audio?: boolean | undefined;
+  seadex_release_group?: string | undefined | null;
+  seadex_tags?: string[] | undefined | null;
+  seadex_notes?: string | undefined | null;
+  seadex_comparison?: string | undefined | null;
+  seadex_dual_audio?: boolean | undefined | null;
   remake: boolean;
 }
 
@@ -96,26 +96,28 @@ export const NyaaSearchResultSchema = Schema.Struct({
   leechers: Schema.Number,
   pub_date: Schema.String,
   view_url: Schema.String,
-  parsed_unit: Schema.optional(Schema.String),
-  parsed_group: Schema.optional(Schema.String),
-  parsed_quality: Schema.optional(Schema.String),
-  parsed_resolution: Schema.optional(Schema.String),
-  parsed_unit_label: Schema.optional(Schema.String),
-  parsed_unit_numbers: Schema.optional(Schema.mutable(Schema.Array(Schema.Number))),
-  parsed_air_date: Schema.optional(Schema.String),
+  parsed_unit: Schema.optional(Schema.NullishOr(Schema.String)),
+  parsed_group: Schema.optional(Schema.NullishOr(Schema.String)),
+  parsed_quality: Schema.optional(Schema.NullishOr(Schema.String)),
+  parsed_resolution: Schema.optional(Schema.NullishOr(Schema.String)),
+  parsed_unit_label: Schema.optional(Schema.NullishOr(Schema.String)),
+  parsed_unit_numbers: Schema.optional(
+    Schema.NullishOr(Schema.mutable(Schema.Array(Schema.Number))),
+  ),
+  parsed_air_date: Schema.optional(Schema.NullishOr(Schema.String)),
   trusted: Schema.Boolean,
   is_seadex: Schema.Boolean,
   is_seadex_best: Schema.Boolean,
-  seadex_release_group: Schema.optional(Schema.String),
-  seadex_tags: Schema.optional(Schema.mutable(Schema.Array(Schema.String))),
-  seadex_notes: Schema.optional(Schema.String),
-  seadex_comparison: Schema.optional(Schema.String),
-  seadex_dual_audio: Schema.optional(Schema.Boolean),
+  seadex_release_group: Schema.optional(Schema.NullishOr(Schema.String)),
+  seadex_tags: Schema.optional(Schema.NullishOr(Schema.mutable(Schema.Array(Schema.String)))),
+  seadex_notes: Schema.optional(Schema.NullishOr(Schema.String)),
+  seadex_comparison: Schema.optional(Schema.NullishOr(Schema.String)),
+  seadex_dual_audio: Schema.optional(Schema.NullishOr(Schema.Boolean)),
   remake: Schema.Boolean,
 });
 
 export interface UnitSearchResult {
-  unit_kind?: MediaUnitKind | undefined;
+  unit_kind?: MediaUnitKind | undefined | null;
   title: string;
   indexer: string;
   link: string;
@@ -126,25 +128,25 @@ export interface UnitSearchResult {
   publish_date: string;
   download_action: DownloadAction;
   quality: string;
-  group?: string | undefined;
-  parsed_resolution?: string | undefined;
-  parsed_unit_label?: string | undefined;
-  parsed_unit_numbers?: number[] | undefined;
-  parsed_air_date?: string | undefined;
-  trusted?: boolean | undefined;
-  remake?: boolean | undefined;
-  view_url?: string | undefined;
-  is_seadex?: boolean | undefined;
-  is_seadex_best?: boolean | undefined;
-  seadex_release_group?: string | undefined;
-  seadex_comparison?: string | undefined;
-  seadex_dual_audio?: boolean | undefined;
-  seadex_tags?: string[] | undefined;
-  seadex_notes?: string | undefined;
+  group?: string | undefined | null;
+  parsed_resolution?: string | undefined | null;
+  parsed_unit_label?: string | undefined | null;
+  parsed_unit_numbers?: number[] | undefined | null;
+  parsed_air_date?: string | undefined | null;
+  trusted?: boolean | undefined | null;
+  remake?: boolean | undefined | null;
+  view_url?: string | undefined | null;
+  is_seadex?: boolean | undefined | null;
+  is_seadex_best?: boolean | undefined | null;
+  seadex_release_group?: string | undefined | null;
+  seadex_comparison?: string | undefined | null;
+  seadex_dual_audio?: boolean | undefined | null;
+  seadex_tags?: string[] | undefined | null;
+  seadex_notes?: string | undefined | null;
 }
 
 export const UnitSearchResultSchema = Schema.Struct({
-  unit_kind: Schema.optional(MediaUnitKindSchema),
+  unit_kind: Schema.optional(Schema.NullishOr(MediaUnitKindSchema)),
   title: Schema.String,
   indexer: Schema.String,
   link: Schema.String,
@@ -155,21 +157,23 @@ export const UnitSearchResultSchema = Schema.Struct({
   publish_date: Schema.String,
   download_action: DownloadActionSchema,
   quality: Schema.String,
-  group: Schema.optional(Schema.String),
-  parsed_resolution: Schema.optional(Schema.String),
-  parsed_unit_label: Schema.optional(Schema.String),
-  parsed_unit_numbers: Schema.optional(Schema.mutable(Schema.Array(Schema.Number))),
-  parsed_air_date: Schema.optional(Schema.String),
-  trusted: Schema.optional(Schema.Boolean),
-  remake: Schema.optional(Schema.Boolean),
-  view_url: Schema.optional(Schema.String),
-  is_seadex: Schema.optional(Schema.Boolean),
-  is_seadex_best: Schema.optional(Schema.Boolean),
-  seadex_release_group: Schema.optional(Schema.String),
-  seadex_comparison: Schema.optional(Schema.String),
-  seadex_dual_audio: Schema.optional(Schema.Boolean),
-  seadex_tags: Schema.optional(Schema.mutable(Schema.Array(Schema.String))),
-  seadex_notes: Schema.optional(Schema.String),
+  group: Schema.optional(Schema.NullishOr(Schema.String)),
+  parsed_resolution: Schema.optional(Schema.NullishOr(Schema.String)),
+  parsed_unit_label: Schema.optional(Schema.NullishOr(Schema.String)),
+  parsed_unit_numbers: Schema.optional(
+    Schema.NullishOr(Schema.mutable(Schema.Array(Schema.Number))),
+  ),
+  parsed_air_date: Schema.optional(Schema.NullishOr(Schema.String)),
+  trusted: Schema.optional(Schema.NullishOr(Schema.Boolean)),
+  remake: Schema.optional(Schema.NullishOr(Schema.Boolean)),
+  view_url: Schema.optional(Schema.NullishOr(Schema.String)),
+  is_seadex: Schema.optional(Schema.NullishOr(Schema.Boolean)),
+  is_seadex_best: Schema.optional(Schema.NullishOr(Schema.Boolean)),
+  seadex_release_group: Schema.optional(Schema.NullishOr(Schema.String)),
+  seadex_comparison: Schema.optional(Schema.NullishOr(Schema.String)),
+  seadex_dual_audio: Schema.optional(Schema.NullishOr(Schema.Boolean)),
+  seadex_tags: Schema.optional(Schema.NullishOr(Schema.mutable(Schema.Array(Schema.String)))),
+  seadex_notes: Schema.optional(Schema.NullishOr(Schema.String)),
 });
 
 export interface SearchResults {

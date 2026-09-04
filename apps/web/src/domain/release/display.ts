@@ -14,17 +14,17 @@ import {
 import { selectionMetadataFromNyaaResult } from "@/domain/release/grab";
 
 interface ReleaseDisplayInput {
-  group?: string | undefined;
-  indexer?: string | undefined;
-  is_seadex?: boolean | undefined;
-  is_seadex_best?: boolean | undefined;
-  parsed_air_date?: string | undefined;
-  parsed_unit_label?: string | undefined;
-  quality?: string | undefined;
-  remake?: boolean | undefined;
-  resolution?: string | undefined;
-  seadex_dual_audio?: boolean | undefined;
-  trusted?: boolean | undefined;
+  group?: string | null | undefined;
+  indexer?: string | null | undefined;
+  is_seadex?: boolean | null | undefined;
+  is_seadex_best?: boolean | null | undefined;
+  parsed_air_date?: string | null | undefined;
+  parsed_unit_label?: string | null | undefined;
+  quality?: string | null | undefined;
+  remake?: boolean | null | undefined;
+  resolution?: string | null | undefined;
+  seadex_dual_audio?: boolean | null | undefined;
+  trusted?: boolean | null | undefined;
 }
 
 export function buildReleaseDisplay(input: ReleaseDisplayInput) {
