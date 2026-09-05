@@ -122,7 +122,9 @@ it("ConfigSchema rejects malformed config fields with localized paths", () => {
     // v4 default formatter only details the first issue; use the standard
     // schema formatter to see every failing path.
     const issues = SchemaIssue.makeFormatterStandardSchemaV1()(result.failure.issue).issues;
-    const paths = issues.map((issue) => (issue.path ?? []).map((p) => String(p)).join("."));
+    const paths = issues.map((issue) =>
+      (issue.path ?? []).map((p) => globalThis.String(p)).join("."),
+    );
     assert.ok(paths.some((p) => p === "library.import_mode"));
     assert.ok(paths.some((p) => p === "library.preferred_title"));
   }

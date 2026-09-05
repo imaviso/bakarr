@@ -1,4 +1,5 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
+import { type FormEvent } from "react";
 import { toast } from "sonner";
 import { SystemSettingsAutomationSections } from "@/features/settings/system-settings-automation-sections";
 import { useSystemSettingsForm } from "@/features/settings/system-settings-form-hook";
@@ -14,6 +15,7 @@ import {
   useTriggerScanMutation,
   useUpdateSystemConfigMutation,
 } from "@/api/system-config";
+import { errorMessage } from "@/api/effect/errors";
 import type { Config } from "@/api/contracts";
 
 export function GeneralSettingsForm(props: { activeMode: ConfigSettingsMode }) {
@@ -28,6 +30,9 @@ export function GeneralSettingsForm(props: { activeMode: ConfigSettingsMode }) {
         updateConfig.mutate(values, {
           onSuccess: () => {
             toast.success("Settings saved");
+          },
+          onError: (error) => {
+            toast.error(errorMessage(error, "Failed to save settings"));
           },
         });
       }}
@@ -73,8 +78,10 @@ function SystemForm(props: {
     triggerMetadataRefresh.mutate(undefined);
   };
 
-  const submitSystemSettingsForm = async () => {
-    await form.handleSubmit();
+  const submitSystemSettingsForm = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    void form.handleSubmit();
   };
 
   return (

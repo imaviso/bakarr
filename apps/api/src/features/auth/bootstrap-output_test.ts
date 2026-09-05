@@ -15,9 +15,14 @@ it.effect("announceBootstrapCredentials logs a fallback message when terminal di
     });
 
     // Force the TTY branch: the source gates on process.stdout.isTTY.
-    const stdoutWithTty = process.stdout as NodeJS.WriteStream & { isTTY: boolean };
-    const originalIsTTY = Object.getOwnPropertyDescriptor(stdoutWithTty, "isTTY");
-    Object.defineProperty(stdoutWithTty, "isTTY", { value: true, configurable: true });
+    const stdoutWithTty: NodeJS.WriteStream & { isTTY: boolean } = Object.assign(
+      Object.create(Object.getPrototypeOf(process.stdout)),
+      process.stdout,
+      { isTTY: true },
+    );
+    const stdoutDescriptor = Object.getOwnPropertyDescriptor(process, "stdout");
+    const originalStdout = process.stdout;
+    Object.defineProperty(process, "stdout", { value: stdoutWithTty, configurable: true });
 
     yield* announceBootstrapCredentials({
       outputDir: "/unused",
@@ -36,10 +41,15 @@ it.effect("announceBootstrapCredentials logs a fallback message when terminal di
       Effect.provide(Logger.layer([logger])),
       Effect.ensuring(
         Effect.sync(() => {
-          if (originalIsTTY) {
-            Object.defineProperty(stdoutWithTty, "isTTY", originalIsTTY);
+          if (stdoutDescriptor) {
+            Object.defineProperty(process, "stdout", stdoutDescriptor);
           } else {
-            delete (stdoutWithTty as { isTTY?: boolean }).isTTY;
+            Object.defineProperty(process, "stdout", {
+              configurable: true,
+              enumerable: true,
+              value: originalStdout,
+              writable: true,
+            });
           }
         }),
       ),

@@ -53,7 +53,7 @@ export const executeProviderRequest = (
   );
 
 export interface ProviderJsonCallInput<A, I> extends ProviderHttpRequestInput {
-  readonly schema: Schema.Codec<A, I, never, unknown>;
+  readonly schema: Schema.Codec<A, I>;
 }
 
 export const callProviderJson = <A, I>(

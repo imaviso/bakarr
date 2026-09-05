@@ -472,7 +472,7 @@ const finalizeDownloadImport = Effect.fn("DownloadRepository.finalizeDownloadImp
         .prepare()
         .effect();
       if (updated.length === 0) {
-        return yield* new DatabaseError({
+        yield* new DatabaseError({
           cause: new Error(
             `Download ${input.downloadId} finalize failed: claim token mismatch or already finalized`,
           ),
@@ -898,14 +898,13 @@ const markDownloadReconciled = Effect.fn("DownloadRepository.markDownloadReconci
           .prepare()
           .effect();
         if (updated.length === 0) {
-          return yield* new DatabaseError({
+          yield* new DatabaseError({
             cause: new Error(
               `Download ${input.downloadId} mark reconciled failed: claim token mismatch`,
             ),
             message: "Failed to reconcile completed download",
           });
         }
-        return;
       }
       yield* db
         .update(downloads)

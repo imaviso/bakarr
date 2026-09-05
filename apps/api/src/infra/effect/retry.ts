@@ -10,6 +10,7 @@ import {
   Schema,
   Scope,
   Semaphore,
+  Result,
 } from "effect";
 
 import { PositiveIntFromStringSchema } from "@/infra/schema.ts";
@@ -209,7 +210,7 @@ export const makeExternalCall = Effect.fn("ExternalCall.makeExternalCall")(funct
         // under TestClock that sleep would block the fiber forever.
         const runAttemptWithRetries = (
           index: number,
-        ): Effect.Effect<unknown, unknown, Exclude<R, Scope.Scope>> =>
+        ): Effect.Effect<A, ExternalCallError, Exclude<R, Scope.Scope>> =>
           performAttempt.pipe(
             Effect.catch((error) => {
               if (!isRetryable(error) || index >= policy.retryDelaysMs.length) {
@@ -229,8 +230,8 @@ export const makeExternalCall = Effect.fn("ExternalCall.makeExternalCall")(funct
           );
 
         const retryableAttempt: Effect.Effect<
-          unknown,
-          unknown,
+          A,
+          ExternalCallError,
           Exclude<R, Scope.Scope>
         > = allowRetry ? runAttemptWithRetries(0) : performAttempt;
 
@@ -243,12 +244,15 @@ export const makeExternalCall = Effect.fn("ExternalCall.makeExternalCall")(funct
               maxAttempts,
             }),
           );
-          return exit.value as A;
+          return exit.value;
         }
 
         // Errors escaping the loop are already ExternalCallError (attempt
-        // mapping normalizes them); squash for the typed error channel.
-        const failure = Cause.squash(exit.cause) as ExternalCallError;
+        // mapping normalizes them); extract it for the typed error channel.
+        const failureResult = Cause.findError(exit.cause);
+        const failure = Result.isSuccess(failureResult)
+          ? failureResult.success
+          : toExternalCallError(operation, Cause.squash(exit.cause), options?.provider);
 
         yield* Effect.logError("external call failed").pipe(
           Effect.annotateLogs(

@@ -4,9 +4,7 @@ export interface DownloadStatusPresentation {
   tone: "destructive" | "info" | "muted" | "success" | "warning";
 }
 
-export function getDownloadStatusPresentation(
-  status?: string | null | undefined,
-): DownloadStatusPresentation {
+export function getDownloadStatusPresentation(status?: string | null): DownloadStatusPresentation {
   const normalized = status?.toLowerCase();
 
   switch (normalized) {

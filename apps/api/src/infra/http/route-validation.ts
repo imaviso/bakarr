@@ -18,7 +18,7 @@ export function formatValidationErrorMessage(message: string, error: unknown) {
       const details = issues
         .slice(0, 3)
         .map((issue) => {
-          const path = issue.path ?? [];
+          const path = (issue.path ?? []).map((segment) => globalThis.String(segment));
           return `${path.length > 0 ? path.join(".") : "input"}: ${issue.message}`;
         })
         .join("; ");

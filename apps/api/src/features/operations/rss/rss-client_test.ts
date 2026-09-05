@@ -108,7 +108,7 @@ it.effect("RssClient uses provided transport for feed fetches", () =>
         isSeaDex: false,
         isSeaDexBest: false,
         leechers: 12,
-        magnet: `${"magnet:?xt=urn:btih:abcdef0123456789abcdef0123456789abcdef01"}&dn=%5BSubsPlease%5D%20Example%20Show%20-%2001%20(1080p)%20%5BSeaDex%5D${NYAA_TRACKER_SUFFIX}`,
+        magnet: `magnet:?xt=urn:btih:abcdef0123456789abcdef0123456789abcdef01&dn=%5BSubsPlease%5D%20Example%20Show%20-%2001%20(1080p)%20%5BSeaDex%5D${NYAA_TRACKER_SUFFIX}`,
         pubDate: "Mon, 01 Jan 2024 12:00:00 GMT",
         remake: false,
         resolution: "1080p",

@@ -67,5 +67,5 @@ export function runFfprobeCommandWith(
   args: readonly string[],
   timeoutMs: number,
 ) {
-  return runFfprobeCommand(executor.string, args, timeoutMs);
+  return runFfprobeCommand((command) => executor.string(command), args, timeoutMs);
 }
