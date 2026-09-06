@@ -13,7 +13,12 @@ import { ImportFileError } from "@/features/operations/download/download-file-im
 import type { FileSystemError } from "@/infra/filesystem/filesystem.ts";
 import { isCrossFilesystemError, isNotFoundError } from "@/infra/filesystem/fs-errors.ts";
 import { isWithinPathRoot, type FileSystemShape } from "@/infra/filesystem/filesystem.ts";
-import { pathExtension } from "@/infra/path.ts";
+import { pathBasename, pathExtension } from "@/infra/path.ts";
+import {
+  MAX_FILENAME_BYTES,
+  STAGING_SUFFIX_RESERVE_BYTES,
+  truncateFilenameToByteLimit,
+} from "@/infra/filesystem/path-policy.ts";
 import {
   probeMediaMetadataOrUndefined,
   type MediaProbeShape,
@@ -71,7 +76,14 @@ export const buildLibraryFileWritePlan = Effect.fn("Operations.buildLibraryFileW
       }
     }
 
-    const filename = `${namingPlan.baseName}${extension}`;
+    // The composed name can still exceed the filesystem's 255-byte component
+    // limit even when each token fits individually (long romaji titles ×
+    // multiple tokens). Truncate the base name, keeping the extension.
+    const baseName = truncateFilenameToByteLimit(
+      namingPlan.baseName,
+      MAX_FILENAME_BYTES - Buffer.byteLength(extension, "utf8"),
+    );
+    const filename = `${baseName}${extension}`;
     const destination = `${input.animeRow.rootFolder.replace(/\/$/, "")}/${filename}`;
 
     if (!isWithinPathRoot(destination, input.animeRow.rootFolder)) {
@@ -191,8 +203,20 @@ export const writeImportedFileAtomically = Effect.fn("Operations.writeImportedFi
     readonly randomUuid: () => Effect.Effect<string>;
     readonly sourcePath: string;
   }) {
-    const tempDestination = `${input.destination}.tmp.${yield* input.randomUuid()}`;
-    const backupDestination = `${input.destination}.bak.${yield* input.randomUuid()}`;
+    // The rendered destination can itself sit near the filesystem's 255-byte
+    // component limit; appending `.tmp.<uuid>` (41 bytes) would overflow it and
+    // fail every copy with ENAMETOOLONG. Shorten the staging suffix when the
+    // base name is long — the uuid is only needed to avoid collisions, so a
+    // short slice is enough.
+    const suffix = yield* input.randomUuid();
+    const destinationName = pathBasename(input.destination);
+    const stagingId =
+      Buffer.byteLength(destinationName, "utf8") + 5 + 36 >
+      255 - STAGING_SUFFIX_RESERVE_BYTES
+        ? suffix.slice(0, 8)
+        : suffix;
+    const tempDestination = `${input.destination}.tmp.${stagingId}`;
+    const backupDestination = `${input.destination}.bak.${stagingId}`;
 
     yield* input.fs.mkdir(input.destinationRoot, { recursive: true });
     yield* Effect.acquireUseRelease(

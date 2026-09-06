@@ -17,6 +17,9 @@ import { MediaProbeFailure, runFfprobeCommandWith } from "@/infra/media/probe-co
 const FFPROBE_VERSION_TIMEOUT_MS = 3_000;
 const FFPROBE_PROBE_TIMEOUT_MS = 10_000;
 
+const VIDEO_FILE_EXTENSION_PATTERN =
+  /\.(mkv|mp4|m4v|avi|mov|wmv|flv|webm|mpg|mpeg|ts|m2ts|mts|ogm|rmvb|vob|3gp)$/i;
+
 export const FFPROBE_CONCURRENCY_LIMIT = 2;
 
 export const ProbedMediaMetadataSchema = Schema.Struct({
@@ -376,6 +379,12 @@ const makeMediaProbe = (
   executor: CommandExecutor.ChildProcessSpawner["Service"],
 ): MediaProbeShape => {
   const probeVideoFile = Effect.fn("MediaProbe.probeVideoFile")(function* (path: string) {
+    // Archive/epub/epub-adjacent downloads (manga volumes etc.) are not media
+    // files; ffprobe on them always fails and spams the log.
+    if (!VIDEO_FILE_EXTENSION_PATTERN.test(path)) {
+      return new MediaProbeNoMetadata();
+    }
+
     const output = yield* ffprobeSemaphore.withPermits(1)(
       runFfprobeCommandWith(
         executor,

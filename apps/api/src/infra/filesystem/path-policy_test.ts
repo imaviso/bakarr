@@ -29,7 +29,15 @@ it("sanitizeFilename preserves safe characters", () => {
 it("sanitizeFilename caps the rendered name under the 255-byte component limit", () => {
   const longTitle = "S".repeat(400);
   const cleaned = sanitizeFilename(longTitle);
-  assert.deepStrictEqual(Buffer.byteLength(cleaned, "utf8") <= 240, true);
+  assert.deepStrictEqual(Buffer.byteLength(cleaned, "utf8") <= 210, true);
+});
+
+it("truncateFilenameToByteLimit leaves room for the file extension", () => {
+  const longTitle = "S".repeat(300);
+  const base = truncateFilenameToByteLimit(longTitle, 210 - 4);
+  const full = `${base}.mkv`;
+  assert.deepStrictEqual(Buffer.byteLength(full, "utf8") <= 210, true);
+  assert.deepStrictEqual(full.endsWith(".mkv"), true);
 });
 
 it("truncateFilenameToByteLimit keeps multi-byte characters intact", () => {
@@ -41,5 +49,5 @@ it("truncateFilenameToByteLimit keeps multi-byte characters intact", () => {
 });
 
 it("truncateFilenameToByteLimit leaves short names untouched", () => {
-  assert.deepStrictEqual(truncateFilenameToByteLimit("Show - S01E05", 240), "Show - S01E05");
+  assert.deepStrictEqual(truncateFilenameToByteLimit("Show - S01E05", 210), "Show - S01E05");
 });

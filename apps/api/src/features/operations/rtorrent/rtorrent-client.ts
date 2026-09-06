@@ -278,7 +278,16 @@ export const makeRtorrentClient = (
       hash: string,
       deleteFiles: boolean,
     ) {
-      yield* call("rtorrent.deleteTorrent", "d.erase", [str(hash)]);
+      // Idempotent: the torrent may already be gone from rTorrent (removed by
+      // hand or an earlier cleanup pass); d.erase faults with "info-hash not
+      // found" in that case and the deletion goal is already achieved.
+      yield* call("rtorrent.deleteTorrent", "d.erase", [str(hash)]).pipe(
+        Effect.catch((error) =>
+          error.message.includes("info-hash not found")
+            ? Effect.void
+            : Effect.fail(error),
+        ),
+      );
       if (deleteFiles) {
         // rTorrent exposes no remote file deletion over RPC; data removal is the
         // operator's job (or the local downloads cleanup handles visible files).

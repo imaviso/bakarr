@@ -66,8 +66,16 @@ export const sanitizePathSegmentEffect = Effect.fn("FileSystem.sanitizePathSegme
   },
 );
 
-/** Ext4/most Linux filesystems cap a single path component at 255 bytes. */
-export const MAX_FILENAME_BYTES = 240;
+/**
+ * Ext4/most Linux filesystems cap a single path component at 255 bytes. The
+ * write pipeline appends staging suffixes (`.tmp.<uuid>`, `.bak.<uuid>` ≈ 41
+ * bytes) to the destination name, so the rendered name must leave room for
+ * them or every copy fails with ENAMETOOLONG.
+ */
+export const MAX_FILENAME_BYTES = 210;
+
+/** Length of the longest staging suffix appended during atomic writes. */
+export const STAGING_SUFFIX_RESERVE_BYTES = 45;
 
 export function truncateFilenameToByteLimit(name: string, maxBytes: number) {
   const encoded = Buffer.from(name, "utf8");
