@@ -1,4 +1,5 @@
 import { Cause, Context, Effect, Layer, LogLevel, Logger, Option, Record, Ref } from "effect";
+import { References } from "effect";
 // oxlint-disable typescript/no-restricted-types -- `unknown` is the honest type at error/cause boundaries (Effect error channels, try/catch causes, Logger messages)
 
 export function compactLogAnnotations(
@@ -131,7 +132,15 @@ const makeRuntimeLoggerLayer = Effect.fn("Logging.makeRuntimeLoggerLayer")(funct
         return;
       }
 
+      // annotateLogs writes to the fiber's CurrentLogAnnotations ref; without
+      // reading it here every annotation (errorCause, downloadHash, …) was
+      // silently dropped from the rendered line.
+      const annotations: Record<string, unknown> = {
+        ...options.fiber.getRef(References.CurrentLogAnnotations),
+      };
+
       const line = JSON.stringify({
+        annotations: Record.isEmptyRecord(annotations) ? undefined : annotations,
         cause: Cause.pretty(options.cause),
         level: options.logLevel,
         message: options.message,
