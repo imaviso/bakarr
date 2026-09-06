@@ -324,6 +324,41 @@ describe("rtorrent-client", () => {
     expect(torrent?.rawState).toBe("Torrent error: tracker down");
   });
 
+  it("keeps completed torrents completed despite transient tracker error messages", () => {
+    const client = makeTestClient(
+      makeStubTransport(
+        torrentRow(
+          torrentCells({
+            complete: `<value><i8>1</i8></value>`,
+            downRate: `<value><i8>0</i8></value>`,
+            isActive: `<value><i8>0</i8></value>`,
+            left: `<value><i8>0</i8></value>`,
+            message: `<value><string>Tracker: [network error: ETIMEDOUT]</string></value>`,
+          }),
+        ),
+      ),
+    );
+
+    const [torrent] = Effect.runSync(client.listTorrents());
+    expect(torrent?.state).toBe("completed");
+    expect(torrent?.rawState).toBe("Tracker: [network error: ETIMEDOUT]");
+  });
+
+  it("maps incomplete torrents with error messages to the error state", () => {
+    const client = makeTestClient(
+      makeStubTransport(
+        torrentRow(
+          torrentCells({
+            message: `<value><string>Tracker: [network error: ETIMEDOUT]</string></value>`,
+          }),
+        ),
+      ),
+    );
+
+    const [torrent] = Effect.runSync(client.listTorrents());
+    expect(torrent?.state).toBe("error");
+  });
+
   it("lists torrent files from f.multicall", () => {
     const calls: Array<RecordedCall> = [];
     const client = makeTestClient(

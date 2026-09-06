@@ -66,10 +66,32 @@ export const sanitizePathSegmentEffect = Effect.fn("FileSystem.sanitizePathSegme
   },
 );
 
+/** Ext4/most Linux filesystems cap a single path component at 255 bytes. */
+export const MAX_FILENAME_BYTES = 240;
+
+export function truncateFilenameToByteLimit(name: string, maxBytes: number) {
+  const encoded = Buffer.from(name, "utf8");
+  if (encoded.length <= maxBytes) {
+    return name;
+  }
+
+  let truncated = encoded.toString("utf8", 0, maxBytes);
+  // Dropping bytes can split a multi-byte sequence; toString already replaced
+  // it with U+FFFD, so cut back to the last intact character boundary and
+  // keep trimming whole code points until we fit.
+  while (Buffer.from(truncated, "utf8").length > maxBytes) {
+    truncated = Array.from(truncated).slice(0, -1).join("");
+  }
+
+  return truncated.replaceAll("\uFFFD", "").trimEnd();
+}
+
 export function sanitizeFilename(name: string) {
-  return name
+  const cleaned = name
     .replace(/[\\/:]/g, " ")
     .replace(/[*?"<>|]/g, "")
     .replace(/\s+/g, " ")
     .trim();
+
+  return truncateFilenameToByteLimit(cleaned, MAX_FILENAME_BYTES);
 }

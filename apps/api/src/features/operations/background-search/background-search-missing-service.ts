@@ -7,6 +7,7 @@ import {
 
 import { DatabaseError } from "@/db/database.ts";
 import { EventBus } from "@/infra/effect/event-bus.ts";
+import { errorLogAnnotations } from "@/infra/logging.ts";
 import {
   decideDownloadAction,
   validateQualityProfileSizeLabels,
@@ -199,7 +200,7 @@ export class SearchBackgroundMissingService extends Context.Service<
               Effect.annotateLogs({
                 mediaId: row.media.id,
                 unitNumber: row.media_units.number,
-                error: globalThis.String(rowResult.failure),
+                ...errorLogAnnotations(rowResult.failure),
               }),
             );
             continue;

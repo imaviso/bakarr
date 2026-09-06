@@ -21,6 +21,18 @@ export function errorLogAnnotations(error: unknown): Record<string, unknown> {
     });
   }
 
+  // Effect tagged errors are plain objects carrying `_tag`/`message`/`cause`;
+  // `String()` on them yields "" which hides the actual failure.
+  if (typeof error === "object" && "message" in error && typeof error.message === "string") {
+    const record: Record<string, unknown> = error;
+    const tag = typeof record["_tag"] === "string" ? record["_tag"] : undefined;
+    return compactLogAnnotations({
+      errorCause: formatUnknown(record["cause"]),
+      errorMessage: error.message,
+      errorName: tag,
+    });
+  }
+
   return compactLogAnnotations({
     errorMessage: formatUnknown(error),
     errorType: typeof error,

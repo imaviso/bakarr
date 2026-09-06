@@ -34,6 +34,7 @@ import { MediaRepository } from "@/features/media/shared/media-repository.ts";
 import { DatabaseError } from "@/db/database.ts";
 import { InfrastructureError } from "@/features/errors.ts";
 import { Context, Duration, Effect, Layer, Option, Semaphore } from "effect";
+import { errorLogAnnotations } from "@/infra/logging.ts";
 
 function shouldReconcileCompletedDownloads(config: Config | null) {
   return config?.downloads.reconcile_completed_downloads ?? true;
@@ -440,7 +441,7 @@ export class DownloadTorrentSyncService extends Context.Service<
                 ).pipe(
                   Effect.annotateLogs({
                     downloadHash: updateRow.hash,
-                    error: globalThis.String(reconcileResult.failure),
+                    ...errorLogAnnotations(reconcileResult.failure),
                   }),
                 );
               }

@@ -80,12 +80,17 @@ function mapRtorrentState(
   isActive: number,
   message: string,
 ): TorrentState {
+  // Completion wins over the message: d.message holds transient tracker
+  // announce failures ("Tracker: [network error: ETIMEDOUT]") even for fully
+  // downloaded, seeding torrents. Treating those as errors flipped rows
+  // between completed and error on every sync pass.
+  if (complete === 1) return "completed";
+
   if (message.length > 0 && message.toLowerCase().includes("error")) {
     return "error";
   }
 
   // Sonarr's mapping: finished -> completed, active -> downloading, else paused.
-  if (complete === 1) return "completed";
   if (isOpen === 1 && isActive === 1) return "downloading";
   return "paused";
 }
