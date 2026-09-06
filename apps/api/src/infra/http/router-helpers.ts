@@ -165,10 +165,7 @@ export const successResponse = () =>
 export const schemaAcceptedResponse =
   <A, I, R>(schema: Schema.Codec<A, I, R>) =>
   (value: A) =>
-    HttpServerResponse.schemaJson(Schema.Struct({ data: schema, success: Schema.Literal(true) }))(
-      { data: value, success: true },
-      { status: 202 },
-    );
+    HttpServerResponse.schemaJson(schema)(value, { status: 202 });
 
 export const authedRouteResponse = <A, E, R, E2, R2>(
   effect: Effect.Effect<A, E, R>,

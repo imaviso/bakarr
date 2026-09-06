@@ -4867,16 +4867,9 @@ async function waitForSql(
   throw new Error(`Timed out waiting for SQL condition: ${sql}`);
 }
 
-const AcceptedOperationEnvelopeSchema = Schema.Struct({
-  data: AsyncOperationAcceptedSchema,
-  success: Schema.Boolean,
-});
-
 async function expectAcceptedTaskResponse(response: Response) {
   assert.deepStrictEqual(response["status"], 202);
-  const envelope = Schema.decodeUnknownSync(AcceptedOperationEnvelopeSchema)(await response.json());
-  assert.deepStrictEqual(envelope.success, true);
-  const accepted = envelope.data;
+  const accepted = Schema.decodeUnknownSync(AsyncOperationAcceptedSchema)(await response.json());
   assert.deepStrictEqual(accepted.status, "queued");
   assert.deepStrictEqual(typeof accepted.task_id, "number");
 
