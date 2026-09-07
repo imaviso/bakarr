@@ -99,6 +99,13 @@ export const seasonalAnimeCache = sqliteTable("seasonal_anime_cache", {
   fetchedAtMs: integer("fetched_at_ms").notNull(),
 });
 
+export const anilistDetailCache = sqliteTable("anilist_detail_cache", {
+  mediaId: integer("media_id").primaryKey(),
+  mediaKind: text("media_kind").notNull(),
+  payload: text("payload").notNull(),
+  fetchedAtMs: integer("fetched_at_ms").notNull(),
+});
+
 export const users = sqliteTable("users", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   username: text("username").notNull().unique(),
@@ -306,4 +313,5 @@ export type DownloadEventRow = typeof downloadEvents.$inferSelect;
 export type LibraryRoot = typeof libraryRoots.$inferSelect;
 export type UnmappedFolderMatchRow = typeof unmappedFolderMatches.$inferSelect;
 export type SeasonalAnimeCacheRow = typeof seasonalAnimeCache.$inferSelect;
+export type AniListDetailCacheRow = typeof anilistDetailCache.$inferSelect;
 export type OperationsTaskRow = typeof operationsTasks.$inferSelect;

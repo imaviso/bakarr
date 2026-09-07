@@ -2,6 +2,7 @@ import { brandMediaId } from "@packages/shared/index.ts";
 
 import { assert, it } from "@effect/vitest";
 import { AniListClient } from "@/features/media/metadata/anilist.ts";
+import { AniListDetailCacheRepository } from "@/features/media/metadata/anilist-detail-cache-repository.ts";
 import type { AnimeMetadata } from "@/features/media/metadata/metadata-model.ts";
 import { MediaMetadataEnrichmentService } from "@/features/media/metadata/media-metadata-enrichment-service.ts";
 import type { AniDbRefreshRequest } from "@/features/media/metadata/media-metadata-enrichment-service.ts";
@@ -434,7 +435,87 @@ it.effect(
   },
 );
 
+it.effect("serves fresh detail cache without calling AniList", () => {
+  let remoteCalls = 0;
+
+  const providerLayer = makeProviderLayer({
+    cacheState: { _tag: "Missing" },
+    detailCache: AniListDetailCacheRepository.of({
+      read: () => Effect.succeed(makeMetadata(2001)),
+      readStale: () => Effect.succeed(null),
+      write: () => Effect.void,
+    }),
+    onDetailLookup: () => {
+      remoteCalls += 1;
+    },
+    onRefresh: () => {},
+  });
+
+  return Effect.gen(function* () {
+    const service = yield* MediaMetadataProviderService;
+    const result = yield* service.getAnimeMetadataById(2001);
+
+    assert.deepStrictEqual(result._tag, "Found");
+    assert.deepStrictEqual(remoteCalls, 0);
+  }).pipe(Effect.provide(providerLayer));
+});
+
+it.effect("serves stale detail cache when AniList fails", () => {
+  const providerLayer = makeProviderLayer({
+    aniListDetailError: ExternalCallError.make({
+      cause: new Error("AniList detail failed with status 403"),
+      message: "AniList detail failed",
+      operation: "anilist.detail.response",
+    }),
+    cacheState: { _tag: "Missing" },
+    detailCache: AniListDetailCacheRepository.of({
+      read: () => Effect.succeed(null),
+      readStale: () => Effect.succeed(makeMetadata(2002)),
+      write: () => Effect.void,
+    }),
+    onRefresh: () => {},
+  });
+
+  return Effect.gen(function* () {
+    const service = yield* MediaMetadataProviderService;
+    const result = yield* service.getAnimeMetadataById(2002);
+
+    assert.deepStrictEqual(result._tag, "Found");
+    if (result._tag === "Found") {
+      assert.deepStrictEqual(result.metadata.id, 2002);
+    }
+  }).pipe(Effect.provide(providerLayer));
+});
+
+it.effect("writes live detail responses to the cache", () => {
+  const written: AnimeMetadata[] = [];
+
+  const providerLayer = makeProviderLayer({
+    cacheState: { _tag: "Missing" },
+    detailCache: AniListDetailCacheRepository.of({
+      read: () => Effect.succeed(null),
+      readStale: () => Effect.succeed(null),
+      write: (_id, _kind, metadata, _nowMs) =>
+        Effect.sync(() => {
+          written.push(metadata);
+        }),
+    }),
+    metadata: makeMetadata(2003),
+    onRefresh: () => {},
+  });
+
+  return Effect.gen(function* () {
+    const service = yield* MediaMetadataProviderService;
+    const result = yield* service.getAnimeMetadataById(2003);
+
+    assert.deepStrictEqual(result._tag, "Found");
+    assert.deepStrictEqual(written.length, 1);
+    assert.deepStrictEqual(written[0]?.id, 2003);
+  }).pipe(Effect.provide(providerLayer));
+});
+
 function makeProviderLayer(input: {
+  readonly aniListDetailError?: ExternalCallError | undefined;
   readonly cacheState:
     | { readonly _tag: "Missing" }
     | {
@@ -453,6 +534,8 @@ function makeProviderLayer(input: {
   readonly malIdFromAniListId?: number | undefined;
   readonly manamiEntry?: ManamiLookupEntry | undefined;
   readonly metadata?: AnimeMetadata | undefined;
+  readonly detailCache?: typeof AniListDetailCacheRepository.Service | undefined;
+  readonly onDetailLookup?: (id: number) => void;
   readonly onJikanLookup?: (malId: number) => void;
   readonly onRefresh: (request: AniDbRefreshRequest) => void;
   readonly resolveAniListIdFromMalIdError?: ExternalCallError | undefined;
@@ -463,7 +546,12 @@ function makeProviderLayer(input: {
       AniListClient,
       AniListClient.of({
         getAnimeMetadataById: (id: number) =>
-          Effect.succeed(Option.some(input.metadata ?? makeMetadata(id))),
+          input.aniListDetailError !== undefined
+            ? Effect.fail(input.aniListDetailError)
+            : Effect.sync(() => {
+                input.onDetailLookup?.(id);
+                return Option.some(input.metadata ?? makeMetadata(id));
+              }),
         searchAnimeMetadata: () => Effect.succeed([]),
         getSeasonalAnime: () => Effect.succeed([]),
       }),
@@ -507,6 +595,15 @@ function makeProviderLayer(input: {
         requestAniDbRefresh: (request: AniDbRefreshRequest) =>
           Effect.sync(() => input.onRefresh(request)),
       }),
+    ),
+    Layer.succeed(
+      AniListDetailCacheRepository,
+      input.detailCache ??
+        AniListDetailCacheRepository.of({
+          read: () => Effect.succeed(null),
+          readStale: () => Effect.succeed(null),
+          write: () => Effect.void,
+        }),
     ),
   );
 

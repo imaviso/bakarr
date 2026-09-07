@@ -10,6 +10,8 @@ import { MediaUnitRepository } from "@/features/media/units/media-unit-repositor
 import { makeMediaUnitRepositoryShape } from "@/features/media/units/media-unit-repository.ts";
 import { SeasonalMediaCacheRepository } from "@/features/media/query/seasonal-media-cache-repository.ts";
 import { makeSeasonalMediaCacheRepositoryShape } from "@/features/media/query/seasonal-media-cache-repository.ts";
+import { AniListDetailCacheRepository } from "@/features/media/metadata/anilist-detail-cache-repository.ts";
+import { makeAniListDetailCacheRepositoryShape } from "@/features/media/metadata/anilist-detail-cache-repository.ts";
 import { DownloadRepository } from "@/features/operations/repository/download-repository.ts";
 import { makeDownloadRepositoryShape } from "@/features/operations/repository/download-repository.ts";
 import { OperationsTaskRepository } from "@/features/operations/repository/task-repository.ts";
@@ -53,6 +55,11 @@ export const makeSeasonalMediaCacheRepository = (
   db: AppDatabase,
   sqlClient: NodeSqliteClient.SqliteClient,
 ) => SeasonalMediaCacheRepository.of(makeSeasonalMediaCacheRepositoryShape(db, sqlClient));
+
+export const makeAniListDetailCacheRepository = (
+  db: AppDatabase,
+  sqlClient: NodeSqliteClient.SqliteClient,
+) => AniListDetailCacheRepository.of(makeAniListDetailCacheRepositoryShape(db, sqlClient));
 
 export const makeDownloadRepository = (db: AppDatabase, sqlClient: NodeSqliteClient.SqliteClient) =>
   DownloadRepository.of(makeDownloadRepositoryShape(db, sqlClient));

@@ -22,7 +22,8 @@ import { ManamiClient } from "@/features/media/metadata/manami.ts";
 import { mergeAnimeMetadata } from "@/features/media/metadata/metadata-merge.ts";
 import { mediaKindFromAniListFormat } from "@/features/media/shared/media-kind.ts";
 import type { ExternalCallError } from "@/infra/effect/retry.ts";
-import { Context, Effect, Layer, Option } from "effect";
+import { AniListDetailCacheRepository } from "@/features/media/metadata/anilist-detail-cache-repository.ts";
+import { Clock, Context, Effect, Layer, Option } from "effect";
 
 export function toMediaSearchResult(entry: ProviderMediaSearchResult): MediaSearchResult {
   return {
@@ -227,6 +228,51 @@ function shouldFallbackToJikan(error: ExternalCallError) {
   return error.operation === "anilist.seasonal" || error.operation === "anilist.seasonal.response";
 }
 
+export const getCachedOrRemoteDetail = Effect.fn("MediaMetadata.getCachedOrRemoteDetail")(
+  function* (input: {
+    aniList: Pick<typeof AniListClient.Service, "getAnimeMetadataById">;
+    detailCache: typeof AniListDetailCacheRepository.Service;
+    id: number;
+    mediaKind: MediaKind | undefined;
+  }) {
+    const nowMs = yield* Clock.currentTimeMillis;
+
+    const cached = yield* input.detailCache.read(input.id, input.mediaKind, nowMs);
+    if (cached !== null) {
+      return Option.some(cached);
+    }
+
+    const remote = yield* input.aniList.getAnimeMetadataById(input.id, input.mediaKind).pipe(
+      Effect.catchTag("ExternalCallError", (error) =>
+        Effect.gen(function* () {
+          const stale = yield* input.detailCache.readStale(input.id, input.mediaKind);
+          if (stale === null) {
+            return yield* error;
+          }
+
+          yield* Effect.logWarning("AniList detail failed; using stale cache").pipe(
+            Effect.annotateLogs({
+              mediaId: input.id,
+              operation: error.operation,
+            }),
+          );
+
+          return Option.some(stale);
+        }),
+      ),
+    );
+
+    // Stale serves keep their original timestamp so the next lookup retries
+    // live instead of extending the stale window indefinitely.
+    if (Option.isSome(remote)) {
+      const effectiveKind = input.mediaKind ?? mediaKindFromAniListFormat(remote.value.format);
+      yield* input.detailCache.write(input.id, effectiveKind, remote.value, nowMs);
+    }
+
+    return remote;
+  },
+);
+
 export type MediaMetadataLookupResult =
   | {
       readonly _tag: "NotFound";
@@ -292,10 +338,16 @@ const makeMediaMetadataProviderService = Effect.fn("MediaMetadataProviderService
     const jikan = yield* JikanClient;
     const manami = yield* ManamiClient;
     const enrichmentService = yield* MediaMetadataEnrichmentService;
+    const detailCache = yield* AniListDetailCacheRepository;
 
     const getAnimeMetadataById = Effect.fn("MediaMetadataProviderService.getAnimeMetadataById")(
       function* (id: number, mediaKind?: MediaKind) {
-        const metadata = yield* aniList.getAnimeMetadataById(id, mediaKind);
+        const metadata = yield* getCachedOrRemoteDetail({
+          aniList,
+          detailCache,
+          id,
+          mediaKind,
+        });
 
         if (Option.isNone(metadata)) {
           return { _tag: "NotFound" } satisfies MediaMetadataLookupResult;
