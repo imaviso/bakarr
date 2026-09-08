@@ -1,4 +1,4 @@
-import { Effect, Stream } from "effect";
+import { Effect, Result, Stream } from "effect";
 import {
   brandMediaId,
   type FileUnitMapping,
@@ -16,8 +16,7 @@ import {
   titlesMatch,
   type AnalyzedFile,
 } from "@/features/operations/library/library-import-analysis-support.ts";
-import { buildUnitFilenamePlan } from "@/features/operations/library/naming-canonical-support.ts";
-import { pathExtension } from "@/infra/path.ts";
+import type { LibraryNamingShape } from "@/features/operations/library/library-naming.ts";
 import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 
 import {
@@ -195,110 +194,142 @@ export function buildScannedFileLibrarySignals(input: {
   };
 }
 
-export function buildScannedFileNamingPlan(input: {
-  animeRow?:
-    | {
-        endDate?: string | null;
-        endYear?: number | null;
-        format: string;
-        rootFolder?: string;
-        startDate?: string | null;
-        startYear?: number | null;
-        titleEnglish?: string | null;
-        titleNative?: string | null;
-        titleRomaji: string;
-      }
-    | undefined;
-  episodeRows?: readonly { aired?: string | null; title?: string | null }[];
-  file: Pick<
-    ScannedFile,
-    | "air_date"
-    | "audio_channels"
-    | "audio_codec"
-    | "unit_number"
-    | "unit_numbers"
-    | "unit_title"
-    | "group"
-    | "quality"
-    | "resolution"
-    | "season"
-    | "source_path"
-    | "source_identity"
-    | "video_codec"
-  >;
-  namingSettings: {
-    movieNamingFormat: string;
-    namingFormat: string;
-    preferredTitle: PreferredTitle;
-  };
-}) {
-  if (!input.animeRow) {
-    return {};
-  }
+export const buildScannedFileNamingPlan = Effect.fn("Operations.buildScannedFileNamingPlan")(
+  function* (input: {
+    animeRow?:
+      | {
+          endDate?: string | null;
+          endYear?: number | null;
+          format: string;
+          rootFolder?: string;
+          startDate?: string | null;
+          startYear?: number | null;
+          titleEnglish?: string | null;
+          titleNative?: string | null;
+          titleRomaji: string;
+        }
+      | undefined;
+    episodeRows?: readonly { aired?: string | null; title?: string | null }[];
+    file: Pick<
+      ScannedFile,
+      | "air_date"
+      | "audio_channels"
+      | "audio_codec"
+      | "unit_number"
+      | "unit_numbers"
+      | "unit_title"
+      | "group"
+      | "quality"
+      | "resolution"
+      | "season"
+      | "source_path"
+      | "source_identity"
+      | "video_codec"
+    >;
+    naming: LibraryNamingShape;
+    namingSettings: {
+      movieNamingFormat: string;
+      namingFormat: string;
+      preferredTitle: PreferredTitle;
+    };
+  }) {
+    if (!input.animeRow?.rootFolder) {
+      return {};
+    }
 
-  const unitNumbers = toUnitNumbers(input.file);
+    const unitNumbers = toUnitNumbers(input.file);
 
-  if (unitNumbers.length === 0) {
-    return {};
-  }
+    if (unitNumbers.length === 0) {
+      return {};
+    }
 
-  const plan = buildUnitFilenamePlan({
-    animeRow: input.animeRow,
-    downloadSourceMetadata: {
-      ...(input.file.air_date === undefined ? {} : { air_date: input.file.air_date }),
-      ...(input.file.audio_channels === undefined
-        ? {}
-        : { audio_channels: input.file.audio_channels }),
-      ...(input.file.audio_codec === undefined ? {} : { audio_codec: input.file.audio_codec }),
-      ...(input.file.unit_title === undefined ? {} : { unit_title: input.file.unit_title }),
-      ...(input.file.group === undefined ? {} : { group: input.file.group }),
-      ...(input.file.quality === undefined ? {} : { quality: input.file.quality }),
-      ...(input.file.resolution === undefined ? {} : { resolution: input.file.resolution }),
-      ...(input.file.source_identity === undefined
-        ? {}
-        : { source_identity: input.file.source_identity }),
-      ...(input.file.video_codec === undefined ? {} : { video_codec: input.file.video_codec }),
-    },
-    unitNumbers,
-    ...(input.episodeRows === undefined ? {} : { episodeRows: input.episodeRows }),
-    filePath: input.file.source_path,
-    localMediaMetadata: {
-      ...(input.file.audio_channels === undefined
-        ? {}
-        : { audio_channels: input.file.audio_channels }),
-      ...(input.file.audio_codec === undefined ? {} : { audio_codec: input.file.audio_codec }),
-      ...(input.file.resolution === undefined ? {} : { resolution: input.file.resolution }),
-      ...(input.file.video_codec === undefined ? {} : { video_codec: input.file.video_codec }),
-    },
-    namingFormat:
-      input.animeRow.format === "MOVIE"
-        ? input.namingSettings.movieNamingFormat
-        : input.namingSettings.namingFormat,
-    preferredTitle: input.namingSettings.preferredTitle,
-    ...(input.file.season === undefined ? {} : { season: input.file.season }),
-  });
+    const previewed = yield* Effect.result(
+      input.naming.preview({
+        downloadSourceMetadata: {
+          ...(input.file.air_date === undefined ? {} : { air_date: input.file.air_date }),
+          ...(input.file.audio_channels === undefined
+            ? {}
+            : { audio_channels: input.file.audio_channels }),
+          ...(input.file.audio_codec === undefined ? {} : { audio_codec: input.file.audio_codec }),
+          ...(input.file.unit_title === undefined ? {} : { unit_title: input.file.unit_title }),
+          ...(input.file.group === undefined ? {} : { group: input.file.group }),
+          ...(input.file.quality === undefined ? {} : { quality: input.file.quality }),
+          ...(input.file.resolution === undefined ? {} : { resolution: input.file.resolution }),
+          ...(input.file.source_identity === undefined
+            ? {}
+            : { source_identity: input.file.source_identity }),
+          ...(input.file.video_codec === undefined ? {} : { video_codec: input.file.video_codec }),
+        },
+        unitNumbers,
+        ...(input.episodeRows === undefined ? {} : { episodeRows: input.episodeRows }),
+        localMediaMetadata: {
+          ...(input.file.audio_channels === undefined || input.file.audio_channels === null
+            ? {}
+            : { audio_channels: input.file.audio_channels }),
+          ...(input.file.audio_codec === undefined || input.file.audio_codec === null
+            ? {}
+            : { audio_codec: input.file.audio_codec }),
+          ...(input.file.resolution === undefined || input.file.resolution === null
+            ? {}
+            : { resolution: input.file.resolution }),
+          ...(input.file.video_codec === undefined || input.file.video_codec === null
+            ? {}
+            : { video_codec: input.file.video_codec }),
+        },
+        media: {
+          ...(input.animeRow.endDate === undefined ? {} : { endDate: input.animeRow.endDate }),
+          ...(input.animeRow.endYear === undefined ? {} : { endYear: input.animeRow.endYear }),
+          format: input.animeRow.format,
+          rootFolder: input.animeRow.rootFolder,
+          ...(input.animeRow.startDate === undefined
+            ? {}
+            : { startDate: input.animeRow.startDate }),
+          ...(input.animeRow.startYear === undefined
+            ? {}
+            : { startYear: input.animeRow.startYear }),
+          ...(input.animeRow.titleEnglish === undefined
+            ? {}
+            : { titleEnglish: input.animeRow.titleEnglish }),
+          ...(input.animeRow.titleNative === undefined
+            ? {}
+            : { titleNative: input.animeRow.titleNative }),
+          titleRomaji: input.animeRow.titleRomaji,
+        },
+        namingFormat:
+          input.animeRow.format === "MOVIE"
+            ? input.namingSettings.movieNamingFormat
+            : input.namingSettings.namingFormat,
+        preferredTitle: input.namingSettings.preferredTitle,
+        ...(input.file.season === undefined || input.file.season === null
+          ? {}
+          : { season: input.file.season }),
+        sourcePath: input.file.source_path,
+      }),
+    );
 
-  return {
-    naming_filename: `${plan.baseName}${extensionFromPath(input.file.source_path)}`,
-    naming_fallback_used: plan.fallbackUsed || undefined,
-    naming_format_used: plan.formatUsed,
-    naming_metadata_snapshot: plan.metadataSnapshot,
-    naming_missing_fields: plan.missingFields.length > 0 ? [...plan.missingFields] : undefined,
-    naming_warnings: plan.warnings.length > 0 ? [...plan.warnings] : undefined,
-  } satisfies Pick<
-    ScannedFile,
-    | "naming_fallback_used"
-    | "naming_filename"
-    | "naming_format_used"
-    | "naming_metadata_snapshot"
-    | "naming_missing_fields"
-    | "naming_warnings"
-  >;
-}
+    if (Result.isFailure(previewed)) {
+      return {};
+    }
 
-function extensionFromPath(path: string) {
-  return pathExtension(path, ".mkv");
-}
+    const plan = previewed.success.plan;
+    return {
+      naming_filename: previewed.success.filename,
+      naming_fallback_used: plan.fallbackUsed || undefined,
+      naming_format_used: plan.formatUsed,
+      naming_metadata_snapshot: plan.metadataSnapshot,
+      naming_missing_fields: plan.missingFields.length > 0 ? [...plan.missingFields] : undefined,
+      naming_warnings: plan.warnings.length > 0 ? [...plan.warnings] : undefined,
+    } satisfies Pick<
+      ScannedFile,
+      | "naming_fallback_used"
+      | "naming_filename"
+      | "naming_format_used"
+      | "naming_metadata_snapshot"
+      | "naming_missing_fields"
+      | "naming_warnings"
+    >;
+  },
+);
 
 export interface DiscoverImportScanFilesResult {
   readonly canonicalPath: string;

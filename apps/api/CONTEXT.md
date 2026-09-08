@@ -16,6 +16,12 @@ searches.
 Provider/metadata clients still speak **Anime** (`AnimeMetadata`, AniList
 payloads, `mediaKind: "anime"`). Feature code uses **Media**.
 
+### Detail Freshness
+
+Whether served Media metadata came live from the provider or stale from
+cache during an outage.
+_Avoid_: degraded (reserved for AniDB enrichment)
+
 ### MediaUnit
 
 A numbered unit within a media entry (episode for anime). Can be downloaded
@@ -44,6 +50,12 @@ global or media-specific. Rules influence search result ranking.
 Filesystem roots managed by the system. The library scan walks roots,
 identifies video files, matches them to known media+units by naming
 convention. Unmapped folders are subdirectories not yet matched to media.
+
+### Library Naming
+
+Deterministic destination for a MediaUnit file inside a Library root,
+rendered from naming format plus truncation, containment, and extension.
+_Avoid_: filename rendering, rename preview
 
 ### Unmapped Folder
 

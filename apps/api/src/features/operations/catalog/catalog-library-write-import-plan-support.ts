@@ -1,15 +1,22 @@
-import type { Config, DownloadSourceMetadata, ImportMode } from "@packages/shared/index.ts";
+import type {
+  Config,
+  DownloadSourceMetadata,
+  ImportMode,
+  PreferredTitle,
+} from "@packages/shared/index.ts";
 
 import type { DatabaseError } from "@/db/database.ts";
 import { media } from "@/db/schema.ts";
 import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
-import type { MediaProbeShape, ProbedMediaMetadata } from "@/infra/media/probe.ts";
 import { DomainPathError } from "@/features/errors.ts";
 import type { MediaNotFoundError } from "@/features/media/errors.ts";
 import { getConfiguredLibraryPaths } from "@/features/media/shared/config-support.ts";
 import { MediaRepository } from "@/features/media/shared/media-repository.ts";
 import { isWithinPathRoot } from "@/infra/filesystem/filesystem.ts";
-import { buildLibraryFileWritePlan } from "@/features/operations/download/library-file-write-support.ts";
+import {
+  toLibraryNamingMedia,
+  type LibraryNamingShape,
+} from "@/features/operations/library/library-naming.ts";
 import { selectNamingFormat } from "@/features/operations/library/naming-format-support.ts";
 import type { UnitFilenamePlan } from "@/features/operations/library/naming-types.ts";
 import { Effect } from "effect";
@@ -17,7 +24,7 @@ import { Effect } from "effect";
 export interface BuildLibraryImportPlanInput {
   readonly fs: FileSystemShape;
   readonly mediaRepository: typeof MediaRepository.Service;
-  readonly mediaProbe: MediaProbeShape;
+  readonly naming: LibraryNamingShape;
   readonly runtimeConfig: Config;
   readonly file: {
     source_path: string;
@@ -33,11 +40,14 @@ export interface LibraryImportPlan {
   readonly allEpisodeNumbers: readonly number[];
   readonly animeRow: typeof media.$inferSelect;
   readonly destination: string;
+  readonly episodeRows: readonly { aired: string | null; title: string | null }[];
   readonly importMode: ImportMode;
   readonly unitNumber: number;
-  readonly localMediaMetadata?: ProbedMediaMetadata;
-  readonly resolvedSource: string;
+  readonly namingFormat: string;
   readonly namingPlan: UnitFilenamePlan;
+  readonly preferredTitle: PreferredTitle;
+  readonly resolvedSource: string;
+  readonly season?: number;
   readonly sourcePath: string;
   readonly sourceMetadata?: DownloadSourceMetadata;
 }
@@ -45,7 +55,7 @@ export interface LibraryImportPlan {
 export const buildLibraryImportPlan = Effect.fn("Operations.buildLibraryImportPlan")((
   input: BuildLibraryImportPlanInput,
 ): Effect.Effect<LibraryImportPlan, DatabaseError | DomainPathError | MediaNotFoundError> => {
-  const { file, fs, mediaRepository, mediaProbe, runtimeConfig } = input;
+  const { file, fs, mediaRepository, naming, runtimeConfig } = input;
   return Effect.gen(function* () {
     const resolvedSource = yield* fs.realPath(file.source_path).pipe(
       Effect.mapError(
@@ -89,28 +99,31 @@ export const buildLibraryImportPlan = Effect.fn("Operations.buildLibraryImportPl
     const episodeRows = unitRows
       .filter((row) => episodeNumbersForQuery.has(row.number))
       .map((row) => ({ aired: row.aired, title: row.title }));
-    const fileWritePlan = yield* buildLibraryFileWritePlan({
-      animeRow,
-      ...(file.source_metadata === undefined
-        ? {}
-        : { downloadSourceMetadata: file.source_metadata }),
+    const placed = yield* naming.preview({
       episodeRows,
-      mediaProbe,
+      media: toLibraryNamingMedia(animeRow),
       namingFormat,
       preferredTitle: namingSettings.preferredTitle,
       ...(file.season === undefined ? {} : { season: file.season }),
-      sourcePath: file.source_path,
+      ...(file.source_metadata === undefined
+        ? {}
+        : { downloadSourceMetadata: file.source_metadata }),
+      sourcePath: resolvedSource,
       unitNumbers: allEpisodeNumbers,
     });
 
     return {
       allEpisodeNumbers,
       animeRow,
-      destination: fileWritePlan.destination,
+      destination: placed.destination,
+      episodeRows,
       importMode,
       unitNumber: file.unit_number,
-      namingPlan: fileWritePlan.namingPlan,
+      namingFormat,
+      namingPlan: placed.plan,
+      preferredTitle: namingSettings.preferredTitle,
       resolvedSource,
+      ...(file.season === undefined ? {} : { season: file.season }),
       ...(file.source_metadata === undefined ? {} : { sourceMetadata: file.source_metadata }),
       sourcePath: file.source_path,
     } satisfies LibraryImportPlan;

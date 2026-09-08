@@ -46,6 +46,7 @@ import { DownloadTorrentSyncServiceLive } from "@/features/operations/download/d
 import { DownloadTriggerServiceLive } from "@/features/operations/download/download-trigger-service.ts";
 import { ImportPathScanServiceLive } from "@/features/operations/import-scan/import-path-scan-service.ts";
 import { LibraryBrowseServiceLive } from "@/features/operations/library/library-browse-service.ts";
+import { LibraryNamingLive } from "@/features/operations/library/library-naming.ts";
 import { SearchReleaseServiceLive } from "@/features/operations/search/search-orchestration-release-search.ts";
 import { SearchUnitServiceLive } from "@/features/operations/search/search-unit-service.ts";
 import { OperationsTaskLauncherServiceLive } from "@/features/operations/tasks/operations-task-launcher-service.ts";
@@ -139,6 +140,7 @@ export function makeApiLifecycleLayers(
   const operationsProgressLayer = OperationsProgressLive.pipe(
     Layer.provide(Layer.mergeAll(runtimeSupportWithClientsLayer, pureDbLeaves)),
   );
+  const libraryNamingLayer = LibraryNamingLive.pipe(Layer.provide(runtimeSupportWithClientsLayer));
   const torrentClientLayer = TorrentClientServiceLive.pipe(
     Layer.provide(runtimeSupportWithClientsLayer),
   );
@@ -155,6 +157,7 @@ export function makeApiLifecycleLayers(
     pureDbLeaves,
     systemConfigServiceLayer,
     runtimeConfigSnapshotLayer,
+    libraryNamingLayer,
     operationsProgressLayer,
     torrentClientLayer,
     backgroundTimeoutsLayer,

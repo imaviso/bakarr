@@ -26,7 +26,7 @@ import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-s
 import { TorrentClientService } from "@/features/operations/torrent/torrent-client-service.ts";
 import { nowIso as currentNowIso } from "@/infra/time.ts";
 import {
-  isClaimToken,
+  isPreservedImport,
   isStaleClaimToken,
 } from "@/features/operations/download/download-claim-token.ts";
 import { DownloadReconciliationService } from "@/features/operations/download/download-reconciliation-service.ts";
@@ -280,8 +280,7 @@ export class DownloadTorrentSyncService extends Context.Service<
               const existing = existingDownloadsMap.get(hash);
               // A leftover claim token means the import never finished — treat
               // the row as not imported so presentation stays actionable.
-              const preservedImported =
-                globalThis.Boolean(existing?.reconciledAt) && !isClaimToken(existing?.reconciledAt);
+              const preservedImported = isPreservedImport(existing?.reconciledAt);
               const nextStatus = preservedImported ? "imported" : status;
               const nextExternalState = preservedImported
                 ? (existing?.externalState ?? "imported")
@@ -378,9 +377,7 @@ export class DownloadTorrentSyncService extends Context.Service<
                 readonly torrentName: string;
               }[] => {
                 const existing = existingDownloadsMap.get(updateRow.hash);
-                const preservedImported =
-                  globalThis.Boolean(existing?.reconciledAt) &&
-                  !isClaimToken(existing?.reconciledAt);
+                const preservedImported = isPreservedImport(existing?.reconciledAt);
 
                 if (!existing || !existing.isBatch || preservedImported) {
                   return [];

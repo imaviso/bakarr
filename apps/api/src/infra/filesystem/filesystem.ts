@@ -9,9 +9,12 @@ import { Context, Effect, Layer, Option, Schema, Scope, Stream } from "effect";
 
 export {
   isWithinPathRoot,
+  MAX_FILENAME_BYTES,
   PathSegmentError,
   sanitizeFilename,
   sanitizePathSegmentEffect,
+  STAGING_SUFFIX_RESERVE_BYTES,
+  truncateFilenameToByteLimit,
 } from "@/infra/filesystem/path-policy.ts";
 
 export class FileSystemError extends Schema.TaggedError<FileSystemError>()("FileSystemError", {

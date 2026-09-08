@@ -26,6 +26,7 @@ import { DownloadRepository } from "@/features/operations/repository/download-re
 import { MediaRepository } from "@/features/media/shared/media-repository.ts";
 import { MediaUnitRepository } from "@/features/media/units/media-unit-repository.ts";
 import { DownloadReconciliationService } from "@/features/operations/download/download-reconciliation-service.ts";
+import { LibraryNaming } from "@/features/operations/library/library-naming.ts";
 import { buildClaimToken } from "@/features/operations/download/download-claim-token.ts";
 
 it.effect("reconcile releases the claim when the download content is unreachable", () =>
@@ -188,11 +189,19 @@ const makeReconcileServiceLayer = (
             Layer.succeed(MediaUnitRepository, makeMediaUnitRepository(db, client)),
             RandomService.layer,
             Layer.succeed(FileSystem, fs),
-            Layer.succeed(
-              MediaProbe,
-              MediaProbe.of({
-                probeVideoFile: () => Effect.succeed(new MediaProbeNoMetadata({})),
-              }),
+            LibraryNaming.layer.pipe(
+              Layer.provide(
+                Layer.mergeAll(
+                  Layer.succeed(FileSystem, fs),
+                  Layer.succeed(
+                    MediaProbe,
+                    MediaProbe.of({
+                      probeVideoFile: () => Effect.succeed(new MediaProbeNoMetadata({})),
+                    }),
+                  ),
+                  RandomService.layer,
+                ),
+              ),
             ),
             Layer.succeed(
               TorrentClientService,

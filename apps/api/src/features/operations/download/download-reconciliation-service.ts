@@ -3,7 +3,7 @@ import type { Config } from "@packages/shared/index.ts";
 import { EventBus } from "@/infra/effect/event-bus.ts";
 import { nowIso as currentNowIso } from "@/infra/time.ts";
 import { FileSystem } from "@/infra/filesystem/filesystem.ts";
-import { MediaProbe } from "@/infra/media/probe.ts";
+import { LibraryNaming } from "@/features/operations/library/library-naming.ts";
 import { RandomService } from "@/infra/random.ts";
 import { TorrentClientService } from "@/features/operations/torrent/torrent-client-service.ts";
 import { DownloadRepository } from "@/features/operations/repository/download-repository.ts";
@@ -54,7 +54,7 @@ export class DownloadReconciliationService extends Context.Service<
       const repo = yield* DownloadRepository;
       const eventBus = yield* EventBus;
       const fs = yield* FileSystem;
-      const mediaProbe = yield* MediaProbe;
+      const naming = yield* LibraryNaming;
       const mediaRepository = yield* MediaRepository;
       const mediaUnitRepository = yield* MediaUnitRepository;
       const torrentClientService = yield* TorrentClientService;
@@ -147,10 +147,9 @@ export class DownloadReconciliationService extends Context.Service<
             mediaUnitRepository,
             eventBus,
             fs,
-            mediaProbe,
+            naming,
             maybeCleanupImportedTorrent,
             nowIso,
-            randomUuid,
             row,
             contentPath,
             getRuntimeConfig,

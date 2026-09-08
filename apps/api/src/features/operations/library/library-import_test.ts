@@ -1,4 +1,4 @@
-import { Cause, Effect, Exit } from "effect";
+import { Cause, Effect, Exit, Layer } from "effect";
 import { assert, it } from "@effect/vitest";
 
 import * as schema from "@/db/schema.ts";
@@ -12,11 +12,40 @@ import {
   titlesMatch,
   toMediaSearchCandidate,
 } from "@/features/operations/library/library-import.ts";
+import { LibraryNaming, makeLibraryNaming } from "@/features/operations/library/library-naming.ts";
+import { FileSystem } from "@/infra/filesystem/filesystem.ts";
+import { MediaProbe, MediaProbeNoMetadata } from "@/infra/media/probe.ts";
+import { RandomService } from "@/infra/random.ts";
+import { withFileSystemSandboxEffect } from "@/test/filesystem-test.ts";
 import { media } from "@/db/schema.ts";
 import { StoredDataError } from "@/features/errors.ts";
 import { encodeConfigCore, toConfigCore } from "@/features/system/config-codec.ts";
 import { makeTestConfig } from "@/test/config-fixture.ts";
 import { makeMediaRepository } from "@/test/repository-factories.ts";
+
+function makeNamingShapeEffect(fs: FileSystem["Service"]) {
+  const layer = Layer.effect(LibraryNaming, makeLibraryNaming()).pipe(
+    Layer.provide(
+      Layer.mergeAll(
+        Layer.succeed(FileSystem, FileSystem.of(fs)),
+        Layer.succeed(
+          MediaProbe,
+          MediaProbe.of({
+            probeVideoFile: (_path: string) => Effect.succeed(new MediaProbeNoMetadata()),
+          }),
+        ),
+        Layer.succeed(
+          RandomService,
+          RandomService.of({
+            randomBytes: () => Effect.sync(() => new Uint8Array(16)),
+            randomUuid: Effect.succeed("test-uuid"),
+          }),
+        ),
+      ),
+    ),
+  );
+  return LibraryNaming.pipe(Effect.provide(layer));
+}
 
 it("analyzeScannedFile strips release noise and extracts metadata", () => {
   const result = analyzeScannedFile({
@@ -135,211 +164,223 @@ it("analyzeScannedFile marks unknown files as needing manual mapping", () => {
 });
 
 it.effect("buildRenamePreview fills naming tokens from existing file metadata", () =>
-  withSqliteTestDbEffect({
-    run: (db, databaseFile, client, _exec) =>
-      Effect.gen(function* () {
-        const appDb: AppDatabase = db;
-        const rootFolder = "/mnt/media2/Shows/Nisemonogatari (2012)";
-        const namingFormat =
-          "{title} - S{season:02}E{episode:02} - {unit_title} [{quality} {resolution}][{video_codec}][{audio_codec} {audio_channels}][{group}]";
-        const testConfig = makeTestConfig(databaseFile, (config) => ({
-          ...config,
-          library: { ...config.library, naming_format: namingFormat },
-        }));
-        const encodedConfig = yield* encodeConfigCore(yield* toConfigCore(testConfig));
+  withFileSystemSandboxEffect(({ fs, root }) =>
+    withSqliteTestDbEffect({
+      run: (db, databaseFile, client, _exec) =>
+        Effect.gen(function* () {
+          const appDb: AppDatabase = db;
+          const rootFolder = `${root}/Shows/Nisemonogatari (2012)`;
+          yield* fs.mkdir(rootFolder, { recursive: true });
+          const namingFormat =
+            "{title} - S{season:02}E{episode:02} - {unit_title} [{quality} {resolution}][{video_codec}][{audio_codec} {audio_channels}][{group}]";
+          const testConfig = makeTestConfig(databaseFile, (config) => ({
+            ...config,
+            library: { ...config.library, naming_format: namingFormat },
+          }));
+          const encodedConfig = yield* encodeConfigCore(yield* toConfigCore(testConfig));
 
-        yield* appDb
-          .insert(appConfig)
-          .values({
-            id: 1,
-            data: encodedConfig,
-            updatedAt: "2024-01-01T00:00:00.000Z",
-          })
-          .prepare()
-          .effect();
+          yield* appDb
+            .insert(appConfig)
+            .values({
+              id: 1,
+              data: encodedConfig,
+              updatedAt: "2024-01-01T00:00:00.000Z",
+            })
+            .prepare()
+            .effect();
 
-        yield* appDb
-          .insert(media)
-          .values(
-            makeMediaRow({
-              unitCount: 11,
-              rootFolder,
-              startDate: "2012-01-08",
-              titleRomaji: "Nisemonogatari",
-            }),
-          )
-          .prepare()
-          .effect();
+          yield* appDb
+            .insert(media)
+            .values(
+              makeMediaRow({
+                unitCount: 11,
+                rootFolder,
+                startDate: "2012-01-08",
+                titleRomaji: "Nisemonogatari",
+              }),
+            )
+            .prepare()
+            .effect();
 
-        yield* appDb
-          .insert(mediaUnits)
-          .values({
-            aired: null,
-            mediaId: 1,
-            downloaded: true,
-            filePath: `${rootFolder}/Season 1/Nisemonogatari - S01E01 - Karen Bee, Part 1 -[1920x1080]-[hevc]-[aac][MTBB].mkv`,
-            number: 1,
-            title: null,
-          })
-          .prepare()
-          .effect();
+          yield* appDb
+            .insert(mediaUnits)
+            .values({
+              aired: null,
+              mediaId: 1,
+              downloaded: true,
+              filePath: `${rootFolder}/Season 1/Nisemonogatari - S01E01 - Karen Bee, Part 1 -[1920x1080]-[hevc]-[aac][MTBB].mkv`,
+              number: 1,
+              title: null,
+            })
+            .prepare()
+            .effect();
 
-        const preview = yield* buildRenamePreview(
-          1,
-          testConfig,
-          makeMediaRepository(appDb, client),
-        );
-        const firstPreview = preview[0];
-        assert(firstPreview);
+          const preview = yield* buildRenamePreview(
+            1,
+            testConfig,
+            makeMediaRepository(appDb, client),
+            yield* makeNamingShapeEffect(fs),
+          );
+          const firstPreview = preview[0];
+          assert(firstPreview);
 
-        assert.deepStrictEqual(preview.length, 1);
-        assert.deepStrictEqual(
-          firstPreview.new_filename,
-          "Nisemonogatari - S01E01 - Karen Bee, Part 1 [1080p][HEVC][AAC][MTBB].mkv",
-        );
-        assert.deepStrictEqual(firstPreview.fallback_used, undefined);
-        assert.deepStrictEqual(firstPreview.format_used, namingFormat);
-        assert.deepStrictEqual(firstPreview.metadata_snapshot?.unit_title, "Karen Bee, Part 1");
-        assert.deepStrictEqual(firstPreview.metadata_snapshot?.title_source, "preferred_romaji");
-        assert.deepStrictEqual(firstPreview.metadata_snapshot?.video_codec, "HEVC");
-      }),
-    schema,
-  }),
+          assert.deepStrictEqual(preview.length, 1);
+          assert.deepStrictEqual(
+            firstPreview.new_filename,
+            "Nisemonogatari - S01E01 - Karen Bee, Part 1 [1080p][HEVC][AAC][MTBB].mkv",
+          );
+          assert.deepStrictEqual(firstPreview.fallback_used, undefined);
+          assert.deepStrictEqual(firstPreview.format_used, namingFormat);
+          assert.deepStrictEqual(firstPreview.metadata_snapshot?.unit_title, "Karen Bee, Part 1");
+          assert.deepStrictEqual(firstPreview.metadata_snapshot?.title_source, "preferred_romaji");
+          assert.deepStrictEqual(firstPreview.metadata_snapshot?.video_codec, "HEVC");
+        }),
+      schema,
+    }),
+  ),
 );
 
 it.effect("buildRenamePreview respects preferred English title and movie naming format", () =>
-  withSqliteTestDbEffect({
-    run: (db, databaseFile, client, _exec) =>
-      Effect.gen(function* () {
-        const appDb: AppDatabase = db;
-        const testConfig = makeTestConfig(databaseFile, (config) => ({
-          ...config,
-          library: {
-            ...config.library,
-            movie_naming_format: "{title} ({year})",
-            preferred_title: "english",
-          },
-        }));
-        const encodedConfig = yield* encodeConfigCore(yield* toConfigCore(testConfig));
+  withFileSystemSandboxEffect(({ fs, root }) =>
+    withSqliteTestDbEffect({
+      run: (db, databaseFile, client, _exec) =>
+        Effect.gen(function* () {
+          const appDb: AppDatabase = db;
+          yield* fs.mkdir(`${root}/Movies/Kimi no Na wa.`, { recursive: true });
+          const testConfig = makeTestConfig(databaseFile, (config) => ({
+            ...config,
+            library: {
+              ...config.library,
+              movie_naming_format: "{title} ({year})",
+              preferred_title: "english",
+            },
+          }));
+          const encodedConfig = yield* encodeConfigCore(yield* toConfigCore(testConfig));
 
-        yield* appDb
-          .insert(appConfig)
-          .values({
-            id: 1,
-            data: encodedConfig,
-            updatedAt: "2024-01-01T00:00:00.000Z",
-          })
-          .prepare()
-          .effect();
+          yield* appDb
+            .insert(appConfig)
+            .values({
+              id: 1,
+              data: encodedConfig,
+              updatedAt: "2024-01-01T00:00:00.000Z",
+            })
+            .prepare()
+            .effect();
 
-        yield* appDb
-          .insert(media)
-          .values(
-            makeMediaRow({
-              format: "MOVIE",
-              rootFolder: "/mnt/media2/Movies/Kimi no Na wa.",
-              startDate: "2016-08-26",
-              titleEnglish: "Your Name.",
-              titleNative: "君の名は。",
-              titleRomaji: "Kimi no Na wa.",
-            }),
-          )
-          .prepare()
-          .effect();
+          yield* appDb
+            .insert(media)
+            .values(
+              makeMediaRow({
+                format: "MOVIE",
+                rootFolder: `${root}/Movies/Kimi no Na wa.`,
+                startDate: "2016-08-26",
+                titleEnglish: "Your Name.",
+                titleNative: "君の名は。",
+                titleRomaji: "Kimi no Na wa.",
+              }),
+            )
+            .prepare()
+            .effect();
 
-        yield* appDb
-          .insert(mediaUnits)
-          .values({
-            aired: null,
-            mediaId: 1,
-            downloaded: true,
-            filePath: "/mnt/media2/Movies/Kimi no Na wa./movie-source-file.mkv",
-            number: 1,
-            title: null,
-          })
-          .prepare()
-          .effect();
+          yield* appDb
+            .insert(mediaUnits)
+            .values({
+              aired: null,
+              mediaId: 1,
+              downloaded: true,
+              filePath: `${root}/Movies/Kimi no Na wa./movie-source-file.mkv`,
+              number: 1,
+              title: null,
+            })
+            .prepare()
+            .effect();
 
-        const preview = yield* buildRenamePreview(
-          1,
-          testConfig,
-          makeMediaRepository(appDb, client),
-        );
-        const firstPreview = preview[0];
-        assert(firstPreview);
+          const preview = yield* buildRenamePreview(
+            1,
+            testConfig,
+            makeMediaRepository(appDb, client),
+            yield* makeNamingShapeEffect(fs),
+          );
+          const firstPreview = preview[0];
+          assert(firstPreview);
 
-        assert.deepStrictEqual(preview.length, 1);
-        assert.deepStrictEqual(firstPreview.new_filename, "Your Name. (2016).mkv");
-        assert.deepStrictEqual(firstPreview.format_used, "{title} ({year})");
-        assert.deepStrictEqual(firstPreview.metadata_snapshot?.title, "Your Name.");
-        assert.deepStrictEqual(firstPreview.metadata_snapshot?.title_source, "preferred_english");
-      }),
-    schema,
-  }),
+          assert.deepStrictEqual(preview.length, 1);
+          assert.deepStrictEqual(firstPreview.new_filename, "Your Name. (2016).mkv");
+          assert.deepStrictEqual(firstPreview.format_used, "{title} ({year})");
+          assert.deepStrictEqual(firstPreview.metadata_snapshot?.title, "Your Name.");
+          assert.deepStrictEqual(firstPreview.metadata_snapshot?.title_source, "preferred_english");
+        }),
+      schema,
+    }),
+  ),
 );
 
 it.effect("buildRenamePreview reports fallback when season metadata is missing", () =>
-  withSqliteTestDbEffect({
-    run: (db, databaseFile, client, _exec) =>
-      Effect.gen(function* () {
-        const appDb: AppDatabase = db;
-        const namingFormat = "{title} - S{season:02}E{episode:02}";
-        const testConfig = makeTestConfig(databaseFile, (config) => ({
-          ...config,
-          library: { ...config.library, naming_format: namingFormat },
-        }));
-        const encodedConfig = yield* encodeConfigCore(yield* toConfigCore(testConfig));
+  withFileSystemSandboxEffect(({ fs, root }) =>
+    withSqliteTestDbEffect({
+      run: (db, databaseFile, client, _exec) =>
+        Effect.gen(function* () {
+          const appDb: AppDatabase = db;
+          yield* fs.mkdir(`${root}/library/Show`, { recursive: true });
+          const namingFormat = "{title} - S{season:02}E{episode:02}";
+          const testConfig = makeTestConfig(databaseFile, (config) => ({
+            ...config,
+            library: { ...config.library, naming_format: namingFormat },
+          }));
+          const encodedConfig = yield* encodeConfigCore(yield* toConfigCore(testConfig));
 
-        yield* appDb
-          .insert(appConfig)
-          .values({
-            id: 1,
-            data: encodedConfig,
-            updatedAt: "2024-01-01T00:00:00.000Z",
-          })
-          .prepare()
-          .effect();
+          yield* appDb
+            .insert(appConfig)
+            .values({
+              id: 1,
+              data: encodedConfig,
+              updatedAt: "2024-01-01T00:00:00.000Z",
+            })
+            .prepare()
+            .effect();
 
-        yield* appDb
-          .insert(media)
-          .values(
-            makeMediaRow({
-              rootFolder: "/library/Show",
-              titleRomaji: "Show",
-            }),
-          )
-          .prepare()
-          .effect();
+          yield* appDb
+            .insert(media)
+            .values(
+              makeMediaRow({
+                rootFolder: `${root}/library/Show`,
+                titleRomaji: "Show",
+              }),
+            )
+            .prepare()
+            .effect();
 
-        yield* appDb
-          .insert(mediaUnits)
-          .values({
-            aired: null,
-            mediaId: 1,
-            downloaded: true,
-            filePath: "/downloads/Show - 01.mkv",
-            number: 1,
-            title: null,
-          })
-          .prepare()
-          .effect();
+          yield* appDb
+            .insert(mediaUnits)
+            .values({
+              aired: null,
+              mediaId: 1,
+              downloaded: true,
+              filePath: "/downloads/Show - 01.mkv",
+              number: 1,
+              title: null,
+            })
+            .prepare()
+            .effect();
 
-        const preview = yield* buildRenamePreview(
-          1,
-          testConfig,
-          makeMediaRepository(appDb, client),
-        );
-        const firstPreview = preview[0];
-        assert(firstPreview);
+          const preview = yield* buildRenamePreview(
+            1,
+            testConfig,
+            makeMediaRepository(appDb, client),
+            yield* makeNamingShapeEffect(fs),
+          );
+          const firstPreview = preview[0];
+          assert(firstPreview);
 
-        assert.deepStrictEqual(firstPreview.new_filename, "Show - 01.mkv");
-        assert.deepStrictEqual(firstPreview.fallback_used, true);
-        assert.deepStrictEqual(firstPreview.missing_fields, ["season"]);
-        assert.deepStrictEqual(firstPreview.warnings?.length, 2);
-        assert.deepStrictEqual(firstPreview.metadata_snapshot?.source_identity?.label, "01");
-      }),
-    schema,
-  }),
+          assert.deepStrictEqual(firstPreview.new_filename, "Show - 01.mkv");
+          assert.deepStrictEqual(firstPreview.fallback_used, true);
+          assert.deepStrictEqual(firstPreview.missing_fields, ["season"]);
+          assert.deepStrictEqual(firstPreview.warnings?.length, 2);
+          assert.deepStrictEqual(firstPreview.metadata_snapshot?.source_identity?.label, "01");
+        }),
+      schema,
+    }),
+  ),
 );
 
 it("findBestLocalMediaMatch handles title normalization and rejects weak matches", () => {

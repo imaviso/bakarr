@@ -76,6 +76,7 @@ it.effect("MediaEnrollmentService.enroll persists MAL backfill and mapped relati
             getAnimeMetadataById: () =>
               Effect.succeed({
                 _tag: "Found",
+                detailOrigin: "live",
                 enrichment: {
                   _tag: "Degraded",
                   reason: { _tag: "AniDbNoEpisodeMetadata" },
@@ -164,6 +165,7 @@ it.effect("MediaEnrollmentService.enroll infers light novel media kind when requ
             getAnimeMetadataById: () =>
               Effect.succeed({
                 _tag: "Found",
+                detailOrigin: "live",
                 enrichment: {
                   _tag: "Degraded",
                   reason: { _tag: "AniDbNoEpisodeMetadata" },

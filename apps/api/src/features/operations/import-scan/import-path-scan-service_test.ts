@@ -6,6 +6,7 @@ import * as schema from "@/db/schema.ts";
 import { AniListClient } from "@/features/media/metadata/anilist.ts";
 import { ManamiClient } from "@/features/media/metadata/manami.ts";
 import { ImportPathScanService } from "@/features/operations/import-scan/import-path-scan-service.ts";
+import { LibraryNaming } from "@/features/operations/library/library-naming.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 import { FileSystem, type FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import { MediaProbe } from "@/infra/media/probe.ts";
@@ -83,6 +84,13 @@ function scanImportPathEffect(
               }),
             ),
             Layer.succeed(FileSystem, FileSystem.of(fs)),
+            Layer.succeed(
+              LibraryNaming,
+              LibraryNaming.of({
+                placeFile: () => Effect.die(new Error("not used in test")),
+                preview: () => Effect.die(new Error("not used in test")),
+              }),
+            ),
             Layer.succeed(
               MediaProbe,
               MediaProbe.of({

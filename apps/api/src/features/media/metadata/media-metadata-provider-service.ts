@@ -23,6 +23,10 @@ import { mergeAnimeMetadata } from "@/features/media/metadata/metadata-merge.ts"
 import { mediaKindFromAniListFormat } from "@/features/media/shared/media-kind.ts";
 import type { ExternalCallError } from "@/infra/effect/retry.ts";
 import { AniListDetailCacheRepository } from "@/features/media/metadata/anilist-detail-cache-repository.ts";
+import type {
+  AnimeDetailOrigin,
+  CachedAnimeDetail,
+} from "@/features/media/metadata/anilist-detail-cache-repository.ts";
 import { Clock, Context, Effect, Layer, Option } from "effect";
 
 export function toMediaSearchResult(entry: ProviderMediaSearchResult): MediaSearchResult {
@@ -237,16 +241,18 @@ export const getCachedOrRemoteDetail = Effect.fn("MediaMetadata.getCachedOrRemot
   }) {
     const nowMs = yield* Clock.currentTimeMillis;
 
-    const cached = yield* input.detailCache.read(input.id, input.mediaKind, nowMs);
-    if (cached !== null) {
+    const cached = yield* input.detailCache.read(input.id, nowMs);
+    if (cached !== null && cached.origin === "live") {
       return Option.some(cached);
     }
 
     const remote = yield* input.aniList.getAnimeMetadataById(input.id, input.mediaKind).pipe(
+      Effect.map((metadata) =>
+        Option.map(metadata, (data) => ({ data, origin: "live" }) satisfies CachedAnimeDetail),
+      ),
       Effect.catchTag("ExternalCallError", (error) =>
         Effect.gen(function* () {
-          const stale = yield* input.detailCache.readStale(input.id, input.mediaKind);
-          if (stale === null) {
+          if (cached === null) {
             return yield* error;
           }
 
@@ -257,18 +263,23 @@ export const getCachedOrRemoteDetail = Effect.fn("MediaMetadata.getCachedOrRemot
             }),
           );
 
-          return Option.some(stale);
+          return Option.some(cached);
         }),
       ),
     );
 
     // Stale serves keep their original timestamp so the next lookup retries
     // live instead of extending the stale window indefinitely.
-    if (Option.isSome(remote)) {
-      const effectiveKind = input.mediaKind ?? mediaKindFromAniListFormat(remote.value.format);
-      yield* input.detailCache.write(input.id, effectiveKind, remote.value, nowMs);
+    if (Option.isNone(remote)) {
+      return remote;
     }
 
+    yield* input.detailCache.write(
+      input.id,
+      input.mediaKind ?? mediaKindFromAniListFormat(remote.value.data.format),
+      remote.value.data,
+      nowMs,
+    );
     return remote;
   },
 );
@@ -279,6 +290,7 @@ export type MediaMetadataLookupResult =
     }
   | {
       readonly _tag: "Found";
+      readonly detailOrigin: AnimeDetailOrigin;
       readonly enrichment: MediaMetadataEnrichmentResult;
       readonly metadata: AnimeMetadata;
     };
@@ -353,11 +365,13 @@ const makeMediaMetadataProviderService = Effect.fn("MediaMetadataProviderService
           return { _tag: "NotFound" } satisfies MediaMetadataLookupResult;
         }
 
-        const baseMetadata = metadata.value;
+        const baseMetadata = metadata.value.data;
+        const detailOrigin: AnimeDetailOrigin = metadata.value.origin;
         const effectiveMediaKind = mediaKind ?? mediaKindFromAniListFormat(baseMetadata.format);
         if (effectiveMediaKind !== "anime") {
           return {
             _tag: "Found",
+            detailOrigin,
             enrichment: {
               _tag: "Degraded",
               reason: { _tag: "AniDbNoEpisodeMetadata" },
@@ -416,7 +430,7 @@ const makeMediaMetadataProviderService = Effect.fn("MediaMetadataProviderService
         const cacheState = yield* enrichmentService.getAniDbCacheState(mergedMetadata.id);
 
         if (cacheState._tag === "Fresh") {
-          return yield* toFreshLookupResult(mergedMetadata, cacheState);
+          return yield* toFreshLookupResult(mergedMetadata, cacheState, detailOrigin);
         }
 
         yield* enrichmentService.requestAniDbRefresh({
@@ -428,6 +442,7 @@ const makeMediaMetadataProviderService = Effect.fn("MediaMetadataProviderService
 
         const result: MediaMetadataLookupResult = {
           _tag: "Found",
+          detailOrigin,
           enrichment: {
             _tag: "Degraded",
             reason: {
@@ -490,12 +505,14 @@ const toFreshLookupResult = Effect.fn("MediaMetadataProviderService.toFreshLooku
   function* (
     baseMetadata: AnimeMetadata,
     cacheState: Extract<MediaMetadataEnrichmentCacheState, { _tag: "Fresh" }>,
+    detailOrigin: AnimeDetailOrigin,
   ) {
     const mergedEpisodes = mergeLookupEpisodes(baseMetadata, cacheState);
 
     if (cacheState.mediaUnits.length === 0) {
       const result: MediaMetadataLookupResult = {
         _tag: "Found",
+        detailOrigin,
         enrichment: {
           _tag: "Degraded",
           reason: {
@@ -511,6 +528,7 @@ const toFreshLookupResult = Effect.fn("MediaMetadataProviderService.toFreshLooku
 
     return {
       _tag: "Found",
+      detailOrigin,
       enrichment: {
         _tag: "Enriched",
         mediaUnits: cacheState.mediaUnits.length,

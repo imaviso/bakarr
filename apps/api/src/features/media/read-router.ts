@@ -20,6 +20,7 @@ import { MediaStreamService } from "@/features/media/stream/media-stream-service
 import { MediaReaderService } from "@/features/media/reader/media-reader-service.ts";
 import { CatalogRssService } from "@/features/operations/catalog/catalog-rss-service.ts";
 import { MediaRepository } from "@/features/media/shared/media-repository.ts";
+import { LibraryNaming } from "@/features/operations/library/library-naming.ts";
 import { buildRenamePreview } from "@/features/operations/library/library-import.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 import {
@@ -177,7 +178,12 @@ export const mediaReadRouter = Layer.mergeAll(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
         const runtimeConfig = yield* (yield* RuntimeConfigSnapshotService).getRuntimeConfig();
-        return yield* buildRenamePreview(params.id, runtimeConfig, yield* MediaRepository);
+        return yield* buildRenamePreview(
+          params.id,
+          runtimeConfig,
+          yield* MediaRepository,
+          yield* LibraryNaming,
+        );
       }),
       schemaJsonResponse(Schema.Array(RenamePreviewItemSchema)),
     ),

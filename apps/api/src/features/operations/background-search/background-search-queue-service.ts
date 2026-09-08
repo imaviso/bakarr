@@ -125,17 +125,15 @@ export class BackgroundSearchQueueService extends Context.Service<
           conflictPolicy: "skip",
         });
 
-        return yield* downloadTriggerGate
-          .withPermits(1)(queueEffect)
-          .pipe(
-            Effect.mapError(
-              (cause) =>
-                new InfrastructureError({
-                  message: "Failed to queue background release",
-                  cause,
-                }),
-            ),
-          );
+        return yield* downloadTriggerGate.withTriggerLease(queueEffect).pipe(
+          Effect.mapError(
+            (cause) =>
+              new InfrastructureError({
+                message: "Failed to queue background release",
+                cause,
+              }),
+          ),
+        );
       });
 
       return {

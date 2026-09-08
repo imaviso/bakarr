@@ -7,11 +7,13 @@ import {
   type RenamePreviewItem,
 } from "@packages/shared/index.ts";
 import type { media } from "@/db/schema.ts";
-import { buildUnitFilenamePlan } from "@/features/operations/library/naming-canonical-support.ts";
+import {
+  toLibraryNamingMedia,
+  type LibraryNamingShape,
+} from "@/features/operations/library/library-naming.ts";
 import { selectNamingFormat } from "@/features/operations/library/naming-format-support.ts";
 import { StoredDataError } from "@/features/errors.ts";
 import { deriveAnimeSeason, extractYearFromDate } from "@/features/media/shared/date-utils.ts";
-import { pathExtension } from "@/infra/path.ts";
 import type { MediaRepositoryShape } from "@/features/media/shared/media-repository.ts";
 
 export {
@@ -47,6 +49,7 @@ export const buildRenamePreview = Effect.fn("LibraryImport.buildRenamePreview")(
   mediaId: number,
   runtimeConfig: Config,
   mediaRepository: MediaRepositoryShape,
+  naming: LibraryNamingShape,
 ) {
   const animeRow = yield* mediaRepository.getMediaRow(mediaId);
   const namingSettings = {
@@ -64,16 +67,15 @@ export const buildRenamePreview = Effect.fn("LibraryImport.buildRenamePreview")(
     const primaryEpisode = row.number;
     const filePath = row.filePath;
 
-    const extension = pathExtension(filePath, ".mkv");
-    const plan = buildUnitFilenamePlan({
-      animeRow,
-      unitNumbers,
+    const placed = yield* naming.preview({
       episodeRows: [row],
-      filePath,
+      media: toLibraryNamingMedia(animeRow),
       namingFormat,
       preferredTitle: namingSettings.preferredTitle,
+      sourcePath: filePath,
+      unitNumbers,
     });
-    const filename = `${plan.baseName}${extension}`;
+    const plan = placed.plan;
     results.push({
       current_path: filePath,
       unit_number: primaryEpisode,
@@ -82,8 +84,8 @@ export const buildRenamePreview = Effect.fn("LibraryImport.buildRenamePreview")(
       format_used: plan.formatUsed,
       metadata_snapshot: plan.metadataSnapshot,
       missing_fields: plan.missingFields.length > 0 ? [...plan.missingFields] : undefined,
-      new_filename: filename,
-      new_path: `${animeRow.rootFolder.replace(/\/$/, "")}/${filename}`,
+      new_filename: placed.filename,
+      new_path: placed.destination,
       warnings: plan.warnings.length > 0 ? [...plan.warnings] : undefined,
     });
   }

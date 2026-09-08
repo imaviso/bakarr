@@ -12,16 +12,14 @@ import type {
   UpsertUnitFileError,
 } from "@/features/media/units/media-unit-repository.ts";
 import { classifyMediaArtifact } from "@/features/media/identity/identity.ts";
-import type { MediaProbeShape } from "@/infra/media/probe.ts";
 import { pathBasename } from "@/infra/path.ts";
 import type { FileSystemError, FileSystemShape } from "@/infra/filesystem/filesystem.ts";
-import { buildUnitFilenamePlan } from "@/features/operations/library/naming-canonical-support.ts";
+import {
+  toLibraryNamingMedia,
+  type LibraryNamingShape,
+} from "@/features/operations/library/library-naming.ts";
 import { selectNamingFormat } from "@/features/operations/library/naming-format-support.ts";
 import { ImportFileError } from "@/features/operations/download/download-file-import-errors.ts";
-import {
-  importDownloadedFile,
-  probeMissingNamingMetadata,
-} from "@/features/operations/download/library-file-write-support.ts";
 import {
   parseCoveredUnitsEffect,
   resolveReconciledBatchUnitNumbers,
@@ -57,9 +55,8 @@ type DownloadReconciliationContext = {
   readonly mediaRepository: typeof MediaRepository.Service;
   readonly mediaUnitRepository: MediaUnitRepositoryShape;
   readonly fs: FileSystemShape;
-  readonly mediaProbe: MediaProbeShape;
+  readonly naming: LibraryNamingShape;
   readonly nowIso: () => Effect.Effect<string>;
-  readonly randomUuid: () => Effect.Effect<string>;
   readonly maybeCleanupImportedTorrent: MaybeCleanupImportedTorrent;
   readonly eventBus: typeof EventBus.Service;
   readonly row: DownloadRow;
@@ -103,11 +100,10 @@ export const loadDownloadReconciliationContext = Effect.fn(
     | "repo"
     | "mediaUnitRepository"
     | "fs"
-    | "mediaProbe"
+    | "naming"
     | "eventBus"
     | "maybeCleanupImportedTorrent"
     | "nowIso"
-    | "randomUuid"
     | "row"
   > & {
     readonly contentPath: string;
@@ -144,11 +140,10 @@ export const loadDownloadReconciliationContext = Effect.fn(
     animeRow,
     eventBus: input.eventBus,
     fs: input.fs,
-    mediaProbe: input.mediaProbe,
+    naming: input.naming,
     maybeCleanupImportedTorrent: input.maybeCleanupImportedTorrent,
     nowIso: input.nowIso,
     resolvedContentRoot: resolvedContentRoot.value,
-    randomUuid: input.randomUuid,
     runtimeConfig,
     row: input.row,
     storedSourceMetadata,
@@ -255,7 +250,7 @@ export const reconcileBatchDownloadEffect = Effect.fn("DownloadReconcile.reconci
     }
 
     for (const item of batchItems) {
-      const { path, relevantEpisodes, primaryEpisode } = item;
+      const { path, relevantEpisodes } = item;
 
       const episodeRowsForNaming = relevantEpisodes
         .map((ep) => episodeMap.get(ep))
@@ -274,41 +269,21 @@ export const reconcileBatchDownloadEffect = Effect.fn("DownloadReconcile.reconci
         continue;
       }
 
-      const initialNamingPlan = buildUnitFilenamePlan({
-        animeRow: input.animeRow,
-        unitNumbers: relevantEpisodes,
-        episodeRows: episodeRowsForNaming,
-        filePath: path,
-        namingFormat,
-        preferredTitle: input.runtimeConfig.library.preferred_title,
-        ...(input.storedSourceMetadata
-          ? { downloadSourceMetadata: input.storedSourceMetadata }
-          : {}),
-      });
-      const localMediaMetadata = yield* probeMissingNamingMetadata(
-        input.mediaProbe,
-        path,
-        initialNamingPlan.missingFields,
-      );
-
-      const managedPath = yield* importDownloadedFile(
-        input.fs,
-        input.animeRow,
-        primaryEpisode,
-        path,
-        input.runtimeConfig.library.import_mode,
+      const placed = yield* input.naming.placeFile(
         {
-          unitNumbers: relevantEpisodes,
-          episodeRows: episodeRowsForNaming,
-          namingFormat,
-          preferredTitle: input.runtimeConfig.library.preferred_title,
-          randomUuid: input.randomUuid,
           ...(input.storedSourceMetadata
             ? { downloadSourceMetadata: input.storedSourceMetadata }
             : {}),
-          ...(localMediaMetadata ? { localMediaMetadata } : {}),
+          episodeRows: episodeRowsForNaming,
+          media: toLibraryNamingMedia(input.animeRow),
+          namingFormat,
+          preferredTitle: input.runtimeConfig.library.preferred_title,
+          sourcePath: path,
+          unitNumbers: relevantEpisodes,
         },
+        { importMode: input.runtimeConfig.library.import_mode },
       );
+      const managedPath = placed.destination;
       yield* input.mediaUnitRepository.upsertUnitFiles(
         input.row.mediaId,
         relevantEpisodes,
@@ -446,36 +421,19 @@ export const reconcileSingleDownloadEffect = Effect.fn(
   const episodeRows = yield* input.mediaRepository
     .loadUnitsByNumbers(input.row.mediaId, [input.row.unitNumber])
     .pipe(Effect.map((rows) => rows.map((r) => ({ aired: r.aired, title: r.title }))));
-  const initialNamingPlan = buildUnitFilenamePlan({
-    animeRow: input.animeRow,
-    unitNumbers: [input.row.unitNumber],
-    episodeRows,
-    filePath: resolvedPathValue,
-    namingFormat,
-    preferredTitle: input.runtimeConfig.library.preferred_title,
-    ...(input.storedSourceMetadata ? { downloadSourceMetadata: input.storedSourceMetadata } : {}),
-  });
-  const localMediaMetadata = yield* probeMissingNamingMetadata(
-    input.mediaProbe,
-    resolvedPathValue,
-    initialNamingPlan.missingFields,
-  );
-
-  const managedPath = yield* importDownloadedFile(
-    input.fs,
-    input.animeRow,
-    input.row.unitNumber,
-    resolvedPathValue,
-    input.runtimeConfig.library.import_mode,
+  const placed = yield* input.naming.placeFile(
     {
       episodeRows,
+      media: toLibraryNamingMedia(input.animeRow),
       namingFormat,
       preferredTitle: input.runtimeConfig.library.preferred_title,
-      randomUuid: input.randomUuid,
+      sourcePath: resolvedPathValue,
+      unitNumbers: [input.row.unitNumber],
       ...(input.storedSourceMetadata ? { downloadSourceMetadata: input.storedSourceMetadata } : {}),
-      ...(localMediaMetadata ? { localMediaMetadata } : {}),
     },
+    { importMode: input.runtimeConfig.library.import_mode },
   );
+  const managedPath = placed.destination;
   yield* input.mediaUnitRepository.upsertUnitFiles(
     input.row.mediaId,
     [input.row.unitNumber],

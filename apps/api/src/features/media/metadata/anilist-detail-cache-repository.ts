@@ -17,16 +17,18 @@ const AnimeMetadataJsonSchema = Schema.fromJsonString(AnimeMetadataSchema);
 const decodeAnimeMetadata = Schema.decodeUnknownEffect(AnimeMetadataJsonSchema);
 const encodeAnimeMetadata = Schema.encodeUnknownEffect(AnimeMetadataJsonSchema);
 
+export type AnimeDetailOrigin = "live" | "stale";
+
+export interface CachedAnimeDetail {
+  readonly data: AnimeMetadata;
+  readonly origin: AnimeDetailOrigin;
+}
+
 export interface AniListDetailCacheRepositoryShape {
   readonly read: (
     mediaId: number,
-    mediaKind: string | undefined,
     nowMs: number,
-  ) => Effect.Effect<AnimeMetadata | null, DatabaseError>;
-  readonly readStale: (
-    mediaId: number,
-    mediaKind: string | undefined,
-  ) => Effect.Effect<AnimeMetadata | null, DatabaseError>;
+  ) => Effect.Effect<CachedAnimeDetail | null, DatabaseError>;
   readonly write: (
     mediaId: number,
     mediaKind: string,
@@ -55,10 +57,7 @@ export function makeAniListDetailCacheRepositoryShape(
 ): AniListDetailCacheRepositoryShape {
   const exec = makeDbExecutor(sqlClient);
   return {
-    read: (mediaId, mediaKind, nowMs) =>
-      readAniListDetailCacheEffect(db, exec, mediaId, mediaKind, nowMs),
-    readStale: (mediaId, mediaKind) =>
-      readStaleAniListDetailCacheEffect(db, exec, mediaId, mediaKind),
+    read: (mediaId, nowMs) => readAniListDetailCacheEffect(db, exec, mediaId, nowMs),
     write: (mediaId, mediaKind, metadata, nowMs) =>
       writeAniListDetailCacheEffect(db, exec, mediaId, mediaKind, metadata, nowMs),
   } satisfies AniListDetailCacheRepositoryShape;
@@ -68,47 +67,37 @@ const readAniListDetailCacheEffect = Effect.fn("AniListDetailCacheRepository.rea
   db: AppDatabase,
   exec: DbExecutor,
   mediaId: number,
-  mediaKind: string | undefined,
   nowMs: number,
 ) {
-  const cached = yield* readAniListDetailCacheRowEffect(db, exec, mediaId, mediaKind);
+  const cached = yield* readAniListDetailCacheRowEffect(db, exec, mediaId);
 
-  if (cached && nowMs - cached.fetchedAtMs < ANILIST_DETAIL_CACHE_TTL_MS) {
-    return yield* decodeAniListDetailCachePayloadEffect(cached.payload);
+  if (cached === null) {
+    return null;
   }
 
-  return null;
+  const decoded = yield* Effect.result(decodeAnimeMetadata(cached.payload));
+
+  // A corrupt row is expendable: treat it as a miss so the next successful
+  // remote fetch overwrites it instead of hard-failing lookups forever.
+  if (decoded._tag === "Failure") {
+    yield* Effect.logWarning("AniList detail cache payload is corrupt; refetching").pipe(
+      Effect.annotateLogs({ mediaId }),
+    );
+    return null;
+  }
+
+  return {
+    data: decoded.success,
+    origin: nowMs - cached.fetchedAtMs < ANILIST_DETAIL_CACHE_TTL_MS ? "live" : "stale",
+  } satisfies CachedAnimeDetail;
 });
 
-const readStaleAniListDetailCacheEffect = Effect.fn("AniListDetailCacheRepository.readStale")(
-  function* (
-    db: AppDatabase,
-    exec: DbExecutor,
-    mediaId: number,
-    mediaKind: string | undefined,
-  ) {
-    const cached = yield* readAniListDetailCacheRowEffect(db, exec, mediaId, mediaKind);
-
-    if (!cached) {
-      return null;
-    }
-
-    return yield* decodeAniListDetailCachePayloadEffect(cached.payload);
-  },
-);
-
 const readAniListDetailCacheRowEffect = Effect.fn("AniListDetailCacheRepository.readRow")(
-  function* (
-    db: AppDatabase,
-    exec: DbExecutor,
-    mediaId: number,
-    mediaKind: string | undefined,
-  ) {
+  function* (db: AppDatabase, exec: DbExecutor, mediaId: number) {
     const cachedRows = yield* exec.runQuery(
       "Failed to load AniList detail cache",
       db
         .select({
-          mediaKind: anilistDetailCache.mediaKind,
           payload: anilistDetailCache.payload,
           fetchedAtMs: anilistDetailCache.fetchedAtMs,
         })
@@ -121,29 +110,9 @@ const readAniListDetailCacheRowEffect = Effect.fn("AniListDetailCacheRepository.
 
     const row = cachedRows[0] ?? null;
 
-    // The AniList `type` variable depends on kind; a row fetched as manga must
-    // not satisfy an anime lookup.
-    if (row && mediaKind !== undefined && row.mediaKind !== mediaKind) {
-      return null;
-    }
-
     return row;
   },
 );
-
-const decodeAniListDetailCachePayloadEffect = Effect.fn(
-  "AniListDetailCacheRepository.decodePayload",
-)(function* (payload: string) {
-  return yield* decodeAnimeMetadata(payload).pipe(
-    Effect.mapError(
-      (cause) =>
-        new DatabaseError({
-          cause,
-          message: "Failed to decode AniList detail cache payload",
-        }),
-    ),
-  );
-});
 
 const writeAniListDetailCacheEffect = Effect.fn("AniListDetailCacheRepository.write")(function* (
   db: AppDatabase,

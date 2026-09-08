@@ -10,7 +10,10 @@ import type { DownloadPresentationContext } from "@/features/operations/reposito
 import { StoredDataError } from "@/features/errors.ts";
 import { decodeDownloadSourceMetadata } from "@/features/operations/repository/download-repository.ts";
 import { parseCoveredUnitsEffect } from "@/features/operations/download/download-coverage.ts";
-import { isClaimToken } from "@/features/operations/download/download-claim-token.ts";
+import {
+  isClaimToken,
+  isPreservedImport,
+} from "@/features/operations/download/download-claim-token.ts";
 import { Effect } from "effect";
 
 type DownloadRow = typeof downloads.$inferSelect;
@@ -126,7 +129,7 @@ function resolveDownloadActionPolicy(
   readonly runtime: DownloadAllowedAction[] | undefined;
 } {
   const state = normalizeDownloadState(status);
-  const reconciled = globalThis.Boolean(reconciledAt) && !isClaimToken(reconciledAt);
+  const reconciled = isPreservedImport(reconciledAt);
   const download = new Set<DownloadAllowedAction>(["delete"]);
   const runtime = new Set<DownloadAllowedAction>(["delete"]);
 

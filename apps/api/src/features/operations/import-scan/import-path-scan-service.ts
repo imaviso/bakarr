@@ -42,6 +42,10 @@ import {
   isWithinPathRoot,
   type FileSystemShape,
 } from "@/infra/filesystem/filesystem.ts";
+import {
+  LibraryNaming,
+  type LibraryNamingShape,
+} from "@/features/operations/library/library-naming.ts";
 import { MediaProbe, type MediaProbeShape } from "@/infra/media/probe.ts";
 import { Context, Effect, Layer } from "effect";
 
@@ -54,6 +58,7 @@ const scanImportPathEffect = Effect.fn("ImportPathScanService.scanImportPathEffe
     limit?: number;
     mediaRepository: typeof MediaRepository.Service;
     mediaProbe: MediaProbeShape;
+    naming: LibraryNamingShape;
     namingSettings: NamingSettings;
     path: string;
   }) {
@@ -152,104 +157,107 @@ const scanImportPathEffect = Effect.fn("ImportPathScanService.scanImportPathEffe
 
     return {
       candidates: [...candidateMap.values()],
-      files: enrichedFiles.map((file) => {
-        const localMatch = input.mediaId
-          ? selectedAnimeRow
-          : findBestLocalMediaMatch(file.parsed_title, animeRows);
-        const remoteMatch =
-          !input.mediaId && !localMatch
-            ? findBestRemoteCandidate(file.parsed_title, [...candidateMap.values()])
-            : undefined;
-        const remoteCandidate = remoteMatch?.candidate;
-        let matchConfidence: number | undefined;
+      files: yield* Effect.forEach(enrichedFiles, (file) =>
+        Effect.gen(function* () {
+          const localMatch = input.mediaId
+            ? selectedAnimeRow
+            : findBestLocalMediaMatch(file.parsed_title, animeRows);
+          const remoteMatch =
+            !input.mediaId && !localMatch
+              ? findBestRemoteCandidate(file.parsed_title, [...candidateMap.values()])
+              : undefined;
+          const remoteCandidate = remoteMatch?.candidate;
+          let matchConfidence: number | undefined;
 
-        if (input.mediaId) {
-          matchConfidence = 1;
-        } else if (localMatch) {
-          matchConfidence = roundConfidence(scoreMediaRowMatch(file.parsed_title, localMatch));
-        } else {
-          matchConfidence = remoteMatch?.confidence;
-        }
-        let targetAnime: ScanResult["files"][number]["matched_media"];
+          if (input.mediaId) {
+            matchConfidence = 1;
+          } else if (localMatch) {
+            matchConfidence = roundConfidence(scoreMediaRowMatch(file.parsed_title, localMatch));
+          } else {
+            matchConfidence = remoteMatch?.confidence;
+          }
+          let targetAnime: ScanResult["files"][number]["matched_media"];
 
-        if (input.mediaId) {
-          targetAnime = selectedAnimeRow
-            ? { id: brandMediaId(selectedAnimeRow.id), title: selectedAnimeRow.titleRomaji }
-            : null;
-        } else if (localMatch) {
-          targetAnime = { id: brandMediaId(localMatch.id), title: localMatch.titleRomaji };
-        }
+          if (input.mediaId) {
+            targetAnime = selectedAnimeRow
+              ? { id: brandMediaId(selectedAnimeRow.id), title: selectedAnimeRow.titleRomaji }
+              : null;
+          } else if (localMatch) {
+            targetAnime = { id: brandMediaId(localMatch.id), title: localMatch.titleRomaji };
+          }
 
-        let matchReason = file.match_reason;
+          let matchReason = file.match_reason;
 
-        if (input.mediaId) {
-          matchReason = "Using the selected media for this import scan";
-        } else if (localMatch) {
-          matchReason = `Matched a library title to the parsed filename title ${JSON.stringify(file.parsed_title)}`;
-        } else if (remoteCandidate) {
-          matchReason = `Matched an AniList result to the parsed filename title ${JSON.stringify(file.parsed_title)}`;
-        }
-        const namingAnimeRow = targetAnime ? animeRowsById.get(targetAnime.id) : undefined;
-        const librarySignals = buildScannedFileLibrarySignals({
-          file,
-          mappingIndex,
-          targetAnime,
-        });
-        const namingPlan = buildScannedFileNamingPlan({
-          animeRow: namingAnimeRow,
-          ...(() => {
-            const episodeRows = selectUnitRowsForFile(
-              file,
-              episodeRowsByAnimeEpisode,
-              targetAnime?.id,
-            );
-            return episodeRows === undefined ? {} : { episodeRows };
-          })(),
-          file,
-          namingSettings,
-        });
+          if (input.mediaId) {
+            matchReason = "Using the selected media for this import scan";
+          } else if (localMatch) {
+            matchReason = `Matched a library title to the parsed filename title ${JSON.stringify(file.parsed_title)}`;
+          } else if (remoteCandidate) {
+            matchReason = `Matched an AniList result to the parsed filename title ${JSON.stringify(file.parsed_title)}`;
+          }
+          const namingAnimeRow = targetAnime ? animeRowsById.get(targetAnime.id) : undefined;
+          const librarySignals = buildScannedFileLibrarySignals({
+            file,
+            mappingIndex,
+            targetAnime,
+          });
+          const namingPlan = yield* buildScannedFileNamingPlan({
+            animeRow: namingAnimeRow,
+            ...(() => {
+              const episodeRows = selectUnitRowsForFile(
+                file,
+                episodeRowsByAnimeEpisode,
+                targetAnime?.id,
+              );
+              return episodeRows === undefined ? {} : { episodeRows };
+            })(),
+            file,
+            naming: input.naming,
+            namingSettings,
+          });
 
-        return {
-          air_date: file.air_date,
-          audio_channels: file.audio_channels,
-          audio_codec: file.audio_codec,
-          coverage_summary:
-            file.coverage_summary ??
-            summarizeEpisodeCoverage({
-              ...(file.air_date === undefined ? {} : { airDate: file.air_date }),
-              ...(file.unit_numbers === undefined ? {} : { unitNumbers: file.unit_numbers }),
-            }),
-          unit_number: file.unit_number,
-          unit_numbers: file.unit_numbers,
-          unit_title: file.unit_title,
-          unit_conflict: librarySignals.unit_conflict,
-          existing_mapping: librarySignals.existing_mapping,
-          filename: file.filename,
-          group: file.group,
-          match_confidence: matchConfidence,
-          match_reason: matchReason,
-          matched_media: localMatch
-            ? { id: brandMediaId(localMatch.id), title: localMatch.titleRomaji }
-            : undefined,
-          needs_manual_mapping: file.needs_manual_mapping,
-          parsed_title: file.parsed_title,
-          quality: file.quality,
-          resolution: file.resolution,
-          season: file.season,
-          size: file.size,
-          source_identity: file.source_identity,
-          source_path: file.source_path,
-          suggested_candidate_id: localMatch ? brandMediaId(localMatch.id) : remoteCandidate?.id,
-          naming_fallback_used: namingPlan.naming_fallback_used,
-          naming_filename: namingPlan.naming_filename,
-          naming_format_used: namingPlan.naming_format_used,
-          naming_metadata_snapshot: namingPlan.naming_metadata_snapshot,
-          naming_missing_fields: namingPlan.naming_missing_fields,
-          naming_warnings: namingPlan.naming_warnings,
-          video_codec: file.video_codec,
-          warnings: file.warnings,
-        };
-      }),
+          return {
+            air_date: file.air_date,
+            audio_channels: file.audio_channels,
+            audio_codec: file.audio_codec,
+            coverage_summary:
+              file.coverage_summary ??
+              summarizeEpisodeCoverage({
+                ...(file.air_date === undefined ? {} : { airDate: file.air_date }),
+                ...(file.unit_numbers === undefined ? {} : { unitNumbers: file.unit_numbers }),
+              }),
+            unit_number: file.unit_number,
+            unit_numbers: file.unit_numbers,
+            unit_title: file.unit_title,
+            unit_conflict: librarySignals.unit_conflict,
+            existing_mapping: librarySignals.existing_mapping,
+            filename: file.filename,
+            group: file.group,
+            match_confidence: matchConfidence,
+            match_reason: matchReason,
+            matched_media: localMatch
+              ? { id: brandMediaId(localMatch.id), title: localMatch.titleRomaji }
+              : undefined,
+            needs_manual_mapping: file.needs_manual_mapping,
+            parsed_title: file.parsed_title,
+            quality: file.quality,
+            resolution: file.resolution,
+            season: file.season,
+            size: file.size,
+            source_identity: file.source_identity,
+            source_path: file.source_path,
+            suggested_candidate_id: localMatch ? brandMediaId(localMatch.id) : remoteCandidate?.id,
+            naming_fallback_used: namingPlan.naming_fallback_used,
+            naming_filename: namingPlan.naming_filename,
+            naming_format_used: namingPlan.naming_format_used,
+            naming_metadata_snapshot: namingPlan.naming_metadata_snapshot,
+            naming_missing_fields: namingPlan.naming_missing_fields,
+            naming_warnings: namingPlan.naming_warnings,
+            video_codec: file.video_codec,
+            warnings: file.warnings,
+          };
+        }),
+      ),
       skipped: discovery.skippedFiles,
       total_scanned: discovery.analyzed.length,
       truncated: discovery.truncated || undefined,
@@ -283,6 +291,7 @@ export class ImportPathScanService extends Context.Service<
       const fs = yield* FileSystem;
       const mediaProbe = yield* MediaProbe;
       const mediaRepository = yield* MediaRepository;
+      const naming = yield* LibraryNaming;
       const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
 
       const scanImportPath = Effect.fn("ImportPathScanService.scanImportPath")(function* (input: {
@@ -338,6 +347,7 @@ export class ImportPathScanService extends Context.Service<
           ...(input.limit === undefined ? {} : { limit: input.limit }),
           mediaRepository,
           mediaProbe,
+          naming,
           namingSettings: {
             movieNamingFormat: config.library.movie_naming_format,
             namingFormat: config.library.naming_format,

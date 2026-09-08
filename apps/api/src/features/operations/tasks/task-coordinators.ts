@@ -4,11 +4,24 @@ import { Context, Effect, Exit, Layer, Ref, Scope, Semaphore } from "effect";
  * Shared gate that serializes download trigger and background-search queue operations
  * across the services that write queued downloads.
  */
+export interface DownloadTriggerGateShape {
+  readonly withTriggerLease: <A, E, R>(effect: Effect.Effect<A, E, R>) => Effect.Effect<A, E, R>;
+}
+
+const makeDownloadTriggerGate = Effect.fn("DownloadTriggerGate.make")(function* () {
+  const semaphore = yield* Semaphore.make(1);
+
+  const withTriggerLease = <A, E, R>(effect: Effect.Effect<A, E, R>) =>
+    semaphore.withPermits(1)(effect);
+
+  return { withTriggerLease } satisfies DownloadTriggerGateShape;
+});
+
 export class DownloadTriggerGate extends Context.Service<
   DownloadTriggerGate,
-  Semaphore.Semaphore
+  DownloadTriggerGateShape
 >()("@bakarr/api/DownloadTriggerGate") {
-  static readonly layer = Layer.effect(DownloadTriggerGate, Semaphore.make(1));
+  static readonly layer = Layer.effect(DownloadTriggerGate, makeDownloadTriggerGate());
 }
 
 export const DownloadTriggerGateLive = DownloadTriggerGate.layer;

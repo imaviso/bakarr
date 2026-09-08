@@ -441,8 +441,7 @@ it.effect("serves fresh detail cache without calling AniList", () => {
   const providerLayer = makeProviderLayer({
     cacheState: { _tag: "Missing" },
     detailCache: AniListDetailCacheRepository.of({
-      read: () => Effect.succeed(makeMetadata(2001)),
-      readStale: () => Effect.succeed(null),
+      read: () => Effect.succeed({ data: makeMetadata(2001), origin: "live" }),
       write: () => Effect.void,
     }),
     onDetailLookup: () => {
@@ -457,6 +456,9 @@ it.effect("serves fresh detail cache without calling AniList", () => {
 
     assert.deepStrictEqual(result._tag, "Found");
     assert.deepStrictEqual(remoteCalls, 0);
+    if (result._tag === "Found") {
+      assert.deepStrictEqual(result.detailOrigin, "live");
+    }
   }).pipe(Effect.provide(providerLayer));
 });
 
@@ -469,8 +471,7 @@ it.effect("serves stale detail cache when AniList fails", () => {
     }),
     cacheState: { _tag: "Missing" },
     detailCache: AniListDetailCacheRepository.of({
-      read: () => Effect.succeed(null),
-      readStale: () => Effect.succeed(makeMetadata(2002)),
+      read: () => Effect.succeed({ data: makeMetadata(2002), origin: "stale" }),
       write: () => Effect.void,
     }),
     onRefresh: () => {},
@@ -483,6 +484,7 @@ it.effect("serves stale detail cache when AniList fails", () => {
     assert.deepStrictEqual(result._tag, "Found");
     if (result._tag === "Found") {
       assert.deepStrictEqual(result.metadata.id, 2002);
+      assert.deepStrictEqual(result.detailOrigin, "stale");
     }
   }).pipe(Effect.provide(providerLayer));
 });
@@ -494,7 +496,6 @@ it.effect("writes live detail responses to the cache", () => {
     cacheState: { _tag: "Missing" },
     detailCache: AniListDetailCacheRepository.of({
       read: () => Effect.succeed(null),
-      readStale: () => Effect.succeed(null),
       write: (_id, _kind, metadata, _nowMs) =>
         Effect.sync(() => {
           written.push(metadata);
@@ -601,7 +602,6 @@ function makeProviderLayer(input: {
       input.detailCache ??
         AniListDetailCacheRepository.of({
           read: () => Effect.succeed(null),
-          readStale: () => Effect.succeed(null),
           write: () => Effect.void,
         }),
     ),

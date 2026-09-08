@@ -1,7 +1,9 @@
 import { assert, describe, it } from "@effect/vitest";
 import { Effect } from "effect";
+import { eq } from "drizzle-orm";
 
 import * as schema from "@/db/schema.ts";
+import { anilistDetailCache } from "@/db/schema.ts";
 import {
   ANILIST_DETAIL_CACHE_TTL_MS,
   makeAniListDetailCacheRepositoryShape,
@@ -23,7 +25,7 @@ function makeMetadata(id: number): AnimeMetadata {
 }
 
 describe("AniListDetailCacheRepository", () => {
-  it.effect("round-trips metadata within the TTL", () =>
+  it.effect("round-trips live metadata within the TTL", () =>
     withSqliteTestDbEffect({
       schema,
       run: (db, _file, client) =>
@@ -33,12 +35,15 @@ describe("AniListDetailCacheRepository", () => {
 
           yield* repo.write(1001, "anime", makeMetadata(1001), nowMs);
 
-          assert.deepStrictEqual(yield* repo.read(1001, "anime", nowMs), makeMetadata(1001));
+          assert.deepStrictEqual(yield* repo.read(1001, nowMs), {
+            data: makeMetadata(1001),
+            origin: "live",
+          });
         }),
     }),
   );
 
-  it.effect("returns null past the TTL but keeps the stale row", () =>
+  it.effect("serves stale metadata past the TTL without extending the window", () =>
     withSqliteTestDbEffect({
       schema,
       run: (db, _file, client) =>
@@ -47,33 +52,42 @@ describe("AniListDetailCacheRepository", () => {
 
           yield* repo.write(1002, "anime", makeMetadata(1002), 0);
 
-          assert.deepStrictEqual(
-            yield* repo.read(1002, "anime", ANILIST_DETAIL_CACHE_TTL_MS + 1),
-            null,
-          );
-          assert.deepStrictEqual(
-            yield* repo.readStale(1002, "anime"),
-            makeMetadata(1002),
-          );
+          assert.deepStrictEqual(yield* repo.read(1002, ANILIST_DETAIL_CACHE_TTL_MS + 1), {
+            data: makeMetadata(1002),
+            origin: "stale",
+          });
         }),
     }),
   );
 
-  it.effect("rejects rows fetched under a different media kind", () =>
+  it.effect("treats corrupt payloads as a miss so remote refetch heals the row", () =>
     withSqliteTestDbEffect({
       schema,
       run: (db, _file, client) =>
         Effect.gen(function* () {
           const repo = makeAniListDetailCacheRepositoryShape(db, client);
 
-          yield* repo.write(1003, "manga", makeMetadata(1003), 1_000_000);
+          yield* repo.write(1003, "anime", makeMetadata(1003), 1_000_000);
+          yield* db
+            .update(anilistDetailCache)
+            .set({ payload: "not-json" })
+            .where(eq(anilistDetailCache.mediaId, 1003))
+            .prepare()
+            .effect();
 
-          assert.deepStrictEqual(yield* repo.read(1003, "anime", 1_000_000), null);
-          assert.deepStrictEqual(yield* repo.readStale(1003, "anime"), null);
-          assert.deepStrictEqual(
-            yield* repo.read(1003, undefined, 1_000_000),
-            makeMetadata(1003),
-          );
+          assert.deepStrictEqual(yield* repo.read(1003, 1_000_000), null);
+        }),
+    }),
+  );
+
+  it.effect("returns null when no row exists", () =>
+    withSqliteTestDbEffect({
+      schema,
+      run: (db, _file, client) =>
+        Effect.gen(function* () {
+          const repo = makeAniListDetailCacheRepositoryShape(db, client);
+
+          assert.deepStrictEqual(yield* repo.read(1004, 1_000_000), null);
         }),
     }),
   );

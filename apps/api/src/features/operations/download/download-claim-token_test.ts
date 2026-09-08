@@ -4,6 +4,7 @@ import { Option } from "effect";
 import {
   buildClaimToken,
   isClaimToken,
+  isPreservedImport,
   isStaleClaimToken,
   parseClaimTimestamp,
   STALE_CLAIM_THRESHOLD_MS,
@@ -55,5 +56,15 @@ describe("download claim tokens", () => {
       false,
     );
     assert.deepStrictEqual(isStaleClaimToken(null, "2026-01-01T00:00:00.000Z"), false);
+  });
+
+  it("treats only finalized timestamps as preserved imports", () => {
+    assert.deepStrictEqual(isPreservedImport("2026-01-01T00:00:00.000Z"), true);
+    assert.deepStrictEqual(
+      isPreservedImport(buildClaimToken("2026-01-01T00:00:00.000Z", "abc-123")),
+      false,
+    );
+    assert.deepStrictEqual(isPreservedImport(null), false);
+    assert.deepStrictEqual(isPreservedImport(undefined), false);
   });
 });

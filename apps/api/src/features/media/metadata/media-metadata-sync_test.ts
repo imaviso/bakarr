@@ -57,6 +57,7 @@ it.effect("syncMediaMetadataEffect stores locally cached image paths", () =>
             getAnimeMetadataById: () =>
               Effect.succeed({
                 _tag: "Found",
+                detailOrigin: "live",
                 enrichment: {
                   _tag: "Degraded",
                   reason: { _tag: "AniDbNoEpisodeMetadata" },
@@ -119,6 +120,7 @@ it.effect("syncMediaMetadataEffect keeps existing image paths if caching fails",
             getAnimeMetadataById: () =>
               Effect.succeed({
                 _tag: "Found",
+                detailOrigin: "live",
                 enrichment: {
                   _tag: "Degraded",
                   reason: { _tag: "AniDbNoEpisodeMetadata" },
@@ -200,6 +202,7 @@ it.effect("syncMediaMetadataEffect persists enrichment metadata fields from prov
             getAnimeMetadataById: () =>
               Effect.succeed({
                 _tag: "Found",
+                detailOrigin: "live",
                 enrichment: {
                   _tag: "Degraded",
                   reason: { _tag: "AniDbNoEpisodeMetadata" },

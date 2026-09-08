@@ -1,8 +1,19 @@
-import { Cause, Effect, Exit } from "effect";
+import { Cause, Effect, Exit, Layer } from "effect";
 import { assert, it } from "@effect/vitest";
 
 import { media } from "@/db/schema.ts";
-import { FileSystemError, type FileSystemShape } from "@/infra/filesystem/filesystem.ts";
+import {
+  FileSystem,
+  FileSystemError,
+  type FileSystemShape,
+} from "@/infra/filesystem/filesystem.ts";
+import {
+  LibraryNaming,
+  makeLibraryNaming,
+  toLibraryNamingMedia,
+} from "@/features/operations/library/library-naming.ts";
+import { MediaProbe, MediaProbeNoMetadata } from "@/infra/media/probe.ts";
+import { RandomService } from "@/infra/random.ts";
 import {
   makeNoopTestFileSystemWithOverridesEffect,
   readTextFile,
@@ -11,10 +22,31 @@ import {
 } from "@/test/filesystem-test.ts";
 import { makeTestConfig } from "@/test/config-fixture.ts";
 
-import {
-  importDownloadedFile,
-  ImportFileError,
-} from "@/features/operations/download/library-file-write-support.ts";
+import { ImportFileError } from "@/features/operations/download/download-file-import-errors.ts";
+
+function makeNamingShapeEffect(fs: FileSystemShape) {
+  const layer = Layer.effect(LibraryNaming, makeLibraryNaming()).pipe(
+    Layer.provide(
+      Layer.mergeAll(
+        Layer.succeed(FileSystem, FileSystem.of(fs)),
+        Layer.succeed(
+          MediaProbe,
+          MediaProbe.of({
+            probeVideoFile: (_path: string) => Effect.succeed(new MediaProbeNoMetadata()),
+          }),
+        ),
+        Layer.succeed(
+          RandomService,
+          RandomService.of({
+            randomBytes: () => Effect.sync(() => new Uint8Array(16)),
+            randomUuid: Effect.succeed("test-uuid-0000"),
+          }),
+        ),
+      ),
+    ),
+  );
+  return LibraryNaming.pipe(Effect.provide(layer));
+}
 
 function shouldReconcileCompletedDownloads(config: ReturnType<typeof makeTestConfig> | null) {
   return config?.downloads.reconcile_completed_downloads ?? true;
@@ -71,8 +103,6 @@ function makeMediaRow(overrides: Partial<typeof media.$inferSelect>): typeof med
   };
 }
 
-const testRandomUuid = () => Effect.succeed("test-uuid-0000");
-
 it("download support helpers use config values and defaults", () => {
   const config = makeTestConfig("./test.sqlite", (c) => ({
     ...c,
@@ -93,7 +123,7 @@ it("download support helpers use config values and defaults", () => {
   assert.deepStrictEqual(shouldDeleteImportedData(undefined), false);
 });
 
-it.effect("importDownloadedFile keeps existing destination when staging copy fails", () =>
+it.effect("placeFile keeps existing destination when staging copy fails", () =>
   withFileSystemSandboxEffect(({ fs, root }) =>
     Effect.gen(function* () {
       const { animeRoot, sourceRoot } = yield* makeImportRoots(fs, root);
@@ -115,17 +145,20 @@ it.effect("importDownloadedFile keeps existing destination when staging copy fai
           ),
       });
 
+      const naming = yield* makeNamingShapeEffect(failingFs);
       const exit = yield* Effect.exit(
-        importDownloadedFile(
-          failingFs,
-          makeMediaRow({
-            rootFolder: animeRoot,
-            titleRomaji: "Naruto",
-          }),
-          1,
-          sourcePath,
-          "copy",
-          { randomUuid: testRandomUuid },
+        naming.placeFile(
+          {
+            media: toLibraryNamingMedia(
+              makeMediaRow({
+                rootFolder: animeRoot,
+                titleRomaji: "Naruto",
+              }),
+            ),
+            unitNumbers: [1],
+            sourcePath,
+          },
+          { importMode: "copy" },
         ),
       );
 
@@ -136,7 +169,7 @@ it.effect("importDownloadedFile keeps existing destination when staging copy fai
   ),
 );
 
-it.effect("importDownloadedFile surfaces stat access errors instead of treating as missing", () =>
+it.effect("placeFile surfaces stat access errors instead of treating as missing", () =>
   withFileSystemSandboxEffect(({ fs, root }) =>
     Effect.gen(function* () {
       const { animeRoot, sourceRoot } = yield* makeImportRoots(fs, root);
@@ -152,17 +185,20 @@ it.effect("importDownloadedFile surfaces stat access errors instead of treating 
             : fs.stat(path),
       });
 
+      const naming = yield* makeNamingShapeEffect(accessErrorFs);
       const exit = yield* Effect.exit(
-        importDownloadedFile(
-          accessErrorFs,
-          makeMediaRow({
-            rootFolder: animeRoot,
-            titleRomaji: "Naruto",
-          }),
-          1,
-          sourcePath,
-          "copy",
-          { randomUuid: testRandomUuid },
+        naming.placeFile(
+          {
+            media: toLibraryNamingMedia(
+              makeMediaRow({
+                rootFolder: animeRoot,
+                titleRomaji: "Naruto",
+              }),
+            ),
+            unitNumbers: [1],
+            sourcePath,
+          },
+          { importMode: "copy" },
         ),
       );
 
@@ -182,7 +218,7 @@ it.effect("importDownloadedFile surfaces stat access errors instead of treating 
   ),
 );
 
-it.effect("importDownloadedFile cleans staged temp file when backup rename fails", () =>
+it.effect("placeFile cleans staged temp file when backup rename fails", () =>
   withFileSystemSandboxEffect(({ fs, root }) =>
     Effect.gen(function* () {
       const { animeRoot, sourceRoot } = yield* makeImportRoots(fs, root);
@@ -201,17 +237,20 @@ it.effect("importDownloadedFile cleans staged temp file when backup rename fails
             : fs.rename(from, to),
       });
 
+      const naming = yield* makeNamingShapeEffect(failingBackupFs);
       const exit = yield* Effect.exit(
-        importDownloadedFile(
-          failingBackupFs,
-          makeMediaRow({
-            rootFolder: animeRoot,
-            titleRomaji: "Naruto",
-          }),
-          1,
-          sourcePath,
-          "copy",
-          { randomUuid: testRandomUuid },
+        naming.placeFile(
+          {
+            media: toLibraryNamingMedia(
+              makeMediaRow({
+                rootFolder: animeRoot,
+                titleRomaji: "Naruto",
+              }),
+            ),
+            unitNumbers: [1],
+            sourcePath,
+          },
+          { importMode: "copy" },
         ),
       );
 
@@ -233,7 +272,7 @@ it.effect("importDownloadedFile cleans staged temp file when backup rename fails
   ),
 );
 
-it.effect("importDownloadedFile returns composed failure when restore also fails", () =>
+it.effect("placeFile returns composed failure when restore also fails", () =>
   withFileSystemSandboxEffect(({ fs, root }) =>
     Effect.gen(function* () {
       const { animeRoot, sourceRoot } = yield* makeImportRoots(fs, root);
@@ -260,17 +299,20 @@ it.effect("importDownloadedFile returns composed failure when restore also fails
         },
       });
 
+      const naming = yield* makeNamingShapeEffect(restoreFailureFs);
       const exit = yield* Effect.exit(
-        importDownloadedFile(
-          restoreFailureFs,
-          makeMediaRow({
-            rootFolder: animeRoot,
-            titleRomaji: "Naruto",
-          }),
-          1,
-          sourcePath,
-          "copy",
-          { randomUuid: testRandomUuid },
+        naming.placeFile(
+          {
+            media: toLibraryNamingMedia(
+              makeMediaRow({
+                rootFolder: animeRoot,
+                titleRomaji: "Naruto",
+              }),
+            ),
+            unitNumbers: [1],
+            sourcePath,
+          },
+          { importMode: "copy" },
         ),
       );
 
@@ -295,96 +337,97 @@ it.effect("importDownloadedFile returns composed failure when restore also fails
   ),
 );
 
-it.effect(
-  "importDownloadedFile fails when cross-filesystem move cannot delete the source file",
-  () =>
-    withFileSystemSandboxEffect(({ fs, root }) =>
-      Effect.gen(function* () {
-        const { animeRoot, sourceRoot } = yield* makeImportRoots(fs, root);
-        const sourcePath = `${sourceRoot}/Naruto - 01.mkv`;
+it.effect("placeFile fails when cross-filesystem move cannot delete the source file", () =>
+  withFileSystemSandboxEffect(({ fs, root }) =>
+    Effect.gen(function* () {
+      const { animeRoot, sourceRoot } = yield* makeImportRoots(fs, root);
+      const sourcePath = `${sourceRoot}/Naruto - 01.mkv`;
 
-        yield* writeTextFile(fs, sourcePath, "incoming");
+      yield* writeTextFile(fs, sourcePath, "incoming");
 
-        const crossFilesystemFs = yield* makeNoopTestFileSystemWithOverridesEffect({
-          ...fs,
-          rename: (from, to) =>
-            from === sourcePath
-              ? Effect.fail(makeFsError(from, "EXDEV", "cross-device rename blocked"))
-              : fs.rename(from, to),
-          remove: (path, options) =>
-            path === sourcePath
-              ? Effect.fail(makeFsError(path, "EACCES", "permission denied"))
-              : fs.remove(path, options),
-        });
+      const crossFilesystemFs = yield* makeNoopTestFileSystemWithOverridesEffect({
+        ...fs,
+        rename: (from, to) =>
+          from === sourcePath
+            ? Effect.fail(makeFsError(from, "EXDEV", "cross-device rename blocked"))
+            : fs.rename(from, to),
+        remove: (path, options) =>
+          path === sourcePath
+            ? Effect.fail(makeFsError(path, "EACCES", "permission denied"))
+            : fs.remove(path, options),
+      });
 
-        const exit = yield* Effect.exit(
-          importDownloadedFile(
-            crossFilesystemFs,
+      const naming = yield* makeNamingShapeEffect(crossFilesystemFs);
+      const exit = yield* Effect.exit(
+        naming.placeFile(
+          {
+            media: toLibraryNamingMedia(
+              makeMediaRow({
+                rootFolder: animeRoot,
+                titleRomaji: "Naruto",
+              }),
+            ),
+            unitNumbers: [1],
+            sourcePath,
+          },
+          { importMode: "move" },
+        ),
+      );
+
+      assert.deepStrictEqual(Exit.isFailure(exit), true);
+      assert.deepStrictEqual(yield* readTextFile(fs, sourcePath), "incoming");
+      if (Exit.isFailure(exit)) {
+        const failure = Cause.findErrorOption(exit.cause);
+        assert.deepStrictEqual(failure._tag, "Some");
+        if (failure._tag === "Some") {
+          assert.deepStrictEqual(failure.value instanceof ImportFileError, true);
+          assert.deepStrictEqual(failure.value.message, "Failed to move file to temp destination");
+        }
+      }
+    }),
+  ),
+);
+
+it.effect("placeFile applies configured naming tokens from source filename metadata", () => {
+  const namingFormat =
+    "{title} - S{season:02}E{episode:02} - {unit_title} [{quality} {resolution}][{video_codec}][{audio_codec} {audio_channels}][{group}]";
+
+  return withFileSystemSandboxEffect(({ fs, root }) =>
+    Effect.gen(function* () {
+      const { animeRoot, sourceRoot } = yield* makeImportRoots(fs, root);
+      const sourcePath = `${sourceRoot}/Rock Is a Lady's Modesty (2025) - S01E01 - Good Day to You Quit Playing the Guitar!!! [v2 WEBDL-1080p Proper][AAC 2.0][AVC][SubsPlus+].mkv`;
+      const expectedDestination = `${animeRoot}/Rock Is a Lady's Modesty - S01E01 - Good Day to You Quit Playing the Guitar!!! [WEB-DL 1080p][AVC][AAC 2.0][SubsPlus+].mkv`;
+
+      yield* writeTextFile(fs, sourcePath, "incoming");
+
+      const naming = yield* makeNamingShapeEffect(fs);
+      const placed = yield* naming.placeFile(
+        {
+          media: toLibraryNamingMedia(
             makeMediaRow({
               rootFolder: animeRoot,
-              titleRomaji: "Naruto",
+              startDate: "2025-04-03",
+              startYear: 2025,
+              titleRomaji: "Rock Is a Lady's Modesty",
             }),
-            1,
-            sourcePath,
-            "move",
-            { randomUuid: testRandomUuid },
           ),
-        );
-
-        assert.deepStrictEqual(Exit.isFailure(exit), true);
-        assert.deepStrictEqual(yield* readTextFile(fs, sourcePath), "incoming");
-        if (Exit.isFailure(exit)) {
-          const failure = Cause.findErrorOption(exit.cause);
-          assert.deepStrictEqual(failure._tag, "Some");
-          if (failure._tag === "Some") {
-            assert.deepStrictEqual(failure.value instanceof ImportFileError, true);
-            assert.deepStrictEqual(
-              failure.value.message,
-              "Failed to move file to temp destination",
-            );
-          }
-        }
-      }),
-    ),
-);
-
-it.effect(
-  "importDownloadedFile applies configured naming tokens from source filename metadata",
-  () => {
-    const namingFormat =
-      "{title} - S{season:02}E{episode:02} - {unit_title} [{quality} {resolution}][{video_codec}][{audio_codec} {audio_channels}][{group}]";
-
-    return withFileSystemSandboxEffect(({ fs, root }) =>
-      Effect.gen(function* () {
-        const { animeRoot, sourceRoot } = yield* makeImportRoots(fs, root);
-        const sourcePath = `${sourceRoot}/Rock Is a Lady's Modesty (2025) - S01E01 - Good Day to You Quit Playing the Guitar!!! [v2 WEBDL-1080p Proper][AAC 2.0][AVC][SubsPlus+].mkv`;
-        const expectedDestination = `${animeRoot}/Rock Is a Lady's Modesty - S01E01 - Good Day to You Quit Playing the Guitar!!! [WEB-DL 1080p][AVC][AAC 2.0][SubsPlus+].mkv`;
-
-        yield* writeTextFile(fs, sourcePath, "incoming");
-
-        const destination = yield* importDownloadedFile(
-          fs,
-          makeMediaRow({
-            rootFolder: animeRoot,
-            startDate: "2025-04-03",
-            startYear: 2025,
-            titleRomaji: "Rock Is a Lady's Modesty",
-          }),
-          1,
+          unitNumbers: [1],
           sourcePath,
-          "copy",
-          { namingFormat, randomUuid: testRandomUuid },
-        );
+          namingFormat,
+          preferredTitle: "romaji",
+        },
+        { importMode: "copy" },
+      );
+      const destination = placed.destination;
 
-        assert.deepStrictEqual(destination, expectedDestination);
-        assert.deepStrictEqual(yield* readTextFile(fs, destination), "incoming");
-        assert.deepStrictEqual(yield* readTextFile(fs, sourcePath), "incoming");
-      }),
-    );
-  },
-);
+      assert.deepStrictEqual(destination, expectedDestination);
+      assert.deepStrictEqual(yield* readTextFile(fs, destination), "incoming");
+      assert.deepStrictEqual(yield* readTextFile(fs, sourcePath), "incoming");
+    }),
+  );
+});
 
-it.effect("importDownloadedFile respects preferred title when building destination", () =>
+it.effect("placeFile respects preferred title when building destination", () =>
   withFileSystemSandboxEffect(({ fs, root }) =>
     Effect.gen(function* () {
       const { animeRoot, sourceRoot } = yield* makeImportRoots(fs, root);
@@ -393,33 +436,35 @@ it.effect("importDownloadedFile respects preferred title when building destinati
 
       yield* writeTextFile(fs, sourcePath, "incoming");
 
-      const destination = yield* importDownloadedFile(
-        fs,
-        makeMediaRow({
-          format: "MOVIE",
-          rootFolder: animeRoot,
-          startDate: "2016-08-26",
-          startYear: 2016,
-          titleEnglish: "Your Name.",
-          titleNative: "君の名は。",
-          titleRomaji: "Kimi no Na wa.",
-        }),
-        1,
-        sourcePath,
-        "copy",
+      const naming = yield* makeNamingShapeEffect(fs);
+      const placed = yield* naming.placeFile(
         {
+          media: toLibraryNamingMedia(
+            makeMediaRow({
+              format: "MOVIE",
+              rootFolder: animeRoot,
+              startDate: "2016-08-26",
+              startYear: 2016,
+              titleEnglish: "Your Name.",
+              titleNative: "君の名は。",
+              titleRomaji: "Kimi no Na wa.",
+            }),
+          ),
+          unitNumbers: [1],
+          sourcePath,
           namingFormat: "{title} ({year})",
           preferredTitle: "english",
-          randomUuid: testRandomUuid,
         },
+        { importMode: "copy" },
       );
+      const destination = placed.destination;
 
       assert.deepStrictEqual(destination, expectedDestination);
     }),
   ),
 );
 
-it.effect("importDownloadedFile uses episode DB metadata and fallback naming plan", () =>
+it.effect("placeFile uses episode DB metadata and fallback naming plan", () =>
   withFileSystemSandboxEffect(({ fs, root }) =>
     Effect.gen(function* () {
       const { animeRoot, sourceRoot } = yield* makeImportRoots(fs, root);
@@ -428,32 +473,34 @@ it.effect("importDownloadedFile uses episode DB metadata and fallback naming pla
 
       yield* writeTextFile(fs, sourcePath, "incoming");
 
-      const destination = yield* importDownloadedFile(
-        fs,
-        makeMediaRow({
-          format: "TV",
-          rootFolder: animeRoot,
-          startDate: "2025-01-01",
-          startYear: 2025,
-          titleRomaji: "Show",
-        }),
-        1,
-        sourcePath,
-        "copy",
+      const naming = yield* makeNamingShapeEffect(fs);
+      const placed = yield* naming.placeFile(
         {
           episodeRows: [{ aired: "2025-03-14", title: "Pilot" }],
+          media: toLibraryNamingMedia(
+            makeMediaRow({
+              format: "TV",
+              rootFolder: animeRoot,
+              startDate: "2025-01-01",
+              startYear: 2025,
+              titleRomaji: "Show",
+            }),
+          ),
+          unitNumbers: [1],
+          sourcePath,
           namingFormat: "{title} - S{season:02}E{episode:02}",
           preferredTitle: "romaji",
-          randomUuid: testRandomUuid,
         },
+        { importMode: "copy" },
       );
+      const destination = placed.destination;
 
       assert.deepStrictEqual(destination, expectedDestination);
     }),
   ),
 );
 
-it.effect("importDownloadedFile reuses stored provenance when source path is weak", () =>
+it.effect("placeFile reuses stored provenance when source path is weak", () =>
   withFileSystemSandboxEffect(({ fs, root }) =>
     Effect.gen(function* () {
       const { animeRoot, sourceRoot } = yield* makeImportRoots(fs, root);
@@ -462,18 +509,8 @@ it.effect("importDownloadedFile reuses stored provenance when source path is wea
 
       yield* writeTextFile(fs, sourcePath, "incoming");
 
-      const destination = yield* importDownloadedFile(
-        fs,
-        makeMediaRow({
-          format: "TV",
-          rootFolder: animeRoot,
-          startDate: "2025-01-01",
-          startYear: 2025,
-          titleRomaji: "Show",
-        }),
-        1,
-        sourcePath,
-        "copy",
+      const naming = yield* makeNamingShapeEffect(fs);
+      const placed = yield* naming.placeFile(
         {
           downloadSourceMetadata: {
             quality: "WEB-DL",
@@ -484,18 +521,30 @@ it.effect("importDownloadedFile reuses stored provenance when source path is wea
               scheme: "absolute",
             },
           },
+          media: toLibraryNamingMedia(
+            makeMediaRow({
+              format: "TV",
+              rootFolder: animeRoot,
+              startDate: "2025-01-01",
+              startYear: 2025,
+              titleRomaji: "Show",
+            }),
+          ),
+          unitNumbers: [1],
+          sourcePath,
           namingFormat: "{title} - {source_episode_segment} [{quality} {resolution}]",
           preferredTitle: "romaji",
-          randomUuid: testRandomUuid,
         },
+        { importMode: "copy" },
       );
+      const destination = placed.destination;
 
       assert.deepStrictEqual(destination, expectedDestination);
     }),
   ),
 );
 
-it.effect("importDownloadedFile uses local media metadata when heuristics are missing", () =>
+it.effect("placeFile uses local media metadata when heuristics are missing", () =>
   withFileSystemSandboxEffect(({ fs, root }) =>
     Effect.gen(function* () {
       const { animeRoot, sourceRoot } = yield* makeImportRoots(fs, root);
@@ -504,18 +553,8 @@ it.effect("importDownloadedFile uses local media metadata when heuristics are mi
 
       yield* writeTextFile(fs, sourcePath, "incoming");
 
-      const destination = yield* importDownloadedFile(
-        fs,
-        makeMediaRow({
-          format: "TV",
-          rootFolder: animeRoot,
-          startDate: "2025-01-01",
-          startYear: 2025,
-          titleRomaji: "Show",
-        }),
-        1,
-        sourcePath,
-        "copy",
+      const naming = yield* makeNamingShapeEffect(fs);
+      const placed = yield* naming.placeFile(
         {
           localMediaMetadata: {
             audio_channels: "2.0",
@@ -523,12 +562,24 @@ it.effect("importDownloadedFile uses local media metadata when heuristics are mi
             resolution: "1080p",
             video_codec: "HEVC",
           },
+          media: toLibraryNamingMedia(
+            makeMediaRow({
+              format: "TV",
+              rootFolder: animeRoot,
+              startDate: "2025-01-01",
+              startYear: 2025,
+              titleRomaji: "Show",
+            }),
+          ),
+          unitNumbers: [1],
+          sourcePath,
           namingFormat:
             "{title} - {source_episode_segment} [{resolution}][{video_codec}][{audio_codec} {audio_channels}]",
           preferredTitle: "romaji",
-          randomUuid: testRandomUuid,
         },
+        { importMode: "copy" },
       );
+      const destination = placed.destination;
 
       assert.deepStrictEqual(destination, expectedDestination);
     }),

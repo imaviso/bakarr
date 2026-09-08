@@ -18,6 +18,15 @@ export function isClaimToken(value: string | null | undefined): value is string 
   return typeof value === "string" && value.startsWith(CLAIM_TOKEN_PREFIX);
 }
 
+/**
+ * A finalized import keeps its plain timestamp in `reconciledAt`; a leftover
+ * claim token means the import never finished. Sync presentation and batch
+ * refinement treat only the former as imported.
+ */
+export function isPreservedImport(reconciledAt: string | null | undefined): boolean {
+  return globalThis.Boolean(reconciledAt) && !isClaimToken(reconciledAt);
+}
+
 /** Embedded ISO timestamp of a claim token; `Option.none` for plain timestamps or malformed tokens. */
 export function parseClaimTimestamp(value: string | null | undefined): Option.Option<string> {
   if (!isClaimToken(value)) {

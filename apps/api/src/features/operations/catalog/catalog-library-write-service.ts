@@ -2,10 +2,8 @@ import { brandMediaId } from "@packages/shared/index.ts";
 import type { AsyncOperationAccepted, ImportResult, RenameResult } from "@packages/shared/index.ts";
 import type { DatabaseError } from "@/db/database.ts";
 import { EventBus } from "@/infra/effect/event-bus.ts";
-import type { InfrastructureError } from "@/features/errors.ts";
-import { MediaProbe } from "@/infra/media/probe.ts";
+import type { DomainPathError, InfrastructureError } from "@/features/errors.ts";
 import { FileSystem } from "@/infra/filesystem/filesystem.ts";
-import { RandomService } from "@/infra/random.ts";
 import type { MediaNotFoundError } from "@/features/media/errors.ts";
 import {
   importLibraryFiles,
@@ -15,6 +13,7 @@ import { renameLibraryFiles } from "@/features/operations/catalog/catalog-librar
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 import type { RuntimeConfigSnapshotError } from "@/features/system/runtime-config-snapshot-service.ts";
 import { MediaRepository } from "@/features/media/shared/media-repository.ts";
+import { LibraryNaming } from "@/features/operations/library/library-naming.ts";
 import { MediaUnitRepository } from "@/features/media/units/media-unit-repository.ts";
 import { OperationsTaskLauncherService } from "@/features/operations/tasks/operations-task-launcher-service.ts";
 import { OperationsTaskWriteService } from "@/features/operations/tasks/operations-task-service.ts";
@@ -26,7 +25,10 @@ export interface CatalogLibraryWriteServiceShape {
   ) => Effect.Effect<ImportResult, RuntimeConfigSnapshotError>;
   readonly renameFiles: (
     mediaId: number,
-  ) => Effect.Effect<RenameResult, DatabaseError | MediaNotFoundError | RuntimeConfigSnapshotError>;
+  ) => Effect.Effect<
+    RenameResult,
+    DatabaseError | DomainPathError | MediaNotFoundError | RuntimeConfigSnapshotError
+  >;
   readonly startLibraryImport: (
     files: readonly LibraryImportFileInput[],
   ) => Effect.Effect<AsyncOperationAccepted, DatabaseError | InfrastructureError>;
@@ -43,8 +45,7 @@ export class CatalogLibraryWriteService extends Context.Service<
       const fs = yield* FileSystem;
       const mediaRepository = yield* MediaRepository;
       const mediaUnitRepository = yield* MediaUnitRepository;
-      const mediaProbe = yield* MediaProbe;
-      const random = yield* RandomService;
+      const naming = yield* LibraryNaming;
       const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
       const taskLauncher = yield* OperationsTaskLauncherService;
       const taskWriteService = yield* OperationsTaskWriteService;
@@ -59,8 +60,7 @@ export class CatalogLibraryWriteService extends Context.Service<
           fs,
           mediaRepository,
           mediaUnitRepository,
-          mediaProbe,
-          randomUuid: () => random.randomUuid,
+          naming,
           runtimeConfig,
         });
       });
@@ -73,6 +73,7 @@ export class CatalogLibraryWriteService extends Context.Service<
           fs,
           mediaRepository,
           mediaUnitRepository,
+          naming,
           runtimeConfig,
         });
       });

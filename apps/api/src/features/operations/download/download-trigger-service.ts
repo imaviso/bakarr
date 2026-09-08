@@ -108,7 +108,7 @@ export class DownloadTriggerService extends Context.Service<
       ) {
         yield* Effect.annotateCurrentSpan("mediaId", input.media_id);
 
-        return yield* downloadTriggerGate.withPermits(1)(
+        return yield* downloadTriggerGate.withTriggerLease(
           executeTriggerDownload(input).pipe(Effect.withSpan("operations.downloads.trigger")),
         );
       });

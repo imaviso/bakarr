@@ -46,6 +46,7 @@ it.effect(
                     )
                   : Effect.succeed({
                       _tag: "Found",
+                      detailOrigin: "live",
                       enrichment: {
                         _tag: "Degraded",
                         reason: { _tag: "AniDbNoEpisodeMetadata" },

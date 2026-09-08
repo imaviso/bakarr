@@ -4,6 +4,7 @@ import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import { isFileExistsError, isNotFoundError } from "@/infra/filesystem/fs-errors.ts";
 import { EventBus } from "@/infra/effect/event-bus.ts";
 import { buildRenamePreview } from "@/features/operations/library/library-import.ts";
+import type { LibraryNamingShape } from "@/features/operations/library/library-naming.ts";
 import { DomainPathError } from "@/features/errors.ts";
 import type { MediaNotFoundError } from "@/features/media/errors.ts";
 import { MediaRepository } from "@/features/media/shared/media-repository.ts";
@@ -61,6 +62,7 @@ export interface RenameLibraryFilesInput {
   readonly fs: FileSystemShape;
   readonly mediaRepository: typeof MediaRepository.Service;
   readonly mediaUnitRepository: MediaUnitRepositoryShape;
+  readonly naming: LibraryNamingShape;
   readonly runtimeConfig: Config;
   readonly mediaId: number;
 }
@@ -69,12 +71,13 @@ export const renameLibraryFiles = Effect.fn("Operations.renameLibraryFiles")((
   input: RenameLibraryFilesInput,
 ): Effect.Effect<
   { failed: number; failures: string[]; renamed: number },
-  DatabaseError | MediaNotFoundError
+  DatabaseError | DomainPathError | MediaNotFoundError
 > => {
-  const { eventBus, fs, mediaRepository, mediaUnitRepository, runtimeConfig, mediaId } = input;
+  const { eventBus, fs, mediaRepository, mediaUnitRepository, naming, runtimeConfig, mediaId } =
+    input;
   return Effect.gen(function* () {
     const animeRow = yield* mediaRepository.getMediaRow(mediaId);
-    const preview = yield* buildRenamePreview(mediaId, runtimeConfig, mediaRepository);
+    const preview = yield* buildRenamePreview(mediaId, runtimeConfig, mediaRepository, naming);
 
     yield* eventBus.publish({
       type: "RenameStarted",

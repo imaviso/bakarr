@@ -7,9 +7,10 @@ import {
   RssFeedRejectedError,
   RssFeedTooLargeError,
 } from "@/features/operations/errors.ts";
-import { compareUnitSearchResults } from "@/features/operations/search/release-ranking.ts";
-import { validateQualityProfileSizeLabels } from "@/features/operations/search/release-ranking.ts";
-import { toUnitSearchResult } from "@/features/operations/search/search-orchestration-unit-result.ts";
+import {
+  rankUnitReleases,
+  validateQualityProfileSizeLabels,
+} from "@/features/operations/search/release-ranking.ts";
 import { SearchReleaseService } from "@/features/operations/search/search-orchestration-release-search.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 import type { RuntimeConfigSnapshotError } from "@/features/system/runtime-config-snapshot-service.ts";
@@ -81,18 +82,14 @@ export class SearchUnitService extends Context.Service<SearchUnitService, Search
           runtimeConfig,
         );
 
-        return results
-          .map((item) =>
-            toUnitSearchResult({
-              currentUnit,
-              item,
-              profile,
-              rules,
-              runtimeConfig,
-              unitKind: animeRow.mediaKind === "anime" ? "episode" : "volume",
-            }),
-          )
-          .toSorted(compareUnitSearchResults);
+        return rankUnitReleases({
+          currentUnit,
+          releases: results,
+          profile,
+          rules,
+          runtimeConfig,
+          unitKind: animeRow.mediaKind === "anime" ? "episode" : "volume",
+        });
       });
 
       return {
