@@ -12,10 +12,20 @@ export const DEFAULT_ANIDB_METADATA_CONFIG: AniDbMetadataConfig = {
   username: null,
 };
 
+// AniList enforces ~90 requests/minute per IP; the cap keeps library
+// refreshes and user searches under that. Applies live, no restart needed.
+export const DEFAULT_ANILIST_REQUESTS_PER_MINUTE = 30;
+export const MAX_ANILIST_REQUESTS_PER_MINUTE = 90;
+
+export const DEFAULT_ANILIST_METADATA_CONFIG: AniListMetadataConfig = {
+  requests_per_minute: DEFAULT_ANILIST_REQUESTS_PER_MINUTE,
+};
+
 export const normalizeMetadataProvidersConfig = Effect.fn(
   "SystemConfig.normalizeMetadataProvidersConfig",
 )(function* (metadata: Config["metadata"] | undefined) {
   const normalized = normalizeAniDbConfig(metadata?.anidb);
+  const anilist = normalizeAniListConfig(metadata?.anilist);
 
   if (normalized.enabled && (!normalized.username || !normalized.password)) {
     return yield* new ConfigValidationError({
@@ -51,12 +61,30 @@ export const normalizeMetadataProvidersConfig = Effect.fn(
     });
   }
 
+  if (
+    !globalThis.Number.isInteger(anilist.requests_per_minute) ||
+    anilist.requests_per_minute <= 0 ||
+    anilist.requests_per_minute > MAX_ANILIST_REQUESTS_PER_MINUTE
+  ) {
+    return yield* new ConfigValidationError({
+      message: `AniList requests per minute must be an integer between 1 and ${MAX_ANILIST_REQUESTS_PER_MINUTE}`,
+    });
+  }
+
   return {
     anidb: normalized,
+    anilist,
   } satisfies NonNullable<Config["metadata"]>;
 });
 
 type AniDbMetadataConfig = NonNullable<NonNullable<Config["metadata"]>["anidb"]>;
+type AniListMetadataConfig = NonNullable<NonNullable<Config["metadata"]>["anilist"]>;
+
+function normalizeAniListConfig(anilist: Partial<AniListMetadataConfig> | undefined) {
+  return {
+    requests_per_minute: anilist?.requests_per_minute ?? DEFAULT_ANILIST_REQUESTS_PER_MINUTE,
+  };
+}
 
 function normalizeAniDbConfig(anidb: Partial<AniDbMetadataConfig> | undefined) {
   return {

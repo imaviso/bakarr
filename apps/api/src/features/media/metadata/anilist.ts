@@ -8,7 +8,22 @@ import type {
   AnimeMetadata,
   ProviderMediaSearchResult,
 } from "@/features/media/metadata/metadata-model.ts";
-import { Context, Effect, Layer, Option, Record, Schema } from "effect";
+import {
+  Clock,
+  Context,
+  Duration,
+  Effect,
+  Layer,
+  Option,
+  Record,
+  Ref,
+  Schema,
+  Semaphore,
+} from "effect";
+import type { DatabaseError } from "@/db/database.ts";
+import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
+import { StoredConfigCorruptError } from "@/features/system/errors.ts";
+import { DEFAULT_ANILIST_REQUESTS_PER_MINUTE } from "@/features/system/metadata-providers-config.ts";
 import {
   AnimeMetadataFromAniListSchema,
   AnimeSearchResultFromAniListSchema,
@@ -18,6 +33,12 @@ import {
 } from "@/features/media/metadata/anilist-model.ts";
 
 const ANILIST_URL = "https://graphql.anilist.co";
+
+// Shared by every AniList query (search/detail/seasonal, user or background).
+// The per-minute cap lives in system settings (metadata.anilist) so it can be
+// tuned live; AniList enforces ~90 requests/minute per IP and the UI caps at
+// that. Snapshot reads are in-memory after first load.
+const ANILIST_RATE_LIMIT_WINDOW_MS = 60_000;
 
 const ANILIST_SEASON_MAP: Record<MediaSeason, "WINTER" | "SPRING" | "SUMMER" | "FALL"> = {
   winter: "WINTER",
@@ -344,6 +365,47 @@ interface AniListClientShape {
 const makeAniListClient = Effect.fn("AniListClient.make")(function* () {
   const client = yield* HttpClient.HttpClient;
   const externalCall = yield* ExternalCall;
+  const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
+  const requestTimestamps = yield* Ref.make<ReadonlyArray<number>>([]);
+  const requestGate = yield* Semaphore.make(1);
+
+  // Sliding-window gate: at most `requestsPerMinute` upstream calls per rolling
+  // minute, shared by all three operations. One slot per logical query —
+  // retries of the same call reuse its slot. Fibers decide under a
+  // single-permit gate and sleep outside it, so TestClock controls the wait.
+  // The cap resolves per query so settings changes apply without restart; a
+  // config load failure surfaces as ExternalCallError so existing fallbacks
+  // (Manami search, stale detail) engage.
+  const acquireRequestSlot = Effect.fn("AniListClient.acquireRequestSlot")(function* () {
+    const requestsPerMinute = yield* resolveRequestsPerMinute(runtimeConfigSnapshot);
+    while (true) {
+      const waitMs = yield* requestGate.withPermits(1)(
+        Effect.gen(function* () {
+          const now = yield* Clock.currentTimeMillis;
+          const windowStart = now - ANILIST_RATE_LIMIT_WINDOW_MS;
+          const recent: Array<number> = [];
+          let oldest = Number.POSITIVE_INFINITY;
+          for (const timestamp of yield* Ref.get(requestTimestamps)) {
+            if (timestamp > windowStart) {
+              recent.push(timestamp);
+              if (timestamp < oldest) {
+                oldest = timestamp;
+              }
+            }
+          }
+          if (recent.length < requestsPerMinute) {
+            yield* Ref.set(requestTimestamps, [...recent, now]);
+            return 0;
+          }
+          return Math.max(oldest + ANILIST_RATE_LIMIT_WINDOW_MS - now, 1);
+        }),
+      );
+      if (waitMs <= 0) {
+        return;
+      }
+      yield* Effect.sleep(Duration.millis(waitMs));
+    }
+  });
 
   const searchAnimeMetadata = Effect.fn("AniListClient.searchAnimeMetadata")(function* (
     query: string,
@@ -355,6 +417,7 @@ const makeAniListClient = Effect.fn("AniListClient.make")(function* () {
       return [];
     }
 
+    yield* acquireRequestSlot();
     return yield* trySearchRemote(client, externalCall, trimmed, mediaKind);
   });
 
@@ -362,6 +425,7 @@ const makeAniListClient = Effect.fn("AniListClient.make")(function* () {
     id: number,
     mediaKind?: MediaKind,
   ) {
+    yield* acquireRequestSlot();
     return yield* tryFetchDetail(client, externalCall, id, mediaKind);
   });
 
@@ -371,6 +435,7 @@ const makeAniListClient = Effect.fn("AniListClient.make")(function* () {
     limit: number;
     page?: number;
   }) {
+    yield* acquireRequestSlot();
     return yield* tryFetchSeasonal(client, externalCall, input);
   });
 
@@ -389,6 +454,35 @@ export class AniListClient extends Context.Service<AniListClient, AniListClientS
 }
 
 export const AniListClientLive = AniListClient.layer;
+
+const resolveRequestsPerMinute = Effect.fn("AniListClient.resolveRequestsPerMinute")(function* (
+  runtimeConfigSnapshot: typeof RuntimeConfigSnapshotService.Service,
+) {
+  const runtimeConfig = yield* runtimeConfigSnapshot.getRuntimeConfig().pipe(
+    Effect.map((config) => Option.some(config)),
+    Effect.catchTag("StoredConfigMissingError", () => Effect.succeed(Option.none())),
+    Effect.catchTag("StoredConfigCorruptError", (error) => failRateLimitConfigLoad(error)),
+    Effect.catchTag("DatabaseError", (error) => failRateLimitConfigLoad(error)),
+  );
+
+  if (Option.isNone(runtimeConfig)) {
+    return DEFAULT_ANILIST_REQUESTS_PER_MINUTE;
+  }
+
+  return (
+    runtimeConfig.value.metadata?.anilist?.requests_per_minute ??
+    DEFAULT_ANILIST_REQUESTS_PER_MINUTE
+  );
+});
+
+const failRateLimitConfigLoad = (error: StoredConfigCorruptError | DatabaseError) =>
+  Effect.fail(
+    ExternalCallError.make({
+      cause: error,
+      message: "Failed to load AniList rate limit config",
+      operation: "anilist.ratelimit.config",
+    }),
+  );
 
 const callAniList = <A, I>(
   client: HttpClient.HttpClient,

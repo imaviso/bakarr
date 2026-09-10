@@ -65,8 +65,13 @@ export const AniDbMetadataConfigSchema = Schema.Struct({
   episode_limit: Schema.Number,
 });
 
+export const AniListMetadataConfigSchema = Schema.Struct({
+  requests_per_minute: Schema.Number,
+});
+
 export const MetadataProvidersConfigSchema = Schema.Struct({
   anidb: AniDbMetadataConfigSchema,
+  anilist: Schema.optional(AniListMetadataConfigSchema),
 });
 
 export const DownloadsConfigSchema = Schema.Struct({

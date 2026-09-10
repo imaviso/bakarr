@@ -1,7 +1,11 @@
 import { DatabaseError } from "@/db/database.ts";
 import { AniListClient } from "@/features/media/metadata/anilist.ts";
+import { AniListDetailCacheRepository } from "@/features/media/metadata/anilist-detail-cache-repository.ts";
 import { ManamiClient } from "@/features/media/metadata/manami.ts";
-import { searchMediaWithFallback } from "@/features/media/metadata/media-metadata-provider-service.ts";
+import {
+  getCachedOrRemoteDetail,
+  searchMediaWithFallback,
+} from "@/features/media/metadata/media-metadata-provider-service.ts";
 import { MediaNotFoundError } from "@/features/media/errors.ts";
 import { StoredDataError } from "@/features/errors.ts";
 import { ExternalCallError } from "@/infra/effect/retry.ts";
@@ -18,7 +22,7 @@ import {
   deriveDetailProgress,
   deriveListProgress,
 } from "@/features/media/shared/dto.ts";
-import { Context, DateTime, Effect, Layer, Option } from "effect";
+import { Cache, Context, DateTime, Duration, Effect, Exit, Layer, Option } from "effect";
 import {
   brandMediaId,
   type CalendarEvent,
@@ -58,6 +62,28 @@ interface UnitStats {
 
 const DTO_PROGRESS_YIELD_INTERVAL = 50;
 
+// User-facing search bursts (keystrokes, retries, multi-tab) share one
+// upstream call per normalized query. Scoped to MediaQueryService so
+// background workers keep their own throughput.
+const SEARCH_CACHE_CAPACITY = 200;
+const SEARCH_CACHE_TTL = "5 minutes";
+
+function toSearchCacheKey(query: string, mediaKind: MediaKind) {
+  return `${mediaKind}:${query.trim().replace(/\s+/g, " ").toLowerCase()}`;
+}
+
+function fromSearchCacheKey(cacheKey: string): {
+  readonly mediaKind: MediaKind;
+  readonly query: string;
+} {
+  const separator = cacheKey.indexOf(":");
+  const kind = cacheKey.slice(0, separator);
+  return {
+    mediaKind: kind === "manga" ? "manga" : "anime",
+    query: cacheKey.slice(separator + 1),
+  };
+}
+
 export interface MediaQueryServiceShape {
   readonly listMedia: (
     params?: MediaListQueryParams,
@@ -90,6 +116,30 @@ export const makeMediaQueryService = Effect.fn("MediaQueryService.make")(functio
   const mediaRepository = yield* MediaRepository;
   const providerService = yield* MediaSeasonalProviderService;
   const seasonalMediaCacheRepository = yield* SeasonalMediaCacheRepository;
+  const detailCache = yield* AniListDetailCacheRepository;
+
+  // Effect Cache dedups concurrent lookups of the same key (one in-flight
+  // load) and evicts by TTL — repeated/overlapping searches reuse one
+  // AniList call. Only fresh AniList hits are cached; transient failures and
+  // Manami degraded fallbacks get a zero TTL so retries re-attempt upstream.
+  // Annotation and already-in-library marking stay per-request so library
+  // flags stay fresh.
+  const searchCache = yield* Cache.makeWith(
+    (cacheKey: string) => {
+      const cached = fromSearchCacheKey(cacheKey);
+      return searchMediaWithFallback({
+        aniList,
+        manami,
+        mediaKind: cached.mediaKind,
+        query: cached.query,
+      });
+    },
+    {
+      capacity: SEARCH_CACHE_CAPACITY,
+      timeToLive: (exit) =>
+        Exit.isSuccess(exit) && !exit.value.degraded ? SEARCH_CACHE_TTL : Duration.zero,
+    },
+  );
 
   const service: MediaQueryServiceShape = {
     getMedia: Effect.fn("MediaQueryService.getMedia")(function* (id: number) {
@@ -103,14 +153,21 @@ export const makeMediaQueryService = Effect.fn("MediaQueryService.make")(functio
       mediaKind?: MediaKind,
     ) {
       const effectiveMediaKind = mediaKind ?? "anime";
-      const metadata = yield* aniList.getAnimeMetadataById(id, effectiveMediaKind);
+      // Served from anilist_detail_cache when live, stale on upstream failure.
+      // Previously every dialog open hit AniList directly.
+      const cached = yield* getCachedOrRemoteDetail({
+        aniList,
+        detailCache,
+        id,
+        mediaKind,
+      });
 
-      if (Option.isNone(metadata)) {
+      if (Option.isNone(cached)) {
         return yield* new MediaNotFoundError({
           message: "Media not found",
         });
       }
-      const metadataValue = metadata.value;
+      const metadataValue = cached.value.data;
 
       const alreadyInLibrary = yield* mediaRepository.mediaExists(id);
 
@@ -260,12 +317,16 @@ export const makeMediaQueryService = Effect.fn("MediaQueryService.make")(functio
       mediaKind?: MediaKind,
     ) {
       const effectiveMediaKind = mediaKind ?? "anime";
-      const providerResult = yield* searchMediaWithFallback({
-        aniList,
-        manami,
-        mediaKind: effectiveMediaKind,
-        query,
-      });
+      if (query.trim().length === 0) {
+        return {
+          degraded: false,
+          results: [],
+        } satisfies MediaSearchResponse;
+      }
+      const providerResult = yield* Cache.get(
+        searchCache,
+        toSearchCacheKey(query, effectiveMediaKind),
+      );
 
       const annotated = annotateMediaSearchResultsForQuery(query, providerResult.results);
 

@@ -3,12 +3,21 @@ import { assert, it } from "@effect/vitest";
 import * as HttpClient from "effect/unstable/http/HttpClient";
 import * as HttpClientRequest from "effect/unstable/http/HttpClientRequest";
 import * as HttpClientResponse from "effect/unstable/http/HttpClientResponse";
-import { Effect, Layer, Option, Schema } from "effect";
+import * as TestClock from "effect/testing/TestClock";
+import { Effect, Fiber, Layer, Option, Schema } from "effect";
 
 import { AniListClient, AniListClientLive } from "@/features/media/metadata/anilist.ts";
 import { ExternalCallLive } from "@/infra/effect/retry.ts";
+import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
+import { DEFAULT_ANIDB_METADATA_CONFIG } from "@/features/system/metadata-providers-config.ts";
+import { makeTestConfig } from "@/test/config-fixture.ts";
+import { makeRuntimeConfigSnapshotStub } from "@/test/stubs.ts";
 
 const ExternalCallTestLayer = ExternalCallLive;
+const snapshotLayer = Layer.succeed(
+  RuntimeConfigSnapshotService,
+  makeRuntimeConfigSnapshotStub(makeTestConfig("./test.sqlite")),
+);
 const AniListRequestBodySchema = Schema.Struct({
   query: Schema.String,
   variables: Schema.Record(Schema.String, Schema.Unknown),
@@ -22,6 +31,7 @@ it.effect("AniListClient decodes search responses from the provided HttpClient",
       Layer.provide(
         Layer.mergeAll(
           ExternalCallTestLayer,
+          snapshotLayer,
           Layer.succeed(
             HttpClient.HttpClient,
             makeAniListClient(
@@ -147,6 +157,7 @@ it.effect("AniListClient decodes detail responses from the provided HttpClient",
       Layer.provide(
         Layer.mergeAll(
           ExternalCallTestLayer,
+          snapshotLayer,
           Layer.succeed(
             HttpClient.HttpClient,
             makeAniListClient(
@@ -304,6 +315,7 @@ it.effect("AniListClient detail lookup omits media type when kind is unknown", (
       Layer.provide(
         Layer.mergeAll(
           ExternalCallTestLayer,
+          snapshotLayer,
           Layer.succeed(
             HttpClient.HttpClient,
             makeAniListClient(
@@ -345,6 +357,7 @@ it.effect("AniListClient keeps next airing as future schedule fallback", () =>
       Layer.provide(
         Layer.mergeAll(
           ExternalCallTestLayer,
+          snapshotLayer,
           Layer.succeed(
             HttpClient.HttpClient,
             makeAniListClient(() => {}, [], {
@@ -413,6 +426,7 @@ it.effect("AniListClient decodes seasonal responses and backfills missing season
       Layer.provide(
         Layer.mergeAll(
           ExternalCallTestLayer,
+          snapshotLayer,
           Layer.succeed(
             HttpClient.HttpClient,
             makeAniListClient(
@@ -446,6 +460,96 @@ it.effect("AniListClient decodes seasonal responses and backfills missing season
     assert.deepStrictEqual(second?.start_date, undefined);
 
     assert.deepStrictEqual(requestCount, 1);
+  }),
+);
+
+it.effect("AniListClient paces queries to the configured requests per minute", () =>
+  Effect.gen(function* () {
+    let requestCount = 0;
+
+    const clientLayer = AniListClientLive.pipe(
+      Layer.provide(
+        Layer.mergeAll(
+          ExternalCallTestLayer,
+          Layer.succeed(
+            RuntimeConfigSnapshotService,
+            makeRuntimeConfigSnapshotStub(
+              makeTestConfig("./test.sqlite", (config) => ({
+                ...config,
+                metadata: {
+                  anidb: { ...DEFAULT_ANIDB_METADATA_CONFIG, ...config.metadata?.anidb },
+                  anilist: { requests_per_minute: 2 },
+                },
+              })),
+            ),
+          ),
+          Layer.succeed(
+            HttpClient.HttpClient,
+            makeAniListClient(
+              () => {
+                requestCount += 1;
+              },
+              [],
+              null,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    const client = yield* AniListClient.pipe(Effect.provide(clientLayer));
+
+    yield* client.searchAnimeMetadata("first query");
+    yield* client.searchAnimeMetadata("second query");
+    assert.deepStrictEqual(requestCount, 2);
+
+    const pending = yield* Effect.forkChild(client.searchAnimeMetadata("third query"));
+    yield* Effect.yieldNow;
+    assert.deepStrictEqual(requestCount, 2);
+
+    yield* TestClock.adjust("61 seconds");
+    yield* Fiber.join(pending);
+    assert.deepStrictEqual(requestCount, 3);
+  }),
+);
+
+it.effect("AniListClient allows 30 queries per minute by default", () =>
+  Effect.gen(function* () {
+    let requestCount = 0;
+
+    const clientLayer = AniListClientLive.pipe(
+      Layer.provide(
+        Layer.mergeAll(
+          ExternalCallTestLayer,
+          snapshotLayer,
+          Layer.succeed(
+            HttpClient.HttpClient,
+            makeAniListClient(
+              () => {
+                requestCount += 1;
+              },
+              [],
+              null,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    const client = yield* AniListClient.pipe(Effect.provide(clientLayer));
+
+    for (let index = 0; index < 30; index++) {
+      yield* client.searchAnimeMetadata(`query ${index}`);
+    }
+    assert.deepStrictEqual(requestCount, 30);
+
+    const pending = yield* Effect.forkChild(client.searchAnimeMetadata("query 30"));
+    yield* Effect.yieldNow;
+    assert.deepStrictEqual(requestCount, 30);
+
+    yield* TestClock.adjust("61 seconds");
+    yield* Fiber.join(pending);
+    assert.deepStrictEqual(requestCount, 31);
   }),
 );
 

@@ -130,6 +130,16 @@ export function SystemSettingsAutomationMetadataSection(
         min="1"
         fallbackValue={200}
       />
+
+      <SettingNumberField
+        form={props.form}
+        name="metadata.anilist.requests_per_minute"
+        label="AniList Requests Per Minute"
+        description="Shared cap for all AniList queries (search, detail, seasonal). Applies immediately, no restart needed."
+        min="1"
+        max="90"
+        fallbackValue={30}
+      />
     </SettingSection>
   );
 }

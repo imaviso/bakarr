@@ -74,6 +74,53 @@ it("rejects invalid AniDB client version instead of coercing", () =>
     }
   }));
 
+it("defaults AniList requests per minute when absent", () =>
+  Effect.gen(function* () {
+    const normalized = yield* normalizeMetadataProvidersConfig({
+      anidb: {
+        client: "bakarr",
+        client_version: 1,
+        enabled: false,
+        episode_limit: 200,
+        local_port: 45553,
+        password: null,
+        username: null,
+      },
+    });
+
+    assert.deepStrictEqual(normalized.anilist.requests_per_minute, 30);
+  }));
+
+it("rejects AniList requests per minute outside 1-90 instead of coercing", () =>
+  Effect.gen(function* () {
+    for (const requestsPerMinute of [0, -5, 91, 1.5]) {
+      const exit = yield* Effect.exit(
+        normalizeMetadataProvidersConfig({
+          anidb: {
+            client: "bakarr",
+            client_version: 1,
+            enabled: false,
+            episode_limit: 200,
+            local_port: 45553,
+            password: null,
+            username: null,
+          },
+          anilist: { requests_per_minute: requestsPerMinute },
+        }),
+      );
+
+      assert.deepStrictEqual(Exit.isFailure(exit), true);
+      if (Exit.isFailure(exit)) {
+        const failure = Cause.findErrorOption(exit.cause);
+        assert.deepStrictEqual(failure._tag, "Some");
+        if (failure._tag === "Some") {
+          assert.deepStrictEqual(failure.value._tag, "ConfigValidationError");
+          assert.match(failure.value.message, /requests per minute/i);
+        }
+      }
+    }
+  }));
+
 it("rejects invalid AniDB episode limit instead of coercing", () =>
   Effect.gen(function* () {
     const exit = yield* Effect.exit(

@@ -5,7 +5,10 @@ import {
   type QualityProfile,
 } from "@packages/shared/index.ts";
 import type { ConfigCore } from "@/features/system/config-codec.ts";
-import { DEFAULT_ANIDB_METADATA_CONFIG } from "@/features/system/metadata-providers-config.ts";
+import {
+  DEFAULT_ANIDB_METADATA_CONFIG,
+  DEFAULT_ANILIST_METADATA_CONFIG,
+} from "@/features/system/metadata-providers-config.ts";
 
 export const DEFAULT_QUALITIES: readonly Quality[] = [
   { id: brandQualityId(1), name: "480p", source: "bluray", resolution: 480, rank: 10 },
@@ -75,6 +78,9 @@ export function makeDefaultConfig(databasePath: string): ConfigCore {
     metadata: {
       anidb: {
         ...DEFAULT_ANIDB_METADATA_CONFIG,
+      },
+      anilist: {
+        ...DEFAULT_ANILIST_METADATA_CONFIG,
       },
     },
     downloads: {
