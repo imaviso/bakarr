@@ -69,9 +69,14 @@ export const AniListMetadataConfigSchema = Schema.Struct({
   requests_per_minute: Schema.Number,
 });
 
+export const TenraiMetadataConfigSchema = Schema.Struct({
+  requests_per_minute: Schema.Number,
+});
+
 export const MetadataProvidersConfigSchema = Schema.Struct({
   anidb: AniDbMetadataConfigSchema,
   anilist: Schema.optional(AniListMetadataConfigSchema),
+  tenrai: Schema.optional(TenraiMetadataConfigSchema),
 });
 
 export const DownloadsConfigSchema = Schema.Struct({

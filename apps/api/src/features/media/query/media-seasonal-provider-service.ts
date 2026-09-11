@@ -1,7 +1,7 @@
 import type { MediaSeason } from "@packages/shared/index.ts";
 import { AniListClient } from "@/features/media/metadata/anilist.ts";
-import { JikanClient } from "@/features/media/metadata/jikan.ts";
-import { ManamiClient } from "@/features/media/metadata/manami.ts";
+import { ExternalIdMapRepository } from "@/features/media/metadata/external-id-map-repository.ts";
+import { TenraiClient } from "@/features/media/metadata/tenrai.ts";
 import { ExternalCallError } from "@/infra/effect/retry.ts";
 import { Context, Effect, Layer } from "effect";
 import {
@@ -23,15 +23,15 @@ export interface MediaSeasonalProviderServiceShape {
 const makeMediaSeasonalProviderService = Effect.fn("MediaSeasonalProviderService.make")(
   function* () {
     const aniList = yield* AniListClient;
-    const jikan = yield* JikanClient;
-    const manami = yield* ManamiClient;
+    const tenrai = yield* TenraiClient;
+    const idMap = yield* ExternalIdMapRepository;
 
     const getSeasonalAnime = Effect.fn("MediaSeasonalProviderService.getSeasonalAnime")(
       function* (input: { season: MediaSeason; year: number; limit: number; page: number }) {
         return yield* seasonalWithFallback({
           aniList,
-          jikan,
-          manami,
+          idMap,
+          tenrai,
           ...input,
         });
       },

@@ -39,9 +39,9 @@ it.effect(
                 id === 801
                   ? Effect.fail(
                       ExternalCallError.make({
-                        cause: new Error("jikan unavailable"),
-                        message: "Jikan unavailable",
-                        operation: "jikan.detail.full",
+                        cause: new Error("tenrai unavailable"),
+                        message: "Tenrai unavailable",
+                        operation: "tenrai.detail.full",
                       }),
                     )
                   : Effect.succeed({

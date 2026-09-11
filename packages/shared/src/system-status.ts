@@ -11,11 +11,7 @@ export interface SystemStatus {
       enabled: boolean;
       configured: boolean;
     };
-    jikan: {
-      enabled: boolean;
-      configured: boolean;
-    };
-    manami: {
+    tenrai: {
       enabled: boolean;
       configured: boolean;
     };
@@ -39,11 +35,7 @@ export const SystemStatusMetadataProvidersSchema = Schema.Struct({
     enabled: Schema.Boolean,
     configured: Schema.Boolean,
   }),
-  jikan: Schema.Struct({
-    enabled: Schema.Boolean,
-    configured: Schema.Boolean,
-  }),
-  manami: Schema.Struct({
+  tenrai: Schema.Struct({
     enabled: Schema.Boolean,
     configured: Schema.Boolean,
   }),

@@ -4,7 +4,6 @@ import { assert, describe, it } from "@effect/vitest";
 import { AppDrizzleDatabase, type AppDatabase } from "@/db/database.ts";
 import * as schema from "@/db/schema.ts";
 import { AniListClient } from "@/features/media/metadata/anilist.ts";
-import { ManamiClient } from "@/features/media/metadata/manami.ts";
 import { ImportPathScanService } from "@/features/operations/import-scan/import-path-scan-service.ts";
 import { LibraryNaming } from "@/features/operations/library/library-naming.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
@@ -71,16 +70,7 @@ function scanImportPathEffect(
                 getAnimeMetadataById: () => Effect.die(new Error("not used in test")),
                 searchAnimeMetadata: () => Effect.die(new Error("not used in test")),
                 getSeasonalAnime: () => Effect.die(new Error("not used in test")),
-              }),
-            ),
-            Layer.succeed(
-              ManamiClient,
-              ManamiClient.of({
-                getByAniListId: () => Effect.die(new Error("not used in test")),
-                getByMalId: () => Effect.die(new Error("not used in test")),
                 resolveAniListIdFromMalId: () => Effect.die(new Error("not used in test")),
-                resolveMalIdFromAniListId: () => Effect.die(new Error("not used in test")),
-                searchMedia: () => Effect.die(new Error("not used in test")),
               }),
             ),
             Layer.succeed(FileSystem, FileSystem.of(fs)),

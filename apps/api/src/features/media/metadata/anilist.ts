@@ -250,6 +250,22 @@ const DETAIL_ANIME_QUERY = `query ($id: Int, $type: MediaType) {
   }
 }`;
 
+const ID_MAL_LOOKUP_QUERY = `query ($malId: Int) {
+  Media(idMal: $malId) {
+    id
+  }
+}`;
+
+const AniListIdMalLookupPayloadSchema = Schema.Struct({
+  data: Schema.Struct({
+    Media: Schema.NullOr(
+      Schema.Struct({
+        id: Schema.Number,
+      }),
+    ),
+  }),
+});
+
 const SEASONAL_ANIME_QUERY = `query ($season: MediaSeason, $seasonYear: Int, $perPage: Int, $page: Int) {
   Page(page: $page, perPage: $perPage) {
     pageInfo {
@@ -360,6 +376,9 @@ interface AniListClientShape {
     limit: number;
     page?: number;
   }) => Effect.Effect<ProviderMediaSearchResult[], ExternalCallError>;
+  readonly resolveAniListIdFromMalId: (
+    malId: number,
+  ) => Effect.Effect<Option.Option<number>, ExternalCallError>;
 }
 
 const makeAniListClient = Effect.fn("AniListClient.make")(function* () {
@@ -375,7 +394,7 @@ const makeAniListClient = Effect.fn("AniListClient.make")(function* () {
   // single-permit gate and sleep outside it, so TestClock controls the wait.
   // The cap resolves per query so settings changes apply without restart; a
   // config load failure surfaces as ExternalCallError so existing fallbacks
-  // (Manami search, stale detail) engage.
+  // (stale detail) engage.
   const acquireRequestSlot = Effect.fn("AniListClient.acquireRequestSlot")(function* () {
     const requestsPerMinute = yield* resolveRequestsPerMinute(runtimeConfigSnapshot);
     while (true) {
@@ -439,9 +458,25 @@ const makeAniListClient = Effect.fn("AniListClient.make")(function* () {
     return yield* tryFetchSeasonal(client, externalCall, input);
   });
 
+  const resolveAniListIdFromMalId = Effect.fn("AniListClient.resolveAniListIdFromMalId")(function* (
+    malId: number,
+  ) {
+    yield* acquireRequestSlot();
+    const payload = yield* callAniList(
+      client,
+      externalCall,
+      "resolveId",
+      ID_MAL_LOOKUP_QUERY,
+      { malId },
+      AniListIdMalLookupPayloadSchema,
+    );
+    return Option.fromNullishOr(payload.data.Media?.id);
+  });
+
   const service: AniListClientShape = {
     getAnimeMetadataById,
     getSeasonalAnime,
+    resolveAniListIdFromMalId,
     searchAnimeMetadata,
   };
   return service;

@@ -1,23 +1,52 @@
-import { Clock, Effect, Ref } from "effect";
+import { Clock, Duration, Effect, Ref, Result, Semaphore } from "effect";
 import { type Socket } from "node:dgram";
 
 import { parseAniDbResponse } from "@/features/media/metadata/anidb-protocol.ts";
 import {
+  isAniDbPacketTimeout,
   sendAndReceiveAniDbPacketEffect,
   type AniDbPeer,
 } from "@/features/media/metadata/anidb-socket.ts";
 import { ExternalCallError } from "@/infra/effect/retry.ts";
 
 const ANIDB_PROTO_VERSION = 3;
-const ANIDB_MIN_PACKET_INTERVAL_MS = 2_200;
+// Spec flood protection: 1 packet per 2s short-term (enforced after the
+// first 5 packets), 1 packet per 4s sustained long-term.
+const ANIDB_SHORT_PACKET_GAP_MS = 2_200;
+const ANIDB_LONG_PACKET_GAP_MS = 4_000;
+const ANIDB_BURST_PACKETS = 5;
+const ANIDB_BURST_WINDOW_MS = 60_000;
+const ANIDB_RETRY_BACKOFF = "5 seconds";
+const ANIDB_MAX_ATTEMPTS = 2;
+const ANIDB_RESUBMIT_CODES: ReadonlyArray<number> = [602, 604];
+
+// Retry policy: packet timeouts may be flood-protection drops, and 602 busy
+// / 604 timeout explicitly ask for resubmission — one retry after backoff.
+// Anything else, or the second attempt, fails.
+export function shouldRetryAniDbCommand(input: {
+  readonly attempt: number;
+  readonly responseCode?: number | undefined;
+  readonly timedOut: boolean;
+}): boolean {
+  if (input.attempt > 0) {
+    return false;
+  }
+
+  if (input.timedOut) {
+    return true;
+  }
+
+  return input.responseCode !== undefined && ANIDB_RESUBMIT_CODES.includes(input.responseCode);
+}
 
 /**
- * Per-session request state shared by every socket send: the atomic packet
- * pacing slot, the monotonically increasing response-tag counter, and the
+ * Per-process request state shared by every socket send: the paced packet
+ * slot, the monotonically increasing response-tag counter, and the
  * validated UDP peer.
  */
 export interface AniDbRequestContext {
-  readonly lastPacketAtRef: Ref.Ref<number>;
+  readonly packetGate: Semaphore.Semaphore;
+  readonly packetTimestampsRef: Ref.Ref<ReadonlyArray<number>>;
   readonly nextTagRef: Ref.Ref<number>;
   readonly peer: AniDbPeer;
 }
@@ -28,35 +57,50 @@ export const sendAniDbCommandEffect = Effect.fn("AniDbClient.sendCommand")(funct
   context: AniDbRequestContext,
   operation: string,
 ) {
-  yield* reservePacketSlot(context.lastPacketAtRef);
-  const tag = yield* nextRequestTag(context.nextTagRef);
+  for (let attempt = 0; attempt < ANIDB_MAX_ATTEMPTS; attempt++) {
+    yield* reservePacketSlot(context);
+    const tag = yield* nextRequestTag(context.nextTagRef);
 
-  const responseRaw = yield* sendAndReceiveAniDbPacketEffect(
-    socket,
-    `${command}&tag=${tag}`,
-    context.peer,
-    tag,
-  ).pipe(
-    Effect.mapError((cause) =>
-      ExternalCallError.make({
-        cause,
-        message: `AniDB ${operation} request failed`,
-        operation: `anidb.${operation}.request`,
-      }),
-    ),
-  );
+    const result = yield* sendAndReceiveAniDbPacketEffect(
+      socket,
+      `${command}&tag=${tag}`,
+      context.peer,
+      tag,
+    ).pipe(Effect.result);
 
-  const parsed = parseAniDbResponse(responseRaw);
+    if (Result.isFailure(result)) {
+      if (!shouldRetryAniDbCommand({ attempt, timedOut: isAniDbPacketTimeout(result.failure) })) {
+        return yield* ExternalCallError.make({
+          cause: result.failure,
+          message: `AniDB ${operation} request failed`,
+          operation: `anidb.${operation}.request`,
+        });
+      }
 
-  if (!parsed) {
-    return yield* ExternalCallError.make({
-      cause: new Error("AniDB response was not parseable"),
-      message: `AniDB ${operation} response decode failed`,
-      operation: `anidb.${operation}.decode`,
-    });
+      yield* Effect.sleep(ANIDB_RETRY_BACKOFF);
+      continue;
+    }
+
+    const parsed = parseAniDbResponse(result.success);
+
+    if (!parsed) {
+      return yield* ExternalCallError.make({
+        cause: new Error("AniDB response was not parseable"),
+        message: `AniDB ${operation} response decode failed`,
+        operation: `anidb.${operation}.decode`,
+      });
+    }
+
+    // 602 busy / 604 timeout ask for resubmission: one retry after backoff.
+    if (shouldRetryAniDbCommand({ attempt, responseCode: parsed.code, timedOut: false })) {
+      yield* Effect.sleep(ANIDB_RETRY_BACKOFF);
+      continue;
+    }
+
+    return parsed;
   }
 
-  return parsed;
+  return yield* Effect.die(new Error("AniDB command retry loop exhausted"));
 });
 
 export const authenticateAniDbEffect = Effect.fn("AniDbClient.authenticate")(function* (
@@ -75,6 +119,7 @@ export const authenticateAniDbEffect = Effect.fn("AniDbClient.authenticate")(fun
       `protover=${ANIDB_PROTO_VERSION}`,
       `client=${encodeCommandValue(client)}`,
       `clientver=${clientVersion}`,
+      `enc=UTF-8`,
     ].join("&"),
     context,
     "auth",
@@ -125,22 +170,43 @@ export const logoutAniDbEffect = Effect.fn("AniDbClient.logout")(function* (
 });
 
 /**
- * Atomically reserve the next ≥2.2s packet slot. The ref holds the timestamp
- * at which the next packet may be sent; `Ref.modify` both computes this
- * caller's wait and advances the reservation, so concurrent callers can never
- * share a window.
+ * Two-tier flood-protection gate: 2.2s gaps for the first 5 packets of a
+ * rolling minute, 4s gaps once the burst is spent. Fibers decide under a
+ * single-permit gate and sleep outside it, so TestClock controls the wait.
  */
-const reservePacketSlot = Effect.fn("AniDbClient.reservePacketSlot")(function* (
-  lastPacketAtRef: Ref.Ref<number>,
+export const reservePacketSlot = Effect.fn("AniDbClient.reservePacketSlot")(function* (
+  context: AniDbRequestContext,
 ) {
-  const now = yield* Clock.currentTimeMillis;
-  const waitMs = yield* Ref.modify(lastPacketAtRef, (nextAllowedAt): readonly [number, number] => {
-    const startAt = Math.max(now, nextAllowedAt);
-    return [startAt - now, startAt + ANIDB_MIN_PACKET_INTERVAL_MS];
-  });
+  while (true) {
+    const waitMs = yield* context.packetGate.withPermits(1)(
+      Effect.gen(function* () {
+        const now = yield* Clock.currentTimeMillis;
+        const windowStart = now - ANIDB_BURST_WINDOW_MS;
+        const recent = (yield* Ref.get(context.packetTimestampsRef)).filter(
+          (timestamp) => timestamp > windowStart,
+        );
+        const last = recent.length > 0 ? Math.max(...recent) : Number.NEGATIVE_INFINITY;
+        const gap =
+          recent.length >= ANIDB_BURST_PACKETS
+            ? ANIDB_LONG_PACKET_GAP_MS
+            : ANIDB_SHORT_PACKET_GAP_MS;
+        const wait = Math.max(last + gap - now, 0);
 
-  if (waitMs > 0) {
-    yield* Effect.sleep(`${waitMs} millis`);
+        if (wait <= 0) {
+          yield* Ref.set(context.packetTimestampsRef, [...recent, now]);
+          return 0;
+        }
+
+        yield* Ref.set(context.packetTimestampsRef, recent);
+        return Math.max(wait, 1);
+      }),
+    );
+
+    if (waitMs <= 0) {
+      return;
+    }
+
+    yield* Effect.sleep(Duration.millis(waitMs));
   }
 });
 
@@ -153,6 +219,8 @@ const nextRequestTag = Effect.fn("AniDbClient.nextRequestTag")(function* (
   ]);
 });
 
-function encodeCommandValue(value: string) {
-  return encodeURIComponent(value);
+export function encodeCommandValue(value: string) {
+  // Spec content encoding: raw values with & escaped as &amp; and newlines
+  // as <br />. Percent-encoding is not decoded server-side.
+  return value.replace(/&/gu, "&amp;").replace(/\n/gu, "<br />");
 }

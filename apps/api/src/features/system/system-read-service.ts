@@ -158,11 +158,7 @@ const makeSystemReadService = Effect.fn("SystemReadService.make")(function* () {
           configured: aniDbConfigured,
           enabled: anidbConfig?.enabled ?? false,
         },
-        jikan: {
-          configured: true,
-          enabled: true,
-        },
-        manami: {
+        tenrai: {
           configured: true,
           enabled: true,
         },

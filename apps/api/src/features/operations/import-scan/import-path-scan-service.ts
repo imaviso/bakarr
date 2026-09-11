@@ -6,7 +6,6 @@ import type {
 import { DatabaseError } from "@/db/database.ts";
 import { summarizeEpisodeCoverage } from "@/features/media/shared/derivations.ts";
 import { AniListClient } from "@/features/media/metadata/anilist.ts";
-import { ManamiClient } from "@/features/media/metadata/manami.ts";
 import { searchMediaWithFallback } from "@/features/media/metadata/media-metadata-provider-service.ts";
 import { getConfiguredLibraryPaths } from "@/features/media/shared/config-support.ts";
 import { MediaRepository } from "@/features/media/shared/media-repository.ts";
@@ -52,7 +51,6 @@ import { Context, Effect, Layer } from "effect";
 const scanImportPathEffect = Effect.fn("ImportPathScanService.scanImportPathEffect")(
   function* (input: {
     aniList: typeof AniListClient.Service;
-    manami: typeof ManamiClient.Service;
     mediaId?: number;
     fs: FileSystemShape;
     limit?: number;
@@ -140,7 +138,6 @@ const scanImportPathEffect = Effect.fn("ImportPathScanService.scanImportPathEffe
       for (const parsedTitle of parsedTitles) {
         const remoteSearch = yield* searchMediaWithFallback({
           aniList: input.aniList,
-          manami: input.manami,
           mediaKind: "anime",
           query: parsedTitle,
         });
@@ -287,7 +284,6 @@ export class ImportPathScanService extends Context.Service<
     ImportPathScanService,
     Effect.gen(function* () {
       const aniList = yield* AniListClient;
-      const manami = yield* ManamiClient;
       const fs = yield* FileSystem;
       const mediaProbe = yield* MediaProbe;
       const mediaRepository = yield* MediaRepository;
@@ -341,7 +337,6 @@ export class ImportPathScanService extends Context.Service<
 
         return yield* scanImportPathEffect({
           aniList,
-          manami,
           ...(input.mediaId === undefined ? {} : { mediaId: input.mediaId }),
           fs,
           ...(input.limit === undefined ? {} : { limit: input.limit }),

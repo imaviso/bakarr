@@ -17,7 +17,6 @@ import { MediaSeasonalProviderService } from "@/features/media/query/media-seaso
 import { AppDrizzleDatabase, type AppDatabase } from "@/db/database.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 import { ExternalCallError } from "@/infra/effect/retry.ts";
-import { ManamiClient } from "@/features/media/metadata/manami.ts";
 import { MediaRepository } from "@/features/media/shared/media-repository.ts";
 import {
   makeAniListDetailCacheRepository,
@@ -92,17 +91,8 @@ describe("MediaQueryService.listSeasonalMedia", () => {
               AniListClient.of({
                 getAnimeMetadataById: () => Effect.succeed(Option.none()),
                 getSeasonalAnime: () => Effect.succeed([]),
-                searchAnimeMetadata: () => Effect.succeed([]),
-              }),
-            ),
-            Layer.succeed(
-              ManamiClient,
-              ManamiClient.of({
-                getByAniListId: () => Effect.succeed(Option.none()),
-                getByMalId: () => Effect.succeed(Option.none()),
                 resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
-                resolveMalIdFromAniListId: () => Effect.succeed(Option.none()),
-                searchMedia: () => Effect.succeed([]),
+                searchAnimeMetadata: () => Effect.succeed([]),
               }),
             ),
             Layer.succeed(AppDrizzleDatabase, AppDrizzleDatabase.of(db)),
@@ -190,17 +180,8 @@ describe("MediaQueryService.listSeasonalMedia", () => {
                   AniListClient.of({
                     getAnimeMetadataById: () => Effect.succeed(Option.none()),
                     getSeasonalAnime: () => Effect.succeed([]),
-                    searchAnimeMetadata: () => Effect.succeed([]),
-                  }),
-                ),
-                Layer.succeed(
-                  ManamiClient,
-                  ManamiClient.of({
-                    getByAniListId: () => Effect.succeed(Option.none()),
-                    getByMalId: () => Effect.succeed(Option.none()),
                     resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
-                    resolveMalIdFromAniListId: () => Effect.succeed(Option.none()),
-                    searchMedia: () => Effect.succeed([]),
+                    searchAnimeMetadata: () => Effect.succeed([]),
                   }),
                 ),
                 Layer.succeed(AppDrizzleDatabase, AppDrizzleDatabase.of(db)),
@@ -281,17 +262,8 @@ describe("MediaQueryService.listSeasonalMedia", () => {
                   AniListClient.of({
                     getAnimeMetadataById: () => Effect.succeed(Option.none()),
                     getSeasonalAnime: () => Effect.succeed([]),
-                    searchAnimeMetadata: () => Effect.succeed([]),
-                  }),
-                ),
-                Layer.succeed(
-                  ManamiClient,
-                  ManamiClient.of({
-                    getByAniListId: () => Effect.succeed(Option.none()),
-                    getByMalId: () => Effect.succeed(Option.none()),
                     resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
-                    resolveMalIdFromAniListId: () => Effect.succeed(Option.none()),
-                    searchMedia: () => Effect.succeed([]),
+                    searchAnimeMetadata: () => Effect.succeed([]),
                   }),
                 ),
                 Layer.succeed(AppDrizzleDatabase, AppDrizzleDatabase.of(db)),
@@ -404,17 +376,8 @@ describe("MediaQueryService.listSeasonalMedia", () => {
                   AniListClient.of({
                     getAnimeMetadataById: () => Effect.succeed(Option.none()),
                     getSeasonalAnime: () => Effect.succeed([]),
-                    searchAnimeMetadata: () => Effect.succeed([]),
-                  }),
-                ),
-                Layer.succeed(
-                  ManamiClient,
-                  ManamiClient.of({
-                    getByAniListId: () => Effect.succeed(Option.none()),
-                    getByMalId: () => Effect.succeed(Option.none()),
                     resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
-                    resolveMalIdFromAniListId: () => Effect.succeed(Option.none()),
-                    searchMedia: () => Effect.succeed([]),
+                    searchAnimeMetadata: () => Effect.succeed([]),
                   }),
                 ),
                 Layer.succeed(AppDrizzleDatabase, AppDrizzleDatabase.of(db)),
@@ -455,7 +418,7 @@ describe("MediaQueryService.listSeasonalMedia", () => {
               Effect.succeed({
                 degraded: true,
                 hasMore: false,
-                provider: "jikan_fallback",
+                provider: "tenrai_fallback",
                 results: [
                   {
                     already_in_library: false,
@@ -482,17 +445,8 @@ describe("MediaQueryService.listSeasonalMedia", () => {
                   AniListClient.of({
                     getAnimeMetadataById: () => Effect.succeed(Option.none()),
                     getSeasonalAnime: () => Effect.succeed([]),
-                    searchAnimeMetadata: () => Effect.succeed([]),
-                  }),
-                ),
-                Layer.succeed(
-                  ManamiClient,
-                  ManamiClient.of({
-                    getByAniListId: () => Effect.succeed(Option.none()),
-                    getByMalId: () => Effect.succeed(Option.none()),
                     resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
-                    resolveMalIdFromAniListId: () => Effect.succeed(Option.none()),
-                    searchMedia: () => Effect.succeed([]),
+                    searchAnimeMetadata: () => Effect.succeed([]),
                   }),
                 ),
                 Layer.succeed(AppDrizzleDatabase, AppDrizzleDatabase.of(db)),
@@ -519,7 +473,7 @@ describe("MediaQueryService.listSeasonalMedia", () => {
 
           assert.deepStrictEqual(result.season, "fall");
           assert.deepStrictEqual(result.year, 2024);
-          assert.deepStrictEqual(result.provider, "jikan_fallback");
+          assert.deepStrictEqual(result.provider, "tenrai_fallback");
           assert.deepStrictEqual(result.degraded, true);
           assert.deepStrictEqual(result.page, 2);
           assert.deepStrictEqual(result.limit, 5);
@@ -560,84 +514,43 @@ describe("resolveSeasonFromDate / resolveSeasonYearFromDate", () => {
 });
 
 describe("MediaQueryService.searchMedia", () => {
-  it.effect("falls back to Manami local search when AniList search fails", () =>
+  it.effect("propagates ExternalCallError when AniList search fails", () =>
     withSqliteTestDbEffect({
       run: (db, _databaseFile, client, _exec) =>
         Effect.gen(function* () {
           yield* TestClock.setTime(new Date("2025-04-01T10:00:00.000Z").getTime());
-          const layer = Layer.effect(MediaQueryService, makeMediaQueryService()).pipe(
-            Layer.provide(
-              Layer.mergeAll(
-                Layer.succeed(
-                  MediaSeasonalProviderService,
-                  MediaSeasonalProviderService.of({
-                    getSeasonalAnime: () =>
-                      Effect.succeed({
-                        degraded: false,
-                        hasMore: false,
-                        provider: "anilist",
-                        results: [],
-                        season: "spring",
-                        year: 2025,
+          const service = yield* MediaQueryService.pipe(
+            Effect.provide(
+              makeQueryServiceLayer(db, client, {
+                aniList: AniListClient.of({
+                  getAnimeMetadataById: () => Effect.succeed(Option.none()),
+                  getSeasonalAnime: () => Effect.succeed([]),
+                  resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
+                  searchAnimeMetadata: () =>
+                    Effect.fail(
+                      ExternalCallError.make({
+                        cause: new Error("rate limited"),
+                        message: "AniList search failed",
+                        operation: "anilist.search.response",
                       }),
-                  }),
-                ),
-                Layer.succeed(
-                  AniListClient,
-                  AniListClient.of({
-                    getAnimeMetadataById: () => Effect.succeed(Option.none()),
-                    getSeasonalAnime: () => Effect.succeed([]),
-                    searchAnimeMetadata: () =>
-                      Effect.fail(
-                        ExternalCallError.make({
-                          cause: new Error("rate limited"),
-                          message: "AniList search failed",
-                          operation: "anilist.search.response",
-                        }),
-                      ),
-                  }),
-                ),
-                Layer.succeed(
-                  ManamiClient,
-                  ManamiClient.of({
-                    getByAniListId: () => Effect.succeed(Option.none()),
-                    getByMalId: () => Effect.succeed(Option.none()),
-                    resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
-                    resolveMalIdFromAniListId: () => Effect.succeed(Option.none()),
-                    searchMedia: () =>
-                      Effect.succeed([
-                        {
-                          already_in_library: false,
-                          id: brandMediaId(1001),
-                          synonyms: ["Alpha Alias"],
-                          title: { english: "Alpha", romaji: "Alpha" },
-                        },
-                      ]),
-                  }),
-                ),
-                Layer.succeed(AppDrizzleDatabase, AppDrizzleDatabase.of(db)),
-                Layer.succeed(MediaRepository, makeMediaRepository(db, client)),
-                Layer.succeed(
-                  SeasonalMediaCacheRepository,
-                  makeSeasonalMediaCacheRepository(db, client),
-                ),
-                Layer.succeed(
-                  AniListDetailCacheRepository,
-                  makeAniListDetailCacheRepository(db, client),
-                ),
-              ),
+                    ),
+                }),
+              }),
             ),
           );
 
-          const service = yield* MediaQueryService.pipe(Effect.provide(layer));
-          const result = yield* service.searchMedia("Alpha Alias");
+          const result = yield* Effect.exit(service.searchMedia("Alpha Alias"));
 
-          assert.deepStrictEqual(result.degraded, true);
-          assert.deepStrictEqual(
-            result.results.map((item) => item.id),
-            [1001],
-          );
-          assert.deepStrictEqual(result.results[0]?.match_confidence, 1);
+          assert.deepStrictEqual(Exit.isFailure(result), true);
+          if (Exit.isFailure(result)) {
+            const failure = Cause.findErrorOption(result.cause);
+            assert.deepStrictEqual(failure._tag, "Some");
+            if (failure._tag === "Some") {
+              if (failure.value instanceof ExternalCallError) {
+                assert.deepStrictEqual(failure.value.operation, "anilist.search.response");
+              }
+            }
+          }
         }),
       schema,
     }),
@@ -649,7 +562,6 @@ function makeQueryServiceLayer(
   client: NodeSqliteClient.SqliteClient,
   stubs: {
     readonly aniList?: typeof AniListClient.Service;
-    readonly manami?: typeof ManamiClient.Service;
   } = {},
 ) {
   const providerService = MediaSeasonalProviderService.of({
@@ -668,24 +580,14 @@ function makeQueryServiceLayer(
     AniListClient.of({
       getAnimeMetadataById: () => Effect.succeed(Option.none()),
       getSeasonalAnime: () => Effect.succeed([]),
+      resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
       searchAnimeMetadata: () => Effect.succeed([]),
     });
-  const manami =
-    stubs.manami ??
-    ManamiClient.of({
-      getByAniListId: () => Effect.succeed(Option.none()),
-      getByMalId: () => Effect.succeed(Option.none()),
-      resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
-      resolveMalIdFromAniListId: () => Effect.succeed(Option.none()),
-      searchMedia: () => Effect.succeed([]),
-    });
-
   return Layer.effect(MediaQueryService, makeMediaQueryService()).pipe(
     Layer.provide(
       Layer.mergeAll(
         Layer.succeed(MediaSeasonalProviderService, providerService),
         Layer.succeed(AniListClient, aniList),
-        Layer.succeed(ManamiClient, manami),
         Layer.succeed(AppDrizzleDatabase, AppDrizzleDatabase.of(db)),
         Layer.succeed(MediaRepository, makeMediaRepository(db, client)),
         Layer.succeed(SeasonalMediaCacheRepository, makeSeasonalMediaCacheRepository(db, client)),
@@ -1112,43 +1014,51 @@ it.effect("MediaQueryService.getMedia uses stored discovery metadata from databa
   }),
 );
 
-it.effect("MediaQueryService.searchMedia falls back to Manami when AniList search fails", () =>
-  withSqliteTestDbEffect({
-    run: (db, _databaseFile, client, _exec) =>
-      Effect.gen(function* () {
-        const appDb: AppDatabase = db;
-        const result = yield* Effect.exit(
-          Effect.gen(function* () {
-            const service = yield* MediaQueryService.pipe(
-              Effect.provide(
-                makeQueryServiceLayer(appDb, client, {
-                  aniList: AniListClient.of({
-                    getAnimeMetadataById: () => Effect.succeed(Option.none()),
-                    searchAnimeMetadata: () =>
-                      Effect.fail(
-                        new ExternalCallError({
-                          cause: new Error("rate limited"),
-                          message: "AniList search failed",
-                          operation: "anilist.search.response",
-                        }),
-                      ),
-                    getSeasonalAnime: () => Effect.succeed([]),
+it.effect(
+  "MediaQueryService.searchMedia propagates ExternalCallError when AniList search fails",
+  () =>
+    withSqliteTestDbEffect({
+      run: (db, _databaseFile, client, _exec) =>
+        Effect.gen(function* () {
+          const appDb: AppDatabase = db;
+          const result = yield* Effect.exit(
+            Effect.gen(function* () {
+              const service = yield* MediaQueryService.pipe(
+                Effect.provide(
+                  makeQueryServiceLayer(appDb, client, {
+                    aniList: AniListClient.of({
+                      getAnimeMetadataById: () => Effect.succeed(Option.none()),
+                      searchAnimeMetadata: () =>
+                        Effect.fail(
+                          new ExternalCallError({
+                            cause: new Error("rate limited"),
+                            message: "AniList search failed",
+                            operation: "anilist.search.response",
+                          }),
+                        ),
+                      getSeasonalAnime: () => Effect.succeed([]),
+                      resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
+                    }),
                   }),
-                }),
-              ),
-            );
-            return yield* service.searchMedia("bake");
-          }),
-        );
+                ),
+              );
+              return yield* service.searchMedia("bake");
+            }),
+          );
 
-        assert.deepStrictEqual(Exit.isSuccess(result), true);
-        if (Exit.isSuccess(result)) {
-          assert.deepStrictEqual(result.value.degraded, true);
-          assert.deepStrictEqual(result.value.results.length, 0);
-        }
-      }),
-    schema,
-  }),
+          assert.deepStrictEqual(Exit.isFailure(result), true);
+          if (Exit.isFailure(result)) {
+            const failure = Cause.findErrorOption(result.cause);
+            assert.deepStrictEqual(failure._tag, "Some");
+            if (failure._tag === "Some") {
+              if (failure.value instanceof ExternalCallError) {
+                assert.deepStrictEqual(failure.value.operation, "anilist.search.response");
+              }
+            }
+          }
+        }),
+      schema,
+    }),
 );
 
 it.effect("MediaQueryService.searchMedia reuses one upstream call for repeated queries", () =>
@@ -1173,6 +1083,7 @@ it.effect("MediaQueryService.searchMedia reuses one upstream call for repeated q
                   ]);
                 },
                 getSeasonalAnime: () => Effect.succeed([]),
+                resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
               }),
             }),
           ),
@@ -1189,7 +1100,7 @@ it.effect("MediaQueryService.searchMedia reuses one upstream call for repeated q
   }),
 );
 
-it.effect("MediaQueryService.searchMedia retries AniList after a degraded fallback", () =>
+it.effect("MediaQueryService.searchMedia retries AniList after a failure", () =>
   withSqliteTestDbEffect({
     run: (db, _databaseFile, client, _exec) =>
       Effect.gen(function* () {
@@ -1219,28 +1130,21 @@ it.effect("MediaQueryService.searchMedia retries AniList after a degraded fallba
                       ]);
                 },
                 getSeasonalAnime: () => Effect.succeed([]),
-              }),
-              manami: ManamiClient.of({
-                getByAniListId: () => Effect.succeed(Option.none()),
-                getByMalId: () => Effect.succeed(Option.none()),
                 resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
-                resolveMalIdFromAniListId: () => Effect.succeed(Option.none()),
-                searchMedia: () =>
-                  Effect.succeed([
-                    {
-                      already_in_library: false,
-                      id: brandMediaId(20),
-                      title: { english: "Naruto", romaji: "NARUTO" },
-                    } satisfies MediaSearchResult,
-                  ]),
               }),
             }),
           ),
         );
 
-        const first = yield* service.searchMedia("bake");
-        assert.deepStrictEqual(first.degraded, true);
-        assert.deepStrictEqual(first.results.length, 1);
+        const first = yield* Effect.exit(service.searchMedia("bake"));
+        assert.deepStrictEqual(Exit.isFailure(first), true);
+        if (Exit.isFailure(first)) {
+          const failure = Cause.findErrorOption(first.cause);
+          assert.deepStrictEqual(failure._tag, "Some");
+          if (failure._tag === "Some") {
+            assert.deepStrictEqual(failure.value instanceof ExternalCallError, true);
+          }
+        }
 
         const second = yield* service.searchMedia("bake");
         assert.deepStrictEqual(second.degraded, false);
@@ -1273,6 +1177,7 @@ it.effect("MediaQueryService.searchMedia retries AniList after a hard failure", 
                   );
                 },
                 getSeasonalAnime: () => Effect.succeed([]),
+                resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
               }),
             }),
           ),
@@ -1315,6 +1220,7 @@ it.effect("MediaQueryService.getMediaByAnilistId serves repeat lookups from deta
                 },
                 searchAnimeMetadata: () => Effect.succeed([]),
                 getSeasonalAnime: () => Effect.succeed([]),
+                resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
               }),
             }),
           ),
@@ -1350,6 +1256,7 @@ it.effect("MediaQueryService.searchMedia reports non-degraded when AniList searc
                     } satisfies MediaSearchResult,
                   ]),
                 getSeasonalAnime: () => Effect.succeed([]),
+                resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
               }),
             }),
           ),
@@ -1365,55 +1272,12 @@ it.effect("MediaQueryService.searchMedia reports non-degraded when AniList searc
   }),
 );
 
-it.effect(
-  "MediaQueryService.searchMedia falls back to Manami when AniList returns no results",
-  () =>
-    withSqliteTestDbEffect({
-      run: (db, _databaseFile, client, _exec) =>
-        Effect.gen(function* () {
-          const appDb: AppDatabase = db;
-          const service = yield* MediaQueryService.pipe(
-            Effect.provide(
-              makeQueryServiceLayer(appDb, client, {
-                aniList: AniListClient.of({
-                  getAnimeMetadataById: () => Effect.succeed(Option.none()),
-                  searchAnimeMetadata: () => Effect.succeed([]),
-                  getSeasonalAnime: () => Effect.succeed([]),
-                }),
-                manami: ManamiClient.of({
-                  getByAniListId: () => Effect.succeed(Option.none()),
-                  getByMalId: () => Effect.succeed(Option.none()),
-                  resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
-                  resolveMalIdFromAniListId: () => Effect.succeed(Option.none()),
-                  searchMedia: () =>
-                    Effect.succeed([
-                      {
-                        already_in_library: false,
-                        id: brandMediaId(20),
-                        title: { english: "Naruto", romaji: "NARUTO" },
-                      } satisfies MediaSearchResult,
-                    ]),
-                }),
-              }),
-            ),
-          );
-
-          const result = yield* service.searchMedia("Naruto");
-
-          assert.deepStrictEqual(result.degraded, true);
-          assert.deepStrictEqual(result.results.length, 1);
-          assert.deepStrictEqual(result.results[0]?.id, 20);
-          assert.deepStrictEqual(result.results[0]?.match_confidence, 1);
-        }),
-      schema,
-    }),
-);
-
 function makeAniListStub(metadata: AnimeMetadata) {
   return AniListClient.of({
     getAnimeMetadataById: () => Effect.succeed(Option.some(metadata)),
     searchAnimeMetadata: () => Effect.succeed([]),
     getSeasonalAnime: () => Effect.succeed([]),
+    resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
   });
 }
 

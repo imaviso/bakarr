@@ -37,11 +37,59 @@ it("parseAid reads numeric ids from ANIME rows", () => {
   assert.deepStrictEqual(parseAid("foo|bar"), undefined);
 });
 
-it("parseAnimeLookupMatch decodes aid and title", () => {
-  assert.deepStrictEqual(parseAnimeLookupMatch("12345|Sousou no Frieren|foo"), {
+it("parseAnimeLookupMatch decodes aid and romaji title", () => {
+  const row = [
+    "12345",
+    "24",
+    "24",
+    "0",
+    "800",
+    "1000",
+    "0",
+    "0",
+    "0",
+    "10",
+    "2023-2024",
+    "TV Series",
+    "Sousou no Frieren",
+    "葬送のフリーレン",
+    "Frieren: Beyond Journey's End",
+    "",
+    "",
+    "",
+    "",
+  ].join("|");
+
+  assert.deepStrictEqual(parseAnimeLookupMatch(row), {
     aid: 12345,
     title: "Sousou no Frieren",
   });
+});
+
+it("parseAnimeLookupMatch falls back to english then kanji titles", () => {
+  const row = [
+    "12345",
+    "24",
+    "24",
+    "0",
+    "800",
+    "1000",
+    "0",
+    "0",
+    "0",
+    "10",
+    "2023-2024",
+    "TV Series",
+    "",
+    "葬送のフリーレン",
+    "Frieren: Beyond Journey's End",
+    "",
+    "",
+    "",
+    "",
+  ].join("|");
+
+  assert.deepStrictEqual(parseAnimeLookupMatch(row)?.title, "Frieren: Beyond Journey's End");
 });
 
 it("parseEpisodeResponse maps main mediaUnits with normalized text and aired date", () => {

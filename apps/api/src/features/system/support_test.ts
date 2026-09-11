@@ -30,10 +30,6 @@ it("system support derives background job schedule modes", () => {
     "24h",
   );
   assert.deepStrictEqual(
-    toBackgroundJobStatus(config, undefined, "manami_refresh").schedule_value,
-    "24h",
-  );
-  assert.deepStrictEqual(
     toBackgroundJobStatus(config, undefined, "unmapped_scan").schedule_mode,
     "manual",
   );
@@ -63,10 +59,6 @@ it("system support derives background job schedule modes", () => {
   );
   assert.deepStrictEqual(
     toBackgroundJobStatus(disabledConfig, undefined, "metadata_refresh").schedule_mode,
-    "disabled",
-  );
-  assert.deepStrictEqual(
-    toBackgroundJobStatus(disabledConfig, undefined, "manami_refresh").schedule_mode,
     "disabled",
   );
 });

@@ -1,6 +1,7 @@
 const ANIDB_MAX_TITLE_CANDIDATES = 8;
 
 export interface AniDbEpisodeLookupInput {
+  readonly mediaId?: number | undefined;
   readonly unitCount?: number | null | undefined;
   readonly synonyms?: ReadonlyArray<string> | null | undefined;
   readonly title: {
@@ -109,9 +110,16 @@ export function parseAnimeLookupMatch(line: string | undefined): AniDbAnimeLooku
     return undefined;
   }
 
+  // ANIME rows: aid|eps|ep count|special cnt|rating|votes|tmprating|tmpvotes|
+  // review avg|reviews|year|type|romaji|kanji|english|other|short|synonyms|cats
+  const title =
+    normalizeAniDbText(fields[12]) ??
+    normalizeAniDbText(fields[14]) ??
+    normalizeAniDbText(fields[13]);
+
   return {
     aid,
-    title: normalizeAniDbText(fields[1]),
+    title,
   };
 }
 

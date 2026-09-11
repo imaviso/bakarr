@@ -10,10 +10,15 @@ export const ANIDB_HOST = "api.anidb.net";
 export const ANIDB_PORT = 9000;
 const ANIDB_PACKET_TIMEOUT_MS = 10_000;
 
-class AniDbSocketPacketError extends Data.TaggedError("AniDbSocketPacketError")<{
+export class AniDbSocketPacketError extends Data.TaggedError("AniDbSocketPacketError")<{
   readonly cause: unknown;
   readonly message: string;
+  readonly timeout: boolean;
 }> {}
+
+export function isAniDbPacketTimeout(error: unknown): boolean {
+  return error instanceof AniDbSocketPacketError && error.timeout;
+}
 
 /** The UDP peer this client talks to: the resolved addresses of the AniDB host plus its port. */
 export interface AniDbPeer {
@@ -136,6 +141,7 @@ export const sendAndReceiveAniDbPacketEffect = Effect.fn("AniDbClient.sendAndRec
             new AniDbSocketPacketError({
               cause,
               message: "AniDB UDP request failed",
+              timeout: false,
             }),
           ),
         );
@@ -184,6 +190,7 @@ export const sendAndReceiveAniDbPacketEffect = Effect.fn("AniDbClient.sendAndRec
           ? new AniDbSocketPacketError({
               cause,
               message: "AniDB UDP response timed out",
+              timeout: true,
             })
           : cause,
       ),

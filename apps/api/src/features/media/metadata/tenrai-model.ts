@@ -1,60 +1,60 @@
 import { Schema, SchemaGetter } from "effect";
 
-const JikanTitleVariantSchema = Schema.Struct({
+const TenraiTitleVariantSchema = Schema.Struct({
   title: Schema.String,
   type: Schema.optional(Schema.NullOr(Schema.String)),
 });
 
-const JikanMalUrlSchema = Schema.Struct({
+const TenraiMalUrlSchema = Schema.Struct({
   mal_id: Schema.Number,
   name: Schema.optional(Schema.NullOr(Schema.String)),
   type: Schema.optional(Schema.NullOr(Schema.String)),
   url: Schema.optional(Schema.NullOr(Schema.String)),
 });
 
-const JikanRelationEntrySchema = Schema.Struct({
+const TenraiRelationEntrySchema = Schema.Struct({
   mal_id: Schema.Number,
   name: Schema.optional(Schema.NullOr(Schema.String)),
   type: Schema.optional(Schema.NullOr(Schema.String)),
   url: Schema.optional(Schema.NullOr(Schema.String)),
 });
 
-const JikanRelationSchema = Schema.Struct({
-  entry: Schema.Array(JikanRelationEntrySchema),
+const TenraiRelationSchema = Schema.Struct({
+  entry: Schema.Array(TenraiRelationEntrySchema),
   relation: Schema.optional(Schema.NullOr(Schema.String)),
 });
 
-const JikanImageVariantSchema = Schema.Struct({
+const TenraiImageVariantSchema = Schema.Struct({
   image_url: Schema.optional(Schema.NullOr(Schema.String)),
   large_image_url: Schema.optional(Schema.NullOr(Schema.String)),
   small_image_url: Schema.optional(Schema.NullOr(Schema.String)),
 });
 
-const JikanImagesSchema = Schema.Struct({
-  jpg: Schema.optional(Schema.NullOr(JikanImageVariantSchema)),
-  webp: Schema.optional(Schema.NullOr(JikanImageVariantSchema)),
+const TenraiImagesSchema = Schema.Struct({
+  jpg: Schema.optional(Schema.NullOr(TenraiImageVariantSchema)),
+  webp: Schema.optional(Schema.NullOr(TenraiImageVariantSchema)),
 });
 
-const JikanTrailerSchema = Schema.Struct({
+const TenraiTrailerSchema = Schema.Struct({
   embed_url: Schema.optional(Schema.NullOr(Schema.String)),
   url: Schema.optional(Schema.NullOr(Schema.String)),
   youtube_id: Schema.optional(Schema.NullOr(Schema.String)),
 });
 
-const JikanAiredSchema = Schema.Struct({
+const TenraiAiredSchema = Schema.Struct({
   from: Schema.optional(Schema.NullOr(Schema.String)),
   string: Schema.optional(Schema.NullOr(Schema.String)),
   to: Schema.optional(Schema.NullOr(Schema.String)),
 });
 
-const JikanBroadcastSchema = Schema.Struct({
+const TenraiBroadcastSchema = Schema.Struct({
   day: Schema.optional(Schema.NullOr(Schema.String)),
   string: Schema.optional(Schema.NullOr(Schema.String)),
   time: Schema.optional(Schema.NullOr(Schema.String)),
   timezone: Schema.optional(Schema.NullOr(Schema.String)),
 });
 
-const JikanRecommendationEntrySchema = Schema.Struct({
+const TenraiRecommendationEntrySchema = Schema.Struct({
   entry: Schema.Struct({
     mal_id: Schema.Number,
     title: Schema.optional(Schema.NullOr(Schema.String)),
@@ -62,24 +62,24 @@ const JikanRecommendationEntrySchema = Schema.Struct({
   }),
 });
 
-const JikanAnimeDetailBaseSchema = Schema.Struct({
-  aired: Schema.optional(Schema.NullOr(JikanAiredSchema)),
+const TenraiAnimeDetailBaseSchema = Schema.Struct({
+  aired: Schema.optional(Schema.NullOr(TenraiAiredSchema)),
   airing: Schema.optional(Schema.NullOr(Schema.Boolean)),
   approved: Schema.optional(Schema.NullOr(Schema.Boolean)),
   background: Schema.optional(Schema.NullOr(Schema.String)),
-  broadcast: Schema.optional(Schema.NullOr(JikanBroadcastSchema)),
-  demographics: Schema.optional(Schema.NullOr(Schema.Array(JikanMalUrlSchema))),
+  broadcast: Schema.optional(Schema.NullOr(TenraiBroadcastSchema)),
+  demographics: Schema.optional(Schema.NullOr(Schema.Array(TenraiMalUrlSchema))),
   duration: Schema.optional(Schema.NullOr(Schema.String)),
   episodes: Schema.optional(Schema.NullOr(Schema.Number)),
-  explicit_genres: Schema.optional(Schema.NullOr(Schema.Array(JikanMalUrlSchema))),
+  explicit_genres: Schema.optional(Schema.NullOr(Schema.Array(TenraiMalUrlSchema))),
   favorites: Schema.optional(Schema.NullOr(Schema.Number)),
-  genres: Schema.optional(Schema.NullOr(Schema.Array(JikanMalUrlSchema))),
-  images: Schema.optional(Schema.NullOr(JikanImagesSchema)),
-  licensors: Schema.optional(Schema.NullOr(Schema.Array(JikanMalUrlSchema))),
+  genres: Schema.optional(Schema.NullOr(Schema.Array(TenraiMalUrlSchema))),
+  images: Schema.optional(Schema.NullOr(TenraiImagesSchema)),
+  licensors: Schema.optional(Schema.NullOr(Schema.Array(TenraiMalUrlSchema))),
   mal_id: Schema.Number,
   members: Schema.optional(Schema.NullOr(Schema.Number)),
   popularity: Schema.optional(Schema.NullOr(Schema.Number)),
-  producers: Schema.optional(Schema.NullOr(Schema.Array(JikanMalUrlSchema))),
+  producers: Schema.optional(Schema.NullOr(Schema.Array(TenraiMalUrlSchema))),
   rank: Schema.optional(Schema.NullOr(Schema.Number)),
   rating: Schema.optional(Schema.NullOr(Schema.String)),
   score: Schema.optional(Schema.NullOr(Schema.Number)),
@@ -87,90 +87,90 @@ const JikanAnimeDetailBaseSchema = Schema.Struct({
   season: Schema.optional(Schema.NullOr(Schema.String)),
   source: Schema.optional(Schema.NullOr(Schema.String)),
   status: Schema.optional(Schema.NullOr(Schema.String)),
-  studios: Schema.optional(Schema.NullOr(Schema.Array(JikanMalUrlSchema))),
+  studios: Schema.optional(Schema.NullOr(Schema.Array(TenraiMalUrlSchema))),
   synopsis: Schema.optional(Schema.NullOr(Schema.String)),
-  themes: Schema.optional(Schema.NullOr(Schema.Array(JikanMalUrlSchema))),
+  themes: Schema.optional(Schema.NullOr(Schema.Array(TenraiMalUrlSchema))),
   title: Schema.optional(Schema.NullOr(Schema.String)),
   title_english: Schema.optional(Schema.NullOr(Schema.String)),
   title_japanese: Schema.optional(Schema.NullOr(Schema.String)),
   title_synonyms: Schema.optional(Schema.NullOr(Schema.Array(Schema.String))),
-  titles: Schema.optional(Schema.NullOr(Schema.Array(JikanTitleVariantSchema))),
-  trailer: Schema.optional(Schema.NullOr(JikanTrailerSchema)),
+  titles: Schema.optional(Schema.NullOr(Schema.Array(TenraiTitleVariantSchema))),
+  trailer: Schema.optional(Schema.NullOr(TenraiTrailerSchema)),
   type: Schema.optional(Schema.NullOr(Schema.String)),
   url: Schema.optional(Schema.NullOr(Schema.String)),
   year: Schema.optional(Schema.NullOr(Schema.Number)),
 });
 
-export const JikanAnimeDetailFullSchema = Schema.Struct({
-  ...JikanAnimeDetailBaseSchema.fields,
-  relations: Schema.optional(Schema.NullOr(Schema.Array(JikanRelationSchema))),
+export const TenraiAnimeDetailFullSchema = Schema.Struct({
+  ...TenraiAnimeDetailBaseSchema.fields,
+  relations: Schema.optional(Schema.NullOr(Schema.Array(TenraiRelationSchema))),
 });
 
-export const JikanAnimeDetailSchema = Schema.Struct({
-  ...JikanAnimeDetailBaseSchema.fields,
+export const TenraiAnimeDetailSchema = Schema.Struct({
+  ...TenraiAnimeDetailBaseSchema.fields,
 });
 
-export const JikanAnimeDetailFullPayloadSchema = Schema.Struct({
-  data: JikanAnimeDetailFullSchema,
+export const TenraiAnimeDetailFullPayloadSchema = Schema.Struct({
+  data: TenraiAnimeDetailFullSchema,
 });
 
-export const JikanAnimeDetailPayloadSchema = Schema.Struct({
-  data: JikanAnimeDetailSchema,
+export const TenraiAnimeDetailPayloadSchema = Schema.Struct({
+  data: TenraiAnimeDetailSchema,
 });
 
-export const JikanAnimeRecommendationsPayloadSchema = Schema.Struct({
-  data: Schema.Array(JikanRecommendationEntrySchema),
+export const TenraiAnimeRecommendationsPayloadSchema = Schema.Struct({
+  data: Schema.Array(TenraiRecommendationEntrySchema),
 });
 
-export const JikanRelationTargetSchema = Schema.Struct({
+export const TenraiRelationTargetSchema = Schema.Struct({
   malId: Schema.Int,
   relation: Schema.optional(Schema.String),
   title: Schema.optional(Schema.String),
   url: Schema.optional(Schema.String),
 });
 
-export const JikanRecommendationTargetSchema = Schema.Struct({
+export const TenraiRecommendationTargetSchema = Schema.Struct({
   malId: Schema.Int,
   title: Schema.optional(Schema.String),
   url: Schema.optional(Schema.String),
 });
 
-const JikanNormalizedNamedLinkSchema = Schema.Struct({
+const TenraiNormalizedNamedLinkSchema = Schema.Struct({
   malId: Schema.Int,
   name: Schema.optional(Schema.String),
   type: Schema.optional(Schema.String),
   url: Schema.optional(Schema.String),
 });
 
-const JikanNormalizedImageVariantSchema = Schema.Struct({
+const TenraiNormalizedImageVariantSchema = Schema.Struct({
   imageUrl: Schema.optional(Schema.String),
   largeImageUrl: Schema.optional(Schema.String),
   smallImageUrl: Schema.optional(Schema.String),
 });
 
-const JikanNormalizedImagesSchema = Schema.Struct({
-  jpg: Schema.optional(JikanNormalizedImageVariantSchema),
-  webp: Schema.optional(JikanNormalizedImageVariantSchema),
+const TenraiNormalizedImagesSchema = Schema.Struct({
+  jpg: Schema.optional(TenraiNormalizedImageVariantSchema),
+  webp: Schema.optional(TenraiNormalizedImageVariantSchema),
 });
 
-const JikanNormalizedTrailerSchema = Schema.Struct({
+const TenraiNormalizedTrailerSchema = Schema.Struct({
   embedUrl: Schema.optional(Schema.String),
   url: Schema.optional(Schema.String),
   youtubeId: Schema.optional(Schema.String),
 });
 
-const JikanNormalizedBroadcastSchema = Schema.Struct({
+const TenraiNormalizedBroadcastSchema = Schema.Struct({
   day: Schema.optional(Schema.String),
   raw: Schema.optional(Schema.String),
   time: Schema.optional(Schema.String),
   timezone: Schema.optional(Schema.String),
 });
 
-export const JikanNormalizedAnimeSchema = Schema.Struct({
+export const TenraiNormalizedAnimeSchema = Schema.Struct({
   airing: Schema.optional(Schema.Boolean),
   approved: Schema.optional(Schema.Boolean),
   background: Schema.optional(Schema.String),
-  broadcast: JikanNormalizedBroadcastSchema,
+  broadcast: TenraiNormalizedBroadcastSchema,
   demographics: Schema.Array(Schema.String),
   duration: Schema.optional(Schema.String),
   endDate: Schema.optional(Schema.String),
@@ -180,16 +180,16 @@ export const JikanNormalizedAnimeSchema = Schema.Struct({
   favorites: Schema.optional(Schema.Number),
   format: Schema.optional(Schema.String),
   genres: Schema.Array(Schema.String),
-  images: JikanNormalizedImagesSchema,
-  licensors: Schema.Array(JikanNormalizedNamedLinkSchema),
+  images: TenraiNormalizedImagesSchema,
+  licensors: Schema.Array(TenraiNormalizedNamedLinkSchema),
   malId: Schema.Int,
   members: Schema.optional(Schema.Number),
   popularity: Schema.optional(Schema.Number),
-  producers: Schema.Array(JikanNormalizedNamedLinkSchema),
+  producers: Schema.Array(TenraiNormalizedNamedLinkSchema),
   rank: Schema.optional(Schema.Number),
   rating: Schema.optional(Schema.String),
-  recommendations: Schema.Array(JikanRecommendationTargetSchema),
-  relations: Schema.Array(JikanRelationTargetSchema),
+  recommendations: Schema.Array(TenraiRecommendationTargetSchema),
+  relations: Schema.Array(TenraiRelationTargetSchema),
   score: Schema.optional(Schema.Number),
   scoredBy: Schema.optional(Schema.Number),
   season: Schema.optional(Schema.String),
@@ -206,17 +206,17 @@ export const JikanNormalizedAnimeSchema = Schema.Struct({
     romaji: Schema.optional(Schema.String),
   }),
   titleVariants: Schema.Array(Schema.String),
-  trailer: JikanNormalizedTrailerSchema,
+  trailer: TenraiNormalizedTrailerSchema,
   url: Schema.optional(Schema.String),
   year: Schema.optional(Schema.Number),
 });
 
-export type JikanNormalizedAnime = Schema.Schema.Type<typeof JikanNormalizedAnimeSchema>;
+export type TenraiNormalizedAnime = Schema.Schema.Type<typeof TenraiNormalizedAnimeSchema>;
 
-type JikanRecommendationEntry = Schema.Schema.Type<typeof JikanRecommendationEntrySchema>;
+type TenraiRecommendationEntry = Schema.Schema.Type<typeof TenraiRecommendationEntrySchema>;
 
-export function normalizeJikanRecommendations(
-  recommendations: ReadonlyArray<JikanRecommendationEntry>,
+export function normalizeTenraiRecommendations(
+  recommendations: ReadonlyArray<TenraiRecommendationEntry>,
 ) {
   const seen = new Set<number>();
 
@@ -239,9 +239,9 @@ export function normalizeJikanRecommendations(
   });
 }
 
-export const JikanNormalizedAnimeFromFullSchema = JikanAnimeDetailFullSchema.pipe(
-  Schema.decodeTo(JikanNormalizedAnimeSchema, {
-    decode: SchemaGetter.transform((data) => normalizeJikanAnime(data)),
+export const TenraiNormalizedAnimeFromFullSchema = TenraiAnimeDetailFullSchema.pipe(
+  Schema.decodeTo(TenraiNormalizedAnimeSchema, {
+    decode: SchemaGetter.transform((data) => normalizeTenraiAnime(data)),
     encode: SchemaGetter.transform((normalized) => ({
       aired: {
         from: normalized.startDate,
@@ -332,9 +332,9 @@ export const JikanNormalizedAnimeFromFullSchema = JikanAnimeDetailFullSchema.pip
   }),
 );
 
-export const JikanNormalizedAnimeFromDetailSchema = JikanAnimeDetailSchema.pipe(
-  Schema.decodeTo(JikanNormalizedAnimeSchema, {
-    decode: SchemaGetter.transform((data) => normalizeJikanAnime(data)),
+export const TenraiNormalizedAnimeFromDetailSchema = TenraiAnimeDetailSchema.pipe(
+  Schema.decodeTo(TenraiNormalizedAnimeSchema, {
+    decode: SchemaGetter.transform((data) => normalizeTenraiAnime(data)),
     encode: SchemaGetter.transform((normalized) => ({
       aired: {
         from: normalized.startDate,
@@ -414,9 +414,9 @@ export const JikanNormalizedAnimeFromDetailSchema = JikanAnimeDetailSchema.pipe(
   }),
 );
 
-type JikanAnimeInput =
-  | Schema.Schema.Type<typeof JikanAnimeDetailSchema>
-  | Schema.Schema.Type<typeof JikanAnimeDetailFullSchema>;
+type TenraiAnimeInput =
+  | Schema.Schema.Type<typeof TenraiAnimeDetailSchema>
+  | Schema.Schema.Type<typeof TenraiAnimeDetailFullSchema>;
 
 function normalizeUnitCountForFormat(
   format: string | null | undefined,
@@ -426,8 +426,26 @@ function normalizeUnitCountForFormat(
   return episodes ?? undefined;
 }
 
-function normalizeJikanAnime(data: JikanAnimeInput): JikanNormalizedAnime {
-  const relations = Schema.is(JikanAnimeDetailFullSchema)(data) ? data.relations : undefined;
+// Tenrai returns 0 for unknown score fields; treat as missing so merges and
+// scaling do not turn "unknown" into a real 0/1 score.
+function normalizeScore(value: number | null | undefined): number | undefined {
+  if (value === null || value === undefined || value <= 0) {
+    return undefined;
+  }
+
+  return value;
+}
+
+function normalizeCount(value: number | null | undefined): number | undefined {
+  if (value === null || value === undefined || value <= 0) {
+    return undefined;
+  }
+
+  return value;
+}
+
+function normalizeTenraiAnime(data: TenraiAnimeInput): TenraiNormalizedAnime {
+  const relations = Schema.is(TenraiAnimeDetailFullSchema)(data) ? data.relations : undefined;
   const genreNames = normalizeEntryNames(data.genres);
   const explicitGenres = normalizeEntryNames(data.explicit_genres);
   const themes = normalizeEntryNames(data.themes);
@@ -465,8 +483,8 @@ function normalizeJikanAnime(data: JikanAnimeInput): JikanNormalizedAnime {
     rating: data.rating ?? undefined,
     recommendations: [],
     relations: normalizeRelations(relations),
-    score: data.score ?? undefined,
-    scoredBy: data.scored_by ?? undefined,
+    score: normalizeScore(data.score),
+    scoredBy: normalizeCount(data.scored_by),
     season: data.season ?? undefined,
     source: data.source ?? undefined,
     startDate: toIsoDate(data.aired?.from),
@@ -492,7 +510,7 @@ function normalizeJikanAnime(data: JikanAnimeInput): JikanNormalizedAnime {
 }
 
 function normalizeLinks(
-  entries: ReadonlyArray<Schema.Schema.Type<typeof JikanMalUrlSchema>> | null | undefined,
+  entries: ReadonlyArray<Schema.Schema.Type<typeof TenraiMalUrlSchema>> | null | undefined,
 ) {
   const seen = new Set<number>();
 
@@ -517,7 +535,7 @@ function normalizeLinks(
 }
 
 function normalizeEntryNames(
-  entries: ReadonlyArray<Schema.Schema.Type<typeof JikanMalUrlSchema>> | null | undefined,
+  entries: ReadonlyArray<Schema.Schema.Type<typeof TenraiMalUrlSchema>> | null | undefined,
 ) {
   return dedupeStrings((entries ?? []).flatMap((entry) => (entry.name ? [entry.name] : [])));
 }
@@ -543,7 +561,7 @@ function normalizeRelations(
   const entries: Array<{ malId: number; relation?: string; title?: string; url?: string }> =
     relations.flatMap((relation) =>
       relation.entry.flatMap((entry: (typeof relation.entry)[number]) => {
-        // Jikan v4 relation entries are typed "anime" | "manga"; only anime
+        // Tenrai v4 relation entries are typed "anime" | "manga"; only anime
         // relations are relevant to this library.
         if (entry.type !== "anime") {
           return [];
@@ -572,7 +590,7 @@ function normalizeRelations(
   });
 }
 
-function normalizeTitleVariants(data: JikanAnimeInput) {
+function normalizeTitleVariants(data: TenraiAnimeInput) {
   return dedupeStrings([
     ...(data.title_synonyms ?? []),
     ...(Array.isArray(data.titles) ? data.titles.map((entry) => entry.title) : []),
@@ -587,7 +605,7 @@ function dedupeStrings(values: ReadonlyArray<string>) {
 }
 
 function toNormalizedImageVariant(
-  input: Schema.Schema.Type<typeof JikanImageVariantSchema> | null | undefined,
+  input: Schema.Schema.Type<typeof TenraiImageVariantSchema> | null | undefined,
 ) {
   if (!input) {
     return undefined;
@@ -617,8 +635,8 @@ function toIsoYear(input: string | null | undefined) {
 
 // Seasonal support
 
-export const JikanSeasonalPayloadSchema = Schema.Struct({
-  data: Schema.Array(JikanAnimeDetailBaseSchema),
+export const TenraiSeasonalPayloadSchema = Schema.Struct({
+  data: Schema.Array(TenraiAnimeDetailBaseSchema),
   pagination: Schema.optional(
     Schema.Struct({
       has_next_page: Schema.optional(Schema.NullOr(Schema.Boolean)),
@@ -627,7 +645,7 @@ export const JikanSeasonalPayloadSchema = Schema.Struct({
   ),
 });
 
-export const JikanNormalizedSeasonalEntrySchema = Schema.Struct({
+export const TenraiNormalizedSeasonalEntrySchema = Schema.Struct({
   malId: Schema.Int,
   title: Schema.Struct({
     english: Schema.optional(Schema.String),
@@ -644,13 +662,13 @@ export const JikanNormalizedSeasonalEntrySchema = Schema.Struct({
   unitCount: Schema.optional(Schema.Number),
 });
 
-export type JikanNormalizedSeasonalEntry = Schema.Schema.Type<
-  typeof JikanNormalizedSeasonalEntrySchema
+export type TenraiNormalizedSeasonalEntry = Schema.Schema.Type<
+  typeof TenraiNormalizedSeasonalEntrySchema
 >;
 
-export const JikanSeasonalEntryFromDetailSchema = JikanAnimeDetailBaseSchema.pipe(
-  Schema.decodeTo(JikanNormalizedSeasonalEntrySchema, {
-    decode: SchemaGetter.transform((data) => normalizeJikanSeasonalEntry(data)),
+export const TenraiSeasonalEntryFromDetailSchema = TenraiAnimeDetailBaseSchema.pipe(
+  Schema.decodeTo(TenraiNormalizedSeasonalEntrySchema, {
+    decode: SchemaGetter.transform((data) => normalizeTenraiSeasonalEntry(data)),
     encode: SchemaGetter.transform((entry) => ({
       aired: entry.seasonYear
         ? { from: `${entry.seasonYear}-01-01`, string: undefined, to: undefined }
@@ -699,9 +717,9 @@ export const JikanSeasonalEntryFromDetailSchema = JikanAnimeDetailBaseSchema.pip
   }),
 );
 
-function normalizeJikanSeasonalEntry(
-  data: Schema.Schema.Type<typeof JikanAnimeDetailBaseSchema>,
-): JikanNormalizedSeasonalEntry {
+function normalizeTenraiSeasonalEntry(
+  data: Schema.Schema.Type<typeof TenraiAnimeDetailBaseSchema>,
+): TenraiNormalizedSeasonalEntry {
   return {
     coverImage: data.images?.jpg?.image_url ?? data.images?.webp?.image_url ?? undefined,
     unitCount: normalizeUnitCountForFormat(data.type, data.episodes),

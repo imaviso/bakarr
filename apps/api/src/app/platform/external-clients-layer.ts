@@ -2,12 +2,7 @@ import { Layer } from "effect";
 
 import { AniListClientLive, type AniListClient } from "@/features/media/metadata/anilist.ts";
 import { AniDbClientLive, type AniDbClient } from "@/features/media/metadata/anidb.ts";
-import { JikanClientLive, type JikanClient } from "@/features/media/metadata/jikan.ts";
-import {
-  ManamiClientLive,
-  type ManamiCacheRefreshClient,
-  type ManamiClient,
-} from "@/features/media/metadata/manami.ts";
+import { TenraiClientLive, type TenraiClient } from "@/features/media/metadata/tenrai.ts";
 import {
   QBitTorrentClientLive,
   type QBitTorrentClient,
@@ -20,8 +15,7 @@ import { DnsResolverLive } from "@/security/dns-resolver.ts";
 export interface AppExternalClientLayerOptions {
   readonly aniDbLayer?: Layer.Layer<AniDbClient>;
   readonly aniListLayer?: Layer.Layer<AniListClient>;
-  readonly jikanLayer?: Layer.Layer<JikanClient>;
-  readonly manamiLayer?: Layer.Layer<ManamiClient | ManamiCacheRefreshClient>;
+  readonly tenraiLayer?: Layer.Layer<TenraiClient>;
   readonly qbitLayer?: Layer.Layer<QBitTorrentClient>;
   readonly rssLayer?: Layer.Layer<RssClient>;
   readonly seadexLayer?: Layer.Layer<SeaDexClient>;
@@ -36,19 +30,10 @@ const orDefault = <A>(value: A | undefined, fallback: A): A => value ?? fallback
 export function makeAppExternalClientLayer(options?: AppExternalClientLayerOptions) {
   const aniDbLayer = orDefault(options?.aniDbLayer, AniDbClientLive);
   const aniListLayer = orDefault(options?.aniListLayer, AniListClientLive);
-  const jikanLayer = orDefault(options?.jikanLayer, JikanClientLive);
-  const manamiLayer = orDefault(options?.manamiLayer, ManamiClientLive);
+  const tenraiLayer = orDefault(options?.tenraiLayer, TenraiClientLive);
   const rssLayer = orDefault(options?.rssLayer, defaultRssLayer);
   const qbitLayer = orDefault(options?.qbitLayer, QBitTorrentClientLive);
   const seadexLayer = orDefault(options?.seadexLayer, SeaDexClientLive);
 
-  return Layer.mergeAll(
-    aniDbLayer,
-    aniListLayer,
-    jikanLayer,
-    manamiLayer,
-    rssLayer,
-    qbitLayer,
-    seadexLayer,
-  );
+  return Layer.mergeAll(aniDbLayer, aniListLayer, tenraiLayer, rssLayer, qbitLayer, seadexLayer);
 }

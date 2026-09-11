@@ -2,15 +2,15 @@ import { assert, it } from "@effect/vitest";
 import { brandMediaId } from "@packages/shared/index.ts";
 
 import type { AnimeMetadata } from "@/features/media/metadata/metadata-model.ts";
-import type { JikanNormalizedAnime } from "@/features/media/metadata/jikan-model.ts";
+import type { TenraiNormalizedAnime } from "@/features/media/metadata/tenrai-model.ts";
 import {
-  convertJikanRecommendationsToDiscoveryEntries,
-  convertJikanRelationsToDiscoveryEntries,
+  convertTenraiRecommendationsToDiscoveryEntries,
+  convertTenraiRelationsToDiscoveryEntries,
   mergeAnimeMetadata,
   mergeGenres,
   mergeScore,
   mergeStudios,
-  scaleJikanScoreToAniList,
+  scaleTenraiScoreToAniList,
 } from "@/features/media/metadata/metadata-merge.ts";
 
 it("merges title/description/date/status/format/score/genres/studios/synonyms fields deterministically", () => {
@@ -32,7 +32,7 @@ it("merges title/description/date/status/format/score/genres/studios/synonyms fi
 
   const merged = mergeAnimeMetadata({
     anilist,
-    jikan: makeJikanMetadata({
+    tenrai: makeTenraiMetadata({
       background: "Post-war background",
       duration: "24 min per ep",
       endDate: "2013-09-29",
@@ -53,17 +53,12 @@ it("merges title/description/date/status/format/score/genres/studios/synonyms fi
       studios: ["Wit Studio"],
       synopsis: "Humanity fights titans.",
       title: {
-        english: undefined,
-        native: undefined,
+        english: "Attack on Titan",
+        native: "進撃の巨人",
         romaji: "Shingeki no Kyojin",
       },
       titleVariants: ["Attack on Titan", "  AoT", "Attack on Titan"],
     }),
-    manami: {
-      englishTitle: "Attack on Titan",
-      nativeTitle: "進撃の巨人",
-      title: "進撃の巨人",
-    },
   });
 
   assert.deepStrictEqual(merged.id, anilist.id);
@@ -96,7 +91,7 @@ it("fills date only when primary is nullish", () => {
       endDate: "",
       startDate: "",
     }),
-    jikan: makeJikanMetadata({
+    tenrai: makeTenraiMetadata({
       endDate: "2022-12-31",
       malId: 1,
       startDate: "2022-01-01",
@@ -111,7 +106,7 @@ it("fills date only when primary is nullish", () => {
       endDate: undefined,
       startDate: undefined,
     }),
-    jikan: makeJikanMetadata({
+    tenrai: makeTenraiMetadata({
       endDate: "2022-12-31",
       malId: 1,
       startDate: "2022-01-01",
@@ -128,7 +123,7 @@ it("fills status/format from fallback when primary is blank", () => {
       format: "   ",
       status: "",
     }),
-    jikan: makeJikanMetadata({
+    tenrai: makeTenraiMetadata({
       format: "  TV  ",
       malId: 1,
       status: "  Finished Airing  ",
@@ -145,7 +140,7 @@ it("keeps blank status/format primary when both primary and fallback blank", () 
       format: "   ",
       status: "",
     }),
-    jikan: makeJikanMetadata({
+    tenrai: makeTenraiMetadata({
       format: " ",
       malId: 1,
       status: "   ",
@@ -156,11 +151,11 @@ it("keeps blank status/format primary when both primary and fallback blank", () 
   assert.deepStrictEqual(merged.status, "");
 });
 
-it("keeps AniList score and scales Jikan score with clamp", () => {
+it("keeps AniList score and scales Tenrai score with clamp", () => {
   assert.deepStrictEqual(mergeScore(73, 9.9), 73);
-  assert.deepStrictEqual(scaleJikanScoreToAniList(9.14), 91);
-  assert.deepStrictEqual(scaleJikanScoreToAniList(0), 1);
-  assert.deepStrictEqual(scaleJikanScoreToAniList(11.2), 100);
+  assert.deepStrictEqual(scaleTenraiScoreToAniList(9.14), 91);
+  assert.deepStrictEqual(scaleTenraiScoreToAniList(0), 1);
+  assert.deepStrictEqual(scaleTenraiScoreToAniList(11.2), 100);
 });
 
 it("keeps AniList ranking/source fields when present", () => {
@@ -173,7 +168,7 @@ it("keeps AniList ranking/source fields when present", () => {
       rating: "R - 17+ (violence & profanity)",
       source: "ORIGINAL",
     }),
-    jikan: makeJikanMetadata({
+    tenrai: makeTenraiMetadata({
       favorites: 999,
       malId: 1,
       members: 999,
@@ -192,15 +187,15 @@ it("keeps AniList ranking/source fields when present", () => {
   assert.deepStrictEqual(merged.source, "ORIGINAL");
 });
 
-it("uses studio precedence AniList then Jikan", () => {
+it("uses studio precedence AniList then Tenrai", () => {
   assert.deepStrictEqual(mergeStudios(["Bones"], ["MAPPA"]), ["Bones"]);
   assert.deepStrictEqual(mergeStudios([], ["MAPPA"]), ["MAPPA"]);
   assert.deepStrictEqual(mergeStudios([], []), undefined);
   assert.deepStrictEqual(mergeStudios(undefined, undefined), undefined);
 });
 
-it("converts only mapped Jikan relations to discovery entries", () => {
-  const entries = convertJikanRelationsToDiscoveryEntries(
+it("converts only mapped Tenrai relations to discovery entries", () => {
+  const entries = convertTenraiRelationsToDiscoveryEntries(
     [
       { malId: 200, relation: "Sequel", title: "Mapped A" },
       { malId: 201, relation: "Prequel", title: "Mapped B" },
@@ -220,8 +215,8 @@ it("converts only mapped Jikan relations to discovery entries", () => {
   ]);
 });
 
-it("converts only mapped Jikan recommendations to discovery entries", () => {
-  const entries = convertJikanRecommendationsToDiscoveryEntries(
+it("converts only mapped Tenrai recommendations to discovery entries", () => {
+  const entries = convertTenraiRecommendationsToDiscoveryEntries(
     [
       { malId: 301, title: "Rec A" },
       { malId: 302, title: "Rec B" },
@@ -250,7 +245,7 @@ it("appends mapped relations to related/recommended without duplicates", () => {
         { id: brandMediaId(6), title: { romaji: "Self" } },
       ],
     }),
-    jikan: makeJikanMetadata({
+    tenrai: makeTenraiMetadata({
       malId: 1,
       relations: [
         { malId: 10, relation: "Sequel", title: "Existing Rel" },
@@ -315,7 +310,7 @@ function makeAniListMetadata(overrides: Partial<AnimeMetadata>): AnimeMetadata {
   };
 }
 
-function makeJikanMetadata(overrides: Partial<JikanNormalizedAnime> = {}): JikanNormalizedAnime {
+function makeTenraiMetadata(overrides: Partial<TenraiNormalizedAnime> = {}): TenraiNormalizedAnime {
   const malId = overrides.malId ?? 1;
 
   return {

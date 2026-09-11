@@ -24,8 +24,7 @@ import { makeApiLifecycleLayers } from "./src/app/lifecycle-layers.ts";
 import { createHttpApp } from "./src/app/http-app.ts";
 import { commandArgs, commandName, makeCommandExecutorStub } from "./src/test/stubs.ts";
 import { AniListClient } from "./src/features/media/metadata/anilist.ts";
-import { JikanClient } from "./src/features/media/metadata/jikan.ts";
-import { ManamiCacheRefreshClient, ManamiClient } from "./src/features/media/metadata/manami.ts";
+import { TenraiClient } from "./src/features/media/metadata/tenrai.ts";
 import {
   type QBitTorrent,
   QBitTorrentClient,
@@ -44,8 +43,7 @@ declare global {
 }
 
 type TestContextOptions = {
-  readonly jikanLayer?: Layer.Layer<JikanClient>;
-  readonly manamiLayer?: Layer.Layer<ManamiCacheRefreshClient | ManamiClient>;
+  readonly tenraiLayer?: Layer.Layer<TenraiClient>;
   readonly metricsRequireAuth?: boolean;
   readonly qbitLayer?: Layer.Layer<QBitTorrentClient>;
   readonly rssLayer?: Layer.Layer<RssClient>;
@@ -4334,6 +4332,7 @@ const testAniListLayer = Layer.succeed(
     getAnimeMetadataById: (id: number) =>
       Effect.succeed(Option.fromNullishOr(TEST_ANIME_METADATA.get(id))),
     getSeasonalAnime: () => Effect.succeed([]),
+    resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
   }),
 );
 
@@ -4441,39 +4440,19 @@ const testPasswordCryptoLayer = Layer.succeed(
   }),
 );
 
-const testJikanLayer = Layer.succeed(
-  JikanClient,
-  JikanClient.of({
+const testTenraiLayer = Layer.succeed(
+  TenraiClient,
+  TenraiClient.of({
     getAnimeByMalId: () => Effect.succeed(Option.none()),
     getSeasonalAnime: () => Effect.succeed([]),
   }),
-);
-
-const testManamiLayer = Layer.mergeAll(
-  Layer.succeed(
-    ManamiClient,
-    ManamiClient.of({
-      getByAniListId: () => Effect.succeed(Option.none()),
-      getByMalId: () => Effect.succeed(Option.none()),
-      resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
-      resolveMalIdFromAniListId: () => Effect.succeed(Option.none()),
-      searchMedia: () => Effect.succeed([]),
-    }),
-  ),
-  Layer.succeed(
-    ManamiCacheRefreshClient,
-    ManamiCacheRefreshClient.of({
-      refreshCacheIfNeeded: () => Effect.succeed(false),
-    }),
-  ),
 );
 
 function makeTestAppLayer(
   databaseFile: string,
   options?: {
     bootstrapPassword?: string;
-    jikanLayer?: Layer.Layer<JikanClient>;
-    manamiLayer?: Layer.Layer<ManamiCacheRefreshClient | ManamiClient>;
+    tenraiLayer?: Layer.Layer<TenraiClient>;
     metricsRequireAuth?: boolean;
     qbitLayer?: Layer.Layer<QBitTorrentClient>;
     rssLayer?: Layer.Layer<RssClient>;
@@ -4515,8 +4494,7 @@ function makeTestAppLayer(
         }),
       ),
       ...(options?.qbitLayer ? { qbitLayer: options.qbitLayer } : {}),
-      jikanLayer: options?.jikanLayer ?? testJikanLayer,
-      manamiLayer: options?.manamiLayer ?? testManamiLayer,
+      tenraiLayer: options?.tenraiLayer ?? testTenraiLayer,
       passwordCryptoLayer: testPasswordCryptoLayer,
       rssLayer: options?.rssLayer ?? testRssLayer,
       seadexLayer: options?.seadexLayer ?? testSeaDexLayer,
@@ -4628,8 +4606,7 @@ async function createTemplateDatabaseFile() {
 async function createTestContextForDatabaseFile(
   databaseFile: string,
   options?: {
-    jikanLayer?: Layer.Layer<JikanClient>;
-    manamiLayer?: Layer.Layer<ManamiCacheRefreshClient | ManamiClient>;
+    tenraiLayer?: Layer.Layer<TenraiClient>;
     metricsRequireAuth?: boolean;
     qbitLayer?: Layer.Layer<QBitTorrentClient>;
     rssLayer?: Layer.Layer<RssClient>;
@@ -4706,8 +4683,7 @@ async function createTestContextForDatabaseFile(
 async function createLegacyBootstrapTestContext(
   databaseFile: string,
   options?: {
-    jikanLayer?: Layer.Layer<JikanClient>;
-    manamiLayer?: Layer.Layer<ManamiCacheRefreshClient | ManamiClient>;
+    tenraiLayer?: Layer.Layer<TenraiClient>;
     metricsRequireAuth?: boolean;
     qbitLayer?: Layer.Layer<QBitTorrentClient>;
     rssLayer?: Layer.Layer<RssClient>;

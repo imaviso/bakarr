@@ -109,8 +109,8 @@ export function SeasonalAnimeSection(props: SeasonalAnimeSectionProps) {
         <Alert className="rounded-none text-xs">
           <RiInformationLine className="mt-0.5 h-4 w-4 shrink-0" />
           <AlertDescription>
-            AniList is temporarily unavailable or rate-limited. Showing Jikan fallback titles mapped
-            to AniList IDs.
+            AniList is temporarily unavailable or rate-limited. Showing Tenrai fallback titles
+            mapped to AniList IDs.
           </AlertDescription>
         </Alert>
       )}

@@ -48,8 +48,7 @@ describe("notification preferences", () => {
         disk_space: { free: 1, total: 2 },
         metadata_providers: {
           anidb: { configured: false, enabled: false },
-          jikan: { configured: true, enabled: true },
-          manami: { configured: true, enabled: true },
+          tenrai: { configured: true, enabled: true },
         },
         pending_downloads: 0,
         uptime: 10,

@@ -113,12 +113,6 @@ function describeJobSchedule(
     return { mode: "disabled", value: undefined };
   }
 
-  if (name === "manami_refresh") {
-    return config.scheduler.enabled
-      ? { mode: "interval", value: "24h" }
-      : { mode: "disabled", value: undefined };
-  }
-
   if (name === "unmapped_scan") {
     return { mode: "manual", value: undefined };
   }

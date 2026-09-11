@@ -5,6 +5,7 @@ import { AuthUserRepository } from "@/features/auth/user-repository.ts";
 import { MediaRepository } from "@/features/media/shared/media-repository.ts";
 import { MediaUnitRepository } from "@/features/media/units/media-unit-repository.ts";
 import { AniDbUnitCacheRepository } from "@/features/media/units/anidb-unit-cache-repository.ts";
+import { ExternalIdMapRepository } from "@/features/media/metadata/external-id-map-repository.ts";
 import { AniListDetailCacheRepository } from "@/features/media/metadata/anilist-detail-cache-repository.ts";
 import { SeasonalMediaCacheRepository } from "@/features/media/query/seasonal-media-cache-repository.ts";
 import { DownloadRepository } from "@/features/operations/repository/download-repository.ts";
@@ -36,6 +37,7 @@ export const PureDbLeaves = Layer.mergeAll(
   MediaUnitRepository.layer,
   AniDbUnitCacheRepository.layer,
   AniListDetailCacheRepository.layer,
+  ExternalIdMapRepository.layer,
   SeasonalMediaCacheRepository.layer,
   OperationsTaskRepository.layer,
   RssFeedRepository.layer,

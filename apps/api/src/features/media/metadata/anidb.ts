@@ -14,6 +14,7 @@ import {
 } from "@/features/media/metadata/anidb-protocol.ts";
 import {
   authenticateAniDbEffect,
+  encodeCommandValue,
   logoutAniDbEffect,
   sendAniDbCommandEffect,
   type AniDbRequestContext,
@@ -23,16 +24,16 @@ import {
   openAniDbSocketEffect,
   resolveAniDbPeerEffect,
 } from "@/features/media/metadata/anidb-socket.ts";
+import { ExternalIdMapRepository } from "@/features/media/metadata/external-id-map-repository.ts";
 import { AniDbRuntimeConfigError } from "@/features/media/errors.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 import { StoredConfigCorruptError } from "@/features/system/errors.ts";
 import { DEFAULT_ANIDB_METADATA_CONFIG } from "@/features/system/metadata-providers-config.ts";
 import { ExternalCallError } from "@/infra/effect/retry.ts";
-import { Context, Effect, Layer, Option, Ref, Scope, Semaphore } from "effect";
+import { Context, Effect, Layer, Option, Ref, Semaphore } from "effect";
 
 const ANIDB_MIN_ANIME_MATCH_SCORE = 70;
 const ANIDB_STRONG_ANIME_MATCH_SCORE = 90;
-const ANIDB_CLOSE_SESSION_TIMEOUT = "15 seconds";
 
 interface AniDbClientShape {
   readonly getEpisodeMetadata: (
@@ -40,11 +41,6 @@ interface AniDbClientShape {
   ) => Effect.Effect<AniDbEpisodeLookupResult, ExternalCallError | AniDbRuntimeConfigError>;
 }
 
-interface AniDbSessionState {
-  readonly configKey: string;
-  readonly sessionToken: string;
-  readonly socket: Socket;
-}
 interface AniDbRuntimeConfig {
   readonly enabled: boolean;
   readonly username: string | null;
@@ -84,99 +80,28 @@ export function normalizeEpisodeCount(unitCount: number | undefined, episodeLimi
 }
 
 const makeAniDbClient = Effect.fn("AniDbClient.make")(function* () {
-  yield* Scope.Scope;
   const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
-  // Serializes every socket interaction (AUTH, ANIME, EPISODE, LOGOUT) so a
-  // scope-finalizer LOGOUT can never interleave with an in-flight lookup.
+  const idMap = yield* ExternalIdMapRepository;
+  // Serializes every socket interaction so paced packets from concurrent
+  // lookups can never interleave and breach flood protection.
   const requestSemaphore = yield* Semaphore.make(1);
   const requestContext: AniDbRequestContext = {
-    lastPacketAtRef: yield* Ref.make(0),
     nextTagRef: yield* Ref.make(1),
+    packetGate: yield* Semaphore.make(1),
+    packetTimestampsRef: yield* Ref.make<ReadonlyArray<number>>([]),
     peer: yield* resolveAniDbPeerEffect(),
   };
-  const sessionRef = yield* Ref.make(Option.none<AniDbSessionState>());
 
-  const logoutAndCloseSession = Effect.fn("AniDbClient.logoutAndCloseSession")(function* () {
-    const current = yield* Ref.getAndSet(sessionRef, Option.none<AniDbSessionState>());
-
-    if (Option.isNone(current)) {
-      return;
-    }
-
-    const session = current.value;
-
-    yield* logoutAniDbEffect(session.socket, session.sessionToken, requestContext).pipe(
-      Effect.timeout(ANIDB_CLOSE_SESSION_TIMEOUT),
-      Effect.catchTag("ExternalCallError", () => Effect.void),
-      Effect.catchTag("TimeoutError", () => Effect.void),
+  // Best-effort LOGOUT: failures are swallowed — the session dies server-side
+  // on timeout and the socket always closes via the ensuring clause.
+  const logoutBestEffort = Effect.fn("AniDbClient.logoutBestEffort")(function* (
+    socket: Socket,
+    sessionToken: string,
+  ) {
+    yield* logoutAniDbEffect(socket, sessionToken, requestContext).pipe(
+      Effect.catch(() => Effect.void),
     );
-    yield* closeAniDbSocketEffect(session.socket);
   });
-
-  const createSession = Effect.fn("AniDbClient.createSession")(function* (config: {
-    readonly client: string;
-    readonly clientVersion: number;
-    readonly localPort: number;
-    readonly password: string;
-    readonly username: string;
-  }) {
-    const socket = yield* openAniDbSocketEffect(config.localPort, {
-      // Adapter edge: dgram error callbacks are plain Node events, so the
-      // warning is logged through a detached fiber. Without this handler a
-      // stray ICMP error on the idle socket would crash the process.
-      onBackgroundError: (cause) =>
-        Effect.runFork(
-          Effect.logWarning("AniDB socket background error").pipe(
-            Effect.annotateLogs({ errorMessage: cause.message }),
-          ),
-        ),
-    });
-
-    // `onError` releases the bound socket on AUTH failure *and* interruption
-    // (scope shutdown mid-AUTH); after success the session owns the socket and
-    // the client finalizer closes it.
-    const sessionToken = yield* authenticateAniDbEffect(
-      socket,
-      config.username,
-      config.password,
-      config.client,
-      config.clientVersion,
-      requestContext,
-    ).pipe(Effect.onError(() => closeAniDbSocketEffect(socket)));
-
-    return {
-      configKey: toAniDbSessionConfigKey(config),
-      sessionToken,
-      socket,
-    } satisfies AniDbSessionState;
-  });
-
-  const ensureSession = Effect.fn("AniDbClient.ensureSession")(function* (config: {
-    readonly client: string;
-    readonly clientVersion: number;
-    readonly localPort: number;
-    readonly password: string;
-    readonly username: string;
-  }) {
-    const configKey = toAniDbSessionConfigKey(config);
-    const current = yield* Ref.get(sessionRef);
-
-    if (Option.isSome(current) && current.value.configKey === configKey) {
-      return current.value;
-    }
-
-    if (Option.isSome(current)) {
-      yield* logoutAndCloseSession();
-    }
-
-    const session = yield* createSession(config);
-    yield* Ref.set(sessionRef, Option.some(session));
-    return session;
-  });
-
-  // Finalizer LOGOUT goes through the same semaphore as lookups so it can
-  // never interleave with an in-flight EPISODE request.
-  yield* Effect.addFinalizer(() => requestSemaphore.withPermits(1)(logoutAndCloseSession()));
 
   const getEpisodeMetadata: AniDbClientShape["getEpisodeMetadata"] = Effect.fn(
     "AniDbClient.getEpisodeMetadata",
@@ -226,27 +151,53 @@ const makeAniDbClient = Effect.fn("AniDbClient.make")(function* () {
       } satisfies AniDbEpisodeLookupResult;
     }
 
+    // Session-per-lookup: the spec asks non-notification clients to LOGOUT
+    // once finished instead of holding idle sessions (server timeout is 35
+    // minutes), and a fresh AUTH per lookup is immune to NAT port remaps.
     return yield* requestSemaphore.withPermits(1)(
       Effect.gen(function* () {
-        const session = yield* ensureSession({
-          client: config.client,
-          clientVersion: config.clientVersion,
-          localPort: config.localPort,
-          password,
-          username,
+        const socket = yield* openAniDbSocketEffect(config.localPort, {
+          // Adapter edge: dgram error callbacks are plain Node events, so the
+          // warning is logged through a detached fiber. Without this handler a
+          // stray ICMP error on the socket would crash the process.
+          onBackgroundError: (cause) =>
+            Effect.runFork(
+              Effect.logWarning("AniDB socket background error").pipe(
+                Effect.annotateLogs({ errorMessage: cause.message }),
+              ),
+            ),
         });
 
-        return yield* fetchAniDbEpisodesEffect({
-          unitCount,
-          requestContext,
-          sessionToken: session.sessionToken,
-          socket: session.socket,
-          titleCandidates,
-        }).pipe(
-          Effect.catchTag("ExternalCallError", (error) =>
-            logoutAndCloseSession().pipe(Effect.andThen(Effect.fail(error))),
-          ),
-        );
+        return yield* Effect.gen(function* () {
+          const sessionToken = yield* authenticateAniDbEffect(
+            socket,
+            username,
+            password,
+            config.client,
+            config.clientVersion,
+            requestContext,
+          );
+
+          return yield* Effect.gen(function* () {
+            const result = yield* fetchAniDbEpisodesEffect({
+              unitCount,
+              countKnown: input.unitCount !== undefined && input.unitCount !== null,
+              idMap,
+              mediaId: input.mediaId,
+              requestContext,
+              sessionToken,
+              socket,
+              titleCandidates,
+            });
+
+            yield* logoutBestEffort(socket, sessionToken);
+            return result;
+          }).pipe(
+            Effect.catchTag("ExternalCallError", (error) =>
+              logoutBestEffort(socket, sessionToken).pipe(Effect.andThen(Effect.fail(error))),
+            ),
+          );
+        }).pipe(Effect.ensuring(closeAniDbSocketEffect(socket)));
       }),
     );
   });
@@ -261,22 +212,6 @@ export class AniDbClient extends Context.Service<AniDbClient, AniDbClientShape>(
 }
 
 export const AniDbClientLive = AniDbClient.layer;
-
-function toAniDbSessionConfigKey(config: {
-  readonly client: string;
-  readonly clientVersion: number;
-  readonly localPort: number;
-  readonly password: string;
-  readonly username: string;
-}) {
-  return [
-    config.localPort,
-    config.username,
-    config.password,
-    config.client,
-    config.clientVersion,
-  ].join("|");
-}
 
 const logRuntimeConfigError = (error: DatabaseError | StoredConfigCorruptError, reason: string) =>
   Effect.logWarning("AniDB metadata lookup failed due to runtime config load failure").pipe(
@@ -297,28 +232,40 @@ const failRuntimeConfigLoad = (error: DatabaseError | StoredConfigCorruptError, 
     ),
   );
 
+export function buildAnimeCommand(candidate: AniDbTitleCandidate, sessionToken: string) {
+  return `ANIME aname=${encodeCommandValue(candidate.value)}&s=${sessionToken}`;
+}
+
 const fetchAniDbEpisodesEffect = Effect.fn("AniDbClient.fetchEpisodes")(function* (input: {
   unitCount: number;
+  countKnown: boolean;
+  idMap: AniDbIdMap;
+  mediaId: number | undefined;
   requestContext: AniDbRequestContext;
   sessionToken: string;
   socket: Socket;
   titleCandidates: ReadonlyArray<AniDbTitleCandidate>;
 }) {
-  const aidOption = yield* resolveAnimeIdEffect({
+  const resolvedOption = yield* resolveAnimeIdEffect({
+    idMap: input.idMap,
+    mediaId: input.mediaId,
     requestContext: input.requestContext,
     sessionToken: input.sessionToken,
     socket: input.socket,
     titleCandidates: input.titleCandidates,
   });
 
-  if (Option.isNone(aidOption)) {
+  if (Option.isNone(resolvedOption)) {
     return {
       _tag: "AniDbLookupSkipped",
       reason: "title_not_found",
     } satisfies AniDbEpisodeLookupResult;
   }
 
+  const resolved = resolvedOption.value;
+
   const reachedEndRef = yield* Ref.make(false);
+  const sawEpisodeRef = yield* Ref.make(false);
   const unitNumbers = Array.from({ length: input.unitCount }, (_, index) => index + 1);
   const episodeResults = yield* Effect.forEach(
     unitNumbers,
@@ -332,7 +279,7 @@ const fetchAniDbEpisodesEffect = Effect.fn("AniDbClient.fetchEpisodes")(function
 
         const response = yield* sendAniDbCommandEffect(
           input.socket,
-          `EPISODE aid=${aidOption.value}&epno=${unitNumber}&s=${input.sessionToken}`,
+          `EPISODE aid=${resolved.aid}&epno=${unitNumber}&s=${input.sessionToken}`,
           input.requestContext,
           "episode",
         );
@@ -350,12 +297,24 @@ const fetchAniDbEpisodesEffect = Effect.fn("AniDbClient.fetchEpisodes")(function
           });
         }
 
+        yield* Ref.set(sawEpisodeRef, true);
         return Option.fromNullishOr(parseEpisodeResponse(response.lines[0], unitNumber));
       }),
     { concurrency: 1 },
   );
 
   const mediaUnits = episodeResults.filter(Option.isSome).map((result) => result.value);
+  const sawEpisodeResponse = yield* Ref.get(sawEpisodeRef);
+
+  yield* persistAidDecision({
+    countKnown: input.countKnown,
+    fetchedCount: mediaUnits.length,
+    idMap: input.idMap,
+    mediaId: input.mediaId,
+    requestedCount: input.unitCount,
+    resolved,
+    sawEpisodeResponse,
+  });
 
   return {
     _tag: "AniDbLookupSuccess",
@@ -363,12 +322,155 @@ const fetchAniDbEpisodesEffect = Effect.fn("AniDbClient.fetchEpisodes")(function
   } satisfies AniDbEpisodeLookupResult;
 });
 
+type AniDbIdMap = Pick<
+  typeof ExternalIdMapRepository.Service,
+  "deleteByAniListId" | "loadByAniListId" | "upsert"
+>;
+
+interface ResolvedAnimeId {
+  readonly aid: number;
+  readonly score?: number | undefined;
+  readonly source: "map" | "search";
+  readonly strong: boolean;
+}
+
+export type AidPersistenceDecision = "store" | "keep" | "ephemeral" | "delete";
+
+// Verify-then-store: only strong title matches confirmed by a full episode
+// fetch enter the map. Weak matches serve the current lookup only. A map hit
+// is dropped only when no healthy EPISODE reply arrived at all — all-specials
+// entries legitimately yield zero regular episodes, so bare emptiness never
+// deletes. Shortfalls are ambiguous (airing shows also fall short).
+export function decideAidPersistence(input: {
+  readonly countKnown: boolean;
+  readonly fetchedCount: number;
+  readonly mapHit: boolean;
+  readonly requestedCount: number;
+  readonly sawEpisodeResponse: boolean;
+  readonly strong: boolean;
+}): AidPersistenceDecision {
+  if (input.mapHit) {
+    return input.sawEpisodeResponse ? "keep" : "delete";
+  }
+
+  if (!input.strong) {
+    return "ephemeral";
+  }
+
+  if (input.countKnown && input.fetchedCount < input.requestedCount) {
+    return "ephemeral";
+  }
+
+  return "store";
+}
+
+const persistAidDecision = Effect.fn("AniDbClient.persistAidDecision")(function* (input: {
+  countKnown: boolean;
+  fetchedCount: number;
+  idMap: AniDbIdMap;
+  mediaId: number | undefined;
+  requestedCount: number;
+  resolved: ResolvedAnimeId;
+  sawEpisodeResponse: boolean;
+}) {
+  if (input.mediaId === undefined) {
+    return;
+  }
+
+  const mediaId = input.mediaId;
+  const decision = decideAidPersistence({
+    countKnown: input.countKnown,
+    fetchedCount: input.fetchedCount,
+    mapHit: input.resolved.source === "map",
+    requestedCount: input.requestedCount,
+    sawEpisodeResponse: input.sawEpisodeResponse,
+    strong: input.resolved.strong,
+  });
+
+  if (decision === "store") {
+    const aid = input.resolved.aid;
+    yield* input.idMap
+      .upsert({ anidbAid: aid, anilistId: mediaId })
+      .pipe(
+        Effect.catch((error) =>
+          Effect.logWarning("External id map store degraded").pipe(
+            Effect.annotateLogs({ anidbAid: aid, error: error.message, mediaId }),
+          ),
+        ),
+      );
+    yield* Effect.logInfo("AniDB aid mapping stored").pipe(
+      Effect.annotateLogs({
+        aid,
+        fetchedCount: input.fetchedCount,
+        mediaId,
+        requestedCount: input.requestedCount,
+        ...(input.resolved.score === undefined ? {} : { score: input.resolved.score }),
+      }),
+    );
+    return;
+  }
+
+  if (decision === "delete") {
+    yield* input.idMap
+      .deleteByAniListId(mediaId)
+      .pipe(
+        Effect.catch((error) =>
+          Effect.logWarning("External id map delete degraded").pipe(
+            Effect.annotateLogs({ error: error.message, mediaId }),
+          ),
+        ),
+      );
+    yield* Effect.logWarning("AniDB aid mapping dropped after empty fetch").pipe(
+      Effect.annotateLogs({ aid: input.resolved.aid, mediaId }),
+    );
+    return;
+  }
+
+  yield* Effect.logDebug("AniDB aid mapping not stored").pipe(
+    Effect.annotateLogs({
+      aid: input.resolved.aid,
+      decision,
+      fetchedCount: input.fetchedCount,
+      mediaId,
+      requestedCount: input.requestedCount,
+      ...(input.resolved.score === undefined ? {} : { score: input.resolved.score }),
+    }),
+  );
+});
+
 const resolveAnimeIdEffect = Effect.fn("AniDbClient.resolveAnimeId")(function* (input: {
+  idMap: AniDbIdMap;
+  mediaId: number | undefined;
   requestContext: AniDbRequestContext;
   sessionToken: string;
   socket: Socket;
   titleCandidates: ReadonlyArray<AniDbTitleCandidate>;
 }) {
+  // Self-owned AniList→AniDB mapping: a known aid skips the paced ANIME
+  // title search entirely. Fresh matches are verified after the episode
+  // fetch before entering the map (see decideAidPersistence).
+  if (input.mediaId !== undefined) {
+    const cached = yield* input.idMap
+      .loadByAniListId(input.mediaId)
+      .pipe(
+        Effect.catch((error) =>
+          Effect.logWarning("External id map lookup degraded").pipe(
+            Effect.annotateLogs({ error: error.message, mediaId: input.mediaId }),
+            Effect.as(Option.none()),
+          ),
+        ),
+      );
+
+    if (Option.isSome(cached) && cached.value.anidbAid !== undefined) {
+      const aid = cached.value.anidbAid;
+      yield* Effect.logDebug("AniDB aid map hit").pipe(
+        Effect.annotateLogs({ aid, mediaId: input.mediaId }),
+      );
+      const mapHit: ResolvedAnimeId = { aid, source: "map", strong: true };
+      return Option.some(mapHit);
+    }
+  }
+
   let bestMatch:
     | {
         readonly aid: number;
@@ -376,10 +478,12 @@ const resolveAnimeIdEffect = Effect.fn("AniDbClient.resolveAnimeId")(function* (
       }
     | undefined;
 
+  let resolved: ResolvedAnimeId | undefined;
+
   for (const candidate of input.titleCandidates) {
     const response = yield* sendAniDbCommandEffect(
       input.socket,
-      `ANIME aname=${encodeURIComponent(candidate.value)}&s=${input.sessionToken}`,
+      buildAnimeCommand(candidate, input.sessionToken),
       input.requestContext,
       "media",
     );
@@ -388,7 +492,8 @@ const resolveAnimeIdEffect = Effect.fn("AniDbClient.resolveAnimeId")(function* (
       continue;
     }
 
-    if (response.code !== 230) {
+    // 230 ANIME plus 231 ANIME_BEST_MATCH both carry the match row.
+    if (response.code !== 230 && response.code !== 231) {
       return yield* ExternalCallError.make({
         cause: new Error(`AniDB ANIME failed with code ${response.code}`),
         message: "AniDB media lookup failed",
@@ -405,7 +510,8 @@ const resolveAnimeIdEffect = Effect.fn("AniDbClient.resolveAnimeId")(function* (
     const score = scoreAnimeLookupCandidate(candidate, parsedMatch.title);
 
     if (score >= ANIDB_STRONG_ANIME_MATCH_SCORE) {
-      return Option.some(parsedMatch.aid);
+      resolved = { aid: parsedMatch.aid, score, source: "search", strong: true };
+      break;
     }
 
     if (bestMatch === undefined || score > bestMatch.score) {
@@ -416,9 +522,9 @@ const resolveAnimeIdEffect = Effect.fn("AniDbClient.resolveAnimeId")(function* (
     }
   }
 
-  if (bestMatch && bestMatch.score >= ANIDB_MIN_ANIME_MATCH_SCORE) {
-    return Option.some(bestMatch.aid);
+  if (resolved === undefined && bestMatch && bestMatch.score >= ANIDB_MIN_ANIME_MATCH_SCORE) {
+    resolved = { aid: bestMatch.aid, score: bestMatch.score, source: "search", strong: false };
   }
 
-  return Option.none();
+  return Option.fromNullishOr(resolved);
 });

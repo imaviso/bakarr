@@ -7,9 +7,10 @@ import type { AnimeMetadata } from "@/features/media/metadata/metadata-model.ts"
 import { MediaMetadataEnrichmentService } from "@/features/media/metadata/media-metadata-enrichment-service.ts";
 import type { AniDbRefreshRequest } from "@/features/media/metadata/media-metadata-enrichment-service.ts";
 import { MediaMetadataProviderService } from "@/features/media/metadata/media-metadata-provider-service.ts";
-import { JikanClient } from "@/features/media/metadata/jikan.ts";
-import type { JikanNormalizedAnime } from "@/features/media/metadata/jikan-model.ts";
-import { ManamiClient, type ManamiLookupEntry } from "@/features/media/metadata/manami.ts";
+import { TenraiClient } from "@/features/media/metadata/tenrai.ts";
+import type { TenraiNormalizedAnime } from "@/features/media/metadata/tenrai-model.ts";
+import { ExternalIdMapRepository } from "@/features/media/metadata/external-id-map-repository.ts";
+import { DatabaseError } from "@/db/database.ts";
 import { ExternalCallError } from "@/infra/effect/retry.ts";
 import { Effect, Layer, Option } from "effect";
 
@@ -42,44 +43,19 @@ it.effect("returns refresh pending when AniDB cache is missing", () => {
   }).pipe(Effect.provide(providerLayer));
 });
 
-it.effect("backfills MAL id via Manami and merges metadata for AniDB refresh", () => {
+it.effect("skips Tenrai lookup when AniList has no MAL id", () => {
   const refreshRequests: AniDbRefreshRequest[] = [];
-  const jikanRequests: number[] = [];
+  const tenraiRequests: number[] = [];
 
   const providerLayer = makeProviderLayer({
     cacheState: { _tag: "Missing" },
-    jikanMetadata: makeJikanMetadata({
-      endDate: "2024-06-30",
-      unitCount: 24,
-      format: "TV",
-      genres: ["Drama"],
-      malId: 777,
-      relations: [],
-      score: 8.9,
-      startDate: "2024-01-01",
-      status: "Finished Airing",
-      studios: ["Studio J"],
-      synopsis: "Merged from Jikan",
-      title: {
-        english: "Merged English",
-        native: "Merged Native",
-        romaji: "Merged Romaji",
-      },
-      titleVariants: ["Merged Alias"],
-    }),
-    malIdFromAniListId: 777,
-    manamiEntry: {
-      englishTitle: "Manami Title",
-      nativeTitle: "Manami Title",
-      title: "Manami Title",
-    },
     metadata: makeMetadata(1003, {
       unitCount: undefined,
       malId: undefined,
       synonyms: ["Base Alias"],
     }),
-    onJikanLookup: (malId) => {
-      jikanRequests.push(malId);
+    onTenraiLookup: (malId) => {
+      tenraiRequests.push(malId);
     },
     onRefresh: (request) => {
       refreshRequests.push(request);
@@ -90,20 +66,19 @@ it.effect("backfills MAL id via Manami and merges metadata for AniDB refresh", (
     const service = yield* MediaMetadataProviderService;
     const result = yield* service.getAnimeMetadataById(1003);
 
-    assert.deepStrictEqual(jikanRequests, [777]);
+    assert.deepStrictEqual(tenraiRequests, []);
     assert.deepStrictEqual(refreshRequests.length, 1);
-    assert.deepStrictEqual(refreshRequests[0]?.unitCount, 24);
+    assert.deepStrictEqual(refreshRequests[0]?.unitCount, undefined);
     assert.deepStrictEqual(refreshRequests[0]?.title, {
-      english: "Merged English",
-      native: "Merged Native",
+      english: undefined,
+      native: undefined,
       romaji: "Media",
     });
-    assert.deepStrictEqual(refreshRequests[0]?.synonyms, ["Base Alias", "Merged Alias"]);
+    assert.deepStrictEqual(refreshRequests[0]?.synonyms, ["Base Alias"]);
 
     assert.deepStrictEqual(result._tag, "Found");
     if (result._tag === "Found") {
-      assert.deepStrictEqual(result.metadata.description, "Merged from Jikan");
-      assert.deepStrictEqual(result.metadata.genres, ["Drama"]);
+      assert.deepStrictEqual(result.metadata.description, undefined);
       assert.deepStrictEqual(result.enrichment._tag, "Degraded");
     }
   }).pipe(Effect.provide(providerLayer));
@@ -151,7 +126,7 @@ it.effect("returns enriched metadata when AniDB cache is fresh", () => {
   }).pipe(Effect.provide(providerLayer));
 });
 
-it.effect("merges Jikan/Manami metadata before applying AniDB episode enrichment", () => {
+it.effect("merges Tenrai metadata before applying AniDB episode enrichment", () => {
   const providerLayer = makeProviderLayer({
     aniListIdByMalId: new Map([
       [202, 4004],
@@ -168,7 +143,7 @@ it.effect("merges Jikan/Manami metadata before applying AniDB episode enrichment
       ],
       updatedAt: "2024-01-02T00:00:00.000Z",
     },
-    jikanMetadata: {
+    tenraiMetadata: {
       airing: false,
       approved: true,
       background: undefined,
@@ -190,8 +165,8 @@ it.effect("merges Jikan/Manami metadata before applying AniDB episode enrichment
       producers: [],
       rank: undefined,
       rating: undefined,
-      recommendations: [{ malId: 303, title: "Recommended from Jikan" }],
-      relations: [{ malId: 202, relation: "Sequel", title: "Related from Jikan" }],
+      recommendations: [{ malId: 303, title: "Recommended from Tenrai" }],
+      relations: [{ malId: 202, relation: "Sequel", title: "Related from Tenrai" }],
       score: undefined,
       scoredBy: undefined,
       season: undefined,
@@ -200,18 +175,13 @@ it.effect("merges Jikan/Manami metadata before applying AniDB episode enrichment
       startYear: undefined,
       status: undefined,
       studios: [],
-      synopsis: "Jikan Synopsis",
+      synopsis: "Tenrai Synopsis",
       themes: [],
       title: {},
       titleVariants: [],
       trailer: {},
       url: "https://myanimelist.net/media/1002",
       year: undefined,
-    },
-    manamiEntry: {
-      englishTitle: "Media",
-      nativeTitle: "Media",
-      title: "Media",
     },
     metadata: makeMetadata(1002, {
       genres: ["Action"],
@@ -231,14 +201,14 @@ it.effect("merges Jikan/Manami metadata before applying AniDB episode enrichment
         mediaUnits: 1,
         provider: "AniDB",
       });
-      assert.deepStrictEqual(result.metadata.description, "Jikan Synopsis");
+      assert.deepStrictEqual(result.metadata.description, "Tenrai Synopsis");
       assert.deepStrictEqual(result.metadata.genres, ["Action", "Drama"]);
       assert.deepStrictEqual(result.metadata.relatedMedia, [
         {
           id: brandMediaId(4004),
           relation_type: "Sequel",
           title: {
-            romaji: "Related from Jikan",
+            romaji: "Related from Tenrai",
           },
         },
       ]);
@@ -246,14 +216,14 @@ it.effect("merges Jikan/Manami metadata before applying AniDB episode enrichment
         {
           id: brandMediaId(5005),
           title: {
-            romaji: "Recommended from Jikan",
+            romaji: "Recommended from Tenrai",
           },
         },
         {
           id: brandMediaId(4004),
           relation_type: "Sequel",
           title: {
-            romaji: "Related from Jikan",
+            romaji: "Related from Tenrai",
           },
         },
       ]);
@@ -266,15 +236,22 @@ it.effect("merges Jikan/Manami metadata before applying AniDB episode enrichment
   }).pipe(Effect.provide(providerLayer));
 });
 
-it.effect("degrades gracefully when Manami getByAniListId fails", () => {
+it.effect("falls through to AniList when id map lookup fails", () => {
   let refreshCount = 0;
 
   const providerLayer = makeProviderLayer({
+    aniListIdByMalId: new Map([[606, 7007]]),
     cacheState: { _tag: "Missing" },
-    getByAniListIdError: ExternalCallError.make({
-      cause: new Error("manami getByAniListId failed"),
-      message: "Manami lookup failed",
-      operation: "ManamiClient.getByAniListId",
+    idMapError: new DatabaseError({
+      cause: new Error("id map unavailable"),
+      message: "External id map lookup failed",
+    }),
+    tenraiMetadata: makeTenraiMetadata({
+      malId: 606,
+      relations: [{ malId: 606, relation: "Sequel", title: "Related" }],
+    }),
+    metadata: makeMetadata(1006, {
+      malId: 606,
     }),
     onRefresh: () => {
       refreshCount += 1;
@@ -294,50 +271,22 @@ it.effect("degrades gracefully when Manami getByAniListId fails", () => {
           cacheState: "missing",
         });
       }
+      assert.deepStrictEqual(result.metadata.relatedMedia, [
+        {
+          id: brandMediaId(7007),
+          relation_type: "Sequel",
+          title: {
+            romaji: "Related",
+          },
+        },
+      ]);
     }
 
     assert.deepStrictEqual(refreshCount, 1);
   }).pipe(Effect.provide(providerLayer));
 });
 
-it.effect("degrades gracefully when Manami resolveMalIdFromAniListId fails", () => {
-  let refreshCount = 0;
-
-  const providerLayer = makeProviderLayer({
-    cacheState: { _tag: "Missing" },
-    metadata: makeMetadata(1004, {
-      malId: undefined,
-    }),
-    resolveMalIdFromAniListIdError: ExternalCallError.make({
-      cause: new Error("manami resolveMalIdFromAniListId failed"),
-      message: "Manami MAL id resolve failed",
-      operation: "ManamiClient.resolveMalIdFromAniListId",
-    }),
-    onRefresh: () => {
-      refreshCount += 1;
-    },
-  });
-
-  return Effect.gen(function* () {
-    const service = yield* MediaMetadataProviderService;
-    const result = yield* service.getAnimeMetadataById(1004);
-
-    assert.deepStrictEqual(result._tag, "Found");
-    if (result._tag === "Found") {
-      assert.deepStrictEqual(result.enrichment._tag, "Degraded");
-      if (result.enrichment._tag === "Degraded") {
-        assert.deepStrictEqual(result.enrichment.reason, {
-          _tag: "AniDbRefreshPending",
-          cacheState: "missing",
-        });
-      }
-    }
-
-    assert.deepStrictEqual(refreshCount, 1);
-  }).pipe(Effect.provide(providerLayer));
-});
-
-it.effect("degrades gracefully when Jikan getAnimeByMalId fails", () => {
+it.effect("degrades gracefully when Tenrai getAnimeByMalId fails", () => {
   let refreshCount = 0;
 
   const providerLayer = makeProviderLayer({
@@ -348,9 +297,9 @@ it.effect("degrades gracefully when Jikan getAnimeByMalId fails", () => {
       genres: ["Action"],
     }),
     getAnimeByMalIdError: ExternalCallError.make({
-      cause: new Error("jikan getAnimeByMalId failed"),
-      message: "Jikan lookup failed",
-      operation: "JikanClient.getAnimeByMalId",
+      cause: new Error("tenrai getAnimeByMalId failed"),
+      message: "Tenrai lookup failed",
+      operation: "TenraiClient.getAnimeByMalId",
     }),
     onRefresh: () => {
       refreshCount += 1;
@@ -378,62 +327,121 @@ it.effect("degrades gracefully when Jikan getAnimeByMalId fails", () => {
   }).pipe(Effect.provide(providerLayer));
 });
 
-it.effect(
-  "degrades gracefully when Manami resolveAniListIdFromMalId fails during relation mapping",
-  () => {
-    let refreshCount = 0;
+it.effect("degrades gracefully when AniList id resolution fails during relation mapping", () => {
+  let refreshCount = 0;
 
-    const providerLayer = makeProviderLayer({
-      cacheState: { _tag: "Missing" },
-      jikanMetadata: makeJikanMetadata({
-        endDate: undefined,
-        unitCount: undefined,
-        format: undefined,
-        genres: [],
-        malId: 606,
-        relations: [{ malId: 909, relation: "Sequel", title: "Related" }],
-        score: undefined,
-        startDate: undefined,
-        status: undefined,
-        studios: [],
-        synopsis: undefined,
-        title: {},
-        titleVariants: [],
-      }),
-      metadata: makeMetadata(1006, {
-        malId: 606,
-      }),
-      resolveAniListIdFromMalIdError: ExternalCallError.make({
-        cause: new Error("manami resolveAniListIdFromMalId failed"),
-        message: "Manami AniList id resolve failed",
-        operation: "ManamiClient.resolveAniListIdFromMalId",
-      }),
-      onRefresh: () => {
-        refreshCount += 1;
-      },
-    });
+  const providerLayer = makeProviderLayer({
+    cacheState: { _tag: "Missing" },
+    tenraiMetadata: makeTenraiMetadata({
+      endDate: undefined,
+      unitCount: undefined,
+      format: undefined,
+      genres: [],
+      malId: 606,
+      relations: [{ malId: 909, relation: "Sequel", title: "Related" }],
+      score: undefined,
+      startDate: undefined,
+      status: undefined,
+      studios: [],
+      synopsis: undefined,
+      title: {},
+      titleVariants: [],
+    }),
+    metadata: makeMetadata(1006, {
+      malId: 606,
+    }),
+    resolveAniListIdFromMalIdError: ExternalCallError.make({
+      cause: new Error("anilist resolve failed"),
+      message: "AniList id resolve failed",
+      operation: "anilist.resolveId.response",
+    }),
+    onRefresh: () => {
+      refreshCount += 1;
+    },
+  });
 
-    return Effect.gen(function* () {
-      const service = yield* MediaMetadataProviderService;
-      const result = yield* service.getAnimeMetadataById(1006);
+  return Effect.gen(function* () {
+    const service = yield* MediaMetadataProviderService;
+    const result = yield* service.getAnimeMetadataById(1006);
 
-      assert.deepStrictEqual(result._tag, "Found");
-      if (result._tag === "Found") {
-        assert.deepStrictEqual(result.enrichment._tag, "Degraded");
-        if (result.enrichment._tag === "Degraded") {
-          assert.deepStrictEqual(result.enrichment.reason, {
-            _tag: "AniDbRefreshPending",
-            cacheState: "missing",
-          });
-        }
-        // related media IDs should not be resolved when Manami is down
-        assert.deepStrictEqual(result.metadata.relatedMedia?.length ?? 0, 0);
+    assert.deepStrictEqual(result._tag, "Found");
+    if (result._tag === "Found") {
+      assert.deepStrictEqual(result.enrichment._tag, "Degraded");
+      if (result.enrichment._tag === "Degraded") {
+        assert.deepStrictEqual(result.enrichment.reason, {
+          _tag: "AniDbRefreshPending",
+          cacheState: "missing",
+        });
       }
+      // related media IDs should not be resolved when AniList id resolution is down
+      assert.deepStrictEqual(result.metadata.relatedMedia?.length ?? 0, 0);
+    }
 
-      assert.deepStrictEqual(refreshCount, 1);
-    }).pipe(Effect.provide(providerLayer));
-  },
-);
+    assert.deepStrictEqual(refreshCount, 1);
+  }).pipe(Effect.provide(providerLayer));
+});
+
+it.effect("stores the MAL id mapping after detail lookup", () => {
+  const upserts: Array<{ readonly anilistId: number; readonly malId?: number | undefined }> = [];
+
+  const providerLayer = makeProviderLayer({
+    cacheState: { _tag: "Missing" },
+    metadata: makeMetadata(1007, {
+      malId: 777,
+    }),
+    onIdMapUpsert: (upsertInput) => {
+      upserts.push(upsertInput);
+    },
+    onRefresh: () => {},
+  });
+
+  return Effect.gen(function* () {
+    const service = yield* MediaMetadataProviderService;
+    const result = yield* service.getAnimeMetadataById(1007);
+
+    assert.deepStrictEqual(result._tag, "Found");
+    assert.deepStrictEqual(upserts, [{ anilistId: 1007, malId: 777 }]);
+  }).pipe(Effect.provide(providerLayer));
+});
+
+it.effect("reuses mapped AniList ids without remote resolve", () => {
+  const remoteResolves: number[] = [];
+
+  const providerLayer = makeProviderLayer({
+    cacheState: { _tag: "Missing" },
+    idMapByMalId: new Map([[202, 4004]]),
+    tenraiMetadata: makeTenraiMetadata({
+      malId: 606,
+      relations: [{ malId: 202, relation: "Sequel", title: "Related" }],
+    }),
+    metadata: makeMetadata(1006, {
+      malId: 606,
+    }),
+    onResolveAniListId: (malId) => {
+      remoteResolves.push(malId);
+    },
+    onRefresh: () => {},
+  });
+
+  return Effect.gen(function* () {
+    const service = yield* MediaMetadataProviderService;
+    const result = yield* service.getAnimeMetadataById(1006);
+
+    assert.deepStrictEqual(result._tag, "Found");
+    assert.deepStrictEqual(remoteResolves, []);
+    if (result._tag === "Found") {
+      assert.deepStrictEqual(result.metadata.relatedMedia, [
+        {
+          id: brandMediaId(4004),
+          relation_type: "Sequel",
+          title: {
+            romaji: "Related",
+          },
+        },
+      ]);
+    }
+  }).pipe(Effect.provide(providerLayer));
+});
 
 it.effect("serves fresh detail cache without calling AniList", () => {
   let remoteCalls = 0;
@@ -529,18 +537,21 @@ function makeProviderLayer(input: {
         readonly updatedAt: string;
       };
   readonly aniListIdByMalId?: ReadonlyMap<number, number> | undefined;
-  readonly jikanMetadata?: JikanNormalizedAnime | undefined;
+  readonly tenraiMetadata?: TenraiNormalizedAnime | undefined;
   readonly getAnimeByMalIdError?: ExternalCallError | undefined;
-  readonly getByAniListIdError?: ExternalCallError | undefined;
-  readonly malIdFromAniListId?: number | undefined;
-  readonly manamiEntry?: ManamiLookupEntry | undefined;
+  readonly idMapByMalId?: ReadonlyMap<number, number> | undefined;
+  readonly idMapError?: DatabaseError | undefined;
   readonly metadata?: AnimeMetadata | undefined;
   readonly detailCache?: typeof AniListDetailCacheRepository.Service | undefined;
   readonly onDetailLookup?: (id: number) => void;
-  readonly onJikanLookup?: (malId: number) => void;
+  readonly onTenraiLookup?: (malId: number) => void;
+  readonly onResolveAniListId?: (malId: number) => void;
+  readonly onIdMapUpsert?: (input: {
+    readonly anilistId: number;
+    readonly malId?: number | undefined;
+  }) => void;
   readonly onRefresh: (request: AniDbRefreshRequest) => void;
   readonly resolveAniListIdFromMalIdError?: ExternalCallError | undefined;
-  readonly resolveMalIdFromAniListIdError?: ExternalCallError | undefined;
 }) {
   const dependenciesLayer = Layer.mergeAll(
     Layer.succeed(
@@ -555,38 +566,52 @@ function makeProviderLayer(input: {
               }),
         searchAnimeMetadata: () => Effect.succeed([]),
         getSeasonalAnime: () => Effect.succeed([]),
+        resolveAniListIdFromMalId: (malId: number) =>
+          input.resolveAniListIdFromMalIdError !== undefined
+            ? Effect.fail(input.resolveAniListIdFromMalIdError)
+            : Effect.sync(() => {
+                input.onResolveAniListId?.(malId);
+                return Option.fromNullishOr(input.aniListIdByMalId?.get(malId));
+              }),
       }),
     ),
     Layer.succeed(
-      JikanClient,
-      JikanClient.of({
+      TenraiClient,
+      TenraiClient.of({
         getAnimeByMalId: (malId: number) =>
           input.getAnimeByMalIdError !== undefined
             ? Effect.fail(input.getAnimeByMalIdError)
             : Effect.sync(() => {
-                input.onJikanLookup?.(malId);
-                return Option.fromNullishOr(input.jikanMetadata);
+                input.onTenraiLookup?.(malId);
+                return Option.fromNullishOr(input.tenraiMetadata);
               }),
         getSeasonalAnime: () => Effect.succeed([]),
       }),
     ),
     Layer.succeed(
-      ManamiClient,
-      ManamiClient.of({
-        getByAniListId: () =>
-          input.getByAniListIdError !== undefined
-            ? Effect.fail(input.getByAniListIdError)
-            : Effect.succeed(Option.fromNullishOr(input.manamiEntry)),
-        getByMalId: () => Effect.succeed(Option.none()),
-        resolveAniListIdFromMalId: (malId: number) =>
-          input.resolveAniListIdFromMalIdError !== undefined
-            ? Effect.fail(input.resolveAniListIdFromMalIdError)
-            : Effect.succeed(Option.fromNullishOr(input.aniListIdByMalId?.get(malId))),
-        resolveMalIdFromAniListId: () =>
-          input.resolveMalIdFromAniListIdError !== undefined
-            ? Effect.fail(input.resolveMalIdFromAniListIdError)
-            : Effect.succeed(Option.fromNullishOr(input.malIdFromAniListId)),
-        searchMedia: () => Effect.succeed([]),
+      ExternalIdMapRepository,
+      ExternalIdMapRepository.of({
+        loadByAniListId: () => Effect.succeed(Option.none()),
+        loadByAnidbAid: () => Effect.succeed(Option.none()),
+        deleteByAniListId: () => Effect.void,
+        loadByMalId: (malId: number) =>
+          input.idMapError !== undefined
+            ? Effect.fail(input.idMapError)
+            : Effect.sync(() => {
+                const anilistId = input.idMapByMalId?.get(malId);
+                return Option.fromNullishOr(
+                  anilistId === undefined
+                    ? undefined
+                    : { anilistId, updatedAt: "2024-01-01T00:00:00.000Z" },
+                );
+              }),
+        upsert: (upsertInput: {
+          readonly anilistId: number;
+          readonly malId?: number | undefined;
+        }) =>
+          Effect.sync(() => {
+            input.onIdMapUpsert?.(upsertInput);
+          }),
       }),
     ),
     Layer.succeed(
@@ -637,7 +662,7 @@ function makeMetadata(id: number, overrides?: Partial<AnimeMetadata>): AnimeMeta
   };
 }
 
-function makeJikanMetadata(overrides: Partial<JikanNormalizedAnime>): JikanNormalizedAnime {
+function makeTenraiMetadata(overrides: Partial<TenraiNormalizedAnime>): TenraiNormalizedAnime {
   const malId = overrides.malId ?? 1;
 
   return {

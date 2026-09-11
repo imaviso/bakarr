@@ -2,23 +2,45 @@ import * as HttpClient from "effect/unstable/http/HttpClient";
 import * as HttpClientResponse from "effect/unstable/http/HttpClientResponse";
 import { assert, it } from "@effect/vitest";
 
-import { JikanClient, JikanClientLive } from "@/features/media/metadata/jikan.ts";
+import { TenraiClient, TenraiClientLive } from "@/features/media/metadata/tenrai.ts";
 import { ExternalCallError, ExternalCallLive } from "@/infra/effect/retry.ts";
-import { Effect, Layer, Option, Result } from "effect";
+import { Effect, Fiber, Layer, Option, Result } from "effect";
+import * as TestClock from "effect/testing/TestClock";
+import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
+import { DEFAULT_ANIDB_METADATA_CONFIG } from "@/features/system/metadata-providers-config.ts";
+import { makeTestConfig } from "@/test/config-fixture.ts";
+import { makeRuntimeConfigSnapshotStub } from "@/test/stubs.ts";
 
 const ExternalCallTestLayer = ExternalCallLive;
+const snapshotLayer = Layer.succeed(
+  RuntimeConfigSnapshotService,
+  makeRuntimeConfigSnapshotStub(makeTestConfig("./test.sqlite")),
+);
+const maxRateSnapshotLayer = Layer.succeed(
+  RuntimeConfigSnapshotService,
+  makeRuntimeConfigSnapshotStub(
+    makeTestConfig("./test.sqlite", (config) => ({
+      ...config,
+      metadata: {
+        anidb: { ...DEFAULT_ANIDB_METADATA_CONFIG, ...config.metadata?.anidb },
+        tenrai: { requests_per_minute: 120 },
+      },
+    })),
+  ),
+);
 
-it.effect("JikanClient maps full detail with recommendations", () =>
+it.effect("TenraiClient maps full detail with recommendations", () =>
   Effect.gen(function* () {
     let requestCount = 0;
 
-    const clientLayer = JikanClientLive.pipe(
+    const clientLayer = TenraiClientLive.pipe(
       Layer.provide(
         Layer.mergeAll(
           ExternalCallTestLayer,
+          snapshotLayer,
           Layer.succeed(
             HttpClient.HttpClient,
-            makeJikanClient(() => {
+            makeTenraiClient(() => {
               requestCount += 1;
             }),
           ),
@@ -26,7 +48,7 @@ it.effect("JikanClient maps full detail with recommendations", () =>
       ),
     );
 
-    const result = yield* Effect.flatMap(JikanClient, (client) =>
+    const result = yield* Effect.flatMap(TenraiClient, (client) =>
       client.getAnimeByMalId(5114),
     ).pipe(Effect.provide(clientLayer));
 
@@ -125,14 +147,15 @@ it.effect("JikanClient maps full detail with recommendations", () =>
   }),
 );
 
-it.effect("JikanClient falls back to basic detail when full endpoint missing", () =>
+it.effect("TenraiClient falls back to basic detail when full endpoint missing", () =>
   Effect.gen(function* () {
     const requests: string[] = [];
 
-    const clientLayer = JikanClientLive.pipe(
+    const clientLayer = TenraiClientLive.pipe(
       Layer.provide(
         Layer.mergeAll(
           ExternalCallTestLayer,
+          snapshotLayer,
           Layer.succeed(
             HttpClient.HttpClient,
             HttpClient.make((request, _url, _signal, _fiber) =>
@@ -197,14 +220,14 @@ it.effect("JikanClient falls back to basic detail when full endpoint missing", (
       ),
     );
 
-    const result = yield* Effect.flatMap(JikanClient, (client) => client.getAnimeByMalId(21)).pipe(
+    const result = yield* Effect.flatMap(TenraiClient, (client) => client.getAnimeByMalId(21)).pipe(
       Effect.provide(clientLayer),
     );
 
     assert.deepStrictEqual(requests, [
-      "https://api.jikan.moe/v4/anime/21/full",
-      "https://api.jikan.moe/v4/anime/21",
-      "https://api.jikan.moe/v4/anime/21/recommendations",
+      "https://api.tenrai.org/v1/anime/21/full",
+      "https://api.tenrai.org/v1/anime/21",
+      "https://api.tenrai.org/v1/anime/21/recommendations",
     ]);
     assert.deepStrictEqual(Option.isSome(result), true);
     if (Option.isSome(result)) {
@@ -221,14 +244,15 @@ it.effect("JikanClient falls back to basic detail when full endpoint missing", (
   }),
 );
 
-it.effect("JikanClient falls back to basic detail when full detail decode fails", () =>
+it.effect("TenraiClient falls back to basic detail when full detail decode fails", () =>
   Effect.gen(function* () {
     const requests: string[] = [];
 
-    const clientLayer = JikanClientLive.pipe(
+    const clientLayer = TenraiClientLive.pipe(
       Layer.provide(
         Layer.mergeAll(
           ExternalCallTestLayer,
+          snapshotLayer,
           Layer.succeed(
             HttpClient.HttpClient,
             HttpClient.make((request, _url, _signal, _fiber) =>
@@ -269,14 +293,14 @@ it.effect("JikanClient falls back to basic detail when full detail decode fails"
       ),
     );
 
-    const result = yield* Effect.flatMap(JikanClient, (client) => client.getAnimeByMalId(21)).pipe(
+    const result = yield* Effect.flatMap(TenraiClient, (client) => client.getAnimeByMalId(21)).pipe(
       Effect.provide(clientLayer),
     );
 
     assert.deepStrictEqual(requests, [
-      "https://api.jikan.moe/v4/anime/21/full",
-      "https://api.jikan.moe/v4/anime/21",
-      "https://api.jikan.moe/v4/anime/21/recommendations",
+      "https://api.tenrai.org/v1/anime/21/full",
+      "https://api.tenrai.org/v1/anime/21",
+      "https://api.tenrai.org/v1/anime/21/recommendations",
     ]);
     assert.deepStrictEqual(Option.isSome(result), true);
     if (Option.isSome(result)) {
@@ -286,12 +310,13 @@ it.effect("JikanClient falls back to basic detail when full detail decode fails"
   }),
 );
 
-it.effect("JikanClient returns none when both detail endpoints missing", () =>
+it.effect("TenraiClient returns none when both detail endpoints missing", () =>
   Effect.gen(function* () {
-    const clientLayer = JikanClientLive.pipe(
+    const clientLayer = TenraiClientLive.pipe(
       Layer.provide(
         Layer.mergeAll(
           ExternalCallTestLayer,
+          snapshotLayer,
           Layer.succeed(
             HttpClient.HttpClient,
             HttpClient.make((request, _url, _signal, _fiber) =>
@@ -310,7 +335,7 @@ it.effect("JikanClient returns none when both detail endpoints missing", () =>
       ),
     );
 
-    const result = yield* Effect.flatMap(JikanClient, (client) => client.getAnimeByMalId(77)).pipe(
+    const result = yield* Effect.flatMap(TenraiClient, (client) => client.getAnimeByMalId(77)).pipe(
       Effect.provide(clientLayer),
     );
 
@@ -318,12 +343,13 @@ it.effect("JikanClient returns none when both detail endpoints missing", () =>
   }),
 );
 
-it.effect("JikanClient maps detail decode failures with operation name", () =>
+it.effect("TenraiClient maps detail decode failures with operation name", () =>
   Effect.gen(function* () {
-    const clientLayer = JikanClientLive.pipe(
+    const clientLayer = TenraiClientLive.pipe(
       Layer.provide(
         Layer.mergeAll(
           ExternalCallTestLayer,
+          snapshotLayer,
           Layer.succeed(
             HttpClient.HttpClient,
             HttpClient.make((request, _url, _signal, _fiber) =>
@@ -359,23 +385,24 @@ it.effect("JikanClient maps detail decode failures with operation name", () =>
       ),
     );
 
-    const result = yield* Effect.flatMap(JikanClient, (client) => client.getAnimeByMalId(7)).pipe(
+    const result = yield* Effect.flatMap(TenraiClient, (client) => client.getAnimeByMalId(7)).pipe(
       Effect.provide(clientLayer),
       Effect.result,
     );
 
     assert.ok(Result.isFailure(result));
     assert.ok(result.failure instanceof ExternalCallError);
-    assert.deepStrictEqual(result.failure.operation, "jikan.detail.json");
+    assert.deepStrictEqual(result.failure.operation, "tenrai.detail.json");
   }),
 );
 
-it.effect("JikanClient ignores missing recommendations endpoint", () =>
+it.effect("TenraiClient ignores missing recommendations endpoint", () =>
   Effect.gen(function* () {
-    const clientLayer = JikanClientLive.pipe(
+    const clientLayer = TenraiClientLive.pipe(
       Layer.provide(
         Layer.mergeAll(
           ExternalCallTestLayer,
+          snapshotLayer,
           Layer.succeed(
             HttpClient.HttpClient,
             HttpClient.make((request, _url, _signal, _fiber) =>
@@ -404,7 +431,7 @@ it.effect("JikanClient ignores missing recommendations endpoint", () =>
       ),
     );
 
-    const result = yield* Effect.flatMap(JikanClient, (client) => client.getAnimeByMalId(44)).pipe(
+    const result = yield* Effect.flatMap(TenraiClient, (client) => client.getAnimeByMalId(44)).pipe(
       Effect.provide(clientLayer),
     );
 
@@ -416,12 +443,13 @@ it.effect("JikanClient ignores missing recommendations endpoint", () =>
 );
 
 // Live clock: the failing status now goes through the retry schedule.
-it.live("JikanClient ignores failing recommendations endpoint", () =>
+it.live("TenraiClient ignores failing recommendations endpoint", () =>
   Effect.gen(function* () {
-    const clientLayer = JikanClientLive.pipe(
+    const clientLayer = TenraiClientLive.pipe(
       Layer.provide(
         Layer.mergeAll(
           ExternalCallTestLayer,
+          snapshotLayer,
           Layer.succeed(
             HttpClient.HttpClient,
             HttpClient.make((request, _url, _signal, _fiber) =>
@@ -460,7 +488,7 @@ it.live("JikanClient ignores failing recommendations endpoint", () =>
       ),
     );
 
-    const result = yield* Effect.flatMap(JikanClient, (client) => client.getAnimeByMalId(55)).pipe(
+    const result = yield* Effect.flatMap(TenraiClient, (client) => client.getAnimeByMalId(55)).pipe(
       Effect.provide(clientLayer),
     );
 
@@ -472,12 +500,13 @@ it.live("JikanClient ignores failing recommendations endpoint", () =>
   }),
 );
 
-it.effect("JikanClient decodes seasonal media response and applies limit", () =>
+it.effect("TenraiClient decodes seasonal media response and applies limit", () =>
   Effect.gen(function* () {
-    const clientLayer = JikanClientLive.pipe(
+    const clientLayer = TenraiClientLive.pipe(
       Layer.provide(
         Layer.mergeAll(
           ExternalCallTestLayer,
+          snapshotLayer,
           Layer.succeed(
             HttpClient.HttpClient,
             HttpClient.make((request, _url, _signal, _fiber) =>
@@ -506,7 +535,7 @@ it.effect("JikanClient decodes seasonal media response and applies limit", () =>
       ),
     );
 
-    const result = yield* Effect.flatMap(JikanClient, (client) =>
+    const result = yield* Effect.flatMap(TenraiClient, (client) =>
       client.getSeasonalAnime({ limit: 2, season: "spring", year: 2025 }),
     ).pipe(Effect.provide(clientLayer));
 
@@ -533,12 +562,13 @@ it.effect("JikanClient decodes seasonal media response and applies limit", () =>
   }),
 );
 
-it.effect("JikanClient getSeasonalAnime returns empty array on 404", () =>
+it.effect("TenraiClient getSeasonalAnime returns empty array on 404", () =>
   Effect.gen(function* () {
-    const clientLayer = JikanClientLive.pipe(
+    const clientLayer = TenraiClientLive.pipe(
       Layer.provide(
         Layer.mergeAll(
           ExternalCallTestLayer,
+          snapshotLayer,
           Layer.succeed(
             HttpClient.HttpClient,
             HttpClient.make((request, _url, _signal, _fiber) =>
@@ -557,7 +587,7 @@ it.effect("JikanClient getSeasonalAnime returns empty array on 404", () =>
       ),
     );
 
-    const result = yield* Effect.flatMap(JikanClient, (client) =>
+    const result = yield* Effect.flatMap(TenraiClient, (client) =>
       client.getSeasonalAnime({ limit: 10, season: "winter", year: 2025 }),
     ).pipe(Effect.provide(clientLayer));
 
@@ -565,7 +595,150 @@ it.effect("JikanClient getSeasonalAnime returns empty array on 404", () =>
   }),
 );
 
-function makeJikanClient(onRequest: () => void) {
+it.effect("TenraiClient paces requests to 4 per second", () =>
+  Effect.gen(function* () {
+    let requestCount = 0;
+
+    const clientLayer = TenraiClientLive.pipe(
+      Layer.provide(
+        Layer.mergeAll(
+          ExternalCallTestLayer,
+          snapshotLayer,
+          Layer.succeed(
+            HttpClient.HttpClient,
+            makeSeasonalClient(() => {
+              requestCount += 1;
+            }),
+          ),
+        ),
+      ),
+    );
+
+    const client = yield* TenraiClient.pipe(Effect.provide(clientLayer));
+
+    for (let index = 0; index < 4; index++) {
+      yield* client.getSeasonalAnime({ limit: 1, season: "spring", year: 2025 });
+    }
+    assert.deepStrictEqual(requestCount, 4);
+
+    const pending = yield* Effect.forkChild(
+      client.getSeasonalAnime({ limit: 1, season: "spring", year: 2025 }),
+    );
+    yield* Effect.yieldNow;
+    assert.deepStrictEqual(requestCount, 4);
+
+    yield* TestClock.adjust("1 second");
+    yield* Fiber.join(pending);
+    assert.deepStrictEqual(requestCount, 5);
+  }),
+);
+
+it.effect("TenraiClient paces queries to the configured requests per minute", () =>
+  Effect.gen(function* () {
+    let requestCount = 0;
+
+    const clientLayer = TenraiClientLive.pipe(
+      Layer.provide(
+        Layer.mergeAll(
+          ExternalCallTestLayer,
+          Layer.succeed(
+            RuntimeConfigSnapshotService,
+            makeRuntimeConfigSnapshotStub(
+              makeTestConfig("./test.sqlite", (config) => ({
+                ...config,
+                metadata: {
+                  anidb: { ...DEFAULT_ANIDB_METADATA_CONFIG, ...config.metadata?.anidb },
+                  tenrai: { requests_per_minute: 2 },
+                },
+              })),
+            ),
+          ),
+          Layer.succeed(
+            HttpClient.HttpClient,
+            makeSeasonalClient(() => {
+              requestCount += 1;
+            }),
+          ),
+        ),
+      ),
+    );
+
+    const client = yield* TenraiClient.pipe(Effect.provide(clientLayer));
+
+    yield* client.getSeasonalAnime({ limit: 1, season: "spring", year: 2025 });
+    yield* client.getSeasonalAnime({ limit: 1, season: "spring", year: 2025 });
+    assert.deepStrictEqual(requestCount, 2);
+
+    const pending = yield* Effect.forkChild(
+      client.getSeasonalAnime({ limit: 1, season: "spring", year: 2025 }),
+    );
+    yield* Effect.yieldNow;
+    assert.deepStrictEqual(requestCount, 2);
+
+    yield* TestClock.adjust("61 seconds");
+    yield* Fiber.join(pending);
+    assert.deepStrictEqual(requestCount, 3);
+  }),
+);
+
+it.effect("TenraiClient paces requests to 120 per minute", () =>
+  Effect.gen(function* () {
+    let requestCount = 0;
+
+    const clientLayer = TenraiClientLive.pipe(
+      Layer.provide(
+        Layer.mergeAll(
+          ExternalCallTestLayer,
+          maxRateSnapshotLayer,
+          Layer.succeed(
+            HttpClient.HttpClient,
+            makeSeasonalClient(() => {
+              requestCount += 1;
+            }),
+          ),
+        ),
+      ),
+    );
+
+    const client = yield* TenraiClient.pipe(Effect.provide(clientLayer));
+
+    for (let index = 0; index < 120; index++) {
+      yield* client.getSeasonalAnime({ limit: 1, season: "spring", year: 2025 });
+      if ((index + 1) % 4 === 0) {
+        yield* TestClock.adjust("1 second");
+      }
+    }
+    assert.deepStrictEqual(requestCount, 120);
+
+    const pending = yield* Effect.forkChild(
+      client.getSeasonalAnime({ limit: 1, season: "spring", year: 2025 }),
+    );
+    yield* Effect.yieldNow;
+    assert.deepStrictEqual(requestCount, 120);
+
+    yield* TestClock.adjust("31 seconds");
+    yield* Fiber.join(pending);
+    assert.deepStrictEqual(requestCount, 121);
+  }),
+);
+
+function makeSeasonalClient(onRequest: () => void) {
+  return HttpClient.make((request, _url, _signal, _fiber) =>
+    Effect.sync(() => {
+      onRequest();
+
+      return HttpClientResponse.fromWeb(
+        request,
+        new Response(JSON.stringify(buildSeasonalPayload()), {
+          headers: { "content-type": "application/json" },
+          status: 200,
+        }),
+      );
+    }),
+  );
+}
+
+function makeTenraiClient(onRequest: () => void) {
   return HttpClient.make((request, _url, _signal, _fiber) =>
     Effect.sync(() => {
       onRequest();

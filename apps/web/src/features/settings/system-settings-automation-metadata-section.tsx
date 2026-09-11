@@ -35,34 +35,15 @@ export function SystemSettingsAutomationMetadataSection(
       </SettingRow>
 
       <SettingRow
-        label="Jikan Runtime Status"
-        description="MyMediaList metadata enrichment via Jikan API"
+        label="Tenrai Runtime Status"
+        description="MyMediaList metadata enrichment via Tenrai API"
       >
         {props.systemStatus ? (
           <Badge
-            variant={props.systemStatus.metadata_providers.jikan.enabled ? "secondary" : "outline"}
+            variant={props.systemStatus.metadata_providers.tenrai.enabled ? "secondary" : "outline"}
           >
-            {props.systemStatus.metadata_providers.jikan.enabled
-              ? props.systemStatus.metadata_providers.jikan.configured
-                ? "Enabled"
-                : "Misconfigured"
-              : "Disabled"}
-          </Badge>
-        ) : (
-          <Badge variant="outline">Unknown</Badge>
-        )}
-      </SettingRow>
-
-      <SettingRow
-        label="Manami Runtime Status"
-        description="Cross-service relation resolution via anime-offline-database"
-      >
-        {props.systemStatus ? (
-          <Badge
-            variant={props.systemStatus.metadata_providers.manami.enabled ? "secondary" : "outline"}
-          >
-            {props.systemStatus.metadata_providers.manami.enabled
-              ? props.systemStatus.metadata_providers.manami.configured
+            {props.systemStatus.metadata_providers.tenrai.enabled
+              ? props.systemStatus.metadata_providers.tenrai.configured
                 ? "Enabled"
                 : "Misconfigured"
               : "Disabled"}
@@ -139,6 +120,16 @@ export function SystemSettingsAutomationMetadataSection(
         min="1"
         max="90"
         fallbackValue={30}
+      />
+
+      <SettingNumberField
+        form={props.form}
+        name="metadata.tenrai.requests_per_minute"
+        label="Tenrai Requests Per Minute"
+        description="Shared cap for all Tenrai queries (detail, seasonal). Per-second limit of 4 stays fixed. Applies immediately, no restart needed."
+        min="1"
+        max="120"
+        fallbackValue={60}
       />
     </SettingSection>
   );

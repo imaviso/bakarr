@@ -18,14 +18,13 @@ import { compactLogAnnotations, errorLogAnnotations } from "@/infra/logging.ts";
 
 export const EXTERNAL_CALL_PROVIDERS: readonly [
   "anilist",
-  "jikan",
-  "manami",
+  "tenrai",
   "anidb",
   "qbit",
   "rtorrent",
   "rss",
   "seadex",
-] = ["anilist", "jikan", "manami", "anidb", "qbit", "rtorrent", "rss", "seadex"];
+] = ["anilist", "tenrai", "anidb", "qbit", "rtorrent", "rss", "seadex"];
 
 export type ExternalCallProvider = (typeof EXTERNAL_CALL_PROVIDERS)[number];
 
@@ -36,6 +35,7 @@ export class ExternalCallError extends Schema.TaggedError<ExternalCallError>()(
     message: Schema.String,
     operation: Schema.String,
     provider: Schema.optional(Schema.Literals([...EXTERNAL_CALL_PROVIDERS])),
+    status: Schema.optional(Schema.Number),
   },
 ) {}
 
@@ -97,12 +97,7 @@ function resolveExternalCallPool(
       return "rtorrent";
     }
 
-    if (
-      provider === "anilist" ||
-      provider === "jikan" ||
-      provider === "manami" ||
-      provider === "anidb"
-    ) {
+    if (provider === "anilist" || provider === "tenrai" || provider === "anidb") {
       return "media";
     }
 
@@ -118,9 +113,8 @@ function resolveExternalCallPool(
   }
 
   if (
-    operation.startsWith("jikan.") ||
+    operation.startsWith("tenrai.") ||
     operation.startsWith("anilist.") ||
-    operation.startsWith("manami.") ||
     operation.startsWith("anidb.")
   ) {
     return "media";

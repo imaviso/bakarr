@@ -38,6 +38,7 @@ export const executeProviderRequest = (
           cause: new Error(`${input.failureMessage} failed with status ${response.status}`),
           message: `${input.failureMessage} failed`,
           operation: `${input.operation}.response`,
+          status: response.status,
         });
       }
 

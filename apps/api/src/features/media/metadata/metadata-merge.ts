@@ -1,129 +1,124 @@
 import { brandMediaId, type MediaDiscoveryEntry } from "@packages/shared/index.ts";
 import type { AnimeMetadata } from "@/features/media/metadata/metadata-model.ts";
-import type { JikanNormalizedAnime } from "@/features/media/metadata/jikan-model.ts";
-import type { ManamiLookupEntry } from "@/features/media/metadata/manami.ts";
+import type { TenraiNormalizedAnime } from "@/features/media/metadata/tenrai-model.ts";
 import { extractYearFromDate } from "@/features/media/shared/date-utils.ts";
 
-type JikanRelationTarget = JikanNormalizedAnime["relations"][number];
-type JikanRecommendationTarget = NonNullable<JikanNormalizedAnime["recommendations"]>[number];
+type TenraiRelationTarget = TenraiNormalizedAnime["relations"][number];
+type TenraiRecommendationTarget = NonNullable<TenraiNormalizedAnime["recommendations"]>[number];
 
 export interface MetadataMergeInput {
   readonly anilist: AnimeMetadata;
-  readonly jikan?: JikanNormalizedAnime;
-  readonly manami?: ManamiLookupEntry;
+  readonly tenrai?: TenraiNormalizedAnime;
   readonly malToAniListId?: ReadonlyMap<number, number>;
 }
 
 export function mergeAnimeMetadata(input: MetadataMergeInput): AnimeMetadata {
-  const { anilist, jikan, manami, malToAniListId } = input;
+  const { anilist, tenrai, malToAniListId } = input;
   const relationMap = malToAniListId ?? new Map<number, number>();
-  const startDate = fillDate(anilist.startDate, jikan?.startDate);
-  const endDate = fillDate(anilist.endDate, jikan?.endDate);
-  const jikanRelationEntries = convertJikanRelationsToDiscoveryEntries(
-    jikan?.relations,
+  const startDate = fillDate(anilist.startDate, tenrai?.startDate);
+  const endDate = fillDate(anilist.endDate, tenrai?.endDate);
+  const tenraiRelationEntries = convertTenraiRelationsToDiscoveryEntries(
+    tenrai?.relations,
     relationMap,
   );
-  const jikanRecommendationEntries = convertJikanRecommendationsToDiscoveryEntries(
-    jikan?.recommendations,
+  const tenraiRecommendationEntries = convertTenraiRecommendationsToDiscoveryEntries(
+    tenrai?.recommendations,
     relationMap,
   );
 
   return {
     ...anilist,
-    background: pickFirst(anilist.background, jikan?.background),
-    description: pickFirst(anilist.description, jikan?.synopsis, jikan?.background),
-    duration: pickFirst(anilist.duration, jikan?.duration),
+    background: pickFirst(anilist.background, tenrai?.background),
+    description: pickFirst(anilist.description, tenrai?.synopsis, tenrai?.background),
+    duration: pickFirst(anilist.duration, tenrai?.duration),
     endDate,
-    endYear: anilist.endYear ?? jikan?.endYear ?? extractYearFromDate(endDate),
-    unitCount: anilist.unitCount ?? jikan?.unitCount,
-    favorites: anilist.favorites ?? jikan?.favorites,
-    format: fillFormat(anilist.format, jikan?.format),
-    genres: mergeGenres(anilist.genres, jikan?.genres),
+    endYear: anilist.endYear ?? tenrai?.endYear ?? extractYearFromDate(endDate),
+    unitCount: anilist.unitCount ?? tenrai?.unitCount,
+    favorites: anilist.favorites ?? tenrai?.favorites,
+    format: fillFormat(anilist.format, tenrai?.format),
+    genres: mergeGenres(anilist.genres, tenrai?.genres),
     id: anilist.id,
-    members: anilist.members ?? jikan?.members,
-    popularity: anilist.popularity ?? jikan?.popularity,
-    rank: anilist.rank ?? jikan?.rank,
-    rating: pickFirst(anilist.rating, jikan?.rating),
-    score: mergeScore(anilist.score, jikan?.score),
-    source: pickFirst(anilist.source, jikan?.source),
+    members: anilist.members ?? tenrai?.members,
+    popularity: anilist.popularity ?? tenrai?.popularity,
+    rank: anilist.rank ?? tenrai?.rank,
+    rating: pickFirst(anilist.rating, tenrai?.rating),
+    score: mergeScore(anilist.score, tenrai?.score),
+    source: pickFirst(anilist.source, tenrai?.source),
     startDate,
-    startYear: anilist.startYear ?? jikan?.startYear ?? extractYearFromDate(startDate),
-    status: fillStatus(anilist.status, jikan?.status),
-    studios: mergeStudios(anilist.studios, jikan?.studios),
-    synonyms: mergeSynonyms(anilist.synonyms, jikan?.titleVariants),
-    title: mergeTitle(anilist, jikan, manami),
+    startYear: anilist.startYear ?? tenrai?.startYear ?? extractYearFromDate(startDate),
+    status: fillStatus(anilist.status, tenrai?.status),
+    studios: mergeStudios(anilist.studios, tenrai?.studios),
+    synonyms: mergeSynonyms(anilist.synonyms, tenrai?.titleVariants),
+    title: mergeTitle(anilist, tenrai),
     recommendedMedia: mergeDiscoveryEntries(
-      mergeDiscoveryEntries(anilist.recommendedMedia, jikanRecommendationEntries),
-      jikanRelationEntries,
+      mergeDiscoveryEntries(anilist.recommendedMedia, tenraiRecommendationEntries),
+      tenraiRelationEntries,
     ),
-    relatedMedia: mergeDiscoveryEntries(anilist.relatedMedia, jikanRelationEntries),
+    relatedMedia: mergeDiscoveryEntries(anilist.relatedMedia, tenraiRelationEntries),
   };
 }
 
 export function mergeTitle(
   anilist: Pick<AnimeMetadata, "title">,
-  jikan?: Pick<JikanNormalizedAnime, "title" | "titleVariants">,
-  manami?: Pick<ManamiLookupEntry, "englishTitle" | "nativeTitle" | "title">,
+  tenrai?: Pick<TenraiNormalizedAnime, "title" | "titleVariants">,
 ): AnimeMetadata["title"] {
-  const fallback = deriveManamiTitleFallback(manami);
-
   return {
     romaji: anilist.title.romaji,
-    english: pickFirst(anilist.title.english, jikan?.title.english, fallback.english),
-    native: pickFirst(anilist.title.native, jikan?.title.native, fallback.native),
+    english: pickFirst(anilist.title.english, tenrai?.title.english),
+    native: pickFirst(anilist.title.native, tenrai?.title.native),
   };
 }
 
 export function mergeSynonyms(
   anilistSynonyms?: ReadonlyArray<string>,
-  jikanTitleVariants?: ReadonlyArray<string>,
+  tenraiTitleVariants?: ReadonlyArray<string>,
 ) {
-  return mergeStringGroups(anilistSynonyms, jikanTitleVariants);
+  return mergeStringGroups(anilistSynonyms, tenraiTitleVariants);
 }
 
 export function mergeGenres(
   anilistGenres?: ReadonlyArray<string>,
-  jikanGenres?: ReadonlyArray<string>,
+  tenraiGenres?: ReadonlyArray<string>,
 ) {
-  return mergeStringGroups(anilistGenres, jikanGenres);
+  return mergeStringGroups(anilistGenres, tenraiGenres);
 }
 
 export function mergeStudios(
   anilistStudios?: ReadonlyArray<string>,
-  jikanStudios?: ReadonlyArray<string>,
+  tenraiStudios?: ReadonlyArray<string>,
 ) {
   const normalizedAniListStudios = normalizeStringList(anilistStudios);
   if (normalizedAniListStudios.length > 0) {
     return normalizedAniListStudios;
   }
 
-  const normalizedJikanStudios = normalizeStringList(jikanStudios);
-  if (normalizedJikanStudios.length > 0) {
-    return normalizedJikanStudios;
+  const normalizedTenraiStudios = normalizeStringList(tenraiStudios);
+  if (normalizedTenraiStudios.length > 0) {
+    return normalizedTenraiStudios;
   }
 
   return undefined;
 }
 
-export function mergeScore(anilistScore?: number, jikanScore?: number) {
+export function mergeScore(anilistScore?: number, tenraiScore?: number) {
   if (anilistScore !== undefined) {
     return anilistScore;
   }
 
-  return scaleJikanScoreToAniList(jikanScore);
+  return scaleTenraiScoreToAniList(tenraiScore);
 }
 
-export function scaleJikanScoreToAniList(jikanScore?: number) {
-  if (jikanScore === undefined) {
+export function scaleTenraiScoreToAniList(tenraiScore?: number) {
+  if (tenraiScore === undefined) {
     return undefined;
   }
 
-  const scaled = Math.round(jikanScore * 10);
+  const scaled = Math.round(tenraiScore * 10);
   return clampInteger(scaled, 1, 100);
 }
 
-export function convertJikanRelationsToDiscoveryEntries(
-  relations: ReadonlyArray<JikanRelationTarget> | undefined,
+export function convertTenraiRelationsToDiscoveryEntries(
+  relations: ReadonlyArray<TenraiRelationTarget> | undefined,
   malToAniListId: ReadonlyMap<number, number>,
 ): MediaDiscoveryEntry[] {
   if (!relations || relations.length === 0) {
@@ -152,8 +147,8 @@ export function convertJikanRelationsToDiscoveryEntries(
   return output;
 }
 
-export function convertJikanRecommendationsToDiscoveryEntries(
-  recommendations: ReadonlyArray<JikanRecommendationTarget> | undefined,
+export function convertTenraiRecommendationsToDiscoveryEntries(
+  recommendations: ReadonlyArray<TenraiRecommendationTarget> | undefined,
   malToAniListId: ReadonlyMap<number, number>,
 ): MediaDiscoveryEntry[] {
   if (!recommendations || recommendations.length === 0) {
@@ -202,29 +197,6 @@ export function mergeDiscoveryEntries(
   }
 
   return out;
-}
-
-function deriveManamiTitleFallback(
-  manami?: Pick<ManamiLookupEntry, "englishTitle" | "nativeTitle" | "title">,
-): {
-  english?: string;
-  native?: string;
-} {
-  const title = normalizeString(manami?.title);
-  const englishTitle = normalizeString(manami?.englishTitle);
-  const nativeTitle = normalizeString(manami?.nativeTitle);
-
-  if (title === undefined && englishTitle === undefined && nativeTitle === undefined) {
-    return {};
-  }
-
-  const english = englishTitle ?? title;
-  const native = nativeTitle ?? title;
-
-  return {
-    ...(english === undefined ? {} : { english }),
-    ...(native === undefined ? {} : { native }),
-  };
 }
 
 function mergeStringGroups(

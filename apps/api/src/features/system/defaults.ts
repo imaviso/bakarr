@@ -8,6 +8,7 @@ import type { ConfigCore } from "@/features/system/config-codec.ts";
 import {
   DEFAULT_ANIDB_METADATA_CONFIG,
   DEFAULT_ANILIST_METADATA_CONFIG,
+  DEFAULT_TENRAI_METADATA_CONFIG,
 } from "@/features/system/metadata-providers-config.ts";
 
 export const DEFAULT_QUALITIES: readonly Quality[] = [
@@ -81,6 +82,9 @@ export function makeDefaultConfig(databasePath: string): ConfigCore {
       },
       anilist: {
         ...DEFAULT_ANILIST_METADATA_CONFIG,
+      },
+      tenrai: {
+        ...DEFAULT_TENRAI_METADATA_CONFIG,
       },
     },
     downloads: {

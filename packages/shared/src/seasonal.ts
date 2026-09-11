@@ -23,7 +23,7 @@ export const SeasonalMediaQueryParamsSchema = Schema.Struct({
   page: Schema.optional(Schema.Number.pipe(Schema.check(Schema.isInt(), Schema.isGreaterThan(0)))),
 });
 
-export const SEASONAL_ANIME_PROVIDER_VALUES = ["anilist", "jikan_fallback"] as const;
+export const SEASONAL_ANIME_PROVIDER_VALUES = ["anilist", "tenrai_fallback"] as const;
 
 export type SeasonalMediaProvider = (typeof SEASONAL_ANIME_PROVIDER_VALUES)[number];
 

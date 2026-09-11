@@ -1,7 +1,6 @@
 import { DatabaseError } from "@/db/database.ts";
 import { AniListClient } from "@/features/media/metadata/anilist.ts";
 import { AniListDetailCacheRepository } from "@/features/media/metadata/anilist-detail-cache-repository.ts";
-import { ManamiClient } from "@/features/media/metadata/manami.ts";
 import {
   getCachedOrRemoteDetail,
   searchMediaWithFallback,
@@ -52,7 +51,7 @@ function toSeasonalMediaCacheKey(input: {
   limit: number;
   page: number;
 }) {
-  return `${input.season}:${input.year}:${input.limit}:${input.page}`;
+  return `v2:${input.season}:${input.year}:${input.limit}:${input.page}`;
 }
 
 interface UnitStats {
@@ -112,7 +111,6 @@ export interface MediaQueryServiceShape {
 
 export const makeMediaQueryService = Effect.fn("MediaQueryService.make")(function* () {
   const aniList = yield* AniListClient;
-  const manami = yield* ManamiClient;
   const mediaRepository = yield* MediaRepository;
   const providerService = yield* MediaSeasonalProviderService;
   const seasonalMediaCacheRepository = yield* SeasonalMediaCacheRepository;
@@ -120,8 +118,8 @@ export const makeMediaQueryService = Effect.fn("MediaQueryService.make")(functio
 
   // Effect Cache dedups concurrent lookups of the same key (one in-flight
   // load) and evicts by TTL — repeated/overlapping searches reuse one
-  // AniList call. Only fresh AniList hits are cached; transient failures and
-  // Manami degraded fallbacks get a zero TTL so retries re-attempt upstream.
+  // AniList call. Only fresh AniList hits are cached; transient failures get
+  // a zero TTL so retries re-attempt upstream.
   // Annotation and already-in-library marking stay per-request so library
   // flags stay fresh.
   const searchCache = yield* Cache.makeWith(
@@ -129,7 +127,6 @@ export const makeMediaQueryService = Effect.fn("MediaQueryService.make")(functio
       const cached = fromSearchCacheKey(cacheKey);
       return searchMediaWithFallback({
         aniList,
-        manami,
         mediaKind: cached.mediaKind,
         query: cached.query,
       });

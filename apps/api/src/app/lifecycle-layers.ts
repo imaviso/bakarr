@@ -128,7 +128,7 @@ export function makeApiLifecycleLayers(
   const configRuntimeLayer = Layer.mergeAll(platformRuntimeLayer, runtimeConfigSnapshotLayer);
 
   const externalClientLayer = makeAppExternalClientLayer(options).pipe(
-    Layer.provide(configRuntimeLayer),
+    Layer.provide(Layer.mergeAll(configRuntimeLayer, pureDbLeaves)),
   );
 
   const runtimeSupportWithClientsLayer = Layer.mergeAll(

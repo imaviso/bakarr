@@ -21,11 +21,22 @@ export const DEFAULT_ANILIST_METADATA_CONFIG: AniListMetadataConfig = {
   requests_per_minute: DEFAULT_ANILIST_REQUESTS_PER_MINUTE,
 };
 
+// Tenrai public limits are 120 requests/minute and 4/second per IP; the
+// minute cap lives in system settings so it can be tuned live. The per-second
+// gate stays fixed at the provider ceiling inside the client.
+export const DEFAULT_TENRAI_REQUESTS_PER_MINUTE = 60;
+export const MAX_TENRAI_REQUESTS_PER_MINUTE = 120;
+
+export const DEFAULT_TENRAI_METADATA_CONFIG: TenraiMetadataConfig = {
+  requests_per_minute: DEFAULT_TENRAI_REQUESTS_PER_MINUTE,
+};
+
 export const normalizeMetadataProvidersConfig = Effect.fn(
   "SystemConfig.normalizeMetadataProvidersConfig",
 )(function* (metadata: Config["metadata"] | undefined) {
   const normalized = normalizeAniDbConfig(metadata?.anidb);
   const anilist = normalizeAniListConfig(metadata?.anilist);
+  const tenrai = normalizeTenraiConfig(metadata?.tenrai);
 
   if (normalized.enabled && (!normalized.username || !normalized.password)) {
     return yield* new ConfigValidationError({
@@ -71,18 +82,36 @@ export const normalizeMetadataProvidersConfig = Effect.fn(
     });
   }
 
+  if (
+    !globalThis.Number.isInteger(tenrai.requests_per_minute) ||
+    tenrai.requests_per_minute <= 0 ||
+    tenrai.requests_per_minute > MAX_TENRAI_REQUESTS_PER_MINUTE
+  ) {
+    return yield* new ConfigValidationError({
+      message: `Tenrai requests per minute must be an integer between 1 and ${MAX_TENRAI_REQUESTS_PER_MINUTE}`,
+    });
+  }
+
   return {
     anidb: normalized,
     anilist,
+    tenrai,
   } satisfies NonNullable<Config["metadata"]>;
 });
 
 type AniDbMetadataConfig = NonNullable<NonNullable<Config["metadata"]>["anidb"]>;
 type AniListMetadataConfig = NonNullable<NonNullable<Config["metadata"]>["anilist"]>;
+type TenraiMetadataConfig = NonNullable<NonNullable<Config["metadata"]>["tenrai"]>;
 
 function normalizeAniListConfig(anilist: Partial<AniListMetadataConfig> | undefined) {
   return {
     requests_per_minute: anilist?.requests_per_minute ?? DEFAULT_ANILIST_REQUESTS_PER_MINUTE,
+  };
+}
+
+function normalizeTenraiConfig(tenrai: Partial<TenraiMetadataConfig> | undefined) {
+  return {
+    requests_per_minute: tenrai?.requests_per_minute ?? DEFAULT_TENRAI_REQUESTS_PER_MINUTE,
   };
 }
 

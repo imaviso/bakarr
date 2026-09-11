@@ -553,6 +553,72 @@ it.effect("AniListClient allows 30 queries per minute by default", () =>
   }),
 );
 
+it.effect("AniListClient resolves AniList id from MAL id", () =>
+  Effect.gen(function* () {
+    const clientLayer = AniListClientLive.pipe(
+      Layer.provide(
+        Layer.mergeAll(
+          ExternalCallTestLayer,
+          snapshotLayer,
+          Layer.succeed(
+            HttpClient.HttpClient,
+            HttpClient.make((request, _url, _signal, _fiber) =>
+              Effect.sync(() =>
+                HttpClientResponse.fromWeb(
+                  request,
+                  new Response(JSON.stringify({ data: { Media: { id: 4004 } } }), {
+                    headers: { "content-type": "application/json" },
+                    status: 200,
+                  }),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    const result = yield* Effect.flatMap(AniListClient, (client) =>
+      client.resolveAniListIdFromMalId(5114),
+    ).pipe(Effect.provide(clientLayer));
+
+    assert.deepStrictEqual(result, Option.some(4004));
+  }),
+);
+
+it.effect("AniListClient returns none when MAL id has no AniList entry", () =>
+  Effect.gen(function* () {
+    const clientLayer = AniListClientLive.pipe(
+      Layer.provide(
+        Layer.mergeAll(
+          ExternalCallTestLayer,
+          snapshotLayer,
+          Layer.succeed(
+            HttpClient.HttpClient,
+            HttpClient.make((request, _url, _signal, _fiber) =>
+              Effect.sync(() =>
+                HttpClientResponse.fromWeb(
+                  request,
+                  new Response(JSON.stringify({ data: { Media: null } }), {
+                    headers: { "content-type": "application/json" },
+                    status: 200,
+                  }),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    const result = yield* Effect.flatMap(AniListClient, (client) =>
+      client.resolveAniListIdFromMalId(999999),
+    ).pipe(Effect.provide(clientLayer));
+
+    assert.deepStrictEqual(Option.isNone(result), true);
+  }),
+);
+
 function makeAniListClient(
   onRequest: (request: HttpClientRequest.HttpClientRequest) => void,
   searchMedia: ReadonlyArray<unknown>,

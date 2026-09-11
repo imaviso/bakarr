@@ -15,14 +15,14 @@ import {
 import { mergeAnimeMetadataEpisodes } from "@/features/media/units/unit-merge.ts";
 import type { StoredDataError } from "@/features/errors.ts";
 import type { AniDbRuntimeConfigError } from "@/features/media/errors.ts";
-import { JikanClient } from "@/features/media/metadata/jikan.ts";
-import type { JikanNormalizedAnime } from "@/features/media/metadata/jikan-model.ts";
-import type { JikanNormalizedSeasonalEntry } from "@/features/media/metadata/jikan-model.ts";
-import { ManamiClient } from "@/features/media/metadata/manami.ts";
+import { TenraiClient } from "@/features/media/metadata/tenrai.ts";
+import type { TenraiNormalizedAnime } from "@/features/media/metadata/tenrai-model.ts";
+import type { TenraiNormalizedSeasonalEntry } from "@/features/media/metadata/tenrai-model.ts";
 import { mergeAnimeMetadata } from "@/features/media/metadata/metadata-merge.ts";
 import { mediaKindFromAniListFormat } from "@/features/media/shared/media-kind.ts";
 import type { ExternalCallError } from "@/infra/effect/retry.ts";
 import { AniListDetailCacheRepository } from "@/features/media/metadata/anilist-detail-cache-repository.ts";
+import { ExternalIdMapRepository } from "@/features/media/metadata/external-id-map-repository.ts";
 import type {
   AnimeDetailOrigin,
   CachedAnimeDetail,
@@ -37,7 +37,7 @@ export function toMediaSearchResult(entry: ProviderMediaSearchResult): MediaSear
 }
 
 export interface MediaSeasonalResult {
-  readonly provider: "anilist" | "jikan_fallback";
+  readonly provider: "anilist" | "tenrai_fallback";
   readonly degraded: boolean;
   readonly hasMore: boolean;
   readonly results: ReadonlyArray<MediaSearchResult>;
@@ -48,54 +48,13 @@ export interface MediaSeasonalResult {
 export const searchMediaWithFallback = Effect.fn("MediaMetadata.searchMediaWithFallback")(
   function* (input: {
     aniList: Pick<typeof AniListClient.Service, "searchAnimeMetadata">;
-    manami: Pick<typeof ManamiClient.Service, "searchMedia"> | undefined;
     query: string;
     mediaKind: MediaKind;
   }) {
-    let degraded = false;
-    const results = yield* input.aniList.searchAnimeMetadata(input.query, input.mediaKind).pipe(
-      Effect.flatMap((results) => {
-        const manami = input.mediaKind === "anime" ? input.manami : undefined;
-        return results.length === 0 && manami !== undefined
-          ? Effect.gen(function* () {
-              degraded = true;
-
-              yield* Effect.logWarning(
-                "AniList search returned no results; using Manami fallback",
-              ).pipe(
-                Effect.annotateLogs({
-                  provider: "Manami",
-                  queryLength: input.query.length,
-                }),
-              );
-
-              return yield* manami.searchMedia(input.query, 20);
-            })
-          : Effect.succeed(results);
-      }),
-      Effect.catchTag("ExternalCallError", (error) =>
-        Effect.gen(function* () {
-          if (input.manami === undefined || input.mediaKind !== "anime") {
-            return yield* error;
-          }
-
-          degraded = true;
-
-          yield* Effect.logWarning("AniList search failed; using Manami fallback").pipe(
-            Effect.annotateLogs({
-              operation: error.operation,
-              provider: "Manami",
-              queryLength: input.query.length,
-            }),
-          );
-
-          return yield* input.manami.searchMedia(input.query, 20);
-        }),
-      ),
-    );
+    const results = yield* input.aniList.searchAnimeMetadata(input.query, input.mediaKind);
 
     return {
-      degraded,
+      degraded: false,
       results: results.map(toMediaSearchResult),
     };
   },
@@ -103,9 +62,9 @@ export const searchMediaWithFallback = Effect.fn("MediaMetadata.searchMediaWithF
 
 export const seasonalWithFallback = Effect.fn("MediaMetadata.seasonalWithFallback")(
   function* (input: {
-    aniList: Pick<typeof AniListClient.Service, "getSeasonalAnime">;
-    jikan: Pick<typeof JikanClient.Service, "getSeasonalAnime">;
-    manami: Pick<typeof ManamiClient.Service, "resolveAniListIdFromMalId">;
+    aniList: Pick<typeof AniListClient.Service, "getSeasonalAnime" | "resolveAniListIdFromMalId">;
+    idMap: Pick<typeof ExternalIdMapRepository.Service, "loadByMalId" | "upsert">;
+    tenrai: Pick<typeof TenraiClient.Service, "getSeasonalAnime">;
     season: MediaSeason;
     year: number;
     limit: number;
@@ -131,11 +90,11 @@ export const seasonalWithFallback = Effect.fn("MediaMetadata.seasonalWithFallbac
       } satisfies MediaSeasonalResult;
     }
 
-    if (!shouldFallbackToJikan(anilistAttempt.failure)) {
+    if (!shouldFallbackToTenrai(anilistAttempt.failure)) {
       return yield* anilistAttempt.failure;
     }
 
-    yield* Effect.logWarning("AniList seasonal request failed; using Jikan fallback").pipe(
+    yield* Effect.logWarning("AniList seasonal request failed; using Tenrai fallback").pipe(
       Effect.annotateLogs({
         causeTag: anilistAttempt.failure._tag,
         operation: anilistAttempt.failure.operation,
@@ -144,25 +103,29 @@ export const seasonalWithFallback = Effect.fn("MediaMetadata.seasonalWithFallbac
       }),
     );
 
-    const jikanEntries = yield* input.jikan.getSeasonalAnime({
+    const tenraiEntries = yield* input.tenrai.getSeasonalAnime({
       limit: input.limit,
       page: input.page,
       season: input.season,
       year: input.year,
     });
 
-    const mappedEntries = yield* Effect.forEach(jikanEntries, (entry) =>
-      input.manami.resolveAniListIdFromMalId(entry.malId).pipe(
-        Effect.catch((error) =>
-          Effect.logWarning("Manami seasonal mapping degraded").pipe(
-            Effect.annotateLogs({
-              malId: entry.malId,
-              operation: error.operation,
-              provider: "Manami",
-            }),
-            Effect.as(Option.none<number>()),
-          ),
-        ),
+    // A 429 means AniList is shedding our load: resolve from the local map
+    // only instead of firing up to `limit` more upstream queries at it.
+    const rateLimited = anilistAttempt.failure.status === 429;
+
+    if (rateLimited) {
+      yield* Effect.logWarning("AniList rate limited; resolving seasonal ids from local map").pipe(
+        Effect.annotateLogs({ season: input.season, year: input.year }),
+      );
+    }
+
+    const remote: MalIdResolver = rateLimited
+      ? { resolveAniListIdFromMalId: () => Effect.succeed(Option.none()) }
+      : input.aniList;
+
+    const mappedEntries = yield* Effect.forEach(tenraiEntries, (entry) =>
+      resolveAniListIdFromMalId(input.idMap, remote, entry.malId).pipe(
         Effect.map((anilistIdOption): [typeof entry, Option.Option<number>] => [
           entry,
           anilistIdOption,
@@ -175,15 +138,15 @@ export const seasonalWithFallback = Effect.fn("MediaMetadata.seasonalWithFallbac
     for (const [entry, anilistIdOption] of mappedEntries) {
       if (Option.isSome(anilistIdOption)) {
         results.push(
-          mapJikanEntryToSearchResult(entry, anilistIdOption.value, input.season, input.year),
+          mapTenraiEntryToSearchResult(entry, anilistIdOption.value, input.season, input.year),
         );
       }
     }
 
     return {
       degraded: true,
-      hasMore: jikanEntries.length === input.limit,
-      provider: "jikan_fallback",
+      hasMore: tenraiEntries.length === input.limit,
+      provider: "tenrai_fallback",
       results,
       season: input.season,
       year: input.year,
@@ -199,8 +162,8 @@ function toAnimeSeason(value: string | undefined): MediaSeason | undefined {
   return undefined;
 }
 
-function mapJikanEntryToSearchResult(
-  entry: JikanNormalizedSeasonalEntry,
+function mapTenraiEntryToSearchResult(
+  entry: TenraiNormalizedSeasonalEntry,
   anilistId: number,
   fallbackSeason: MediaSeason,
   fallbackYear: number,
@@ -228,7 +191,7 @@ function mapJikanEntryToSearchResult(
   };
 }
 
-function shouldFallbackToJikan(error: ExternalCallError) {
+function shouldFallbackToTenrai(error: ExternalCallError) {
   return error.operation === "anilist.seasonal" || error.operation === "anilist.seasonal.response";
 }
 
@@ -347,8 +310,8 @@ export interface MediaMetadataProviderServiceShape {
 const makeMediaMetadataProviderService = Effect.fn("MediaMetadataProviderService.make")(
   function* () {
     const aniList = yield* AniListClient;
-    const jikan = yield* JikanClient;
-    const manami = yield* ManamiClient;
+    const tenrai = yield* TenraiClient;
+    const idMap = yield* ExternalIdMapRepository;
     const enrichmentService = yield* MediaMetadataEnrichmentService;
     const detailCache = yield* AniListDetailCacheRepository;
 
@@ -380,52 +343,36 @@ const makeMediaMetadataProviderService = Effect.fn("MediaMetadataProviderService
           } satisfies MediaMetadataLookupResult;
         }
 
-        const manamiMetadata = yield* optionalExternalMetadataLookup(
-          manami.getByAniListId(baseMetadata.id),
-          {
-            lookup: "getByAniListId",
-            mediaId: baseMetadata.id,
-            provider: "Manami",
-          },
-        );
+        const effectiveMalId = Option.fromNullishOr(baseMetadata.malId);
 
-        const effectiveMalId =
-          baseMetadata.malId === undefined
-            ? yield* optionalExternalMetadataLookup(
-                manami.resolveMalIdFromAniListId(baseMetadata.id),
-                {
-                  lookup: "resolveMalIdFromAniListId",
-                  mediaId: baseMetadata.id,
-                  provider: "Manami",
-                },
-              )
-            : Option.some(baseMetadata.malId);
-
-        if (baseMetadata.malId === undefined && Option.isSome(effectiveMalId)) {
-          yield* Effect.logInfo("Resolved MAL id from Manami").pipe(
-            Effect.annotateLogs({
-              mediaId: baseMetadata.id,
-              malId: effectiveMalId.value,
-              provider: "Manami",
-            }),
-          );
-        }
-
-        const jikanMetadata = Option.isSome(effectiveMalId)
-          ? yield* optionalExternalMetadataLookup(jikan.getAnimeByMalId(effectiveMalId.value), {
+        const tenraiMetadata = Option.isSome(effectiveMalId)
+          ? yield* optionalExternalMetadataLookup(tenrai.getAnimeByMalId(effectiveMalId.value), {
               lookup: "getAnimeByMalId",
               malId: effectiveMalId.value,
               mediaId: baseMetadata.id,
-              provider: "Jikan",
+              provider: "Tenrai",
             })
-          : Option.none<JikanNormalizedAnime>();
-        const malToAniListId = yield* resolveMalToAniListIdMap(jikanMetadata, manami);
+          : Option.none<TenraiNormalizedAnime>();
+        const malToAniListId = yield* resolveMalToAniListIdMap(tenraiMetadata, idMap, aniList);
         const mergedMetadata = mergeAnimeMetadata({
           anilist: baseMetadata,
-          ...(Option.isSome(jikanMetadata) ? { jikan: jikanMetadata.value } : {}),
+          ...(Option.isSome(tenraiMetadata) ? { tenrai: tenraiMetadata.value } : {}),
           ...(malToAniListId === undefined ? {} : { malToAniListId }),
-          ...(Option.isSome(manamiMetadata) ? { manami: manamiMetadata.value } : {}),
         });
+
+        if (Option.isSome(effectiveMalId)) {
+          yield* idMap.upsert({ anilistId: baseMetadata.id, malId: effectiveMalId.value }).pipe(
+            Effect.catch((error) =>
+              Effect.logWarning("External id map store degraded").pipe(
+                Effect.annotateLogs({
+                  anilistId: baseMetadata.id,
+                  error: error.message,
+                  malId: effectiveMalId.value,
+                }),
+              ),
+            ),
+          );
+        }
 
         const cacheState = yield* enrichmentService.getAniDbCacheState(mergedMetadata.id);
 
@@ -462,8 +409,8 @@ const makeMediaMetadataProviderService = Effect.fn("MediaMetadataProviderService
       function* (input: { season: MediaSeason; year: number; limit: number; page: number }) {
         return yield* seasonalWithFallback({
           aniList,
-          jikan,
-          manami,
+          idMap,
+          tenrai,
           ...input,
         });
       },
@@ -475,7 +422,6 @@ const makeMediaMetadataProviderService = Effect.fn("MediaMetadataProviderService
     ) {
       return yield* searchMediaWithFallback({
         aniList,
-        manami,
         mediaKind: mediaKind ?? "anime",
         query,
       });
@@ -568,24 +514,74 @@ const logEnrichmentResult = Effect.fn("MediaMetadataProviderService.logEnrichmen
   },
 );
 
-interface ManamiMalIdResolver {
+interface MalIdResolver {
   readonly resolveAniListIdFromMalId: (
     malId: number,
   ) => Effect.Effect<Option.Option<number>, ExternalCallError>;
 }
 
+type ExternalIdMapStore = Pick<typeof ExternalIdMapRepository.Service, "loadByMalId" | "upsert">;
+
+// Self-owned MAL→AniList mapping: the local map answers repeats, misses fall
+// through to one AniList idMal query and are stored. Failures degrade to None
+// so a broken map never fails the lookup it enriches.
+const resolveAniListIdFromMalId = Effect.fn("MediaMetadata.resolveAniListIdFromMalId")(function* (
+  idMap: ExternalIdMapStore,
+  resolver: MalIdResolver,
+  malId: number,
+) {
+  const cached = yield* idMap
+    .loadByMalId(malId)
+    .pipe(
+      Effect.catch((error) =>
+        Effect.logWarning("External id map lookup degraded").pipe(
+          Effect.annotateLogs({ error: error.message, malId }),
+          Effect.as(Option.none()),
+        ),
+      ),
+    );
+
+  if (Option.isSome(cached)) {
+    return Option.some(cached.value.anilistId);
+  }
+
+  const remote = yield* optionalExternalMetadataLookup(resolver.resolveAniListIdFromMalId(malId), {
+    lookup: "resolveAniListIdFromMalId",
+    malId,
+    provider: "AniList",
+  });
+
+  if (Option.isSome(remote)) {
+    yield* idMap
+      .upsert({ anilistId: remote.value, malId })
+      .pipe(
+        Effect.catch((error) =>
+          Effect.logWarning("External id map store degraded").pipe(
+            Effect.annotateLogs({ anilistId: remote.value, error: error.message, malId }),
+          ),
+        ),
+      );
+  }
+
+  return remote;
+});
+
 const resolveMalToAniListIdMap = Effect.fn("MediaMetadataProviderService.resolveMalToAniListIdMap")(
-  function* (jikanMetadata: Option.Option<JikanNormalizedAnime>, manami: ManamiMalIdResolver) {
-    if (Option.isNone(jikanMetadata)) {
+  function* (
+    tenraiMetadata: Option.Option<TenraiNormalizedAnime>,
+    idMap: ExternalIdMapStore,
+    resolver: MalIdResolver,
+  ) {
+    if (Option.isNone(tenraiMetadata)) {
       return undefined;
     }
 
-    const recommendationMalIds = (jikanMetadata.value.recommendations ?? []).map(
+    const recommendationMalIds = (tenraiMetadata.value.recommendations ?? []).map(
       (recommendation) => recommendation.malId,
     );
     const uniqueMalIds = [
       ...new Set([
-        ...jikanMetadata.value.relations.map((relation) => relation.malId),
+        ...tenraiMetadata.value.relations.map((relation) => relation.malId),
         ...recommendationMalIds,
       ]),
     ];
@@ -597,11 +593,9 @@ const resolveMalToAniListIdMap = Effect.fn("MediaMetadataProviderService.resolve
     const pairs = yield* Effect.forEach(
       uniqueMalIds,
       (malId) =>
-        optionalExternalMetadataLookup(manami.resolveAniListIdFromMalId(malId), {
-          malId,
-          lookup: "resolveAniListIdFromMalId",
-          provider: "Manami",
-        }).pipe(Effect.map((mediaId): [number, Option.Option<number>] => [malId, mediaId])),
+        resolveAniListIdFromMalId(idMap, resolver, malId).pipe(
+          Effect.map((mediaId): [number, Option.Option<number>] => [malId, mediaId]),
+        ),
       { concurrency: 4 },
     );
 
@@ -639,5 +633,5 @@ interface ExternalMetadataLookupAnnotations {
   readonly lookup: string;
   readonly malId?: number;
   readonly mediaId?: number;
-  readonly provider: "Jikan" | "Manami";
+  readonly provider: "Tenrai" | "AniList";
 }

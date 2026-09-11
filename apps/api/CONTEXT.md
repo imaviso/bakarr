@@ -9,7 +9,7 @@ feeds, and matches file system folders against metadata providers.
 ### Media
 
 A tracked show (storage/API path). Has metadata (title, format, genres, studios)
-sourced from AniList/AniDB/Jikan/Manami. Belongs to a root folder on disk. Has a
+sourced from AniList/AniDB/Tenrai. Belongs to a root folder on disk. Has a
 quality profile and release profiles. Monitored media receive automatic unit
 searches.
 
@@ -111,8 +111,8 @@ and optional linked media. Supports coalescing concurrent requests.
 
 - **AniList**: GraphQL API for anime metadata, seasonal charts
 - **AniDB**: UDP protocol client for episode metadata and mappings
-- **Jikan**: MyAnimeList REST API
-- **Manami**: Community anime metadata project (JSON)
+- **Tenrai**: MyAnimeList REST API
+- **ExternalIdMap**: Local AniList/MAL/AniDB id mapping table
 - **SeaDex**: Release quality guide (JSON blobs keyed by AniList ID)
 - **qBittorrent**: Torrent client with Web UI API
 - **RSS/Indexer**: Nyaa and other anime release feeds (XML)
@@ -151,4 +151,4 @@ and optional linked media. Supports coalescing concurrent requests.
 
 - Storage/API path vocabulary is **Media** (`media` table, `/media` routes, `MediaId`)
 - Feature services, repos, and domain helpers use **Media** names (`MediaQueryService`, `getMediaRow`, …)
-- Keep **Anime** only for provider/metadata models and clients (`AnimeMetadata`, AniList/AniDB/Jikan/Manami APIs) and the `mediaKind: "anime"` value
+- Keep **Anime** only for provider/metadata models and clients (`AnimeMetadata`, AniList/AniDB/Tenrai APIs) and the `mediaKind: "anime"` value

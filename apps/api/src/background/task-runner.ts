@@ -9,7 +9,6 @@ import { InfrastructureError } from "@/features/errors.ts";
 import { CatalogLibraryScanService } from "@/features/operations/catalog/catalog-library-scan-service.ts";
 import { DownloadTorrentSyncService } from "@/features/operations/download/download-torrent-sync-service.ts";
 import { MediaMaintenanceService } from "@/features/media/metadata/media-maintenance-service.ts";
-import { ManamiCacheRefreshClient } from "@/features/media/metadata/manami.ts";
 import { BackgroundSearchRssWorkerService } from "@/features/operations/background-search/background-search-rss-worker-service.ts";
 import { OperationsTaskLauncherService } from "@/features/operations/tasks/operations-task-launcher-service.ts";
 import type { BackgroundWorkerName } from "@/background/worker-model.ts";
@@ -49,7 +48,6 @@ const makeBackgroundTaskRunner = Effect.fn("BackgroundTaskRunner.make")(function
   const catalogLibraryScanService = yield* CatalogLibraryScanService;
   const mediaMaintenanceService = yield* MediaMaintenanceService;
   const backgroundSearchRssWorkerService = yield* BackgroundSearchRssWorkerService;
-  const manami = yield* ManamiCacheRefreshClient;
   const monitor = yield* BackgroundWorkerMonitor;
   const taskLauncher = yield* OperationsTaskLauncherService;
 
@@ -66,17 +64,6 @@ const makeBackgroundTaskRunner = Effect.fn("BackgroundTaskRunner.make")(function
       .refreshMetadataForMonitoredMedia()
       .pipe(Effect.mapError(mapWorkerFailure("metadata_refresh")), Effect.asVoid);
   });
-  const runManamiRefreshTask = Effect.fn("Background.runManamiRefreshTask")(function* () {
-    const refreshed = yield* manami
-      .refreshCacheIfNeeded()
-      .pipe(Effect.mapError(mapWorkerFailure("manami_refresh")));
-    yield* Effect.logInfo("Manami cache refresh checked").pipe(
-      Effect.annotateLogs({
-        provider: "Manami",
-        refreshed,
-      }),
-    );
-  });
   const runRssTask = Effect.fn("Background.runRssTask")(function* () {
     yield* backgroundSearchRssWorkerService
       .runRssWorker()
@@ -91,7 +78,6 @@ const makeBackgroundTaskRunner = Effect.fn("BackgroundTaskRunner.make")(function
   > = {
     download_sync: yield* withLockEffectOrFail("download_sync", runDownloadSyncTask(), monitor),
     library_scan: yield* withLockEffectOrFail("library_scan", runLibraryScanTask(), monitor),
-    manami_refresh: yield* withLockEffectOrFail("manami_refresh", runManamiRefreshTask(), monitor),
     metadata_refresh: yield* withLockEffectOrFail(
       "metadata_refresh",
       runMetadataRefreshTask(),

@@ -106,6 +106,20 @@ export const anilistDetailCache = sqliteTable("anilist_detail_cache", {
   fetchedAtMs: integer("fetched_at_ms").notNull(),
 });
 
+export const externalIdMap = sqliteTable(
+  "external_id_map",
+  {
+    anilistId: integer("anilist_id").primaryKey(),
+    malId: integer("mal_id").unique(),
+    anidbAid: integer("anidb_aid").unique(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (table) => [
+    index("external_id_map_mal_id_idx").on(table.malId),
+    index("external_id_map_anidb_aid_idx").on(table.anidbAid),
+  ],
+);
+
 export const users = sqliteTable("users", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   username: text("username").notNull().unique(),

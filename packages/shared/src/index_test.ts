@@ -170,11 +170,7 @@ it("shared api schemas accept canonical system and download payloads", () => {
         configured: false,
         enabled: false,
       },
-      jikan: {
-        configured: true,
-        enabled: true,
-      },
-      manami: {
+      tenrai: {
         configured: true,
         enabled: true,
       },
