@@ -13,6 +13,12 @@ import {
 import * as schema from "@/db/schema.ts";
 import { MediaQueryService, makeMediaQueryService } from "@/features/media/query/query-service.ts";
 import { AniListClient } from "@/features/media/metadata/anilist.ts";
+import { TenraiClient } from "@/features/media/metadata/tenrai.ts";
+import { ExternalIdMapRepository } from "@/features/media/metadata/external-id-map-repository.ts";
+import {
+  MediaMetadataProviderService,
+  type MediaMetadataLookupResult,
+} from "@/features/media/metadata/media-metadata-provider-service.ts";
 import { MediaSeasonalProviderService } from "@/features/media/query/media-seasonal-provider-service.ts";
 import { AppDrizzleDatabase, type AppDatabase } from "@/db/database.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
@@ -93,6 +99,52 @@ describe("MediaQueryService.listSeasonalMedia", () => {
                 getSeasonalAnime: () => Effect.succeed([]),
                 resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
                 searchAnimeMetadata: () => Effect.succeed([]),
+              }),
+            ),
+            Layer.succeed(
+              MediaMetadataProviderService,
+              MediaMetadataProviderService.of({
+                getAnimeMetadataById: () => Effect.die(new Error("not used in test")),
+                getSeasonalAnime: () => Effect.die(new Error("not used in test")),
+                searchMedia: () => Effect.die(new Error("not used in test")),
+              }),
+            ),
+            Layer.succeed(
+              TenraiClient,
+              TenraiClient.of({
+                getAnimeByMalId: () => Effect.succeed(Option.none()),
+                getSeasonalAnime: () => Effect.succeed([]),
+                searchAnime: () => Effect.succeed([]),
+              }),
+            ),
+            Layer.succeed(
+              ExternalIdMapRepository,
+              ExternalIdMapRepository.of({
+                loadByEitherId: () => Effect.succeed(Option.none()),
+                deleteByAniListId: () => Effect.void,
+                loadByAnidbAid: () => Effect.succeed(Option.none()),
+                loadByAniListId: () => Effect.succeed(Option.none()),
+                loadByMalId: () => Effect.succeed(Option.none()),
+                upsert: () => Effect.void,
+              }),
+            ),
+            Layer.succeed(
+              TenraiClient,
+              TenraiClient.of({
+                getAnimeByMalId: () => Effect.succeed(Option.none()),
+                getSeasonalAnime: () => Effect.succeed([]),
+                searchAnime: () => Effect.succeed([]),
+              }),
+            ),
+            Layer.succeed(
+              ExternalIdMapRepository,
+              ExternalIdMapRepository.of({
+                loadByEitherId: () => Effect.succeed(Option.none()),
+                deleteByAniListId: () => Effect.void,
+                loadByAnidbAid: () => Effect.succeed(Option.none()),
+                loadByAniListId: () => Effect.succeed(Option.none()),
+                loadByMalId: () => Effect.succeed(Option.none()),
+                upsert: () => Effect.void,
               }),
             ),
             Layer.succeed(AppDrizzleDatabase, AppDrizzleDatabase.of(db)),
@@ -184,6 +236,33 @@ describe("MediaQueryService.listSeasonalMedia", () => {
                     searchAnimeMetadata: () => Effect.succeed([]),
                   }),
                 ),
+                Layer.succeed(
+                  MediaMetadataProviderService,
+                  MediaMetadataProviderService.of({
+                    getAnimeMetadataById: () => Effect.die(new Error("not used in test")),
+                    getSeasonalAnime: () => Effect.die(new Error("not used in test")),
+                    searchMedia: () => Effect.die(new Error("not used in test")),
+                  }),
+                ),
+                Layer.succeed(
+                  TenraiClient,
+                  TenraiClient.of({
+                    getAnimeByMalId: () => Effect.succeed(Option.none()),
+                    getSeasonalAnime: () => Effect.succeed([]),
+                    searchAnime: () => Effect.succeed([]),
+                  }),
+                ),
+                Layer.succeed(
+                  ExternalIdMapRepository,
+                  ExternalIdMapRepository.of({
+                    loadByEitherId: () => Effect.succeed(Option.none()),
+                    deleteByAniListId: () => Effect.void,
+                    loadByAnidbAid: () => Effect.succeed(Option.none()),
+                    loadByAniListId: () => Effect.succeed(Option.none()),
+                    loadByMalId: () => Effect.succeed(Option.none()),
+                    upsert: () => Effect.void,
+                  }),
+                ),
                 Layer.succeed(AppDrizzleDatabase, AppDrizzleDatabase.of(db)),
                 Layer.succeed(MediaRepository, makeMediaRepository(db, client)),
                 Layer.succeed(
@@ -264,6 +343,33 @@ describe("MediaQueryService.listSeasonalMedia", () => {
                     getSeasonalAnime: () => Effect.succeed([]),
                     resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
                     searchAnimeMetadata: () => Effect.succeed([]),
+                  }),
+                ),
+                Layer.succeed(
+                  MediaMetadataProviderService,
+                  MediaMetadataProviderService.of({
+                    getAnimeMetadataById: () => Effect.die(new Error("not used in test")),
+                    getSeasonalAnime: () => Effect.die(new Error("not used in test")),
+                    searchMedia: () => Effect.die(new Error("not used in test")),
+                  }),
+                ),
+                Layer.succeed(
+                  TenraiClient,
+                  TenraiClient.of({
+                    getAnimeByMalId: () => Effect.succeed(Option.none()),
+                    getSeasonalAnime: () => Effect.succeed([]),
+                    searchAnime: () => Effect.succeed([]),
+                  }),
+                ),
+                Layer.succeed(
+                  ExternalIdMapRepository,
+                  ExternalIdMapRepository.of({
+                    loadByEitherId: () => Effect.succeed(Option.none()),
+                    deleteByAniListId: () => Effect.void,
+                    loadByAnidbAid: () => Effect.succeed(Option.none()),
+                    loadByAniListId: () => Effect.succeed(Option.none()),
+                    loadByMalId: () => Effect.succeed(Option.none()),
+                    upsert: () => Effect.void,
                   }),
                 ),
                 Layer.succeed(AppDrizzleDatabase, AppDrizzleDatabase.of(db)),
@@ -380,6 +486,33 @@ describe("MediaQueryService.listSeasonalMedia", () => {
                     searchAnimeMetadata: () => Effect.succeed([]),
                   }),
                 ),
+                Layer.succeed(
+                  MediaMetadataProviderService,
+                  MediaMetadataProviderService.of({
+                    getAnimeMetadataById: () => Effect.die(new Error("not used in test")),
+                    getSeasonalAnime: () => Effect.die(new Error("not used in test")),
+                    searchMedia: () => Effect.die(new Error("not used in test")),
+                  }),
+                ),
+                Layer.succeed(
+                  TenraiClient,
+                  TenraiClient.of({
+                    getAnimeByMalId: () => Effect.succeed(Option.none()),
+                    getSeasonalAnime: () => Effect.succeed([]),
+                    searchAnime: () => Effect.succeed([]),
+                  }),
+                ),
+                Layer.succeed(
+                  ExternalIdMapRepository,
+                  ExternalIdMapRepository.of({
+                    loadByEitherId: () => Effect.succeed(Option.none()),
+                    deleteByAniListId: () => Effect.void,
+                    loadByAnidbAid: () => Effect.succeed(Option.none()),
+                    loadByAniListId: () => Effect.succeed(Option.none()),
+                    loadByMalId: () => Effect.succeed(Option.none()),
+                    upsert: () => Effect.void,
+                  }),
+                ),
                 Layer.succeed(AppDrizzleDatabase, AppDrizzleDatabase.of(db)),
                 Layer.succeed(MediaRepository, makeMediaRepository(db, client)),
                 Layer.succeed(
@@ -449,6 +582,33 @@ describe("MediaQueryService.listSeasonalMedia", () => {
                     searchAnimeMetadata: () => Effect.succeed([]),
                   }),
                 ),
+                Layer.succeed(
+                  MediaMetadataProviderService,
+                  MediaMetadataProviderService.of({
+                    getAnimeMetadataById: () => Effect.die(new Error("not used in test")),
+                    getSeasonalAnime: () => Effect.die(new Error("not used in test")),
+                    searchMedia: () => Effect.die(new Error("not used in test")),
+                  }),
+                ),
+                Layer.succeed(
+                  TenraiClient,
+                  TenraiClient.of({
+                    getAnimeByMalId: () => Effect.succeed(Option.none()),
+                    getSeasonalAnime: () => Effect.succeed([]),
+                    searchAnime: () => Effect.succeed([]),
+                  }),
+                ),
+                Layer.succeed(
+                  ExternalIdMapRepository,
+                  ExternalIdMapRepository.of({
+                    loadByEitherId: () => Effect.succeed(Option.none()),
+                    deleteByAniListId: () => Effect.void,
+                    loadByAnidbAid: () => Effect.succeed(Option.none()),
+                    loadByAniListId: () => Effect.succeed(Option.none()),
+                    loadByMalId: () => Effect.succeed(Option.none()),
+                    upsert: () => Effect.void,
+                  }),
+                ),
                 Layer.succeed(AppDrizzleDatabase, AppDrizzleDatabase.of(db)),
                 Layer.succeed(MediaRepository, makeMediaRepository(db, client)),
                 Layer.succeed(
@@ -514,7 +674,62 @@ describe("resolveSeasonFromDate / resolveSeasonYearFromDate", () => {
 });
 
 describe("MediaQueryService.searchMedia", () => {
-  it.effect("propagates ExternalCallError when AniList search fails", () =>
+  it.effect("falls back to Tenrai when AniList search fails", () =>
+    withSqliteTestDbEffect({
+      run: (db, _databaseFile, client, _exec) =>
+        Effect.gen(function* () {
+          yield* TestClock.setTime(new Date("2025-04-01T10:00:00.000Z").getTime());
+          const service = yield* MediaQueryService.pipe(
+            Effect.provide(
+              makeQueryServiceLayer(db, client, {
+                aniList: AniListClient.of({
+                  getAnimeMetadataById: () => Effect.succeed(Option.none()),
+                  getSeasonalAnime: () => Effect.succeed([]),
+                  resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
+                  searchAnimeMetadata: () =>
+                    Effect.fail(
+                      ExternalCallError.make({
+                        cause: new Error("AniList is down"),
+                        message: "AniList search failed",
+                        operation: "anilist.search.response",
+                      }),
+                    ),
+                }),
+                tenrai: TenraiClient.of({
+                  getAnimeByMalId: () => Effect.succeed(Option.none()),
+                  getSeasonalAnime: () => Effect.succeed([]),
+                  searchAnime: () =>
+                    Effect.succeed([
+                      {
+                        coverImage: "https://cdn.example/media/101.jpg",
+                        unitCount: 12,
+                        format: "TV",
+                        genres: ["Action"],
+                        malId: 101,
+                        season: "spring",
+                        seasonYear: 2025,
+                        startYear: 2025,
+                        status: "Finished Airing",
+                        title: { english: "Fallback", romaji: "Fallback" },
+                      },
+                    ]),
+                }),
+              }),
+            ),
+          );
+
+          const result = yield* service.searchMedia("Alpha Alias");
+
+          assert.deepStrictEqual(result.degraded, true);
+          assert.deepStrictEqual(result.results.length, 1);
+          assert.deepStrictEqual(result.results[0]?.id, 101);
+          assert.deepStrictEqual(result.results[0]?.title.romaji, "Fallback");
+        }),
+      schema,
+    }),
+  );
+
+  it.effect("propagates ExternalCallError when AniList search fails outside fallback", () =>
     withSqliteTestDbEffect({
       run: (db, _databaseFile, client, _exec) =>
         Effect.gen(function* () {
@@ -531,7 +746,7 @@ describe("MediaQueryService.searchMedia", () => {
                       ExternalCallError.make({
                         cause: new Error("rate limited"),
                         message: "AniList search failed",
-                        operation: "anilist.search.response",
+                        operation: "anilist.search.request",
                       }),
                     ),
                 }),
@@ -547,7 +762,7 @@ describe("MediaQueryService.searchMedia", () => {
             assert.deepStrictEqual(failure._tag, "Some");
             if (failure._tag === "Some") {
               if (failure.value instanceof ExternalCallError) {
-                assert.deepStrictEqual(failure.value.operation, "anilist.search.response");
+                assert.deepStrictEqual(failure.value.operation, "anilist.search.request");
               }
             }
           }
@@ -562,6 +777,9 @@ function makeQueryServiceLayer(
   client: NodeSqliteClient.SqliteClient,
   stubs: {
     readonly aniList?: typeof AniListClient.Service;
+    readonly tenrai?: typeof TenraiClient.Service;
+    readonly idMap?: typeof ExternalIdMapRepository.Service;
+    readonly metadataProvider?: typeof MediaMetadataProviderService.Service;
   } = {},
 ) {
   const providerService = MediaSeasonalProviderService.of({
@@ -583,11 +801,38 @@ function makeQueryServiceLayer(
       resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
       searchAnimeMetadata: () => Effect.succeed([]),
     });
+  const tenrai =
+    stubs.tenrai ??
+    TenraiClient.of({
+      getAnimeByMalId: () => Effect.succeed(Option.none()),
+      getSeasonalAnime: () => Effect.succeed([]),
+      searchAnime: () => Effect.succeed([]),
+    });
+  const idMap =
+    stubs.idMap ??
+    ExternalIdMapRepository.of({
+      loadByEitherId: () => Effect.succeed(Option.none()),
+      deleteByAniListId: () => Effect.void,
+      loadByAnidbAid: () => Effect.succeed(Option.none()),
+      loadByAniListId: () => Effect.succeed(Option.none()),
+      loadByMalId: () => Effect.succeed(Option.none()),
+      upsert: () => Effect.void,
+    });
+  const metadataProvider =
+    stubs.metadataProvider ??
+    MediaMetadataProviderService.of({
+      getAnimeMetadataById: () => Effect.die(new Error("not used in test")),
+      getSeasonalAnime: () => Effect.die(new Error("not used in test")),
+      searchMedia: () => Effect.die(new Error("not used in test")),
+    });
   return Layer.effect(MediaQueryService, makeMediaQueryService()).pipe(
     Layer.provide(
       Layer.mergeAll(
         Layer.succeed(MediaSeasonalProviderService, providerService),
+        Layer.succeed(MediaMetadataProviderService, metadataProvider),
         Layer.succeed(AniListClient, aniList),
+        Layer.succeed(TenraiClient, tenrai),
+        Layer.succeed(ExternalIdMapRepository, idMap),
         Layer.succeed(AppDrizzleDatabase, AppDrizzleDatabase.of(db)),
         Layer.succeed(MediaRepository, makeMediaRepository(db, client)),
         Layer.succeed(SeasonalMediaCacheRepository, makeSeasonalMediaCacheRepository(db, client)),
@@ -859,29 +1104,36 @@ it.effect("MediaQueryService.getMediaByAnilistId returns related and recommended
         const service = yield* MediaQueryService.pipe(
           Effect.provide(
             makeQueryServiceLayer(appDb, client, {
-              aniList: makeAniListStub({
-                bannerImage: "https://example.com/banner.png",
-                coverImage: "https://example.com/cover.png",
-                format: "TV",
-                id: brandMediaId(55),
-                recommendedMedia: [
-                  {
-                    id: brandMediaId(77),
-                    title: { english: "Recommendation", romaji: "Recommendation" },
-                  },
-                ],
-                relatedMedia: [
-                  {
-                    id: brandMediaId(56),
-                    relation_type: "SEQUEL",
-                    title: { english: "Sequel", romaji: "Sequel" },
-                  },
-                ],
-                startDate: "2024-04-03",
-                startYear: 2024,
-                status: "RELEASING",
-                synonyms: ["Stub Alias"],
-                title: { english: "Stub Show", romaji: "Stub Show" },
+              metadataProvider: MediaMetadataProviderService.of({
+                getAnimeMetadataById: () =>
+                  Effect.succeed(
+                    makeFoundLookup({
+                      bannerImage: "https://example.com/banner.png",
+                      coverImage: "https://example.com/cover.png",
+                      format: "TV",
+                      id: 55,
+                      recommendedMedia: [
+                        {
+                          id: brandMediaId(77),
+                          title: { english: "Recommendation", romaji: "Recommendation" },
+                        },
+                      ],
+                      relatedMedia: [
+                        {
+                          id: brandMediaId(56),
+                          relation_type: "SEQUEL",
+                          title: { english: "Sequel", romaji: "Sequel" },
+                        },
+                      ],
+                      startDate: "2024-04-03",
+                      startYear: 2024,
+                      status: "RELEASING",
+                      synonyms: ["Stub Alias"],
+                      title: { english: "Stub Show", romaji: "Stub Show" },
+                    }),
+                  ),
+                getSeasonalAnime: () => Effect.die(new Error("not used in test")),
+                searchMedia: () => Effect.die(new Error("not used in test")),
               }),
             }),
           ),
@@ -892,10 +1144,71 @@ it.effect("MediaQueryService.getMediaByAnilistId returns related and recommended
         assert.deepStrictEqual(result.related_media?.[0]?.relation_type, "SEQUEL");
         assert.deepStrictEqual(result.recommended_media?.[0]?.title.english, "Recommendation");
         assert.deepStrictEqual(result.synonyms, ["Stub Alias"]);
+        assert.deepStrictEqual(result.id_space, "anilist");
       }),
     schema,
   }),
 );
+
+it.effect("MediaQueryService.getMediaByAnilistId serves Tenrai-canonical detail", () =>
+  withSqliteTestDbEffect({
+    run: (db, _databaseFile, client, _exec) =>
+      Effect.gen(function* () {
+        const appDb: AppDatabase = db;
+        const service = yield* MediaQueryService.pipe(
+          Effect.provide(
+            makeQueryServiceLayer(appDb, client, {
+              metadataProvider: MediaMetadataProviderService.of({
+                getAnimeMetadataById: () =>
+                  Effect.succeed(
+                    makeFoundLookup(
+                      {
+                        format: "TV",
+                        id: 5055,
+                        malId: 5055,
+                        startYear: 2025,
+                        status: "FINISHED",
+                        title: { romaji: "Tenrai Dialog" },
+                      },
+                      "tenrai",
+                    ),
+                  ),
+                getSeasonalAnime: () => Effect.die(new Error("not used in test")),
+                searchMedia: () => Effect.die(new Error("not used in test")),
+              }),
+            }),
+          ),
+        );
+
+        const result = yield* service.getMediaByAnilistId(5055, "anime", "mal");
+
+        assert.deepStrictEqual(result.id, 5055);
+        assert.deepStrictEqual(result.title.romaji, "Tenrai Dialog");
+        assert.deepStrictEqual(result.id_space, "mal");
+        assert.deepStrictEqual(result.already_in_library, false);
+      }),
+    schema,
+  }),
+);
+
+function makeFoundLookup(
+  overrides: Partial<AnimeMetadata> & { id: number; title: AnimeMetadata["title"] },
+  detailOrigin: "live" | "stale" | "tenrai" = "live",
+): MediaMetadataLookupResult {
+  return {
+    _tag: "Found",
+    detailOrigin,
+    enrichment: {
+      _tag: "Degraded",
+      reason: { _tag: "AniDbNoEpisodeMetadata" },
+    },
+    metadata: {
+      format: "TV",
+      status: "RELEASING",
+      ...overrides,
+    },
+  };
+}
 
 it.effect("MediaQueryService.getMedia returns discovery metadata from database storage", () =>
   withSqliteTestDbEffect({
@@ -1033,7 +1346,7 @@ it.effect(
                           new ExternalCallError({
                             cause: new Error("rate limited"),
                             message: "AniList search failed",
-                            operation: "anilist.search.response",
+                            operation: "anilist.search.request",
                           }),
                         ),
                       getSeasonalAnime: () => Effect.succeed([]),
@@ -1052,7 +1365,7 @@ it.effect(
             assert.deepStrictEqual(failure._tag, "Some");
             if (failure._tag === "Some") {
               if (failure.value instanceof ExternalCallError) {
-                assert.deepStrictEqual(failure.value.operation, "anilist.search.response");
+                assert.deepStrictEqual(failure.value.operation, "anilist.search.request");
               }
             }
           }
@@ -1118,7 +1431,7 @@ it.effect("MediaQueryService.searchMedia retries AniList after a failure", () =>
                         new ExternalCallError({
                           cause: new Error("rate limited"),
                           message: "AniList search failed",
-                          operation: "anilist.search.response",
+                          operation: "anilist.search.request",
                         }),
                       )
                     : Effect.succeed([
@@ -1172,7 +1485,7 @@ it.effect("MediaQueryService.searchMedia retries AniList after a hard failure", 
                     new ExternalCallError({
                       cause: new Error("rate limited"),
                       message: "AniList search failed",
-                      operation: "anilist.search.response",
+                      operation: "anilist.search.request",
                     }),
                   );
                 },
@@ -1194,17 +1507,17 @@ it.effect("MediaQueryService.searchMedia retries AniList after a hard failure", 
   }),
 );
 
-it.effect("MediaQueryService.getMediaByAnilistId serves repeat lookups from detail cache", () =>
+it.effect("MediaQueryService.getMediaByAnilistId delegates detail lookups to the provider", () =>
   withSqliteTestDbEffect({
     run: (db, _databaseFile, client, _exec) =>
       Effect.gen(function* () {
         const appDb: AppDatabase = db;
-        let upstreamCalls = 0;
+        let providerCalls = 0;
         const metadata = {
           bannerImage: "https://example.com/banner.png",
           coverImage: "https://example.com/cover.png",
           format: "TV",
-          id: brandMediaId(55),
+          id: 55,
           startDate: "2024-04-03",
           startYear: 2024,
           status: "RELEASING",
@@ -1213,14 +1526,13 @@ it.effect("MediaQueryService.getMediaByAnilistId serves repeat lookups from deta
         const service = yield* MediaQueryService.pipe(
           Effect.provide(
             makeQueryServiceLayer(appDb, client, {
-              aniList: AniListClient.of({
+              metadataProvider: MediaMetadataProviderService.of({
                 getAnimeMetadataById: () => {
-                  upstreamCalls += 1;
-                  return Effect.succeed(Option.some(metadata));
+                  providerCalls += 1;
+                  return Effect.succeed(makeFoundLookup(metadata));
                 },
-                searchAnimeMetadata: () => Effect.succeed([]),
-                getSeasonalAnime: () => Effect.succeed([]),
-                resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
+                getSeasonalAnime: () => Effect.die(new Error("not used in test")),
+                searchMedia: () => Effect.die(new Error("not used in test")),
               }),
             }),
           ),
@@ -1231,7 +1543,7 @@ it.effect("MediaQueryService.getMediaByAnilistId serves repeat lookups from deta
 
         assert.deepStrictEqual(first.id, 55);
         assert.deepStrictEqual(second.id, 55);
-        assert.deepStrictEqual(upstreamCalls, 1);
+        assert.deepStrictEqual(providerCalls, 2);
       }),
     schema,
   }),
@@ -1271,15 +1583,6 @@ it.effect("MediaQueryService.searchMedia reports non-degraded when AniList searc
     schema,
   }),
 );
-
-function makeAniListStub(metadata: AnimeMetadata) {
-  return AniListClient.of({
-    getAnimeMetadataById: () => Effect.succeed(Option.some(metadata)),
-    searchAnimeMetadata: () => Effect.succeed([]),
-    getSeasonalAnime: () => Effect.succeed([]),
-    resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
-  });
-}
 
 it.effect("MediaQueryService.listMedia returns paginated results with defaults", () =>
   withSqliteTestDbEffect({

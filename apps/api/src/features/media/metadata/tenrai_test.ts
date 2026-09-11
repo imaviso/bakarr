@@ -722,6 +722,111 @@ it.effect("TenraiClient paces requests to 120 per minute", () =>
   }),
 );
 
+it.effect("TenraiClient searches anime by query with limit", () =>
+  Effect.gen(function* () {
+    const requests: string[] = [];
+
+    const clientLayer = TenraiClientLive.pipe(
+      Layer.provide(
+        Layer.mergeAll(
+          ExternalCallTestLayer,
+          snapshotLayer,
+          Layer.succeed(
+            HttpClient.HttpClient,
+            HttpClient.make((request, _url, _signal, _fiber) =>
+              Effect.sync(() => {
+                requests.push(request.url);
+
+                return HttpClientResponse.fromWeb(
+                  request,
+                  new Response(JSON.stringify(buildSeasonalPayload()), {
+                    headers: { "content-type": "application/json" },
+                    status: 200,
+                  }),
+                );
+              }),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    const result = yield* Effect.flatMap(TenraiClient, (client) =>
+      client.searchAnime("Spring Hero", 1),
+    ).pipe(Effect.provide(clientLayer));
+
+    assert.deepStrictEqual(result.length, 1);
+    assert.deepStrictEqual(result[0]?.malId, 50001);
+    assert.deepStrictEqual(result[0]?.title.romaji, "Spring Hero");
+    assert.deepStrictEqual(requests.length, 1);
+    assert.ok(requests[0]?.includes("/anime?q=Spring%20Hero&limit=1"));
+  }),
+);
+
+it.effect("TenraiClient searchAnime returns empty without requesting on blank query", () =>
+  Effect.gen(function* () {
+    let requestCount = 0;
+
+    const clientLayer = TenraiClientLive.pipe(
+      Layer.provide(
+        Layer.mergeAll(
+          ExternalCallTestLayer,
+          snapshotLayer,
+          Layer.succeed(
+            HttpClient.HttpClient,
+            HttpClient.make((_request, _url, _signal, _fiber) =>
+              Effect.sync(() => {
+                requestCount += 1;
+                throw new Error("unexpected request");
+              }),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    const result = yield* Effect.flatMap(TenraiClient, (client) => client.searchAnime("   ")).pipe(
+      Effect.provide(clientLayer),
+    );
+
+    assert.deepStrictEqual(result, []);
+    assert.deepStrictEqual(requestCount, 0);
+  }),
+);
+
+it.effect("TenraiClient searchAnime returns empty array on 404", () =>
+  Effect.gen(function* () {
+    const clientLayer = TenraiClientLive.pipe(
+      Layer.provide(
+        Layer.mergeAll(
+          ExternalCallTestLayer,
+          snapshotLayer,
+          Layer.succeed(
+            HttpClient.HttpClient,
+            HttpClient.make((request, _url, _signal, _fiber) =>
+              Effect.sync(() =>
+                HttpClientResponse.fromWeb(
+                  request,
+                  new Response(JSON.stringify({ message: "Not Found" }), {
+                    headers: { "content-type": "application/json" },
+                    status: 404,
+                  }),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    const result = yield* Effect.flatMap(TenraiClient, (client) =>
+      client.searchAnime("missing"),
+    ).pipe(Effect.provide(clientLayer));
+
+    assert.deepStrictEqual(result, []);
+  }),
+);
+
 function makeSeasonalClient(onRequest: () => void) {
   return HttpClient.make((request, _url, _signal, _fiber) =>
     Effect.sync(() => {

@@ -109,6 +109,7 @@ export const toMediaSearchCandidate = Effect.fn("Operations.toMediaSearchCandida
     format: row.format,
     genres: yield* decodeMediaGenres(row.genres),
     id: brandMediaId(row.id),
+    id_space: row.malId !== null && row.id === row.malId ? "mal" : "anilist",
     members: row.members ?? undefined,
     popularity: row.popularity ?? undefined,
     rank: row.rank ?? undefined,

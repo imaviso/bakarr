@@ -1,6 +1,13 @@
 // Shared media search wire contracts.
 import { Schema } from "effect";
-import { MediaIdSchema, type MediaId, MediaKindSchema, type MediaKind } from "./ids.ts";
+import {
+  MediaIdSchema,
+  MediaIdSpaceSchema,
+  type MediaId,
+  type MediaIdSpace,
+  MediaKindSchema,
+  type MediaKind,
+} from "./ids.ts";
 import {
   MediaSeasonSchema,
   type MediaSeason,
@@ -10,6 +17,9 @@ import {
 
 export interface MediaSearchResult {
   id: MediaId;
+  // Which provider space the id belongs to. Absent on rows cached before
+  // id-space threading; unknown-space lookups bootstrap via AniList.
+  id_space?: MediaIdSpace | undefined | null;
   media_kind?: MediaKind | undefined | null;
   title: {
     romaji?: string | undefined | null;
@@ -54,6 +64,7 @@ export const MediaSearchResultTitleSchema = Schema.Struct({
 
 export const MediaSearchResultSchema = Schema.Struct({
   id: MediaIdSchema,
+  id_space: Schema.optional(Schema.NullishOr(MediaIdSpaceSchema)),
   media_kind: Schema.optional(Schema.NullishOr(MediaKindSchema)),
   title: MediaSearchResultTitleSchema,
   format: Schema.optional(Schema.NullishOr(Schema.String)),

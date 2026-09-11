@@ -36,6 +36,10 @@ interface TenraiClientShape {
   readonly getAnimeByMalId: (
     malId: number,
   ) => Effect.Effect<Option.Option<TenraiNormalizedAnime>, ExternalCallError>;
+  readonly searchAnime: (
+    query: string,
+    limit?: number,
+  ) => Effect.Effect<ReadonlyArray<TenraiNormalizedSeasonalEntry>, ExternalCallError>;
   readonly getSeasonalAnime: (input: {
     season: MediaSeason;
     year: number;
@@ -140,34 +144,39 @@ const makeTenraiClient = Effect.fn("TenraiClient.make")(function* () {
       return [];
     }
 
-    const payload = yield* HttpClientResponse.schemaBodyJson(TenraiSeasonalPayloadSchema)(
-      response.value,
-    ).pipe(
-      Effect.mapError((cause) =>
-        ExternalCallError.make({
-          cause,
-          message: "Tenrai seasonal response decode failed",
-          operation: "tenrai.seasonal.json",
-        }),
-      ),
-    );
-
-    const entries = yield* Effect.forEach(payload.data, (entry) =>
-      Schema.decodeUnknownEffect(TenraiSeasonalEntryFromDetailSchema)(entry).pipe(
-        Effect.mapError((cause) =>
-          ExternalCallError.make({
-            cause,
-            message: "Tenrai seasonal entry normalization failed",
-            operation: "tenrai.seasonal.normalize",
-          }),
-        ),
-      ),
-    );
-
-    return entries.slice(0, input.limit);
+    return yield* decodeEntryList(response.value, input.limit, {
+      entryMessage: "Tenrai seasonal entry normalization failed",
+      jsonOperation: "tenrai.seasonal.json",
+      normalizeOperation: "tenrai.seasonal.normalize",
+      responseMessage: "Tenrai seasonal response decode failed",
+    });
   });
 
-  return { getAnimeByMalId, getSeasonalAnime } satisfies TenraiClientShape;
+  const searchAnime = Effect.fn("TenraiClient.searchAnime")(function* (query: string, limit = 10) {
+    const trimmed = query.trim();
+
+    if (trimmed.length === 0) {
+      return [];
+    }
+
+    const response = yield* request(
+      `/anime?q=${encodeURIComponent(trimmed)}&limit=${limit}&page=1&order_by=members&sort=desc`,
+      "tenrai.search",
+    );
+
+    if (Option.isNone(response)) {
+      return [];
+    }
+
+    return yield* decodeEntryList(response.value, limit, {
+      entryMessage: "Tenrai search entry normalization failed",
+      jsonOperation: "tenrai.search.json",
+      normalizeOperation: "tenrai.search.normalize",
+      responseMessage: "Tenrai search response decode failed",
+    });
+  });
+
+  return { getAnimeByMalId, getSeasonalAnime, searchAnime } satisfies TenraiClientShape;
 });
 
 export class TenraiClient extends Context.Service<TenraiClient, TenraiClientShape>()(
@@ -182,6 +191,43 @@ type TenraiRequest = (
   path: string,
   operation: string,
 ) => Effect.Effect<Option.Option<HttpClientResponse.HttpClientResponse>, ExternalCallError>;
+
+const decodeEntryList = Effect.fn("TenraiClient.decodeEntryList")(function* (
+  response: HttpClientResponse.HttpClientResponse,
+  limit: number,
+  operation: {
+    readonly entryMessage: string;
+    readonly jsonOperation: string;
+    readonly normalizeOperation: string;
+    readonly responseMessage: string;
+  },
+) {
+  const payload = yield* HttpClientResponse.schemaBodyJson(TenraiSeasonalPayloadSchema)(
+    response,
+  ).pipe(
+    Effect.mapError((cause) =>
+      ExternalCallError.make({
+        cause,
+        message: operation.responseMessage,
+        operation: operation.jsonOperation,
+      }),
+    ),
+  );
+
+  const entries = yield* Effect.forEach(payload.data, (entry) =>
+    Schema.decodeUnknownEffect(TenraiSeasonalEntryFromDetailSchema)(entry).pipe(
+      Effect.mapError((cause) =>
+        ExternalCallError.make({
+          cause,
+          message: operation.entryMessage,
+          operation: operation.normalizeOperation,
+        }),
+      ),
+    ),
+  );
+
+  return entries.slice(0, limit);
+});
 
 const fetchDetail = Effect.fn("TenraiClient.fetchDetail")(function* (
   request: TenraiRequest,

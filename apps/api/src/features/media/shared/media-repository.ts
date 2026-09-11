@@ -27,6 +27,9 @@ export interface MediaRepositoryShape {
   readonly findExistingMediaIds: (
     mediaIds: readonly number[],
   ) => Effect.Effect<ReadonlySet<number>, DatabaseError>;
+  readonly findMediaIdByMalId: (
+    malId: number,
+  ) => Effect.Effect<Option.Option<number>, DatabaseError>;
   readonly getUnitRow: (
     mediaId: number,
     unitNumber: number,
@@ -183,6 +186,7 @@ export function makeMediaRepositoryShape(
   return {
     countMedia: (input) => countMediaEffect(db, exec, input),
     findExistingMediaIds: (mediaIds) => findExistingMediaIdsEffect(db, exec, mediaIds),
+    findMediaIdByMalId: (malId) => findMediaIdByMalIdEffect(db, exec, malId),
     findMediaRootFolderOwner: (rootFolder) => findMediaRootFolderOwnerEffect(db, exec, rootFolder),
     findMediaByExactRootFolder: (rootFolder) =>
       findMediaByExactRootFolderEffect(db, exec, rootFolder),
@@ -623,16 +627,47 @@ const findExistingMediaIdsEffect = Effect.fn("MediaRepository.findExistingMediaI
   if (mediaIds.length === 0) {
     return new Set<number>();
   }
+  // Result IDs live in two spaces (AniList legacy, MAL canonical): a result
+  // counts as in-library when either the row id or the row MAL id matches.
   const rows = yield* exec.runQuery(
     "Failed to mark search results in library",
     db
-      .select({ id: media.id })
+      .select({ id: media.id, malId: media.malId })
       .from(media)
-      .where(inArray(media.id, [...mediaIds]))
+      .where(or(inArray(media.id, [...mediaIds]), inArray(media.malId, [...mediaIds])))
       .prepare()
       .effect(),
   );
-  return new Set(rows.map((row) => row.id));
+  const inputs = new Set(mediaIds);
+  const matched = new Set<number>();
+  for (const row of rows) {
+    if (inputs.has(row.id)) {
+      matched.add(row.id);
+    }
+    if (row.malId !== null && inputs.has(row.malId)) {
+      matched.add(row.malId);
+    }
+  }
+  return matched;
+});
+
+const findMediaIdByMalIdEffect = Effect.fn("MediaRepository.findMediaIdByMalId")(function* (
+  db: AppDatabase,
+  exec: DbExecutor,
+  malId: number,
+) {
+  const rows = yield* exec.runQuery(
+    "Failed to find media by MAL id",
+    db
+      .select({ id: media.id })
+      .from(media)
+      .where(eq(media.malId, malId))
+      .limit(1)
+      .prepare()
+      .effect(),
+  );
+  const row = rows[0];
+  return row === undefined ? Option.none<number>() : Option.some(row.id);
 });
 
 const listAllMediaRowsEffect = Effect.fn("MediaRepository.listAllMediaRows")(function* (

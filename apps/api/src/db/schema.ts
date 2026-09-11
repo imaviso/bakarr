@@ -45,6 +45,7 @@ export const media = sqliteTable(
   (table) => [
     index("media_monitored_unit_count_idx").on(table.monitored, table.unitCount),
     index("media_kind_idx").on(table.mediaKind),
+    index("media_mal_id_idx").on(table.malId),
     index("media_profile_name_idx").on(table.profileName),
   ],
 );

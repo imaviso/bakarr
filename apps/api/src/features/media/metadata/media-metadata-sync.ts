@@ -27,7 +27,14 @@ export const syncMediaMetadataEffect = Effect.fn("MediaMetadataSync.syncMediaMet
 }) {
   const { nowIso } = input;
   const mediaRow = yield* input.mediaRepository.getMediaRow(input.mediaId);
-  const metadataLookup = yield* input.metadataProvider.getAnimeMetadataById(input.mediaId);
+  // Library rows know their space: MAL-canonical rows carry id === mal_id,
+  // everything else was created from AniList data.
+  const idSpace = mediaRow.malId !== null && mediaRow.id === mediaRow.malId ? "mal" : "anilist";
+  const metadataLookup = yield* input.metadataProvider.getAnimeMetadataById(
+    input.mediaId,
+    undefined,
+    idSpace,
+  );
   const metadata =
     metadataLookup._tag === "NotFound"
       ? Option.none<AnimeMetadata>()

@@ -219,6 +219,7 @@ export const AnimeSearchResultFromAniListSchema = AniListSearchMediaSchema.pipe(
       format: entry.format ?? undefined,
       genres: entry.genres ? [...entry.genres] : undefined,
       id: entry.id,
+      id_space: "anilist",
       media_kind: toMediaKind(entry.format),
       members: entry.popularity ?? undefined,
       popularity: pickAniListRanking(entry.rankings, "POPULAR"),

@@ -17,6 +17,10 @@ export const MEDIA_KIND_VALUES = ["anime", "manga", "light_novel"] as const;
 export type MediaKind = (typeof MEDIA_KIND_VALUES)[number];
 export const MediaKindSchema = Schema.Literals([...MEDIA_KIND_VALUES]);
 
+export const MEDIA_ID_SPACE_VALUES = ["anilist", "mal"] as const;
+export type MediaIdSpace = (typeof MEDIA_ID_SPACE_VALUES)[number];
+export const MediaIdSpaceSchema = Schema.Literals([...MEDIA_ID_SPACE_VALUES]);
+
 export const MEDIA_UNIT_KIND_VALUES = ["episode", "volume"] as const;
 export type MediaUnitKind = (typeof MEDIA_UNIT_KIND_VALUES)[number];
 export const MediaUnitKindSchema = Schema.Literals([...MEDIA_UNIT_KIND_VALUES]);

@@ -1,6 +1,7 @@
 import type {
   DownloadSourceMetadata,
   ImportedFile,
+  MediaIdSpace,
   MediaKind,
   ReleaseProfile,
   RssFeed,
@@ -57,6 +58,7 @@ export interface BulkUnmappedFolderControlRequest {
 
 export interface AddAnimeRequest {
   id: number;
+  id_space?: MediaIdSpace | null;
   media_kind?: MediaKind | null;
   profile_name: string;
   root_folder: string;

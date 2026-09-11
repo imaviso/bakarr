@@ -64,10 +64,35 @@ export const makeMediaEnrollmentService = Effect.fn("MediaEnrollmentService.make
     const metadataLookup = yield* metadataProvider.getAnimeMetadataById(
       input.id,
       requestedMediaKind,
+      input.id_space,
     );
     const validMetadata = yield* requireMediaMetadataEffect(
       metadataLookup._tag === "NotFound" ? Option.none() : Option.some(metadataLookup.metadata),
     );
+
+    // MAL IDs are canonical: Tenrai-served and merged records carry the MAL
+    // id, which may differ from the requested AniList ID. Guard both spaces
+    // unconditionally: a MAL-space request (ids equal) must still lose to a
+    // legacy AniList-space row carrying the same mal_id.
+    if (validMetadata.id !== input.id) {
+      const canonicalExists = yield* mediaRepository.mediaExists(validMetadata.id);
+
+      if (canonicalExists) {
+        return yield* new MediaConflictError({
+          message: "Media already exists",
+        });
+      }
+    }
+
+    if (validMetadata.malId !== undefined) {
+      const malOwner = yield* mediaRepository.findMediaIdByMalId(validMetadata.malId);
+
+      if (Option.isSome(malOwner) && malOwner.value !== input.id) {
+        return yield* new MediaConflictError({
+          message: "Media already exists",
+        });
+      }
+    }
     const mediaKind = requestedMediaKind ?? mediaKindFromAniListFormat(validMetadata.format);
 
     yield* checkProfileExistsEffect(qualityProfileRepository, input.profile_name);

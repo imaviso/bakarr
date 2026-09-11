@@ -4,6 +4,7 @@ import { assert, describe, it } from "@effect/vitest";
 import { AppDrizzleDatabase, type AppDatabase } from "@/db/database.ts";
 import * as schema from "@/db/schema.ts";
 import { AniListClient } from "@/features/media/metadata/anilist.ts";
+import { TenraiClient } from "@/features/media/metadata/tenrai.ts";
 import { ImportPathScanService } from "@/features/operations/import-scan/import-path-scan-service.ts";
 import { LibraryNaming } from "@/features/operations/library/library-naming.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
@@ -73,6 +74,14 @@ function scanImportPathEffect(
                 resolveAniListIdFromMalId: () => Effect.die(new Error("not used in test")),
               }),
             ),
+            Layer.succeed(
+              TenraiClient,
+              TenraiClient.of({
+                getAnimeByMalId: () => Effect.die(new Error("not used in test")),
+                getSeasonalAnime: () => Effect.die(new Error("not used in test")),
+                searchAnime: () => Effect.die(new Error("not used in test")),
+              }),
+            ),
             Layer.succeed(FileSystem, FileSystem.of(fs)),
             Layer.succeed(
               LibraryNaming,
@@ -92,6 +101,7 @@ function scanImportPathEffect(
               MediaRepository.of({
                 countMedia: () => Effect.die(new Error("not used in test")),
                 findExistingMediaIds: () => Effect.die(new Error("not used in test")),
+                findMediaIdByMalId: () => Effect.die(new Error("not used in test")),
                 findMediaRootFolderOwner: () => Effect.die(new Error("not used in test")),
                 getMediaRow: () => Effect.die(new Error("not used in test")),
                 getUnitRow: () => Effect.die(new Error("not used in test")),

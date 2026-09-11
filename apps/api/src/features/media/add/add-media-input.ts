@@ -1,12 +1,13 @@
 import { Schema } from "effect";
 
 import { MediaIdSchema, ReleaseProfileIdSchema } from "@/infra/schema.ts";
-import { MediaKindSchema } from "@packages/shared/index.ts";
+import { MediaIdSpaceSchema, MediaKindSchema } from "@packages/shared/index.ts";
 
 const ReleaseProfileIdArraySchema = Schema.Array(ReleaseProfileIdSchema);
 
 export class AddMediaInput extends Schema.Class<AddMediaInput>("AddMediaInput")({
   id: MediaIdSchema,
+  id_space: Schema.optional(MediaIdSpaceSchema),
   media_kind: Schema.optional(MediaKindSchema),
   monitor_and_search: Schema.Boolean,
   monitored: Schema.Boolean,

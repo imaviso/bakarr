@@ -1,4 +1,4 @@
-import type { DownloadEventsFilterInput, MediaSeason } from "./contracts";
+import type { DownloadEventsFilterInput, MediaIdSpace, MediaSeason } from "./contracts";
 
 export const animeKeys = {
   all: ["media"] as const,
@@ -19,7 +19,8 @@ export const animeKeys = {
     releases: (query: string, options?: { mediaId?: number; category?: string; filter?: string }) =>
       ["search", "releases", { query, ...options }] as const,
   },
-  anilist: (id: number, mediaKind = "anime") => ["media", "anilist", mediaKind, id] as const,
+  anilist: (id: number, mediaKind = "anime", idSpace?: MediaIdSpace) =>
+    ["media", "anilist", mediaKind, idSpace ?? "unknown", id] as const,
   seasonalInfinite: (input?: {
     season?: MediaSeason | undefined;
     year?: number | undefined;

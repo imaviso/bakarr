@@ -1,12 +1,12 @@
 import { DatabaseError } from "@/db/database.ts";
 import { AniListClient } from "@/features/media/metadata/anilist.ts";
-import { AniListDetailCacheRepository } from "@/features/media/metadata/anilist-detail-cache-repository.ts";
-import {
-  getCachedOrRemoteDetail,
-  searchMediaWithFallback,
-} from "@/features/media/metadata/media-metadata-provider-service.ts";
+import { searchMediaWithFallback } from "@/features/media/metadata/media-metadata-provider-service.ts";
+import { MediaMetadataProviderService } from "@/features/media/metadata/media-metadata-provider-service.ts";
+import { TenraiClient } from "@/features/media/metadata/tenrai.ts";
+import { mediaKindFromAniListFormat } from "@/features/media/shared/media-kind.ts";
 import { MediaNotFoundError } from "@/features/media/errors.ts";
 import { StoredDataError } from "@/features/errors.ts";
+import type { AniDbRuntimeConfigError } from "@/features/media/errors.ts";
 import { ExternalCallError } from "@/infra/effect/retry.ts";
 import { nowIso } from "@/infra/time.ts";
 import { deriveAnimeSeason } from "@/features/media/shared/date-utils.ts";
@@ -21,11 +21,12 @@ import {
   deriveDetailProgress,
   deriveListProgress,
 } from "@/features/media/shared/dto.ts";
-import { Cache, Context, DateTime, Duration, Effect, Exit, Layer, Option } from "effect";
+import { Cache, Context, DateTime, Duration, Effect, Exit, Layer } from "effect";
 import {
   brandMediaId,
   type CalendarEvent,
   type Media,
+  type MediaIdSpace,
   type MediaKind,
   type MediaListQueryParams,
   type MediaListResponse,
@@ -97,7 +98,15 @@ export interface MediaQueryServiceShape {
   readonly getMediaByAnilistId: (
     id: number,
     mediaKind?: MediaKind,
-  ) => Effect.Effect<MediaSearchResult, MediaNotFoundError | DatabaseError | ExternalCallError>;
+    idSpace?: MediaIdSpace,
+  ) => Effect.Effect<
+    MediaSearchResult,
+    | MediaNotFoundError
+    | DatabaseError
+    | ExternalCallError
+    | StoredDataError
+    | AniDbRuntimeConfigError
+  >;
   readonly listUnits: (mediaId: number) => Effect.Effect<MediaUnit[], DatabaseError>;
   readonly listSeasonalMedia: (
     params?: SeasonalMediaQueryParams,
@@ -111,10 +120,11 @@ export interface MediaQueryServiceShape {
 
 export const makeMediaQueryService = Effect.fn("MediaQueryService.make")(function* () {
   const aniList = yield* AniListClient;
+  const tenrai = yield* TenraiClient;
+  const metadataProvider = yield* MediaMetadataProviderService;
   const mediaRepository = yield* MediaRepository;
   const providerService = yield* MediaSeasonalProviderService;
   const seasonalMediaCacheRepository = yield* SeasonalMediaCacheRepository;
-  const detailCache = yield* AniListDetailCacheRepository;
 
   // Effect Cache dedups concurrent lookups of the same key (one in-flight
   // load) and evicts by TTL — repeated/overlapping searches reuse one
@@ -129,6 +139,7 @@ export const makeMediaQueryService = Effect.fn("MediaQueryService.make")(functio
         aniList,
         mediaKind: cached.mediaKind,
         query: cached.query,
+        tenrai,
       });
     },
     {
@@ -148,28 +159,30 @@ export const makeMediaQueryService = Effect.fn("MediaQueryService.make")(functio
     getMediaByAnilistId: Effect.fn("MediaQueryService.getMediaByAnilistId")(function* (
       id: number,
       mediaKind?: MediaKind,
+      idSpace?: MediaIdSpace,
     ) {
-      const effectiveMediaKind = mediaKind ?? "anime";
-      // Served from anilist_detail_cache when live, stale on upstream failure.
-      // Previously every dialog open hit AniList directly.
-      const cached = yield* getCachedOrRemoteDetail({
-        aniList,
-        detailCache,
+      // Single lookup path for dialogs: the provider resolves either id
+      // space, validates cross-provider agreement, and canonicalizes to MAL.
+      // Dialog opens may enqueue an AniDB refresh for uncached shows, which
+      // warms episode data ahead of adding to the library.
+      const lookup = yield* metadataProvider.getAnimeMetadataById(
         id,
-        mediaKind,
-      });
+        mediaKind ?? "anime",
+        idSpace,
+      );
 
-      if (Option.isNone(cached)) {
+      if (lookup._tag === "NotFound") {
         return yield* new MediaNotFoundError({
           message: "Media not found",
         });
       }
-      const metadataValue = cached.value.data;
 
-      const alreadyInLibrary = yield* mediaRepository.mediaExists(id);
+      const metadataValue = lookup.metadata;
+      const effectiveMediaKind = mediaKind ?? mediaKindFromAniListFormat(metadataValue.format);
+      const libraryIds = yield* mediaRepository.findExistingMediaIds([metadataValue.id]);
 
       return {
-        already_in_library: alreadyInLibrary,
+        already_in_library: libraryIds.has(metadataValue.id),
         banner_image: metadataValue.bannerImage,
         cover_image: metadataValue.coverImage,
         description: metadataValue.description,
@@ -181,6 +194,7 @@ export const makeMediaQueryService = Effect.fn("MediaQueryService.make")(functio
         format: metadataValue.format,
         genres: metadataValue.genres ? [...metadataValue.genres] : undefined,
         id: brandMediaId(metadataValue.id),
+        id_space: metadataValue.malId !== undefined ? "mal" : "anilist",
         media_kind: effectiveMediaKind,
         members: metadataValue.members,
         popularity: metadataValue.popularity,

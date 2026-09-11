@@ -276,6 +276,7 @@ function AddAnimeForm(props: AddAnimeFormProps) {
     onSubmit: async ({ value }) => {
       await addAnimeMutation.mutateAsync({
         id: props.media.id,
+        ...(props.media.id_space == null ? {} : { id_space: props.media.id_space }),
         ...(props.media.media_kind == null ? {} : { media_kind: props.media.media_kind }),
         profile_name: value.profile_name,
         root_folder: value.root_folder,

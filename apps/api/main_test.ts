@@ -4445,6 +4445,7 @@ const testTenraiLayer = Layer.succeed(
   TenraiClient.of({
     getAnimeByMalId: () => Effect.succeed(Option.none()),
     getSeasonalAnime: () => Effect.succeed([]),
+    searchAnime: () => Effect.succeed([]),
   }),
 );
 

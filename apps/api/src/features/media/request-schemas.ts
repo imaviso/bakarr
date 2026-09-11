@@ -11,6 +11,7 @@ import {
 import { AbsoluteFilesystemPathStringSchema } from "@/infra/http/common-request-schemas.ts";
 import {
   MediaSeasonSchema,
+  MediaIdSpaceSchema,
   MediaKindSchema,
   OperationTaskKeySchema,
 } from "@packages/shared/index.ts";
@@ -60,6 +61,7 @@ export class BulkUnitMappingsBodySchema extends Schema.Class<BulkUnitMappingsBod
 export class SearchMediaQuerySchema extends Schema.Class<SearchMediaQuerySchema>(
   "SearchMediaQuerySchema",
 )({
+  id_space: Schema.optional(MediaIdSpaceSchema),
   media_kind: Schema.optional(MediaKindSchema),
   q: Schema.optional(MediaSearchQueryStringSchema),
 }) {}

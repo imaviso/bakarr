@@ -17,7 +17,7 @@ const AnimeMetadataJsonSchema = Schema.fromJsonString(AnimeMetadataSchema);
 const decodeAnimeMetadata = Schema.decodeUnknownEffect(AnimeMetadataJsonSchema);
 const encodeAnimeMetadata = Schema.encodeUnknownEffect(AnimeMetadataJsonSchema);
 
-export type AnimeDetailOrigin = "live" | "stale";
+export type AnimeDetailOrigin = "live" | "stale" | "tenrai";
 
 export interface CachedAnimeDetail {
   readonly data: AnimeMetadata;

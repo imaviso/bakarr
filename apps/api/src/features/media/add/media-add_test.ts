@@ -1,4 +1,4 @@
-import { Effect, Layer, Schema, Stream } from "effect";
+import { Cause, Effect, Exit, Layer, Schema, Stream } from "effect";
 import type * as NodeSqliteClient from "@effect/sql-sqlite-node/SqliteClient";
 import { assert, it } from "@effect/vitest";
 import { eq } from "drizzle-orm";
@@ -194,6 +194,73 @@ it.effect("MediaEnrollmentService.enroll infers light novel media kind when requ
         );
         assert(row);
         assert.deepStrictEqual(row.mediaKind, "light_novel");
+      }),
+    schema,
+  }),
+);
+
+it.effect("MediaEnrollmentService.enroll conflicts when canonical MAL id already exists", () =>
+  withSqliteTestDbEffect({
+    run: (db, _databaseFile, client, _exec) =>
+      Effect.gen(function* () {
+        const appDb: AppDatabase = db;
+
+        yield* insertQualityProfileEffect(appDb, _exec, "Default");
+
+        // Requested as AniList 7007, canonicalizes to MAL 777.
+        const metadata: AnimeMetadata = {
+          ...makeMetadata(777),
+          malId: 777,
+        };
+
+        const animeInput = yield* Schema.decodeUnknownEffect(AddMediaInput)({
+          id: 7007,
+          monitor_and_search: false,
+          monitored: true,
+          profile_name: "Default",
+          release_profile_ids: [],
+          root_folder: "/library/Canonical Conflict",
+          use_existing_root: true,
+        });
+
+        const layer = makeEnrollmentLayer(appDb, client, {
+          metadataProvider: MediaMetadataProviderService.of({
+            getAnimeMetadataById: () =>
+              Effect.succeed({
+                _tag: "Found",
+                detailOrigin: "tenrai",
+                enrichment: {
+                  _tag: "Degraded",
+                  reason: { _tag: "AniDbNoEpisodeMetadata" },
+                },
+                metadata,
+              }),
+            getSeasonalAnime: () => Effect.die(new Error("not used in test")),
+            searchMedia: () => Effect.die(new Error("not used in test")),
+          }),
+          imageCacheService: MediaImageCacheService.of({
+            cacheMetadataImages: () => Effect.succeed({}),
+          }),
+          eventBus: EventBus.of({
+            publish: () => Effect.void,
+            publishInfo: () => Effect.void,
+            withSubscriptionStream: () => Stream.die(new Error("not used in test")),
+          }),
+        });
+
+        const service = yield* MediaEnrollmentService.pipe(Effect.provide(layer));
+        yield* service.enroll(animeInput);
+
+        const second = yield* Effect.exit(service.enroll(animeInput));
+
+        assert.deepStrictEqual(Exit.isFailure(second), true);
+        if (Exit.isFailure(second)) {
+          const failure = Cause.findErrorOption(second.cause);
+          assert.deepStrictEqual(failure._tag, "Some");
+          if (failure._tag === "Some") {
+            assert.deepStrictEqual(failure.value._tag, "MediaConflictError");
+          }
+        }
       }),
     schema,
   }),

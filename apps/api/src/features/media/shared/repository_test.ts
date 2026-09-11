@@ -1,6 +1,6 @@
 // oxlint-disable oxc/no-async-await -- async/await required by transaction callbacks, test callbacks, and tryPromise wrappers
 
-import { Cause, Effect, Exit } from "effect";
+import { Cause, Effect, Exit, Option } from "effect";
 import { assert, it } from "@effect/vitest";
 import { eq } from "drizzle-orm";
 import { brandMediaId } from "@packages/shared/index.ts";
@@ -579,6 +579,96 @@ it.effect("markSearchResultsAlreadyInLibrary annotates local matches", () =>
 
         assert.deepStrictEqual(results[0]?.already_in_library, true);
         assert.deepStrictEqual(results[1]?.already_in_library, false);
+      }),
+    schema,
+  }),
+);
+
+it.effect("markSearchResultsAlreadyInLibrary matches MAL ids across id spaces", () =>
+  withSqliteTestDbEffect({
+    run: (db, _databaseFile, client, exec) =>
+      Effect.gen(function* () {
+        // Legacy AniList-space row carrying its MAL id.
+        yield* exec.runQuery(
+          "Failed to insert test anime",
+          db
+            .insert(media)
+            .values({
+              id: 7007,
+              malId: 777,
+              titleRomaji: "Show 7007",
+              titleEnglish: null,
+              titleNative: null,
+              format: "TV",
+              description: null,
+              score: null,
+              genres: "[]",
+              studios: "[]",
+              coverImage: null,
+              bannerImage: null,
+              status: "RELEASING",
+              unitCount: 12,
+              startDate: null,
+              endDate: null,
+              startYear: null,
+              endYear: null,
+              nextAiringAt: null,
+              nextAiringUnit: null,
+              profileName: "Default",
+              rootFolder: "/library/Show-7007",
+              addedAt: "2024-01-01T00:00:00.000Z",
+              monitored: true,
+              releaseProfileIds: "[]",
+            })
+            .prepare()
+            .effect(),
+        );
+
+        const results = yield* markSearchResultsAlreadyInLibraryEffect(
+          makeMediaRepository(db, client),
+          [
+            {
+              already_in_library: false,
+              id: brandMediaId(777),
+              title: { romaji: "MAL-space result" },
+            },
+            {
+              already_in_library: false,
+              id: brandMediaId(7007),
+              title: { romaji: "AniList-space result" },
+            },
+            {
+              already_in_library: false,
+              id: brandMediaId(4242),
+              title: { romaji: "Missing result" },
+            },
+          ],
+        );
+
+        assert.deepStrictEqual(results[0]?.already_in_library, true);
+        assert.deepStrictEqual(results[1]?.already_in_library, true);
+        assert.deepStrictEqual(results[2]?.already_in_library, false);
+      }),
+    schema,
+  }),
+);
+
+it.effect("findMediaIdByMalId resolves library rows by MAL id", () =>
+  withSqliteTestDbEffect({
+    run: (db, _databaseFile, client, exec) =>
+      Effect.gen(function* () {
+        yield* insertMediaEffect(db, exec, 20, 12);
+
+        const repository = makeMediaRepository(db, client);
+
+        assert.deepStrictEqual(yield* repository.findMediaIdByMalId(999), Option.none());
+
+        yield* exec.runQuery(
+          "Failed to set MAL id",
+          db.update(media).set({ malId: 777 }).where(eq(media.id, 20)).prepare().effect(),
+        );
+
+        assert.deepStrictEqual(yield* repository.findMediaIdByMalId(777), Option.some(20));
       }),
     schema,
   }),

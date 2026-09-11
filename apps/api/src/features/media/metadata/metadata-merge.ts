@@ -1,5 +1,6 @@
 import { brandMediaId, type MediaDiscoveryEntry } from "@packages/shared/index.ts";
 import type { AnimeMetadata } from "@/features/media/metadata/metadata-model.ts";
+import { scaleTenraiScoreToAniList } from "@/features/media/metadata/tenrai-model.ts";
 import type { TenraiNormalizedAnime } from "@/features/media/metadata/tenrai-model.ts";
 import { extractYearFromDate } from "@/features/media/shared/date-utils.ts";
 
@@ -106,15 +107,6 @@ export function mergeScore(anilistScore?: number, tenraiScore?: number) {
   }
 
   return scaleTenraiScoreToAniList(tenraiScore);
-}
-
-export function scaleTenraiScoreToAniList(tenraiScore?: number) {
-  if (tenraiScore === undefined) {
-    return undefined;
-  }
-
-  const scaled = Math.round(tenraiScore * 10);
-  return clampInteger(scaled, 1, 100);
 }
 
 export function convertTenraiRelationsToDiscoveryEntries(
@@ -265,8 +257,4 @@ function normalizeString(value: string | null | undefined) {
 
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : undefined;
-}
-
-function clampInteger(value: number, min: number, max: number) {
-  return Math.min(max, Math.max(min, value));
 }

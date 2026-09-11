@@ -1,6 +1,6 @@
 import { Schema } from "effect";
 
-import { MediaDiscoveryEntrySchema } from "@packages/shared/index.ts";
+import { MediaDiscoveryEntrySchema, MediaIdSpaceSchema } from "@packages/shared/index.ts";
 
 const AnimeMetadataTitleSchema = Schema.Struct({
   english: Schema.optional(Schema.NullishOr(Schema.String)),
@@ -79,6 +79,7 @@ const ProviderMediaSearchResultTitleSchema = Schema.Struct({
 
 export const ProviderMediaSearchResultSchema = Schema.Struct({
   id: AnimePositiveIntSchema,
+  id_space: Schema.optional(Schema.NullishOr(MediaIdSpaceSchema)),
   media_kind: Schema.optional(Schema.NullishOr(Schema.Literals(["anime", "manga", "light_novel"]))),
   title: ProviderMediaSearchResultTitleSchema,
   format: Schema.optional(Schema.NullishOr(Schema.String)),

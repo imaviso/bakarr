@@ -20,6 +20,35 @@ it("AddMediaInput decodes valid payload", () => {
   }
 });
 
+it("AddMediaInput decodes id_space", () => {
+  const result = Schema.decodeUnknownResult(AddMediaInput)({
+    id: 42,
+    id_space: "mal",
+    monitor_and_search: true,
+    monitored: true,
+    profile_name: "Default",
+    release_profile_ids: [],
+    root_folder: "/library/Media",
+  });
+  assert.ok(result._tag === "Success");
+  if (result._tag === "Success") {
+    assert.deepStrictEqual(result.success.id_space, "mal");
+  }
+});
+
+it("AddMediaInput rejects unknown id_space", () => {
+  const result = Schema.decodeUnknownResult(AddMediaInput)({
+    id: 42,
+    id_space: "tvdb",
+    monitor_and_search: true,
+    monitored: true,
+    profile_name: "Default",
+    release_profile_ids: [],
+    root_folder: "/lib",
+  });
+  assert.deepStrictEqual(result._tag, "Failure");
+});
+
 it("AddMediaInput rejects negative ids", () => {
   const result = Schema.decodeUnknownResult(AddMediaInput)({
     id: -1,

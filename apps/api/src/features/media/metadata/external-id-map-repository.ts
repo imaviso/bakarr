@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, or } from "drizzle-orm";
 import { Context, Effect, Layer, Option } from "effect";
 import * as NodeSqliteClient from "@effect/sql-sqlite-node/SqliteClient";
 
@@ -24,6 +24,12 @@ export interface ExternalIdMapRepositoryShape {
   ) => Effect.Effect<Option.Option<ExternalIdMapping>, DatabaseError>;
   readonly loadByAnidbAid: (
     anidbAid: number,
+  ) => Effect.Effect<Option.Option<ExternalIdMapping>, DatabaseError>;
+  // Dual-space lookup: one query matching either side. Callers disambiguate
+  // via the row (row.anilistId === id → AniList side, else MAL side) instead
+  // of maintaining separate check-anilist-then-mal copies.
+  readonly loadByEitherId: (
+    id: number,
   ) => Effect.Effect<Option.Option<ExternalIdMapping>, DatabaseError>;
   readonly deleteByAniListId: (anilistId: number) => Effect.Effect<void, DatabaseError>;
   readonly upsert: (input: {
@@ -58,6 +64,7 @@ export function makeExternalIdMapRepositoryShape(
   const exec = makeDbExecutor(sqlClient);
   return {
     loadByAniListId: (anilistId) => loadByAniListId(db, exec, anilistId),
+    loadByEitherId: (id) => loadByEitherId(db, exec, id),
     loadByMalId: (malId) => loadByMalId(db, exec, malId),
     loadByAnidbAid: (anidbAid) => loadByAnidbAid(db, exec, anidbAid),
     deleteByAniListId: (anilistId) =>
@@ -150,6 +157,33 @@ const loadByAnidbAid = Effect.fn("ExternalIdMapRepository.loadByAnidbAid")(funct
   );
 
   const row = rows[0];
+  return row === undefined ? Option.none<ExternalIdMapping>() : Option.some(toMapping(row));
+});
+
+const loadByEitherId = Effect.fn("ExternalIdMapRepository.loadByEitherId")(function* (
+  db: AppDatabase,
+  exec: DbExecutor,
+  id: number,
+) {
+  const rows = yield* exec.runQuery(
+    "Failed to load external id mapping",
+    db
+      .select({
+        anilistId: externalIdMap.anilistId,
+        malId: externalIdMap.malId,
+        anidbAid: externalIdMap.anidbAid,
+        updatedAt: externalIdMap.updatedAt,
+      })
+      .from(externalIdMap)
+      .where(or(eq(externalIdMap.anilistId, id), eq(externalIdMap.malId, id)))
+      .limit(2)
+      .prepare()
+      .effect(),
+  );
+
+  // Prefer the AniList-side row when both sides numerically collide across rows.
+  const anilistSide = rows.find((row) => row.anilistId === id);
+  const row = anilistSide ?? rows[0];
   return row === undefined ? Option.none<ExternalIdMapping>() : Option.some(toMapping(row));
 });
 

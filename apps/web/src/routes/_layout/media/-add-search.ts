@@ -56,6 +56,7 @@ const MediaKindSchema = Schema.String.pipe(
 
 export const addAnimeSearchSchema = Schema.Struct({
   id: Schema.optionalKey(IdSchema),
+  id_space: Schema.optionalKey(Schema.Literals(["anilist", "mal"])),
   media_kind: Schema.optionalKey(MediaKindSchema),
   q: Schema.optionalKey(Schema.String),
   tab: Schema.optionalKey(TabSchema),

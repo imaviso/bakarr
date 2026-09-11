@@ -6,7 +6,7 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import type { Media, MediaKind, MediaSeason } from "./contracts";
+import type { Media, MediaIdSpace, MediaKind, MediaSeason } from "./contracts";
 import {
   MediaListResponseSchema,
   MediaSchema,
@@ -215,14 +215,21 @@ export function useNyaaSearchQuery(
   });
 }
 
-export function mediaByAnilistIdQueryOptions(id: number, mediaKind: MediaKind = "anime") {
+export function mediaByAnilistIdQueryOptions(
+  id: number,
+  mediaKind: MediaKind = "anime",
+  idSpace?: MediaIdSpace,
+) {
   return queryOptions({
-    queryKey: animeKeys.anilist(id, mediaKind),
+    queryKey: animeKeys.anilist(id, mediaKind, idSpace),
     queryFn: ({ signal }) =>
       runApiEffect(
         fetchJson(
           MediaSearchResultSchema,
-          apiUrl(`/media/anilist/${id}`, { media_kind: mediaKind }),
+          apiUrl(`/media/anilist/${id}`, {
+            ...(idSpace === undefined ? {} : { id_space: idSpace }),
+            media_kind: mediaKind,
+          }),
           undefined,
           signal,
         ),

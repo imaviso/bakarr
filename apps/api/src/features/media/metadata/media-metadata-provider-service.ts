@@ -1,5 +1,6 @@
 import {
   brandMediaId,
+  type MediaIdSpace,
   type MediaKind,
   type MediaSearchResult,
   type MediaSeason,
@@ -17,12 +18,16 @@ import type { StoredDataError } from "@/features/errors.ts";
 import type { AniDbRuntimeConfigError } from "@/features/media/errors.ts";
 import { TenraiClient } from "@/features/media/metadata/tenrai.ts";
 import type { TenraiNormalizedAnime } from "@/features/media/metadata/tenrai-model.ts";
-import type { TenraiNormalizedSeasonalEntry } from "@/features/media/metadata/tenrai-model.ts";
 import { mergeAnimeMetadata } from "@/features/media/metadata/metadata-merge.ts";
+import {
+  tenraiAnimeToMetadata,
+  tenraiSeasonalEntryToSearchResult,
+} from "@/features/media/metadata/tenrai-model.ts";
 import { mediaKindFromAniListFormat } from "@/features/media/shared/media-kind.ts";
 import type { ExternalCallError } from "@/infra/effect/retry.ts";
 import { AniListDetailCacheRepository } from "@/features/media/metadata/anilist-detail-cache-repository.ts";
 import { ExternalIdMapRepository } from "@/features/media/metadata/external-id-map-repository.ts";
+import type { ExternalIdMapping } from "@/features/media/metadata/external-id-map-repository.ts";
 import type {
   AnimeDetailOrigin,
   CachedAnimeDetail,
@@ -48,22 +53,49 @@ export interface MediaSeasonalResult {
 export const searchMediaWithFallback = Effect.fn("MediaMetadata.searchMediaWithFallback")(
   function* (input: {
     aniList: Pick<typeof AniListClient.Service, "searchAnimeMetadata">;
+    tenrai: Pick<typeof TenraiClient.Service, "searchAnime">;
     query: string;
     mediaKind: MediaKind;
   }) {
-    const results = yield* input.aniList.searchAnimeMetadata(input.query, input.mediaKind);
+    const anilistAttempt = yield* input.aniList
+      .searchAnimeMetadata(input.query, input.mediaKind)
+      .pipe(Effect.result);
+
+    if (anilistAttempt._tag === "Success") {
+      return {
+        degraded: false,
+        results: anilistAttempt.success.map(toMediaSearchResult),
+      };
+    }
+
+    if (!shouldFallbackToSearch(anilistAttempt.failure)) {
+      return yield* anilistAttempt.failure;
+    }
+
+    yield* Effect.logWarning("AniList search failed; using Tenrai fallback").pipe(
+      Effect.annotateLogs({
+        causeTag: anilistAttempt.failure._tag,
+        operation: anilistAttempt.failure.operation,
+        query: input.query,
+      }),
+    );
+
+    // MAL IDs are canonical in Tenrai-served results; detail lookup resolves
+    // either ID space back to one metadata record.
+    const entries = yield* input.tenrai.searchAnime(input.query, 10);
 
     return {
-      degraded: false,
-      results: results.map(toMediaSearchResult),
+      degraded: true,
+      results: entries.map((entry) =>
+        toMediaSearchResult(tenraiSeasonalEntryToSearchResult(entry)),
+      ),
     };
   },
 );
 
 export const seasonalWithFallback = Effect.fn("MediaMetadata.seasonalWithFallback")(
   function* (input: {
-    aniList: Pick<typeof AniListClient.Service, "getSeasonalAnime" | "resolveAniListIdFromMalId">;
-    idMap: Pick<typeof ExternalIdMapRepository.Service, "loadByMalId" | "upsert">;
+    aniList: Pick<typeof AniListClient.Service, "getSeasonalAnime">;
     tenrai: Pick<typeof TenraiClient.Service, "getSeasonalAnime">;
     season: MediaSeason;
     year: number;
@@ -110,38 +142,15 @@ export const seasonalWithFallback = Effect.fn("MediaMetadata.seasonalWithFallbac
       year: input.year,
     });
 
-    // A 429 means AniList is shedding our load: resolve from the local map
-    // only instead of firing up to `limit` more upstream queries at it.
-    const rateLimited = anilistAttempt.failure.status === 429;
-
-    if (rateLimited) {
-      yield* Effect.logWarning("AniList rate limited; resolving seasonal ids from local map").pipe(
-        Effect.annotateLogs({ season: input.season, year: input.year }),
-      );
-    }
-
-    const remote: MalIdResolver = rateLimited
-      ? { resolveAniListIdFromMalId: () => Effect.succeed(Option.none()) }
-      : input.aniList;
-
-    const mappedEntries = yield* Effect.forEach(tenraiEntries, (entry) =>
-      resolveAniListIdFromMalId(input.idMap, remote, entry.malId).pipe(
-        Effect.map((anilistIdOption): [typeof entry, Option.Option<number>] => [
-          entry,
-          anilistIdOption,
-        ]),
+    // MAL IDs are canonical in Tenrai-served results; detail lookup resolves
+    // either ID space back to one metadata record, so no AniList mapping
+    // filter here — dropping unmapped entries is what emptied discovery
+    // during outages.
+    const results = tenraiEntries.map((entry) =>
+      toMediaSearchResult(
+        tenraiSeasonalEntryToSearchResult(entry, { season: input.season, year: input.year }),
       ),
     );
-
-    const results: Array<MediaSearchResult> = [];
-
-    for (const [entry, anilistIdOption] of mappedEntries) {
-      if (Option.isSome(anilistIdOption)) {
-        results.push(
-          mapTenraiEntryToSearchResult(entry, anilistIdOption.value, input.season, input.year),
-        );
-      }
-    }
 
     return {
       degraded: true,
@@ -154,41 +163,13 @@ export const seasonalWithFallback = Effect.fn("MediaMetadata.seasonalWithFallbac
   },
 );
 
-function toAnimeSeason(value: string | undefined): MediaSeason | undefined {
-  if (value === "winter" || value === "spring" || value === "summer" || value === "fall") {
-    return value;
-  }
-
-  return undefined;
-}
-
-function mapTenraiEntryToSearchResult(
-  entry: TenraiNormalizedSeasonalEntry,
-  anilistId: number,
-  fallbackSeason: MediaSeason,
-  fallbackYear: number,
-): MediaSearchResult {
-  const season = toAnimeSeason(entry.season) ?? fallbackSeason;
-  const seasonYear = entry.seasonYear ?? fallbackYear;
-  const startYear = entry.startYear ?? seasonYear;
-
-  return {
-    already_in_library: false,
-    cover_image: entry.coverImage,
-    unit_count: entry.unitCount,
-    format: entry.format,
-    genres: entry.genres ? [...entry.genres] : undefined,
-    id: brandMediaId(anilistId),
-    season,
-    season_year: seasonYear,
-    start_year: startYear,
-    status: entry.status,
-    title: {
-      english: entry.title.english,
-      native: entry.title.native,
-      romaji: entry.title.romaji,
-    },
-  };
+// Fallback predicates cover transport/upstream failures only, deliberately:
+// - `*.request` is a local request-encode bug — deterministic, retry pointless.
+// - `*.ratelimit.config` is a local config failure — loud, not upstream.
+// - `*.normalize` is upstream schema drift — loud so decoders get fixed.
+// Detail lookups have their own stale-cache path for the same cases.
+function shouldFallbackToSearch(error: ExternalCallError) {
+  return error.operation === "anilist.search" || error.operation === "anilist.search.response";
 }
 
 function shouldFallbackToTenrai(error: ExternalCallError) {
@@ -288,6 +269,7 @@ export interface MediaMetadataProviderServiceShape {
   readonly getAnimeMetadataById: (
     id: number,
     mediaKind?: MediaKind,
+    idSpace?: MediaIdSpace,
   ) => Effect.Effect<MediaMetadataLookupResult, AnimeMetadataLookupError>;
   readonly getSeasonalAnime: (input: {
     season: MediaSeason;
@@ -316,92 +298,25 @@ const makeMediaMetadataProviderService = Effect.fn("MediaMetadataProviderService
     const detailCache = yield* AniListDetailCacheRepository;
 
     const getAnimeMetadataById = Effect.fn("MediaMetadataProviderService.getAnimeMetadataById")(
-      function* (id: number, mediaKind?: MediaKind) {
-        const metadata = yield* getCachedOrRemoteDetail({
-          aniList,
-          detailCache,
-          id,
-          mediaKind,
-        });
+      function* (id: number, mediaKind?: MediaKind, idSpace?: MediaIdSpace) {
+        // One number, two spaces: the map disambiguates known ids, the caller
+        // declares the space for fresh search-result ids, and anything else
+        // bootstraps via AniList (whose idMal is the exact MAL bridge). No
+        // provider is ever queried with a number from the other space.
+        const known = yield* loadKnownMapping(idMap, id);
+        const space =
+          idSpace ??
+          (Option.isSome(known) ? (known.value.anilistId === id ? "anilist" : "mal") : undefined);
 
-        if (Option.isNone(metadata)) {
-          return { _tag: "NotFound" } satisfies MediaMetadataLookupResult;
+        if (space === "mal") {
+          return yield* malSpaceLookup({ id, known, mediaKind });
         }
 
-        const baseMetadata = metadata.value.data;
-        const detailOrigin: AnimeDetailOrigin = metadata.value.origin;
-        const effectiveMediaKind = mediaKind ?? mediaKindFromAniListFormat(baseMetadata.format);
-        if (effectiveMediaKind !== "anime") {
-          return {
-            _tag: "Found",
-            detailOrigin,
-            enrichment: {
-              _tag: "Degraded",
-              reason: { _tag: "AniDbNoEpisodeMetadata" },
-            },
-            metadata: baseMetadata,
-          } satisfies MediaMetadataLookupResult;
+        if (space === "anilist") {
+          return yield* anilistSpaceLookup({ id, known, mediaKind });
         }
 
-        const effectiveMalId = Option.fromNullishOr(baseMetadata.malId);
-
-        const tenraiMetadata = Option.isSome(effectiveMalId)
-          ? yield* optionalExternalMetadataLookup(tenrai.getAnimeByMalId(effectiveMalId.value), {
-              lookup: "getAnimeByMalId",
-              malId: effectiveMalId.value,
-              mediaId: baseMetadata.id,
-              provider: "Tenrai",
-            })
-          : Option.none<TenraiNormalizedAnime>();
-        const malToAniListId = yield* resolveMalToAniListIdMap(tenraiMetadata, idMap, aniList);
-        const mergedMetadata = mergeAnimeMetadata({
-          anilist: baseMetadata,
-          ...(Option.isSome(tenraiMetadata) ? { tenrai: tenraiMetadata.value } : {}),
-          ...(malToAniListId === undefined ? {} : { malToAniListId }),
-        });
-
-        if (Option.isSome(effectiveMalId)) {
-          yield* idMap.upsert({ anilistId: baseMetadata.id, malId: effectiveMalId.value }).pipe(
-            Effect.catch((error) =>
-              Effect.logWarning("External id map store degraded").pipe(
-                Effect.annotateLogs({
-                  anilistId: baseMetadata.id,
-                  error: error.message,
-                  malId: effectiveMalId.value,
-                }),
-              ),
-            ),
-          );
-        }
-
-        const cacheState = yield* enrichmentService.getAniDbCacheState(mergedMetadata.id);
-
-        if (cacheState._tag === "Fresh") {
-          return yield* toFreshLookupResult(mergedMetadata, cacheState, detailOrigin);
-        }
-
-        yield* enrichmentService.requestAniDbRefresh({
-          mediaId: mergedMetadata.id,
-          unitCount: mergedMetadata.unitCount,
-          synonyms: mergedMetadata.synonyms,
-          title: mergedMetadata.title,
-        });
-
-        const result: MediaMetadataLookupResult = {
-          _tag: "Found",
-          detailOrigin,
-          enrichment: {
-            _tag: "Degraded",
-            reason: {
-              _tag: "AniDbRefreshPending",
-              cacheState: cacheState._tag === "Missing" ? "missing" : "stale",
-            },
-          },
-          metadata: mergedMetadata,
-        };
-
-        yield* logEnrichmentResult(mergedMetadata.id, result.enrichment);
-        return result;
+        return yield* unknownSpaceLookup({ id, mediaKind });
       },
     );
 
@@ -409,7 +324,6 @@ const makeMediaMetadataProviderService = Effect.fn("MediaMetadataProviderService
       function* (input: { season: MediaSeason; year: number; limit: number; page: number }) {
         return yield* seasonalWithFallback({
           aniList,
-          idMap,
           tenrai,
           ...input,
         });
@@ -424,8 +338,370 @@ const makeMediaMetadataProviderService = Effect.fn("MediaMetadataProviderService
         aniList,
         mediaKind: mediaKind ?? "anime",
         query,
+        tenrai,
       });
     });
+
+    const anilistSpaceLookup = Effect.fn("MediaMetadataProviderService.anilistSpaceLookup")(
+      function* (input: {
+        id: number;
+        known: Option.Option<ExternalIdMapping>;
+        mediaKind: MediaKind | undefined;
+      }) {
+        // Counterpart MAL only from an AniList-side row; a MAL-side row with
+        // the same number is a different show, never reuse it.
+        const rowMalId =
+          Option.isSome(input.known) && input.known.value.anilistId === input.id
+            ? input.known.value.malId
+            : undefined;
+
+        const anilistAttempt = yield* getCachedOrRemoteDetail({
+          aniList,
+          detailCache,
+          id: input.id,
+          mediaKind: input.mediaKind,
+        }).pipe(Effect.result);
+
+        let tenraiMetadata: Option.Option<TenraiNormalizedAnime> = Option.none();
+        let tenraiFailure: ExternalCallError | undefined;
+
+        if (rowMalId !== undefined) {
+          const tenraiAttempt = yield* tenrai.getAnimeByMalId(rowMalId).pipe(Effect.result);
+
+          if (tenraiAttempt._tag === "Failure") {
+            tenraiFailure = tenraiAttempt.failure;
+          } else {
+            tenraiMetadata = tenraiAttempt.success;
+          }
+        }
+
+        if (anilistAttempt._tag === "Failure") {
+          // AniList is primary here: Tenrai-only serves when the MAL side is
+          // map-known, otherwise the failure surfaces (never guess a MAL id).
+          if (rowMalId !== undefined && Option.isSome(tenraiMetadata)) {
+            return yield* finishTenraiOnlyLookup(tenraiMetadata.value, input.mediaKind, MAP_ONLY);
+          }
+
+          if (tenraiFailure !== undefined) {
+            return yield* tenraiFailure;
+          }
+
+          return yield* anilistAttempt.failure;
+        }
+
+        if (Option.isNone(anilistAttempt.success)) {
+          return { _tag: "NotFound" } satisfies MediaMetadataLookupResult;
+        }
+
+        const detail = anilistAttempt.success.value;
+
+        // AniList hits may carry an idMal the map did not know yet: one
+        // follow-up Tenrai lookup so synopsis/relations still merge.
+        if (Option.isNone(tenraiMetadata) && detail.data.malId !== undefined) {
+          tenraiMetadata = yield* optionalExternalMetadataLookup(
+            tenrai.getAnimeByMalId(detail.data.malId),
+            {
+              lookup: "getAnimeByMalId",
+              malId: detail.data.malId,
+              mediaId: input.id,
+              provider: "Tenrai",
+            },
+          );
+        }
+
+        const matched = matchTenraiToMalId(tenraiMetadata, detail.data.malId);
+
+        if (Option.isSome(tenraiMetadata) && Option.isNone(matched)) {
+          yield* Effect.logWarning("Tenrai record mismatches AniList; dropping enrichment").pipe(
+            Effect.annotateLogs({
+              anilistId: input.id,
+              anilistMalId: detail.data.malId,
+              tenraiMalId: tenraiMetadata.value.malId,
+            }),
+          );
+        }
+
+        return yield* finishAnilistBaseLookup({
+          baseMetadata: detail.data,
+          detailOrigin: detail.origin,
+          mediaKind: input.mediaKind,
+          remote: aniList,
+          skipUpsert: Option.isSome(tenraiMetadata) && Option.isNone(matched),
+          tenraiMetadata: matched,
+        });
+      },
+    );
+
+    const malSpaceLookup = Effect.fn("MediaMetadataProviderService.malSpaceLookup")(
+      function* (input: {
+        id: number;
+        known: Option.Option<ExternalIdMapping>;
+        mediaKind: MediaKind | undefined;
+      }) {
+        // AniList counterpart only from a MAL-side row; an AniList-side row
+        // with the same number is a different show, never reuse it.
+        const rowAnilistId =
+          Option.isSome(input.known) && input.known.value.malId === input.id
+            ? input.known.value.anilistId
+            : undefined;
+
+        const tenraiAttempt = yield* tenrai.getAnimeByMalId(input.id).pipe(Effect.result);
+
+        let anilistDetail: Option.Option<CachedAnimeDetail> = Option.none();
+        let anilistFailure: ExternalCallError | DatabaseError | undefined;
+
+        if (rowAnilistId !== undefined) {
+          const anilistAttempt = yield* getCachedOrRemoteDetail({
+            aniList,
+            detailCache,
+            id: rowAnilistId,
+            mediaKind: input.mediaKind,
+          }).pipe(Effect.result);
+
+          if (anilistAttempt._tag === "Failure") {
+            anilistFailure = anilistAttempt.failure;
+          } else {
+            anilistDetail = anilistAttempt.success;
+          }
+        }
+
+        // A stale row can point at an AniList record for another show: the
+        // row's MAL id wins, the AniList side is dropped, never merged.
+        if (Option.isSome(anilistDetail)) {
+          const claimed = anilistDetail.value.data.malId;
+
+          if (claimed !== undefined && claimed !== input.id) {
+            yield* Effect.logWarning(
+              "AniList detail disagrees with MAL mapping; using Tenrai",
+            ).pipe(
+              Effect.annotateLogs({
+                anilistId: rowAnilistId,
+                anilistMalId: claimed,
+                malId: input.id,
+              }),
+            );
+            anilistDetail = Option.none();
+          }
+        }
+
+        if (Option.isSome(anilistDetail)) {
+          const detail = anilistDetail.value;
+          const tenraiMetadata =
+            tenraiAttempt._tag === "Success"
+              ? tenraiAttempt.success
+              : Option.none<TenraiNormalizedAnime>();
+
+          return yield* finishAnilistBaseLookup({
+            baseMetadata: detail.data,
+            detailOrigin: detail.origin,
+            mediaKind: input.mediaKind,
+            remote: aniList,
+            skipUpsert: false,
+            tenraiMetadata,
+          });
+        }
+
+        const tenraiOnly =
+          tenraiAttempt._tag === "Success"
+            ? Option.getOrUndefined(tenraiAttempt.success)
+            : undefined;
+
+        if (tenraiOnly !== undefined) {
+          // Relations resolve upstream only when AniList answered; otherwise
+          // learned rows only, never doomed upstream resolves while down.
+          const remote =
+            rowAnilistId !== undefined && anilistFailure === undefined ? aniList : MAP_ONLY;
+          return yield* finishTenraiOnlyLookup(tenraiOnly, input.mediaKind, remote);
+        }
+
+        if (tenraiAttempt._tag === "Failure") {
+          return yield* tenraiAttempt.failure;
+        }
+
+        if (anilistFailure !== undefined) {
+          return yield* anilistFailure;
+        }
+
+        return { _tag: "NotFound" } satisfies MediaMetadataLookupResult;
+      },
+    );
+
+    const unknownSpaceLookup = Effect.fn("MediaMetadataProviderService.unknownSpaceLookup")(
+      function* (input: { id: number; mediaKind: MediaKind | undefined }) {
+        // Bootstrap via AniList only; its idMal is the exact bridge to Tenrai.
+        // Tenrai is never probed with the raw number here: without a trusted
+        // MAL id that probe returns a different show, not a fallback.
+        const anilistAttempt = yield* getCachedOrRemoteDetail({
+          aniList,
+          detailCache,
+          id: input.id,
+          mediaKind: input.mediaKind,
+        }).pipe(Effect.result);
+
+        if (anilistAttempt._tag === "Failure") {
+          return yield* anilistAttempt.failure;
+        }
+
+        if (Option.isNone(anilistAttempt.success)) {
+          // Definitively no such AniList id, so the MAL reading is the only
+          // one left. Served without map writes: equivalence is unproven.
+          const tenraiMetadata = yield* optionalExternalMetadataLookup(
+            tenrai.getAnimeByMalId(input.id),
+            {
+              lookup: "getAnimeByMalId",
+              malId: input.id,
+              mediaId: input.id,
+              provider: "Tenrai",
+            },
+          );
+
+          const tenraiOnly = Option.getOrUndefined(tenraiMetadata);
+
+          if (tenraiOnly === undefined) {
+            return { _tag: "NotFound" } satisfies MediaMetadataLookupResult;
+          }
+
+          // AniList answered (no such id), so upstream relation resolution is fine.
+          return yield* finishTenraiOnlyLookup(tenraiOnly, input.mediaKind, aniList);
+        }
+
+        const detail = anilistAttempt.success.value;
+        let tenraiMetadata: Option.Option<TenraiNormalizedAnime> = Option.none();
+
+        if (detail.data.malId !== undefined) {
+          tenraiMetadata = yield* optionalExternalMetadataLookup(
+            tenrai.getAnimeByMalId(detail.data.malId),
+            {
+              lookup: "getAnimeByMalId",
+              malId: detail.data.malId,
+              mediaId: input.id,
+              provider: "Tenrai",
+            },
+          );
+        }
+
+        const matched = matchTenraiToMalId(tenraiMetadata, detail.data.malId);
+
+        if (Option.isSome(tenraiMetadata) && Option.isNone(matched)) {
+          yield* Effect.logWarning("Tenrai record mismatches AniList; dropping enrichment").pipe(
+            Effect.annotateLogs({
+              anilistId: input.id,
+              anilistMalId: detail.data.malId,
+              tenraiMalId: tenraiMetadata.value.malId,
+            }),
+          );
+        }
+
+        return yield* finishAnilistBaseLookup({
+          baseMetadata: detail.data,
+          detailOrigin: detail.origin,
+          mediaKind: input.mediaKind,
+          remote: aniList,
+          skipUpsert: Option.isSome(tenraiMetadata) && Option.isNone(matched),
+          tenraiMetadata: matched,
+        });
+      },
+    );
+
+    const finishAnilistBaseLookup = Effect.fn(
+      "MediaMetadataProviderService.finishAnilistBaseLookup",
+    )(function* (input: {
+      baseMetadata: AnimeMetadata;
+      detailOrigin: AnimeDetailOrigin;
+      mediaKind: MediaKind | undefined;
+      remote: MalIdResolver;
+      skipUpsert: boolean;
+      tenraiMetadata: Option.Option<TenraiNormalizedAnime>;
+    }) {
+      const effectiveMediaKind =
+        input.mediaKind ?? mediaKindFromAniListFormat(input.baseMetadata.format);
+      if (effectiveMediaKind !== "anime") {
+        return {
+          _tag: "Found",
+          detailOrigin: input.detailOrigin,
+          enrichment: {
+            _tag: "Degraded",
+            reason: { _tag: "AniDbNoEpisodeMetadata" },
+          },
+          metadata: input.baseMetadata,
+        } satisfies MediaMetadataLookupResult;
+      }
+
+      const malToAniListId = yield* resolveMalToAniListIdMap(
+        input.tenraiMetadata,
+        idMap,
+        input.remote,
+      );
+      const mergedMetadata = canonicalizeToMalId(
+        mergeAnimeMetadata({
+          anilist: input.baseMetadata,
+          ...(Option.isSome(input.tenraiMetadata) ? { tenrai: input.tenraiMetadata.value } : {}),
+          ...(malToAniListId === undefined ? {} : { malToAniListId }),
+        }),
+        input.tenraiMetadata,
+      );
+
+      // Mismatched (dropped) enrichment never persists its pairing: the map
+      // only learns exact idMal bridges and validated matches.
+      if (mergedMetadata.malId !== undefined && !input.skipUpsert) {
+        yield* idMap.upsert({ anilistId: input.baseMetadata.id, malId: mergedMetadata.malId }).pipe(
+          Effect.catch((error) =>
+            Effect.logWarning("External id map store degraded").pipe(
+              Effect.annotateLogs({
+                anilistId: input.baseMetadata.id,
+                error: error.message,
+                malId: mergedMetadata.malId,
+              }),
+            ),
+          ),
+        );
+      }
+
+      return yield* finishEnrichedLookup(enrichmentService, {
+        detailOrigin: input.detailOrigin,
+        metadata: mergedMetadata,
+      });
+    });
+
+    const finishTenraiOnlyLookup = Effect.fn("MediaMetadataProviderService.finishTenraiOnlyLookup")(
+      function* (
+        tenraiOnly: TenraiNormalizedAnime,
+        mediaKind: MediaKind | undefined,
+        remote: MalIdResolver,
+      ) {
+        const baseMetadata = tenraiAnimeToMetadata(tenraiOnly);
+        const effectiveMediaKind = mediaKind ?? mediaKindFromAniListFormat(baseMetadata.format);
+        if (effectiveMediaKind !== "anime") {
+          return {
+            _tag: "Found",
+            detailOrigin: "tenrai",
+            enrichment: {
+              _tag: "Degraded",
+              reason: { _tag: "AniDbNoEpisodeMetadata" },
+            },
+            metadata: baseMetadata,
+          } satisfies MediaMetadataLookupResult;
+        }
+
+        // Relations resolve against AniList when alive; failures degrade to
+        // omission so a down AniList never fails Tenrai-served detail.
+        const malToAniListId = yield* resolveMalToAniListIdMap(
+          Option.some(tenraiOnly),
+          idMap,
+          remote,
+        );
+        const mergedMetadata = mergeAnimeMetadata({
+          anilist: baseMetadata,
+          tenrai: tenraiOnly,
+          ...(malToAniListId === undefined ? {} : { malToAniListId }),
+        });
+
+        return yield* finishEnrichedLookup(enrichmentService, {
+          detailOrigin: "tenrai",
+          metadata: mergedMetadata,
+        });
+      },
+    );
 
     return {
       getAnimeMetadataById,
@@ -446,6 +722,93 @@ export class MediaMetadataProviderService extends Context.Service<
 }
 
 export const MediaMetadataProviderServiceLive = MediaMetadataProviderService.layer;
+
+// MAL IDs are canonical: Tenrai-served records already carry them, merged
+// records take Tenrai's malId first, then AniList's idMal.
+function canonicalizeToMalId(
+  metadata: AnimeMetadata,
+  tenrai: Option.Option<TenraiNormalizedAnime>,
+): AnimeMetadata {
+  const malId = (Option.isSome(tenrai) ? tenrai.value.malId : undefined) ?? metadata.malId;
+
+  if (malId === undefined) {
+    return metadata;
+  }
+
+  return { ...metadata, id: malId, malId };
+}
+
+// One number, two spaces: a single dual-side lookup disambiguates known ids.
+// Callers project the side they need instead of maintaining separate
+// check-anilist-then-mal copies.
+const loadKnownMapping = Effect.fn("MediaMetadata.loadKnownMapping")(function* (
+  idMap: Pick<typeof ExternalIdMapRepository.Service, "loadByEitherId">,
+  id: number,
+) {
+  return yield* idMap
+    .loadByEitherId(id)
+    .pipe(
+      Effect.catch((error) =>
+        Effect.logWarning("External id map lookup degraded").pipe(
+          Effect.annotateLogs({ error: error.message, mediaId: id }),
+          Effect.as(Option.none()),
+        ),
+      ),
+    );
+});
+
+// Cross-validation: the same number can name different shows in each space.
+// Keeps the Tenrai record only when it agrees with the trusted MAL id, so a
+// coincidental AniList hit can never chimera-merge an unrelated show.
+function matchTenraiToMalId(
+  tenrai: Option.Option<TenraiNormalizedAnime>,
+  trustedMalId: number | undefined,
+): Option.Option<TenraiNormalizedAnime> {
+  if (Option.isNone(tenrai) || trustedMalId === undefined) {
+    return tenrai;
+  }
+
+  return tenrai.value.malId === trustedMalId ? tenrai : Option.none();
+}
+
+const finishEnrichedLookup = Effect.fn("MediaMetadataProviderService.finishEnrichedLookup")(
+  function* (
+    enrichmentService: typeof MediaMetadataEnrichmentService.Service,
+    input: {
+      detailOrigin: AnimeDetailOrigin;
+      metadata: AnimeMetadata;
+    },
+  ) {
+    const cacheState = yield* enrichmentService.getAniDbCacheState(input.metadata.id);
+
+    if (cacheState._tag === "Fresh") {
+      return yield* toFreshLookupResult(input.metadata, cacheState, input.detailOrigin);
+    }
+
+    yield* enrichmentService.requestAniDbRefresh({
+      mediaId: input.metadata.id,
+      unitCount: input.metadata.unitCount,
+      synonyms: input.metadata.synonyms,
+      title: input.metadata.title,
+    });
+
+    const result: MediaMetadataLookupResult = {
+      _tag: "Found",
+      detailOrigin: input.detailOrigin,
+      enrichment: {
+        _tag: "Degraded",
+        reason: {
+          _tag: "AniDbRefreshPending",
+          cacheState: cacheState._tag === "Missing" ? "missing" : "stale",
+        },
+      },
+      metadata: input.metadata,
+    };
+
+    yield* logEnrichmentResult(input.metadata.id, result.enrichment);
+    return result;
+  },
+);
 
 const toFreshLookupResult = Effect.fn("MediaMetadataProviderService.toFreshLookupResult")(
   function* (
@@ -519,6 +882,13 @@ interface MalIdResolver {
     malId: number,
   ) => Effect.Effect<Option.Option<number>, ExternalCallError>;
 }
+
+// Map-only resolver: used once AniList has demonstrably failed, so relation
+// mapping degrades to learned rows instead of firing doomed upstream
+// resolves (each with its own retry schedule) per relation.
+const MAP_ONLY: MalIdResolver = {
+  resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
+};
 
 type ExternalIdMapStore = Pick<typeof ExternalIdMapRepository.Service, "loadByMalId" | "upsert">;
 

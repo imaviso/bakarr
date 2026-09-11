@@ -53,7 +53,7 @@ export const Route = createFileRoute("/_layout/media/add")({
 
     if (search.id) {
       void queryClient.prefetchQuery(
-        mediaByAnilistIdQueryOptions(search.id, search.media_kind ?? "anime"),
+        mediaByAnilistIdQueryOptions(search.id, search.media_kind ?? "anime", search.id_space),
       );
     }
   },
@@ -82,7 +82,9 @@ function AddAnimePage() {
   const canSearch = debouncedQuery.trim().length >= 3;
   const searchDegraded = searchQuery.data?.degraded ?? false;
   const { data: animeList = [] } = useMediaListQuery();
-  const libraryIds = new Set(animeList.map((media) => media.id));
+  const libraryIds = new Set(
+    animeList.flatMap((media) => (media.mal_id != null ? [media.id, media.mal_id] : [media.id])),
+  );
 
   const updateSearch = (
     patch: Partial<{ -readonly [K in keyof AddMediaSearch]: AddMediaSearch[K] | undefined }>,
@@ -97,17 +99,18 @@ function AddAnimePage() {
         season: mergedSearch.season ?? DEFAULT_SEASON_WINDOW.season,
         year: String(mergedSearch.year ?? DEFAULT_SEASON_WINDOW.year),
         ...(mergedSearch.id === undefined ? {} : { id: String(mergedSearch.id) }),
+        ...(mergedSearch.id_space === undefined ? {} : { id_space: mergedSearch.id_space }),
       },
       replace: true,
     });
   };
 
   const clearSelectedAnime = () => {
-    updateSearch({ id: search.id });
+    updateSearch({ id: search.id, id_space: search.id_space });
   };
 
   const handleSelectAnime = (anime: MediaSearchResult) => {
-    updateSearch({ id: anime.id });
+    updateSearch({ id: anime.id, id_space: anime.id_space ?? undefined });
   };
 
   const handleTabChange = (value: string) => {
@@ -140,6 +143,7 @@ function AddAnimePage() {
           onSelectionChange={(value) =>
             updateSearch({
               id: search.id,
+              id_space: search.id_space,
               media_kind:
                 value === "manga" || value === "light_novel" || value === "anime" ? value : "anime",
             })
@@ -218,6 +222,7 @@ function AddAnimePage() {
         <Suspense fallback={null}>
           <SelectedAnimeDialog
             anilistId={anilistId}
+            idSpace={search.id_space}
             mediaKind={mediaKind}
             onOpenChange={clearSelectedAnime}
             onSuccess={clearSelectedAnime}

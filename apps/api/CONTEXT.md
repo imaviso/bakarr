@@ -117,6 +117,22 @@ and optional linked media. Supports coalescing concurrent requests.
 - **qBittorrent**: Torrent client with Web UI API
 - **RSS/Indexer**: Nyaa and other anime release feeds (XML)
 
+### ID spaces
+
+AniList ids and MAL ids share one number range but name different shows.
+`MediaSearchResult.id_space` (`"anilist"`/`"mal"`, optional) threads the space
+from the producing provider through detail/enroll lookups; absent means
+unknown and bootstraps via AniList. Rules:
+
+- Never query a provider with a number from the other space. Tenrai is only
+  queried with map-known, caller-declared, or idMal-bridged MAL ids.
+- Merge and map upserts require cross-validation (`tenrai.malId` agrees with
+  the trusted MAL id); mismatches drop the enrichment and skip the upsert.
+- AniDB aid map rows stay keyed by AniList id. MAL-space and unknown-space
+  media ids resolve through their map row; ids with no row skip aid
+  store/delete (episodes still enrich via title search), so Tenrai-origin
+  rows only acquire aid mappings once their AniList counterpart is learned.
+
 ## Key Architectural Decisions
 
 - Single SQLite database, WAL mode, foreign keys enforced

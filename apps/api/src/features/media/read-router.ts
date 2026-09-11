@@ -87,7 +87,11 @@ export const mediaReadRouter = Layer.mergeAll(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
         const query = yield* decodeQuery(SearchMediaQuerySchema);
-        return yield* (yield* MediaQueryService).getMediaByAnilistId(params.id, query.media_kind);
+        return yield* (yield* MediaQueryService).getMediaByAnilistId(
+          params.id,
+          query.media_kind,
+          query.id_space,
+        );
       }),
       schemaJsonResponse(MediaSearchResultSchema),
     ),

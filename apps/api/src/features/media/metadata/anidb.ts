@@ -324,7 +324,7 @@ const fetchAniDbEpisodesEffect = Effect.fn("AniDbClient.fetchEpisodes")(function
 
 type AniDbIdMap = Pick<
   typeof ExternalIdMapRepository.Service,
-  "deleteByAniListId" | "loadByAniListId" | "upsert"
+  "deleteByAniListId" | "loadByEitherId" | "upsert"
 >;
 
 interface ResolvedAnimeId {
@@ -364,6 +364,50 @@ export function decideAidPersistence(input: {
   return "store";
 }
 
+const loadMapAid = Effect.fn("AniDbClient.loadMapAid")(function* (
+  idMap: AniDbIdMap,
+  mediaId: number,
+) {
+  const mapping = yield* loadMappingDegraded(idMap, mediaId);
+
+  if (Option.isSome(mapping) && mapping.value.anidbAid !== undefined) {
+    return mapping.value.anidbAid;
+  }
+
+  return undefined;
+});
+
+const resolveMapAnilistId = Effect.fn("AniDbClient.resolveMapAnilistId")(function* (
+  idMap: AniDbIdMap,
+  mediaId: number,
+) {
+  const mapping = yield* loadMappingDegraded(idMap, mediaId);
+
+  if (Option.isNone(mapping)) {
+    return undefined;
+  }
+
+  // AniList-side rows are keyed by the requested id; MAL-side rows project
+  // their AniList counterpart.
+  return mapping.value.anilistId === mediaId ? mediaId : mapping.value.anilistId;
+});
+
+const loadMappingDegraded = Effect.fn("AniDbClient.loadMappingDegraded")(function* (
+  idMap: AniDbIdMap,
+  mediaId: number,
+) {
+  return yield* idMap
+    .loadByEitherId(mediaId)
+    .pipe(
+      Effect.catch((error) =>
+        Effect.logWarning("External id map lookup degraded").pipe(
+          Effect.annotateLogs({ error: error.message, mediaId }),
+          Effect.as(Option.none()),
+        ),
+      ),
+    );
+});
+
 const persistAidDecision = Effect.fn("AniDbClient.persistAidDecision")(function* (input: {
   countKnown: boolean;
   fetchedCount: number;
@@ -387,10 +431,23 @@ const persistAidDecision = Effect.fn("AniDbClient.persistAidDecision")(function*
     strong: input.resolved.strong,
   });
 
+  // Media IDs live in two spaces (AniList legacy, MAL canonical) while map
+  // rows stay keyed by AniList ID. Unknown-space IDs skip map writes: storing
+  // a MAL id in the anilist_id column would poison future lookups, and
+  // deleting by it could drop another show's row on numeric collision.
+  const mapAnilistId = yield* resolveMapAnilistId(input.idMap, mediaId);
+
+  if (mapAnilistId === undefined) {
+    yield* Effect.logDebug("AniDB aid mapping skipped for unmapped id space").pipe(
+      Effect.annotateLogs({ aid: input.resolved.aid, decision, mediaId }),
+    );
+    return;
+  }
+
   if (decision === "store") {
     const aid = input.resolved.aid;
     yield* input.idMap
-      .upsert({ anidbAid: aid, anilistId: mediaId })
+      .upsert({ anidbAid: aid, anilistId: mapAnilistId })
       .pipe(
         Effect.catch((error) =>
           Effect.logWarning("External id map store degraded").pipe(
@@ -412,7 +469,7 @@ const persistAidDecision = Effect.fn("AniDbClient.persistAidDecision")(function*
 
   if (decision === "delete") {
     yield* input.idMap
-      .deleteByAniListId(mediaId)
+      .deleteByAniListId(mapAnilistId)
       .pipe(
         Effect.catch((error) =>
           Effect.logWarning("External id map delete degraded").pipe(
@@ -448,25 +505,16 @@ const resolveAnimeIdEffect = Effect.fn("AniDbClient.resolveAnimeId")(function* (
 }) {
   // Self-owned AniList→AniDB mapping: a known aid skips the paced ANIME
   // title search entirely. Fresh matches are verified after the episode
-  // fetch before entering the map (see decideAidPersistence).
+  // fetch before entering the map (see decideAidPersistence). MAL-space IDs
+  // resolve through their map row to the same aid.
   if (input.mediaId !== undefined) {
-    const cached = yield* input.idMap
-      .loadByAniListId(input.mediaId)
-      .pipe(
-        Effect.catch((error) =>
-          Effect.logWarning("External id map lookup degraded").pipe(
-            Effect.annotateLogs({ error: error.message, mediaId: input.mediaId }),
-            Effect.as(Option.none()),
-          ),
-        ),
-      );
+    const mapAid = yield* loadMapAid(input.idMap, input.mediaId);
 
-    if (Option.isSome(cached) && cached.value.anidbAid !== undefined) {
-      const aid = cached.value.anidbAid;
+    if (mapAid !== undefined) {
       yield* Effect.logDebug("AniDB aid map hit").pipe(
-        Effect.annotateLogs({ aid, mediaId: input.mediaId }),
+        Effect.annotateLogs({ aid: mapAid, mediaId: input.mediaId }),
       );
-      const mapHit: ResolvedAnimeId = { aid, source: "map", strong: true };
+      const mapHit: ResolvedAnimeId = { aid: mapAid, source: "map", strong: true };
       return Option.some(mapHit);
     }
   }

@@ -12,7 +12,7 @@ import type { TenraiNormalizedAnime } from "@/features/media/metadata/tenrai-mod
 import { ExternalIdMapRepository } from "@/features/media/metadata/external-id-map-repository.ts";
 import { DatabaseError } from "@/db/database.ts";
 import { ExternalCallError } from "@/infra/effect/retry.ts";
-import { Effect, Layer, Option } from "effect";
+import { Cause, Effect, Exit, Layer, Option } from "effect";
 
 it.effect("returns refresh pending when AniDB cache is missing", () => {
   let refreshCount = 0;
@@ -43,7 +43,7 @@ it.effect("returns refresh pending when AniDB cache is missing", () => {
   }).pipe(Effect.provide(providerLayer));
 });
 
-it.effect("skips Tenrai lookup when AniList has no MAL id", () => {
+it.effect("uses AniList-only metadata without probing Tenrai on unknown space", () => {
   const refreshRequests: AniDbRefreshRequest[] = [];
   const tenraiRequests: number[] = [];
 
@@ -66,6 +66,8 @@ it.effect("skips Tenrai lookup when AniList has no MAL id", () => {
     const service = yield* MediaMetadataProviderService;
     const result = yield* service.getAnimeMetadataById(1003);
 
+    // Unknown space bootstraps via AniList only: probing Tenrai with the
+    // raw number would return a different show, not a fallback.
     assert.deepStrictEqual(tenraiRequests, []);
     assert.deepStrictEqual(refreshRequests.length, 1);
     assert.deepStrictEqual(refreshRequests[0]?.unitCount, undefined);
@@ -523,8 +525,197 @@ it.effect("writes live detail responses to the cache", () => {
   }).pipe(Effect.provide(providerLayer));
 });
 
+it.effect("serves Tenrai-only detail with MAL-canonical id when AniList fails", () => {
+  const upserts: Array<{ readonly anilistId: number; readonly malId?: number | undefined }> = [];
+
+  const providerLayer = makeProviderLayer({
+    aniListDetailError: ExternalCallError.make({
+      cause: new Error("AniList detail failed with status 403"),
+      message: "AniList detail failed",
+      operation: "anilist.detail.response",
+    }),
+    cacheState: { _tag: "Missing" },
+    tenraiMetadata: makeTenraiMetadata({
+      format: "TV",
+      genres: ["Action"],
+      malId: 808,
+      status: "Finished Airing",
+      synopsis: "Tenrai-only synopsis",
+      title: { english: "Tenrai Title", romaji: "Tenrai Romaji" },
+    }),
+    onIdMapUpsert: (upsertInput) => {
+      upserts.push(upsertInput);
+    },
+    onRefresh: () => {},
+  });
+
+  return Effect.gen(function* () {
+    const service = yield* MediaMetadataProviderService;
+    const result = yield* service.getAnimeMetadataById(808, undefined, "mal");
+
+    assert.deepStrictEqual(result._tag, "Found");
+    if (result._tag === "Found") {
+      assert.deepStrictEqual(result.detailOrigin, "tenrai");
+      assert.deepStrictEqual(result.metadata.id, 808);
+      assert.deepStrictEqual(result.metadata.malId, 808);
+      assert.deepStrictEqual(result.metadata.description, "Tenrai-only synopsis");
+      assert.deepStrictEqual(result.metadata.format, "TV");
+      assert.deepStrictEqual(result.metadata.status, "FINISHED");
+      assert.deepStrictEqual(result.metadata.title.romaji, "Tenrai Romaji");
+    }
+
+    assert.deepStrictEqual(upserts, []);
+  }).pipe(Effect.provide(providerLayer));
+});
+
+it.effect("fails with the Tenrai error when both sources fail", () => {
+  const providerLayer = makeProviderLayer({
+    aniListDetailError: ExternalCallError.make({
+      cause: new Error("AniList detail failed with status 403"),
+      message: "AniList detail failed",
+      operation: "anilist.detail.response",
+    }),
+    cacheState: { _tag: "Missing" },
+    getAnimeByMalIdError: ExternalCallError.make({
+      cause: new Error("tenrai detail failed"),
+      message: "Tenrai detail failed",
+      operation: "tenrai.detail.basic",
+    }),
+    onRefresh: () => {},
+  });
+
+  return Effect.gen(function* () {
+    const service = yield* MediaMetadataProviderService;
+    const result = yield* Effect.exit(service.getAnimeMetadataById(808, undefined, "mal"));
+
+    assert.deepStrictEqual(Exit.isFailure(result), true);
+    if (Exit.isFailure(result)) {
+      const failure = Cause.findErrorOption(result.cause);
+      assert.deepStrictEqual(failure._tag, "Some");
+      if (failure._tag === "Some" && failure.value instanceof ExternalCallError) {
+        assert.deepStrictEqual(failure.value.operation, "tenrai.detail.basic");
+      }
+    }
+  }).pipe(Effect.provide(providerLayer));
+});
+
+it.effect("returns NotFound when both sources miss", () => {
+  const providerLayer = makeProviderLayer({
+    aniListDetailNone: true,
+    cacheState: { _tag: "Missing" },
+    onRefresh: () => {},
+  });
+
+  return Effect.gen(function* () {
+    const service = yield* MediaMetadataProviderService;
+    const result = yield* service.getAnimeMetadataById(999001);
+
+    assert.deepStrictEqual(result, { _tag: "NotFound" });
+  }).pipe(Effect.provide(providerLayer));
+});
+
+it.effect("resolves MAL-space ids through the map without remote resolve", () => {
+  const tenraiRequests: number[] = [];
+  const remoteResolves: number[] = [];
+
+  const providerLayer = makeProviderLayer({
+    cacheState: { _tag: "Missing" },
+    idMapByMalId: new Map([[808, 1008]]),
+    tenraiMetadata: makeTenraiMetadata({ malId: 808 }),
+    metadata: makeMetadata(808, { malId: 808 }),
+    onResolveAniListId: (malId) => {
+      remoteResolves.push(malId);
+    },
+    onTenraiLookup: (malId) => {
+      tenraiRequests.push(malId);
+    },
+    onRefresh: () => {},
+  });
+
+  return Effect.gen(function* () {
+    const service = yield* MediaMetadataProviderService;
+    const result = yield* service.getAnimeMetadataById(808);
+
+    assert.deepStrictEqual(result._tag, "Found");
+    assert.deepStrictEqual(tenraiRequests, [808]);
+    if (result._tag === "Found") {
+      assert.deepStrictEqual(result.metadata.id, 808);
+    }
+  }).pipe(Effect.provide(providerLayer));
+});
+
+it.effect("drops Tenrai enrichment and skips upsert on MAL mismatch", () => {
+  const upserts: Array<{ readonly anilistId: number; readonly malId?: number | undefined }> = [];
+
+  const providerLayer = makeProviderLayer({
+    cacheState: { _tag: "Missing" },
+    // AniList says show 1001 is MAL 606; Tenrai answers 606 with MAL 909:
+    // a different show sharing nothing but the queried number.
+    metadata: makeMetadata(1001, { malId: 606 }),
+    tenraiMetadata: makeTenraiMetadata({
+      malId: 909,
+      relations: [{ malId: 909, relation: "Sequel", title: "Wrong Show" }],
+      synopsis: "Wrong-show synopsis",
+    }),
+    onIdMapUpsert: (upsertInput) => {
+      upserts.push(upsertInput);
+    },
+    onRefresh: () => {},
+  });
+
+  return Effect.gen(function* () {
+    const service = yield* MediaMetadataProviderService;
+    const result = yield* service.getAnimeMetadataById(1001);
+
+    assert.deepStrictEqual(result._tag, "Found");
+    if (result._tag === "Found") {
+      assert.deepStrictEqual(result.metadata.id, 606);
+      assert.deepStrictEqual(result.metadata.description, undefined);
+      assert.deepStrictEqual(result.metadata.relatedMedia ?? [], []);
+    }
+
+    assert.deepStrictEqual(upserts, []);
+  }).pipe(Effect.provide(providerLayer));
+});
+
+it.effect("bootstraps unknown ids via AniList and learns the idMal bridge", () => {
+  const tenraiRequests: number[] = [];
+  const upserts: Array<{ readonly anilistId: number; readonly malId?: number | undefined }> = [];
+
+  const providerLayer = makeProviderLayer({
+    cacheState: { _tag: "Missing" },
+    metadata: makeMetadata(1001, { malId: 606 }),
+    tenraiMetadata: makeTenraiMetadata({
+      malId: 606,
+      synopsis: "Bridged synopsis",
+    }),
+    onIdMapUpsert: (upsertInput) => {
+      upserts.push(upsertInput);
+    },
+    onTenraiLookup: (malId) => {
+      tenraiRequests.push(malId);
+    },
+    onRefresh: () => {},
+  });
+
+  return Effect.gen(function* () {
+    const service = yield* MediaMetadataProviderService;
+    const result = yield* service.getAnimeMetadataById(1001);
+
+    assert.deepStrictEqual(result._tag, "Found");
+    // Tenrai is probed with the idMal bridge (606), never the raw id.
+    assert.deepStrictEqual(tenraiRequests, [606]);
+    assert.deepStrictEqual(upserts, [{ anilistId: 1001, malId: 606 }]);
+    if (result._tag === "Found") {
+      assert.deepStrictEqual(result.metadata.id, 606);
+      assert.deepStrictEqual(result.metadata.description, "Bridged synopsis");
+    }
+  }).pipe(Effect.provide(providerLayer));
+});
+
 function makeProviderLayer(input: {
   readonly aniListDetailError?: ExternalCallError | undefined;
+  readonly aniListDetailNone?: boolean | undefined;
   readonly cacheState:
     | { readonly _tag: "Missing" }
     | {
@@ -560,10 +751,12 @@ function makeProviderLayer(input: {
         getAnimeMetadataById: (id: number) =>
           input.aniListDetailError !== undefined
             ? Effect.fail(input.aniListDetailError)
-            : Effect.sync(() => {
-                input.onDetailLookup?.(id);
-                return Option.some(input.metadata ?? makeMetadata(id));
-              }),
+            : input.aniListDetailNone === true
+              ? Effect.succeed(Option.none())
+              : Effect.sync(() => {
+                  input.onDetailLookup?.(id);
+                  return Option.some(input.metadata ?? makeMetadata(id));
+                }),
         searchAnimeMetadata: () => Effect.succeed([]),
         getSeasonalAnime: () => Effect.succeed([]),
         resolveAniListIdFromMalId: (malId: number) =>
@@ -586,11 +779,27 @@ function makeProviderLayer(input: {
                 return Option.fromNullishOr(input.tenraiMetadata);
               }),
         getSeasonalAnime: () => Effect.succeed([]),
+        searchAnime: () => Effect.succeed([]),
       }),
     ),
     Layer.succeed(
       ExternalIdMapRepository,
       ExternalIdMapRepository.of({
+        loadByEitherId: (id: number) =>
+          input.idMapError !== undefined
+            ? Effect.fail(input.idMapError)
+            : Effect.sync(() => {
+                const anilistId = input.idMapByMalId?.get(id);
+                return Option.fromNullishOr(
+                  anilistId === undefined
+                    ? undefined
+                    : {
+                        anilistId,
+                        malId: id,
+                        updatedAt: "2024-01-01T00:00:00.000Z",
+                      },
+                );
+              }),
         loadByAniListId: () => Effect.succeed(Option.none()),
         loadByAnidbAid: () => Effect.succeed(Option.none()),
         deleteByAniListId: () => Effect.void,

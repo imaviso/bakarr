@@ -18,7 +18,7 @@ const ANIDB_BURST_PACKETS = 5;
 const ANIDB_BURST_WINDOW_MS = 60_000;
 const ANIDB_RETRY_BACKOFF = "5 seconds";
 const ANIDB_MAX_ATTEMPTS = 2;
-const ANIDB_RESUBMIT_CODES: ReadonlyArray<number> = [602, 604];
+const ANIDB_RESUBMIT_CODES: ReadonlySet<number> = new Set([602, 604]);
 
 // Retry policy: packet timeouts may be flood-protection drops, and 602 busy
 // / 604 timeout explicitly ask for resubmission — one retry after backoff.
@@ -36,7 +36,7 @@ export function shouldRetryAniDbCommand(input: {
     return true;
   }
 
-  return input.responseCode !== undefined && ANIDB_RESUBMIT_CODES.includes(input.responseCode);
+  return input.responseCode !== undefined && ANIDB_RESUBMIT_CODES.has(input.responseCode);
 }
 
 /**

@@ -2,6 +2,7 @@ import { assert, it } from "@effect/vitest";
 import { brandMediaId } from "@packages/shared/index.ts";
 
 import type { AnimeMetadata } from "@/features/media/metadata/metadata-model.ts";
+import { scaleTenraiScoreToAniList } from "@/features/media/metadata/tenrai-model.ts";
 import type { TenraiNormalizedAnime } from "@/features/media/metadata/tenrai-model.ts";
 import {
   convertTenraiRecommendationsToDiscoveryEntries,
@@ -10,7 +11,6 @@ import {
   mergeGenres,
   mergeScore,
   mergeStudios,
-  scaleTenraiScoreToAniList,
 } from "@/features/media/metadata/metadata-merge.ts";
 
 it("merges title/description/date/status/format/score/genres/studios/synonyms fields deterministically", () => {

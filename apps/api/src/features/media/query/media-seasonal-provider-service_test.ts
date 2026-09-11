@@ -7,7 +7,6 @@ import {
 } from "@/features/media/query/media-seasonal-provider-service.ts";
 import { TenraiClient } from "@/features/media/metadata/tenrai.ts";
 import type { TenraiNormalizedSeasonalEntry } from "@/features/media/metadata/tenrai-model.ts";
-import { ExternalIdMapRepository } from "@/features/media/metadata/external-id-map-repository.ts";
 import { ExternalCallError } from "@/infra/effect/retry.ts";
 import { Effect, Layer, Option } from "effect";
 
@@ -54,19 +53,6 @@ function makeTenraiSeasonalEntry(
   };
 }
 
-function makeIdMapLayer() {
-  return Layer.succeed(
-    ExternalIdMapRepository,
-    ExternalIdMapRepository.of({
-      loadByAniListId: () => Effect.succeed(Option.none()),
-      loadByMalId: () => Effect.succeed(Option.none()),
-      loadByAnidbAid: () => Effect.succeed(Option.none()),
-      deleteByAniListId: () => Effect.void,
-      upsert: () => Effect.void,
-    }),
-  );
-}
-
 describe("MediaSeasonalProviderService", () => {
   it.effect("returns anilist results on success", () => {
     const anilistResults: Array<MediaSearchResult> = [
@@ -101,9 +87,9 @@ describe("MediaSeasonalProviderService", () => {
             TenraiClient.of({
               getAnimeByMalId: () => Effect.succeed(Option.none()),
               getSeasonalAnime: () => Effect.succeed([]),
+              searchAnime: () => Effect.succeed([]),
             }),
           ),
-          makeIdMapLayer(),
         ),
       ),
     );
@@ -146,9 +132,9 @@ describe("MediaSeasonalProviderService", () => {
             TenraiClient.of({
               getAnimeByMalId: () => Effect.die(new Error("unexpected tenrai lookup")),
               getSeasonalAnime: () => Effect.die(new Error("unexpected tenrai seasonal lookup")),
+              searchAnime: () => Effect.die(new Error("unexpected tenrai search lookup")),
             }),
           ),
-          makeIdMapLayer(),
         ),
       ),
     );
@@ -169,7 +155,7 @@ describe("MediaSeasonalProviderService", () => {
     }).pipe(Effect.provide(providerLayer));
   });
 
-  it.effect("falls back to tenrai and maps entries via external id map", () => {
+  it.effect("falls back to tenrai with MAL-canonical ids and no mapping filter", () => {
     const tenraiEntries: Array<TenraiNormalizedSeasonalEntry> = [
       makeTenraiSeasonalEntry(101, {
         coverImage: "https://cdn.example/media/101.jpg",
@@ -191,8 +177,6 @@ describe("MediaSeasonalProviderService", () => {
       }),
     ];
 
-    const resolveCalls: Array<number> = [];
-
     const providerLayer = MediaSeasonalProviderServiceLive.pipe(
       Layer.provideMerge(
         Layer.mergeAll(
@@ -208,20 +192,8 @@ describe("MediaSeasonalProviderService", () => {
                     operation: "anilist.seasonal",
                   }),
                 ),
-              resolveAniListIdFromMalId: (malId: number) =>
-                Effect.sync(() => {
-                  resolveCalls.push(malId);
-
-                  if (malId === 101) {
-                    return Option.some(2001);
-                  }
-
-                  if (malId === 102) {
-                    return Option.some(2002);
-                  }
-
-                  return Option.none();
-                }),
+              resolveAniListIdFromMalId: () =>
+                Effect.die(new Error("unexpected anilist id resolution")),
               searchAnimeMetadata: () => Effect.succeed([]),
             }),
           ),
@@ -230,9 +202,9 @@ describe("MediaSeasonalProviderService", () => {
             TenraiClient.of({
               getAnimeByMalId: () => Effect.succeed(Option.none()),
               getSeasonalAnime: () => Effect.succeed(tenraiEntries),
+              searchAnime: () => Effect.succeed([]),
             }),
           ),
-          makeIdMapLayer(),
         ),
       ),
     );
@@ -252,12 +224,11 @@ describe("MediaSeasonalProviderService", () => {
       assert.deepStrictEqual(result.season, "spring");
       assert.deepStrictEqual(result.year, 2025);
       assert.deepStrictEqual(result.results.length, 2);
-      assert.deepStrictEqual(result.results[0]?.id, 2001);
+      assert.deepStrictEqual(result.results[0]?.id, 101);
       assert.deepStrictEqual(result.results[0]?.cover_image, "https://cdn.example/media/101.jpg");
       assert.deepStrictEqual(result.results[0]?.genres, ["Action", "Drama"]);
-      assert.deepStrictEqual(result.results[1]?.id, 2002);
+      assert.deepStrictEqual(result.results[1]?.id, 102);
       assert.deepStrictEqual(result.results[1]?.unit_count, 12);
-      assert.deepStrictEqual(resolveCalls, [101, 102]);
     }).pipe(Effect.provide(providerLayer));
   });
 
@@ -285,6 +256,7 @@ describe("MediaSeasonalProviderService", () => {
             TenraiClient,
             TenraiClient.of({
               getAnimeByMalId: () => Effect.succeed(Option.none()),
+              searchAnime: () => Effect.succeed([]),
               getSeasonalAnime: () =>
                 Effect.succeed([
                   makeTenraiSeasonalEntry(404, {
@@ -296,7 +268,6 @@ describe("MediaSeasonalProviderService", () => {
                 ]),
             }),
           ),
-          makeIdMapLayer(),
         ),
       ),
     );
@@ -318,7 +289,7 @@ describe("MediaSeasonalProviderService", () => {
     }).pipe(Effect.provide(providerLayer));
   });
 
-  it.effect("drops tenrai entries without anilist mapping", () => {
+  it.effect("serves tenrai entries without anilist mapping", () => {
     const tenraiEntries: Array<TenraiNormalizedSeasonalEntry> = [
       makeTenraiSeasonalEntry(101, {
         title: { romaji: "Mapped" },
@@ -346,18 +317,8 @@ describe("MediaSeasonalProviderService", () => {
                     operation: "anilist.seasonal",
                   }),
                 ),
-              resolveAniListIdFromMalId: (malId: number) =>
-                Effect.sync(() => {
-                  if (malId === 101) {
-                    return Option.some(3001);
-                  }
-
-                  if (malId === 103) {
-                    return Option.some(3003);
-                  }
-
-                  return Option.none();
-                }),
+              resolveAniListIdFromMalId: () =>
+                Effect.die(new Error("unexpected anilist id resolution")),
               searchAnimeMetadata: () => Effect.succeed([]),
             }),
           ),
@@ -366,9 +327,9 @@ describe("MediaSeasonalProviderService", () => {
             TenraiClient.of({
               getAnimeByMalId: () => Effect.succeed(Option.none()),
               getSeasonalAnime: () => Effect.succeed(tenraiEntries),
+              searchAnime: () => Effect.succeed([]),
             }),
           ),
-          makeIdMapLayer(),
         ),
       ),
     );
@@ -385,11 +346,13 @@ describe("MediaSeasonalProviderService", () => {
       assert.deepStrictEqual(result.provider, "tenrai_fallback");
       assert.deepStrictEqual(result.degraded, true);
       assert.deepStrictEqual(result.hasMore, false);
-      assert.deepStrictEqual(result.results.length, 2);
-      assert.deepStrictEqual(result.results[0]?.id, 3001);
+      assert.deepStrictEqual(result.results.length, 3);
+      assert.deepStrictEqual(result.results[0]?.id, 101);
       assert.deepStrictEqual(result.results[0]?.title.romaji, "Mapped");
-      assert.deepStrictEqual(result.results[1]?.id, 3003);
-      assert.deepStrictEqual(result.results[1]?.title.romaji, "Also Mapped");
+      assert.deepStrictEqual(result.results[1]?.id, 102);
+      assert.deepStrictEqual(result.results[1]?.title.romaji, "Unmapped");
+      assert.deepStrictEqual(result.results[2]?.id, 103);
+      assert.deepStrictEqual(result.results[2]?.title.romaji, "Also Mapped");
     }).pipe(Effect.provide(providerLayer));
   });
 
@@ -417,6 +380,7 @@ describe("MediaSeasonalProviderService", () => {
             TenraiClient,
             TenraiClient.of({
               getAnimeByMalId: () => Effect.succeed(Option.none()),
+              searchAnime: () => Effect.succeed([]),
               getSeasonalAnime: () =>
                 Effect.fail(
                   ExternalCallError.make({
@@ -427,7 +391,6 @@ describe("MediaSeasonalProviderService", () => {
                 ),
             }),
           ),
-          makeIdMapLayer(),
         ),
       ),
     );
@@ -467,9 +430,9 @@ describe("MediaSeasonalProviderService", () => {
             TenraiClient.of({
               getAnimeByMalId: () => Effect.succeed(Option.none()),
               getSeasonalAnime: () => Effect.die(new Error("unexpected tenrai fallback")),
+              searchAnime: () => Effect.die(new Error("unexpected tenrai search lookup")),
             }),
           ),
-          makeIdMapLayer(),
         ),
       ),
     );
@@ -487,7 +450,7 @@ describe("MediaSeasonalProviderService", () => {
     }).pipe(Effect.provide(providerLayer));
   });
 
-  it.effect("drops tenrai entries when id mapping fails during fallback", () => {
+  it.effect("serves tenrai entries when id mapping fails during fallback", () => {
     const providerLayer = MediaSeasonalProviderServiceLive.pipe(
       Layer.provideMerge(
         Layer.mergeAll(
@@ -504,13 +467,7 @@ describe("MediaSeasonalProviderService", () => {
                   }),
                 ),
               resolveAniListIdFromMalId: () =>
-                Effect.fail(
-                  ExternalCallError.make({
-                    cause: new Error("AniList mapping failed"),
-                    message: "AniList mapping failed",
-                    operation: "anilist.resolveAniListIdFromMalId",
-                  }),
-                ),
+                Effect.die(new Error("unexpected anilist id resolution")),
               searchAnimeMetadata: () => Effect.succeed([]),
             }),
           ),
@@ -518,6 +475,7 @@ describe("MediaSeasonalProviderService", () => {
             TenraiClient,
             TenraiClient.of({
               getAnimeByMalId: () => Effect.succeed(Option.none()),
+              searchAnime: () => Effect.succeed([]),
               getSeasonalAnime: () =>
                 Effect.succeed([
                   makeTenraiSeasonalEntry(777, {
@@ -526,7 +484,6 @@ describe("MediaSeasonalProviderService", () => {
                 ]),
             }),
           ),
-          makeIdMapLayer(),
         ),
       ),
     );
@@ -542,7 +499,9 @@ describe("MediaSeasonalProviderService", () => {
 
       assert.deepStrictEqual(result.provider, "tenrai_fallback");
       assert.deepStrictEqual(result.degraded, true);
-      assert.deepStrictEqual(result.results, []);
+      assert.deepStrictEqual(result.results.length, 1);
+      assert.deepStrictEqual(result.results[0]?.id, 777);
+      assert.deepStrictEqual(result.results[0]?.title.romaji, "Needs Mapping");
     }).pipe(Effect.provide(providerLayer));
   });
 });

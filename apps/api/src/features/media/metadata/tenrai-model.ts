@@ -1,5 +1,11 @@
 import { Schema, SchemaGetter } from "effect";
 
+import type { MediaSeason } from "@packages/shared/index.ts";
+import type {
+  AnimeMetadata,
+  ProviderMediaSearchResult,
+} from "@/features/media/metadata/metadata-model.ts";
+
 const TenraiTitleVariantSchema = Schema.Struct({
   title: Schema.String,
   type: Schema.optional(Schema.NullOr(Schema.String)),
@@ -631,6 +637,129 @@ function toIsoYear(input: string | null | undefined) {
   const date = toIsoDate(input);
 
   return date ? globalThis.Number.parseInt(date.slice(0, 4), 10) : undefined;
+}
+
+// Tenrai-primary converters: AniList down must not block search, detail, or
+// seasonal. MAL IDs are canonical in Tenrai-served payloads; AniList
+// enrichment merges over them when upstream is alive.
+
+export function mapTenraiStatusToAniListStatus(status: string | undefined): string {
+  switch (status) {
+    case "Finished Airing":
+      return "FINISHED";
+    case "Currently Airing":
+      return "RELEASING";
+    case "Not yet aired":
+      return "NOT_YET_RELEASED";
+    default:
+      return "UNKNOWN";
+  }
+}
+
+export function mapTenraiFormatToAniListFormat(format: string | undefined): string {
+  if (!format) {
+    return "TV";
+  }
+
+  const upper = format.toUpperCase();
+  return upper.length > 0 ? upper : "TV";
+}
+
+export function scaleTenraiScoreToAniList(tenraiScore?: number) {
+  if (tenraiScore === undefined) {
+    return undefined;
+  }
+
+  const scaled = Math.round(tenraiScore * 10);
+  return clampInteger(scaled, 1, 100);
+}
+
+export function tenraiAnimeToMetadata(normalized: TenraiNormalizedAnime): AnimeMetadata {
+  const coverImage =
+    normalized.images.webp?.largeImageUrl ??
+    normalized.images.webp?.imageUrl ??
+    normalized.images.jpg?.largeImageUrl ??
+    normalized.images.jpg?.imageUrl;
+  const romaji =
+    normalized.title.romaji ??
+    normalized.title.english ??
+    normalized.title.native ??
+    `MAL ${normalized.malId}`;
+
+  return {
+    coverImage: coverImage ?? undefined,
+    description: normalized.synopsis ?? normalized.background ?? undefined,
+    duration: normalized.duration ?? undefined,
+    endDate: normalized.endDate ?? undefined,
+    endYear: normalized.endYear ?? undefined,
+    favorites: normalized.favorites ?? undefined,
+    format: mapTenraiFormatToAniListFormat(normalized.format),
+    genres: normalized.genres.length > 0 ? [...normalized.genres] : undefined,
+    id: normalized.malId,
+    malId: normalized.malId,
+    members: normalized.members ?? undefined,
+    popularity: normalized.popularity ?? undefined,
+    rank: normalized.rank ?? undefined,
+    score: scaleTenraiScoreToAniList(normalized.score),
+    source: normalized.source ?? undefined,
+    startDate: normalized.startDate ?? undefined,
+    startYear: normalized.startYear ?? undefined,
+    status: mapTenraiStatusToAniListStatus(normalized.status),
+    studios: normalized.studios.length > 0 ? [...normalized.studios] : undefined,
+    synonyms: normalized.titleVariants.length > 0 ? [...normalized.titleVariants] : undefined,
+    title: {
+      english: normalized.title.english ?? undefined,
+      native: normalized.title.native ?? undefined,
+      romaji,
+    },
+    unitCount: normalized.unitCount ?? undefined,
+  };
+}
+
+export function tenraiSeasonalEntryToSearchResult(
+  entry: TenraiNormalizedSeasonalEntry,
+  fallback?: { season?: MediaSeason | undefined; year?: number | undefined },
+): ProviderMediaSearchResult {
+  const season = toAnimeSeason(entry.season) ?? fallback?.season;
+  const seasonYear = entry.seasonYear ?? fallback?.year;
+
+  return {
+    already_in_library: false,
+    cover_image: entry.coverImage ?? undefined,
+    unit_count: entry.unitCount ?? undefined,
+    format: mapTenraiFormatToAniListFormat(entry.format),
+    genres: entry.genres ? [...entry.genres] : undefined,
+    id: entry.malId,
+    id_space: "mal",
+    media_kind: "anime",
+    season,
+    season_year: seasonYear,
+    start_year: entry.startYear ?? seasonYear,
+    status: mapTenraiStatusToAniListStatus(entry.status),
+    title: {
+      english: entry.title.english ?? undefined,
+      native: entry.title.native ?? undefined,
+      romaji: entry.title.romaji ?? undefined,
+    },
+  };
+}
+
+function toAnimeSeason(value: string | undefined): MediaSeason | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  const lower = value.toLowerCase();
+
+  if (lower === "winter" || lower === "spring" || lower === "summer" || lower === "fall") {
+    return lower;
+  }
+
+  return undefined;
+}
+
+function clampInteger(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
 }
 
 // Seasonal support
