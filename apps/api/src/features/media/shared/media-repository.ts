@@ -27,6 +27,9 @@ export interface MediaRepositoryShape {
   readonly findExistingMediaIds: (
     mediaIds: readonly number[],
   ) => Effect.Effect<ReadonlySet<number>, DatabaseError>;
+  readonly findExistingMediaMalIds: (
+    malIds: readonly number[],
+  ) => Effect.Effect<ReadonlySet<number>, DatabaseError>;
   readonly findMediaIdByMalId: (
     malId: number,
   ) => Effect.Effect<Option.Option<number>, DatabaseError>;
@@ -186,6 +189,7 @@ export function makeMediaRepositoryShape(
   return {
     countMedia: (input) => countMediaEffect(db, exec, input),
     findExistingMediaIds: (mediaIds) => findExistingMediaIdsEffect(db, exec, mediaIds),
+    findExistingMediaMalIds: (malIds) => findExistingMediaMalIdsEffect(db, exec, malIds),
     findMediaIdByMalId: (malId) => findMediaIdByMalIdEffect(db, exec, malId),
     findMediaRootFolderOwner: (rootFolder) => findMediaRootFolderOwnerEffect(db, exec, rootFolder),
     findMediaByExactRootFolder: (rootFolder) =>
@@ -627,29 +631,38 @@ const findExistingMediaIdsEffect = Effect.fn("MediaRepository.findExistingMediaI
   if (mediaIds.length === 0) {
     return new Set<number>();
   }
-  // Result IDs live in two spaces (AniList legacy, MAL canonical): a result
-  // counts as in-library when either the row id or the row MAL id matches.
+  // Precise id-column match only. Cross-space matching is the caller's job
+  // (markSearchResultsAlreadyInLibraryEffect knows each result's space): the
+  // shared number range makes bare id-or-malId matching ambiguous.
   const rows = yield* exec.runQuery(
     "Failed to mark search results in library",
     db
-      .select({ id: media.id, malId: media.malId })
+      .select({ id: media.id })
       .from(media)
-      .where(or(inArray(media.id, [...mediaIds]), inArray(media.malId, [...mediaIds])))
+      .where(inArray(media.id, [...mediaIds]))
       .prepare()
       .effect(),
   );
-  const inputs = new Set(mediaIds);
-  const matched = new Set<number>();
-  for (const row of rows) {
-    if (inputs.has(row.id)) {
-      matched.add(row.id);
-    }
-    if (row.malId !== null && inputs.has(row.malId)) {
-      matched.add(row.malId);
-    }
-  }
-  return matched;
+  return new Set(rows.map((row) => row.id));
 });
+
+const findExistingMediaMalIdsEffect = Effect.fn("MediaRepository.findExistingMediaMalIds")(
+  function* (db: AppDatabase, exec: DbExecutor, malIds: readonly number[]) {
+    if (malIds.length === 0) {
+      return new Set<number>();
+    }
+    const rows = yield* exec.runQuery(
+      "Failed to mark search results in library",
+      db
+        .select({ malId: media.malId })
+        .from(media)
+        .where(inArray(media.malId, [...malIds]))
+        .prepare()
+        .effect(),
+    );
+    return new Set(rows.flatMap((row) => (row.malId === null ? [] : [row.malId])));
+  },
+);
 
 const findMediaIdByMalIdEffect = Effect.fn("MediaRepository.findMediaIdByMalId")(function* (
   db: AppDatabase,

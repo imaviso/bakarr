@@ -132,6 +132,11 @@ unknown and bootstraps via AniList. Rules:
   media ids resolve through their map row; ids with no row skip aid
   store/delete (episodes still enrich via title search), so Tenrai-origin
   rows only acquire aid mappings once their AniList counterpart is learned.
+- AniDB aid resolution prefers the official `anime-titles.dat.gz` dump
+  (refreshed locally at most once per day per wiki policy) over paced
+  by-name UDP probing: AniDB main titles (`...(2024)` suffixes,
+  romanization case) rarely equal provider titles, and by-name needs a
+  perfect server-side match. UDP probing remains as fallback.
 
 ## Key Architectural Decisions
 

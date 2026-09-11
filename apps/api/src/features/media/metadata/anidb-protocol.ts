@@ -190,31 +190,70 @@ export function scoreAnimeLookupCandidate(
   candidate: AniDbTitleCandidate,
   matchedTitle: string | undefined,
 ) {
-  const sourceScore = sourcePriorityScore(candidate.source);
-
   if (matchedTitle === undefined) {
+    return sourcePriorityScore(candidate.source);
+  }
+
+  return scorePreNormalizedCandidate({
+    candidateNormalized: normalizeTitleForMatch(candidate.value),
+    candidateTokens: tokenizeNormalizedTitle(normalizeTitleForMatch(candidate.value)),
+    source: candidate.source,
+    titleNormalized: normalizeTitleForMatch(matchedTitle),
+    titleTokens: tokenizeNormalizedTitle(normalizeTitleForMatch(matchedTitle)),
+  });
+}
+
+export function tokenizeNormalizedTitle(normalized: string): ReadonlySet<string> {
+  return new Set(normalized.split(" ").filter((token) => token.length > 0));
+}
+
+export function scorePreNormalizedCandidate(input: {
+  readonly source: AniDbTitleCandidate["source"];
+  readonly candidateNormalized: string;
+  readonly candidateTokens: ReadonlySet<string>;
+  readonly titleNormalized: string;
+  readonly titleTokens: ReadonlySet<string>;
+}): number {
+  const sourceScore = sourcePriorityScore(input.source);
+
+  if (input.candidateNormalized.length === 0 || input.titleNormalized.length === 0) {
     return sourceScore;
   }
 
-  const candidateNormalized = normalizeTitleForMatch(candidate.value);
-  const matchedNormalized = normalizeTitleForMatch(matchedTitle);
-
-  if (candidateNormalized.length === 0 || matchedNormalized.length === 0) {
-    return sourceScore;
-  }
-
-  if (candidateNormalized === matchedNormalized) {
+  if (input.candidateNormalized === input.titleNormalized) {
     return sourceScore + 60;
   }
 
   if (
-    candidateNormalized.includes(matchedNormalized) ||
-    matchedNormalized.includes(candidateNormalized)
+    input.candidateNormalized.includes(input.titleNormalized) ||
+    input.titleNormalized.includes(input.candidateNormalized)
   ) {
     return sourceScore + 40;
   }
 
-  return sourceScore + scoreTokenOverlap(candidateNormalized, matchedNormalized);
+  return sourceScore + scoreTokenOverlapSets(input.candidateTokens, input.titleTokens);
+}
+
+function scoreTokenOverlapSets(
+  candidateTokens: ReadonlySet<string>,
+  matchedTokens: ReadonlySet<string>,
+): number {
+  if (candidateTokens.size === 0 || matchedTokens.size === 0) {
+    return 0;
+  }
+
+  let shared = 0;
+  for (const token of candidateTokens) {
+    if (matchedTokens.has(token)) {
+      shared += 1;
+    }
+  }
+
+  if (shared === 0) {
+    return 0;
+  }
+
+  return Math.round((shared / Math.max(candidateTokens.size, matchedTokens.size)) * 30);
 }
 
 function parseAniDbHeader(
@@ -286,7 +325,7 @@ function normalizeAniDbText(value: string | undefined): string | undefined {
   return trimmed.replaceAll("<br />", "\n").replaceAll("`", "'");
 }
 
-function normalizeTitleForMatch(value: string) {
+export function normalizeTitleForMatch(value: string) {
   return value
     .normalize("NFKD")
     .toLowerCase()
@@ -308,26 +347,4 @@ function sourcePriorityScore(source: AniDbTitleCandidateSource) {
   }
 
   return 0;
-}
-
-function scoreTokenOverlap(candidate: string, matched: string) {
-  const candidateTokens = new Set(candidate.split(" ").filter((token) => token.length > 0));
-  const matchedTokens = new Set(matched.split(" ").filter((token) => token.length > 0));
-
-  if (candidateTokens.size === 0 || matchedTokens.size === 0) {
-    return 0;
-  }
-
-  let shared = 0;
-  for (const token of candidateTokens) {
-    if (matchedTokens.has(token)) {
-      shared += 1;
-    }
-  }
-
-  if (shared === 0) {
-    return 0;
-  }
-
-  return Math.round((shared / Math.max(candidateTokens.size, matchedTokens.size)) * 30);
 }

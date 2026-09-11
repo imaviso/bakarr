@@ -22,6 +22,7 @@ import {
   makeQualityProfileRepository,
   makeSystemConfigRepository,
 } from "@/test/repository-factories.ts";
+import { ExternalIdMapRepository } from "@/features/media/metadata/external-id-map-repository.ts";
 import { inferAiredAt } from "@/features/media/shared/derivations.ts";
 import { markSearchResultsAlreadyInLibraryEffect } from "@/features/media/query/search-results.ts";
 
@@ -537,6 +538,7 @@ it.effect("markSearchResultsAlreadyInLibrary annotates local matches", () =>
 
         const results = yield* markSearchResultsAlreadyInLibraryEffect(
           makeMediaRepository(db, client),
+          makeEmptyIdMap(),
           [
             {
               already_in_library: false,
@@ -584,11 +586,12 @@ it.effect("markSearchResultsAlreadyInLibrary annotates local matches", () =>
   }),
 );
 
-it.effect("markSearchResultsAlreadyInLibrary matches MAL ids across id spaces", () =>
+it.effect("markSearchResultsAlreadyInLibrary matches per id space", () =>
   withSqliteTestDbEffect({
     run: (db, _databaseFile, client, exec) =>
       Effect.gen(function* () {
-        // Legacy AniList-space row carrying its MAL id.
+        // Legacy AniList-space row carrying its MAL id, plus an unrelated
+        // AniList-space row whose id collides with a MAL result below.
         yield* exec.runQuery(
           "Failed to insert test anime",
           db
@@ -623,24 +626,106 @@ it.effect("markSearchResultsAlreadyInLibrary matches MAL ids across id spaces", 
             .prepare()
             .effect(),
         );
+        yield* insertMediaEffect(db, exec, 888, 12);
+        // Legacy row without a recorded MAL id: reachable only via the map bridge.
+        yield* exec.runQuery(
+          "Failed to insert test anime",
+          db
+            .insert(media)
+            .values({
+              id: 4243,
+              malId: null,
+              titleRomaji: "Show 4243",
+              titleEnglish: null,
+              titleNative: null,
+              format: "TV",
+              description: null,
+              score: null,
+              genres: "[]",
+              studios: "[]",
+              coverImage: null,
+              bannerImage: null,
+              status: "RELEASING",
+              unitCount: 12,
+              startDate: null,
+              endDate: null,
+              startYear: null,
+              endYear: null,
+              nextAiringAt: null,
+              nextAiringUnit: null,
+              profileName: "Default",
+              rootFolder: "/library/Show-4243",
+              addedAt: "2024-01-01T00:00:00.000Z",
+              monitored: true,
+              releaseProfileIds: "[]",
+            })
+            .prepare()
+            .effect(),
+        );
+
+        const idMap = ExternalIdMapRepository.of({
+          loadByEitherIds: (ids: ReadonlyArray<number>) =>
+            Effect.succeed(
+              ids.includes(555)
+                ? [{ anilistId: 4243, malId: 555, updatedAt: "2024-01-01T00:00:00.000Z" }]
+                : [],
+            ),
+          deleteByAniListId: () => Effect.void,
+          loadByAnidbAid: () => Effect.succeed(Option.none()),
+          loadByAniListId: () => Effect.succeed(Option.none()),
+          loadByEitherId: () => Effect.succeed(Option.none()),
+          loadByMalId: (malId: number) =>
+            Effect.succeed(
+              malId === 777
+                ? Option.some({
+                    anilistId: 7007,
+                    malId: 777,
+                    updatedAt: "2024-01-01T00:00:00.000Z",
+                  })
+                : Option.none(),
+            ),
+          upsert: () => Effect.void,
+        });
 
         const results = yield* markSearchResultsAlreadyInLibraryEffect(
           makeMediaRepository(db, client),
+          idMap,
           [
             {
               already_in_library: false,
               id: brandMediaId(777),
+              id_space: "mal",
               title: { romaji: "MAL-space result" },
             },
             {
               already_in_library: false,
               id: brandMediaId(7007),
+              id_space: "anilist",
               title: { romaji: "AniList-space result" },
             },
             {
               already_in_library: false,
               id: brandMediaId(4242),
+              id_space: "anilist",
               title: { romaji: "Missing result" },
+            },
+            {
+              already_in_library: false,
+              id: brandMediaId(888),
+              id_space: "mal",
+              title: { romaji: "Unrelated MAL collision" },
+            },
+            {
+              already_in_library: false,
+              id: brandMediaId(7007),
+              id_space: "mal",
+              title: { romaji: "AniList id read as MAL" },
+            },
+            {
+              already_in_library: false,
+              id: brandMediaId(555),
+              id_space: "mal",
+              title: { romaji: "Bridged via map to malId-less row" },
             },
           ],
         );
@@ -648,10 +733,25 @@ it.effect("markSearchResultsAlreadyInLibrary matches MAL ids across id spaces", 
         assert.deepStrictEqual(results[0]?.already_in_library, true);
         assert.deepStrictEqual(results[1]?.already_in_library, true);
         assert.deepStrictEqual(results[2]?.already_in_library, false);
+        assert.deepStrictEqual(results[3]?.already_in_library, false);
+        assert.deepStrictEqual(results[4]?.already_in_library, false);
+        assert.deepStrictEqual(results[5]?.already_in_library, true);
       }),
     schema,
   }),
 );
+
+function makeEmptyIdMap() {
+  return ExternalIdMapRepository.of({
+    loadByEitherIds: () => Effect.succeed([]),
+    deleteByAniListId: () => Effect.void,
+    loadByAnidbAid: () => Effect.succeed(Option.none()),
+    loadByAniListId: () => Effect.succeed(Option.none()),
+    loadByEitherId: () => Effect.succeed(Option.none()),
+    loadByMalId: () => Effect.succeed(Option.none()),
+    upsert: () => Effect.void,
+  });
+}
 
 it.effect("findMediaIdByMalId resolves library rows by MAL id", () =>
   withSqliteTestDbEffect({

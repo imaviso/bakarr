@@ -1,5 +1,6 @@
 import { DatabaseError } from "@/db/database.ts";
 import { AniListClient } from "@/features/media/metadata/anilist.ts";
+import { ExternalIdMapRepository } from "@/features/media/metadata/external-id-map-repository.ts";
 import { searchMediaWithFallback } from "@/features/media/metadata/media-metadata-provider-service.ts";
 import { MediaMetadataProviderService } from "@/features/media/metadata/media-metadata-provider-service.ts";
 import { TenraiClient } from "@/features/media/metadata/tenrai.ts";
@@ -121,6 +122,7 @@ export interface MediaQueryServiceShape {
 export const makeMediaQueryService = Effect.fn("MediaQueryService.make")(function* () {
   const aniList = yield* AniListClient;
   const tenrai = yield* TenraiClient;
+  const idMap = yield* ExternalIdMapRepository;
   const metadataProvider = yield* MediaMetadataProviderService;
   const mediaRepository = yield* MediaRepository;
   const providerService = yield* MediaSeasonalProviderService;
@@ -179,10 +181,9 @@ export const makeMediaQueryService = Effect.fn("MediaQueryService.make")(functio
 
       const metadataValue = lookup.metadata;
       const effectiveMediaKind = mediaKind ?? mediaKindFromAniListFormat(metadataValue.format);
-      const libraryIds = yield* mediaRepository.findExistingMediaIds([metadataValue.id]);
 
-      return {
-        already_in_library: libraryIds.has(metadataValue.id),
+      const unmarked: MediaSearchResult = {
+        already_in_library: false,
         banner_image: metadataValue.bannerImage,
         cover_image: metadataValue.coverImage,
         description: metadataValue.description,
@@ -213,6 +214,14 @@ export const makeMediaQueryService = Effect.fn("MediaQueryService.make")(functio
         synonyms: metadataValue.synonyms ? [...metadataValue.synonyms] : undefined,
         title: metadataValue.title,
       } satisfies MediaSearchResult;
+
+      // Space-aware marking: a bare id-or-malId match would flag unrelated
+      // shows sharing the number across spaces.
+      const [marked] = yield* markSearchResultsAlreadyInLibraryEffect(mediaRepository, idMap, [
+        unmarked,
+      ]);
+
+      return marked ?? unmarked;
     }),
     listMedia: Effect.fn("MediaQueryService.listMedia")(function* (params?: MediaListQueryParams) {
       const limit = Math.min(Math.max(params?.limit ?? 100, 1), 500);
@@ -341,7 +350,11 @@ export const makeMediaQueryService = Effect.fn("MediaQueryService.make")(functio
 
       const annotated = annotateMediaSearchResultsForQuery(query, providerResult.results);
 
-      const marked = yield* markSearchResultsAlreadyInLibraryEffect(mediaRepository, annotated);
+      const marked = yield* markSearchResultsAlreadyInLibraryEffect(
+        mediaRepository,
+        idMap,
+        annotated,
+      );
 
       return {
         degraded: providerResult.degraded,
@@ -369,6 +382,7 @@ export const makeMediaQueryService = Effect.fn("MediaQueryService.make")(functio
       if (cached !== null) {
         const markedResults = yield* markSearchResultsAlreadyInLibraryEffect(
           mediaRepository,
+          idMap,
           cached.results,
         );
         return { ...cached, results: markedResults };
@@ -384,6 +398,7 @@ export const makeMediaQueryService = Effect.fn("MediaQueryService.make")(functio
 
         const marked = yield* markSearchResultsAlreadyInLibraryEffect(
           mediaRepository,
+          idMap,
           seasonalResult.results,
         );
 
@@ -415,6 +430,7 @@ export const makeMediaQueryService = Effect.fn("MediaQueryService.make")(functio
 
             const markedResults = yield* markSearchResultsAlreadyInLibraryEffect(
               mediaRepository,
+              idMap,
               stale.results,
             );
             return { ...stale, degraded: true, results: markedResults };

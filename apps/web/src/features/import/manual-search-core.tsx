@@ -104,8 +104,7 @@ export function ManualSearchCore(props: ManualSearchCoreProps) {
           <div className="flex items-start gap-2">
             <RiInformationLine className="mt-0.5 h-4 w-4 shrink-0" />
             <span>
-              AniList is temporarily unavailable or rate-limited. Showing local library matches
-              only.
+              AniList is temporarily unavailable or rate-limited. Showing Tenrai fallback titles.
             </span>
           </div>
         </div>

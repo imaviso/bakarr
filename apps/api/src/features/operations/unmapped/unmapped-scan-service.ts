@@ -24,6 +24,8 @@ import {
 } from "@/features/operations/unmapped/unmapped-folders.ts";
 import { loadUnmappedFolderSnapshot } from "@/features/operations/unmapped/unmapped-scan-snapshot-support.ts";
 import { matchSingleUnmappedFolder } from "@/features/operations/unmapped/unmapped-scan-match-support.ts";
+import { ExternalIdMapRepository } from "@/features/media/metadata/external-id-map-repository.ts";
+import { TenraiClient } from "@/features/media/metadata/tenrai.ts";
 import { nowIso as currentNowIso } from "@/infra/time.ts";
 import { FileSystem } from "@/infra/filesystem/filesystem.ts";
 import { AniListClient } from "@/features/media/metadata/anilist.ts";
@@ -84,7 +86,9 @@ const makeUnmappedScanService = Effect.fn("UnmappedScanService.make")(function* 
   const backgroundJobRunner = yield* BackgroundJobRunner;
   const eventBus = yield* EventBus;
   const fs = yield* FileSystem;
+  const idMap = yield* ExternalIdMapRepository;
   const mediaRepository = yield* MediaRepository;
+  const tenrai = yield* TenraiClient;
   const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
   const systemLogRepository = yield* SystemLogRepository;
   const systemUnmappedRepository = yield* SystemUnmappedRepository;
@@ -178,8 +182,10 @@ const makeUnmappedScanService = Effect.fn("UnmappedScanService.make")(function* 
         aniList,
         animeRows,
         folder: matchingFolder,
+        idMap,
         mediaRepository,
         nowIso,
+        tenrai,
       }),
     );
 

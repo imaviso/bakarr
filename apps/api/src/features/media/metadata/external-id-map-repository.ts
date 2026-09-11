@@ -1,4 +1,4 @@
-import { eq, or } from "drizzle-orm";
+import { eq, inArray, or } from "drizzle-orm";
 import { Context, Effect, Layer, Option } from "effect";
 import * as NodeSqliteClient from "@effect/sql-sqlite-node/SqliteClient";
 
@@ -31,6 +31,9 @@ export interface ExternalIdMapRepositoryShape {
   readonly loadByEitherId: (
     id: number,
   ) => Effect.Effect<Option.Option<ExternalIdMapping>, DatabaseError>;
+  readonly loadByEitherIds: (
+    ids: ReadonlyArray<number>,
+  ) => Effect.Effect<ReadonlyArray<ExternalIdMapping>, DatabaseError>;
   readonly deleteByAniListId: (anilistId: number) => Effect.Effect<void, DatabaseError>;
   readonly upsert: (input: {
     readonly anilistId: number;
@@ -65,6 +68,7 @@ export function makeExternalIdMapRepositoryShape(
   return {
     loadByAniListId: (anilistId) => loadByAniListId(db, exec, anilistId),
     loadByEitherId: (id) => loadByEitherId(db, exec, id),
+    loadByEitherIds: (ids) => loadByEitherIds(db, exec, ids),
     loadByMalId: (malId) => loadByMalId(db, exec, malId),
     loadByAnidbAid: (anidbAid) => loadByAnidbAid(db, exec, anidbAid),
     deleteByAniListId: (anilistId) =>
@@ -185,6 +189,33 @@ const loadByEitherId = Effect.fn("ExternalIdMapRepository.loadByEitherId")(funct
   const anilistSide = rows.find((row) => row.anilistId === id);
   const row = anilistSide ?? rows[0];
   return row === undefined ? Option.none<ExternalIdMapping>() : Option.some(toMapping(row));
+});
+
+const loadByEitherIds = Effect.fn("ExternalIdMapRepository.loadByEitherIds")(function* (
+  db: AppDatabase,
+  exec: DbExecutor,
+  ids: ReadonlyArray<number>,
+) {
+  if (ids.length === 0) {
+    return [];
+  }
+
+  const rows = yield* exec.runQuery(
+    "Failed to load external id mappings",
+    db
+      .select({
+        anilistId: externalIdMap.anilistId,
+        malId: externalIdMap.malId,
+        anidbAid: externalIdMap.anidbAid,
+        updatedAt: externalIdMap.updatedAt,
+      })
+      .from(externalIdMap)
+      .where(or(inArray(externalIdMap.anilistId, [...ids]), inArray(externalIdMap.malId, [...ids])))
+      .prepare()
+      .effect(),
+  );
+
+  return rows.map(toMapping);
 });
 
 const deleteByAniListId = Effect.fn("ExternalIdMapRepository.deleteByAniListId")(function* (

@@ -9,6 +9,7 @@ import {
 import { useForm } from "@tanstack/react-form";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Schema } from "effect";
+import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -284,6 +285,7 @@ function AddAnimeForm(props: AddAnimeFormProps) {
         monitored: value.monitor,
         release_profile_ids: value.release_profile_ids,
       });
+      toast.success(`Added ${animeDisplayTitle(props.media)} to library`);
       props.onSuccess();
     },
   });

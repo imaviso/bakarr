@@ -785,6 +785,7 @@ function makeProviderLayer(input: {
     Layer.succeed(
       ExternalIdMapRepository,
       ExternalIdMapRepository.of({
+        loadByEitherIds: () => Effect.succeed([]),
         loadByEitherId: (id: number) =>
           input.idMapError !== undefined
             ? Effect.fail(input.idMapError)

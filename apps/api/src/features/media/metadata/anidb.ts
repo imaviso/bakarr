@@ -1,4 +1,5 @@
 import { type Socket } from "node:dgram";
+import * as HttpClient from "effect/unstable/http/HttpClient";
 
 import type { Config } from "@packages/shared/index.ts";
 import { type DatabaseError } from "@/db/database.ts";
@@ -12,6 +13,12 @@ import {
   type AniDbEpisodeMetadata,
   type AniDbTitleCandidate,
 } from "@/features/media/metadata/anidb-protocol.ts";
+import {
+  makeTitlesDumpCache,
+  resolveAidFromDumpTitles,
+  titlesDumpPathForImagesPath,
+  type PreparedTitlesDump,
+} from "@/features/media/metadata/anidb-titles-dump.ts";
 import {
   authenticateAniDbEffect,
   encodeCommandValue,
@@ -29,8 +36,9 @@ import { AniDbRuntimeConfigError } from "@/features/media/errors.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 import { StoredConfigCorruptError } from "@/features/system/errors.ts";
 import { DEFAULT_ANIDB_METADATA_CONFIG } from "@/features/system/metadata-providers-config.ts";
-import { ExternalCallError } from "@/infra/effect/retry.ts";
-import { Context, Effect, Layer, Option, Ref, Semaphore } from "effect";
+import { ExternalCallError, ExternalCall } from "@/infra/effect/retry.ts";
+import { FileSystem } from "@/infra/filesystem/filesystem.ts";
+import { Cache, Context, Effect, Layer, Option, Ref, Semaphore } from "effect";
 
 const ANIDB_MIN_ANIME_MATCH_SCORE = 70;
 const ANIDB_STRONG_ANIME_MATCH_SCORE = 90;
@@ -49,6 +57,7 @@ interface AniDbRuntimeConfig {
   readonly clientVersion: number;
   readonly episodeLimit: number;
   readonly localPort: number;
+  readonly titlesDumpPath: string;
 }
 
 function resolveAniDbRuntimeConfig(config: Config): AniDbRuntimeConfig {
@@ -62,6 +71,7 @@ function resolveAniDbRuntimeConfig(config: Config): AniDbRuntimeConfig {
     clientVersion: anidb.client_version,
     episodeLimit: anidb.episode_limit,
     localPort: anidb.local_port,
+    titlesDumpPath: titlesDumpPathForImagesPath(config.general.images_path),
   };
 }
 
@@ -82,6 +92,12 @@ export function normalizeEpisodeCount(unitCount: number | undefined, episodeLimi
 const makeAniDbClient = Effect.fn("AniDbClient.make")(function* () {
   const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
   const idMap = yield* ExternalIdMapRepository;
+  const httpClient = yield* HttpClient.HttpClient;
+  const externalCall = yield* ExternalCall;
+  const fs = yield* FileSystem;
+  // Parsed dump shared by every lookup: dedupes concurrent cold loads
+  // (single download), pays parse + normalize once per dump version.
+  const titlesDumpCache = yield* makeTitlesDumpCache({ client: httpClient, externalCall, fs });
   // Serializes every socket interaction so paced packets from concurrent
   // lookups can never interleave and breach flood protection.
   const requestSemaphore = yield* Semaphore.make(1);
@@ -154,6 +170,11 @@ const makeAniDbClient = Effect.fn("AniDbClient.make")(function* () {
     // Session-per-lookup: the spec asks non-notification clients to LOGOUT
     // once finished instead of holding idle sessions (server timeout is 35
     // minutes), and a fresh AUTH per lookup is immune to NAT port remaps.
+    //
+    // The dump loads outside the socket lock: it needs no UDP pacing, and a
+    // cold download must never stall unrelated lookups behind the semaphore.
+    const dumpTitles = yield* Cache.get(titlesDumpCache, config.titlesDumpPath);
+
     return yield* requestSemaphore.withPermits(1)(
       Effect.gen(function* () {
         const socket = yield* openAniDbSocketEffect(config.localPort, {
@@ -182,6 +203,7 @@ const makeAniDbClient = Effect.fn("AniDbClient.make")(function* () {
             const result = yield* fetchAniDbEpisodesEffect({
               unitCount,
               countKnown: input.unitCount !== undefined && input.unitCount !== null,
+              dumpTitles,
               idMap,
               mediaId: input.mediaId,
               requestContext,
@@ -239,6 +261,7 @@ export function buildAnimeCommand(candidate: AniDbTitleCandidate, sessionToken: 
 const fetchAniDbEpisodesEffect = Effect.fn("AniDbClient.fetchEpisodes")(function* (input: {
   unitCount: number;
   countKnown: boolean;
+  dumpTitles: PreparedTitlesDump | undefined;
   idMap: AniDbIdMap;
   mediaId: number | undefined;
   requestContext: AniDbRequestContext;
@@ -247,6 +270,7 @@ const fetchAniDbEpisodesEffect = Effect.fn("AniDbClient.fetchEpisodes")(function
   titleCandidates: ReadonlyArray<AniDbTitleCandidate>;
 }) {
   const resolvedOption = yield* resolveAnimeIdEffect({
+    dumpTitles: input.dumpTitles,
     idMap: input.idMap,
     mediaId: input.mediaId,
     requestContext: input.requestContext,
@@ -496,6 +520,7 @@ const persistAidDecision = Effect.fn("AniDbClient.persistAidDecision")(function*
 });
 
 const resolveAnimeIdEffect = Effect.fn("AniDbClient.resolveAnimeId")(function* (input: {
+  dumpTitles: PreparedTitlesDump | undefined;
   idMap: AniDbIdMap;
   mediaId: number | undefined;
   requestContext: AniDbRequestContext;
@@ -516,6 +541,34 @@ const resolveAnimeIdEffect = Effect.fn("AniDbClient.resolveAnimeId")(function* (
       );
       const mapHit: ResolvedAnimeId = { aid: mapAid, source: "map", strong: true };
       return Option.some(mapHit);
+    }
+  }
+
+  // Zero-packet dump resolution: the official titles dump carries every
+  // alias, so AniDB's idiosyncratic main titles ("(2024)" suffixes,
+  // romanization case) match locally instead of depending on perfect
+  // server-side by-name hits.
+  if (input.dumpTitles !== undefined) {
+    const dumpMatch = resolveAidFromDumpTitles(input.dumpTitles, input.titleCandidates);
+
+    if (dumpMatch !== undefined && dumpMatch.score >= ANIDB_MIN_ANIME_MATCH_SCORE) {
+      const strong = dumpMatch.score >= ANIDB_STRONG_ANIME_MATCH_SCORE;
+      yield* Effect.logDebug("AniDB aid dump hit").pipe(
+        Effect.annotateLogs({
+          aid: dumpMatch.aid,
+          matchedTitle: dumpMatch.matchedTitle,
+          mediaId: input.mediaId,
+          score: dumpMatch.score,
+          strong,
+        }),
+      );
+      const resolved: ResolvedAnimeId = {
+        aid: dumpMatch.aid,
+        score: dumpMatch.score,
+        source: "search",
+        strong,
+      };
+      return Option.some(resolved);
     }
   }
 

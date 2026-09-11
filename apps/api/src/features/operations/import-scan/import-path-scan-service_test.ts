@@ -101,6 +101,7 @@ function scanImportPathEffect(
               MediaRepository.of({
                 countMedia: () => Effect.die(new Error("not used in test")),
                 findExistingMediaIds: () => Effect.die(new Error("not used in test")),
+                findExistingMediaMalIds: () => Effect.die(new Error("not used in test")),
                 findMediaIdByMalId: () => Effect.die(new Error("not used in test")),
                 findMediaRootFolderOwner: () => Effect.die(new Error("not used in test")),
                 getMediaRow: () => Effect.die(new Error("not used in test")),

@@ -120,6 +120,7 @@ describe("MediaQueryService.listSeasonalMedia", () => {
             Layer.succeed(
               ExternalIdMapRepository,
               ExternalIdMapRepository.of({
+                loadByEitherIds: () => Effect.succeed([]),
                 loadByEitherId: () => Effect.succeed(Option.none()),
                 deleteByAniListId: () => Effect.void,
                 loadByAnidbAid: () => Effect.succeed(Option.none()),
@@ -139,6 +140,7 @@ describe("MediaQueryService.listSeasonalMedia", () => {
             Layer.succeed(
               ExternalIdMapRepository,
               ExternalIdMapRepository.of({
+                loadByEitherIds: () => Effect.succeed([]),
                 loadByEitherId: () => Effect.succeed(Option.none()),
                 deleteByAniListId: () => Effect.void,
                 loadByAnidbAid: () => Effect.succeed(Option.none()),
@@ -255,6 +257,7 @@ describe("MediaQueryService.listSeasonalMedia", () => {
                 Layer.succeed(
                   ExternalIdMapRepository,
                   ExternalIdMapRepository.of({
+                    loadByEitherIds: () => Effect.succeed([]),
                     loadByEitherId: () => Effect.succeed(Option.none()),
                     deleteByAniListId: () => Effect.void,
                     loadByAnidbAid: () => Effect.succeed(Option.none()),
@@ -364,6 +367,7 @@ describe("MediaQueryService.listSeasonalMedia", () => {
                 Layer.succeed(
                   ExternalIdMapRepository,
                   ExternalIdMapRepository.of({
+                    loadByEitherIds: () => Effect.succeed([]),
                     loadByEitherId: () => Effect.succeed(Option.none()),
                     deleteByAniListId: () => Effect.void,
                     loadByAnidbAid: () => Effect.succeed(Option.none()),
@@ -505,6 +509,7 @@ describe("MediaQueryService.listSeasonalMedia", () => {
                 Layer.succeed(
                   ExternalIdMapRepository,
                   ExternalIdMapRepository.of({
+                    loadByEitherIds: () => Effect.succeed([]),
                     loadByEitherId: () => Effect.succeed(Option.none()),
                     deleteByAniListId: () => Effect.void,
                     loadByAnidbAid: () => Effect.succeed(Option.none()),
@@ -601,6 +606,7 @@ describe("MediaQueryService.listSeasonalMedia", () => {
                 Layer.succeed(
                   ExternalIdMapRepository,
                   ExternalIdMapRepository.of({
+                    loadByEitherIds: () => Effect.succeed([]),
                     loadByEitherId: () => Effect.succeed(Option.none()),
                     deleteByAniListId: () => Effect.void,
                     loadByAnidbAid: () => Effect.succeed(Option.none()),
@@ -811,6 +817,7 @@ function makeQueryServiceLayer(
   const idMap =
     stubs.idMap ??
     ExternalIdMapRepository.of({
+      loadByEitherIds: () => Effect.succeed([]),
       loadByEitherId: () => Effect.succeed(Option.none()),
       deleteByAniListId: () => Effect.void,
       loadByAnidbAid: () => Effect.succeed(Option.none()),
