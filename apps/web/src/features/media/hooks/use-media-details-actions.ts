@@ -14,7 +14,7 @@ import { Effect } from "effect";
 import { useState } from "react";
 import { toast } from "sonner";
 import { errorMessage } from "@/api/effect/errors";
-import { copyToClipboard } from "@/infra/utils";
+import { copyToClipboard } from "@/infra/clipboard";
 
 interface UseAnimeDetailsActionsOptions {
   mediaId: number;

@@ -64,6 +64,7 @@ export class SearchMediaQuerySchema extends Schema.Class<SearchMediaQuerySchema>
   id_space: Schema.optional(MediaIdSpaceSchema),
   media_kind: Schema.optional(MediaKindSchema),
   q: Schema.optional(MediaSearchQueryStringSchema),
+  page: Schema.optional(PositiveIntFromStringSchema),
 }) {}
 
 const BooleanFromStringParamSchema = Schema.Literals(["true", "false"]).pipe(

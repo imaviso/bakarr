@@ -33,20 +33,20 @@ export function DownloadsHistoryTab(props: DownloadsHistoryTabProps) {
         <Table className="table-fixed w-full min-w-0">
           <TableHeader className="sticky top-0 bg-card z-10 border-b">
             <TableRow className="hover:bg-transparent border-none">
-              <TableHead scope="col" className="w-[50px]">
+              <TableHead scope="col" className="w-12.5">
                 <span className="sr-only">Status</span>
               </TableHead>
               <TableHead scope="col">Media</TableHead>
-              <TableHead scope="col" className="w-[100px]">
+              <TableHead scope="col" className="w-25">
                 MediaUnit
               </TableHead>
-              <TableHead scope="col" className="w-[180px] hidden md:table-cell">
+              <TableHead scope="col" className="w-45 hidden md:table-cell">
                 Added
               </TableHead>
-              <TableHead scope="col" className="w-[120px]">
+              <TableHead scope="col" className="w-30">
                 Status
               </TableHead>
-              <TableHead scope="col" className="w-[120px] text-right">
+              <TableHead scope="col" className="w-30 text-right">
                 Actions
               </TableHead>
             </TableRow>

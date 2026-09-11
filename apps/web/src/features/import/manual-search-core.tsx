@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { MediaSearchResult, MediaKind } from "@/api/contracts";
-import { useMediaSearchQuery } from "@/api/media";
+import { useMediaSearchInfiniteQuery } from "@/api/media";
 import { animeDisplayTitle, animeSearchSubtitle } from "@/domain/media/metadata";
 import { mediaKindLabel, mediaUnitShortLabel } from "@/domain/media-unit";
 import { formatMatchConfidence } from "@/domain/scanned-file";
@@ -45,16 +45,17 @@ export function ManualSearchCore(props: ManualSearchCoreProps) {
   const [mediaKind, setMediaKind] = useState<MediaKind>(props.initialMediaKind ?? "anime");
   const [debouncedQuery] = useDebouncedValue(query, { wait: SEARCH_DEBOUNCE_MS });
 
-  const search = useMediaSearchQuery(debouncedQuery, mediaKind);
-  const searchResults = search.data?.results ?? [];
-  const searchDegraded = search.data?.degraded ?? false;
+  const search = useMediaSearchInfiniteQuery(debouncedQuery, mediaKind);
+  const pages = search.data?.pages;
+  const searchResults = useMemo(() => pages?.flatMap((page) => page.results) ?? [], [pages]);
+  const searchDegraded = useMemo(() => pages?.some((page) => page.degraded) ?? false, [pages]);
   const libraryIds = useMemo(() => {
     const ids = new Set(props.existingIds);
-    for (const media of search.data?.results ?? []) {
+    for (const media of searchResults) {
       if (media.already_in_library) ids.add(media.id);
     }
     return ids;
-  }, [props.existingIds, search.data?.results]);
+  }, [props.existingIds, searchResults]);
 
   return (
     <div className="space-y-4">
@@ -110,7 +111,7 @@ export function ManualSearchCore(props: ManualSearchCoreProps) {
         </div>
       )}
 
-      <div className={cn("h-[300px] border rounded-none overflow-y-auto", props.containerClass)}>
+      <div className={cn("h-75 border rounded-none overflow-y-auto", props.containerClass)}>
         {debouncedQuery ? (
           searchResults.length !== 0 ? (
             <div className="divide-y">

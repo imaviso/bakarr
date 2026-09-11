@@ -3,14 +3,19 @@ import { MutationCache, QueryClient, QueryClientProvider } from "@tanstack/react
 import { toast } from "sonner";
 import { createRouter, RouterProvider } from "@tanstack/react-router";
 import { routeTree } from "./routeTree.gen";
-import { logout } from "@/app/auth-state";
+import { getAuthHeaders, logout } from "@/app/auth-state";
 import {
   ApiClientError,
   ApiDecodeError,
   ApiUnauthorizedError,
   isApiUnauthorizedError,
+  setAuthHeadersProvider,
 } from "@/api/effect/api-client";
 import { errorMessage } from "@/api/effect/errors";
+
+// Dependency direction: api must not import app. The auth layer registers its
+// header provider here, at the composition edge.
+setAuthHeadersProvider(getAuthHeaders);
 // oxlint-disable-next-line import/no-unassigned-import
 import "./index.css";
 

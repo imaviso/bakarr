@@ -13,7 +13,8 @@ export const animeKeys = {
   units: (id: number) => ["media", "detail", id, "units"] as const,
   files: (id: number) => ["media", "detail", id, "files"] as const,
   search: {
-    query: (query: string, mediaKind: string) => ["media", "search", { query, mediaKind }] as const,
+    query: (query: string, mediaKind: string, page?: number) =>
+      ["media", "search", { query, mediaKind }, ...(page === undefined ? [] : [page])] as const,
     units: (mediaId: number, unitNumber: number) =>
       ["search", "units", mediaId, unitNumber] as const,
     releases: (query: string, options?: { mediaId?: number; category?: string; filter?: string }) =>

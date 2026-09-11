@@ -3,16 +3,16 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { EmptyState } from "@/components/shared/empty-state";
 import { GeneralError } from "@/components/shared/general-error";
-import { PageHeader } from "@/app/layout/page-header";
-import { PageShell } from "@/app/layout/page-shell";
+import { PageHeader } from "@/components/shared/page-header";
+import { PageShell } from "@/components/shared/page-shell";
 import { SectionLabel } from "@/components/shared/section-label";
 import { Button } from "@/components/ui/button";
 import { activityQueryOptions, libraryStatsQueryOptions } from "@/api/library";
 import { createDownloadsRouteSearch } from "@/domain/download/events-search";
-import { usePageTitle } from "@/app/page-title";
+import { usePageTitle } from "@/hooks/use-page-title";
 import { Separator } from "@/components/ui/separator";
-import { StatItem } from "@/app/dashboard/stat-item";
-import { ActivityRow } from "@/app/dashboard/activity-row";
+import { StatItem } from "@/components/shared/stat-item";
+import { ActivityRow } from "@/routes/_layout/-activity-row";
 
 export const Route = createFileRoute("/_layout/")({
   loader: async ({ context: { queryClient } }) => {
@@ -39,10 +39,7 @@ function DashboardPage() {
     <PageShell>
       <PageHeader title="Dashboard" subtitle={statsSummary} />
 
-      <div
-        className="flex flex-wrap items-center gap-x-6 gap-y-3 animate-in fade-in slide-in-from-bottom-2 zoom-in-95 ease-out"
-        style={{ animationDuration: "300ms" }}
-      >
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
         <StatItem label="Media" value={stats.total_media} />
         <StatItem
           label="Monitored"

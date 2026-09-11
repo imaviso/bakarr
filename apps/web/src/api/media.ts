@@ -2,6 +2,7 @@ import {
   infiniteQueryOptions,
   keepPreviousData,
   queryOptions,
+  useInfiniteQuery,
   useMutation,
   useQuery,
   useQueryClient,
@@ -113,14 +114,14 @@ export function unitsQueryOptions(mediaId: number) {
   });
 }
 
-export function mediaSearchQueryOptions(query: string, mediaKind: MediaKind = "anime") {
+export function mediaSearchQueryOptions(query: string, mediaKind: MediaKind = "anime", page = 1) {
   return queryOptions({
-    queryKey: animeKeys.search.query(query, mediaKind),
+    queryKey: animeKeys.search.query(query, mediaKind, page),
     queryFn: ({ signal }) =>
       runApiEffect(
         fetchJson(
           MediaSearchResponseSchema,
-          apiUrl("/media/search", { q: query, media_kind: mediaKind }),
+          apiUrl("/media/search", { q: query, media_kind: mediaKind, page }),
           undefined,
           signal,
         ),
@@ -129,11 +130,29 @@ export function mediaSearchQueryOptions(query: string, mediaKind: MediaKind = "a
   });
 }
 
-export function useMediaSearchQuery(query: string, mediaKind: MediaKind = "anime") {
+export function useMediaSearchInfiniteQuery(query: string, mediaKind: MediaKind = "anime") {
   const normalizedQuery = query.trim();
 
-  return useQuery({
-    ...mediaSearchQueryOptions(normalizedQuery, mediaKind),
+  return useInfiniteQuery({
+    ...infiniteQueryOptions({
+      queryKey: animeKeys.search.query(normalizedQuery, mediaKind),
+      queryFn: ({ pageParam, signal }) =>
+        runApiEffect(
+          fetchJson(
+            MediaSearchResponseSchema,
+            apiUrl("/media/search", {
+              q: normalizedQuery,
+              media_kind: mediaKind,
+              page: pageParam,
+            }),
+            undefined,
+            signal,
+          ),
+        ),
+      getNextPageParam: (lastPage) => (lastPage.has_more ? lastPage.page + 1 : undefined),
+      initialPageParam: 1,
+      staleTime: 1000 * 60 * 60, // 1 hour
+    }),
     enabled: normalizedQuery.length >= 3,
   });
 }

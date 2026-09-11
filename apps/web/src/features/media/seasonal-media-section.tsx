@@ -4,6 +4,7 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { MediaSearchResultCard } from "@/features/media/media-search-result-card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { useContainerWidth } from "@/hooks/use-container-width";
 import { useInfiniteNearEnd } from "@/hooks/use-infinite-near-end";
 import type { MediaSearchResult } from "@/api/contracts";
@@ -20,10 +21,12 @@ interface SeasonalAnimeSectionProps {
 }
 
 function getColCount(w: number) {
+  // Must mirror the CSS grid below (sm/md/lg/xl = 640/768/1024/1280) exactly —
+  // the virtualizer slices items into rows by this count.
   if (w >= 1280) return 6;
   if (w >= 1024) return 5;
-  if (w >= 640) return 4;
-  if (w >= 480) return 3;
+  if (w >= 768) return 4;
+  if (w >= 640) return 3;
   return 2;
 }
 
@@ -64,7 +67,7 @@ export function SeasonalAnimeSection(props: SeasonalAnimeSectionProps) {
   useInfiniteNearEnd({
     hasNextPage,
     isFetchingNextPage,
-    total: allResults.length,
+    total: rowCount,
     threshold: 2,
     lastIndex: virtualRows.at(-1)?.index ?? -1,
     fetchNextPage: () => void fetchNextPage(),
@@ -90,7 +93,7 @@ export function SeasonalAnimeSection(props: SeasonalAnimeSectionProps) {
           >
             <RiArrowLeftSLine className="h-4 w-4" />
           </Button>
-          <span className="min-w-[132px] select-none text-center text-sm font-medium text-foreground">
+          <span className="min-w-33 select-none text-center text-sm font-medium text-foreground">
             {formatSeasonWindowLabel(props.seasonWindow)}
           </span>
           <Button
@@ -149,6 +152,12 @@ export function SeasonalAnimeSection(props: SeasonalAnimeSectionProps) {
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {hasNextPage && isFetchingNextPage && (
+        <div className="flex shrink-0 justify-center py-3">
+          <Spinner className="h-5 w-5 text-muted-foreground" />
         </div>
       )}
     </section>

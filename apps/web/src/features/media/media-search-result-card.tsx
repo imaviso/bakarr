@@ -1,3 +1,4 @@
+import { Poster } from "@/components/shared/poster";
 import { RiAddLine, RiCalendarLine, RiCheckLine, RiTvLine } from "@remixicon/react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -35,7 +36,7 @@ interface MediaSearchResultCardProps {
 export function MediaSearchResultCard(props: MediaSearchResultCardProps) {
   return (
     <Card className="overflow-hidden flex flex-col transition-colors hover:border-primary/50 group">
-      <div className="relative aspect-[2/3] w-full bg-muted overflow-hidden">
+      <Poster>
         {props.media.cover_image ? (
           <img
             src={props.media.cover_image}
@@ -69,7 +70,7 @@ export function MediaSearchResultCard(props: MediaSearchResultCardProps) {
             )}
           </Button>
         </div>
-      </div>
+      </Poster>
       <CardContent className={cn("p-4 flex-1", props.compact ? "p-3" : "p-4")}>
         <h3
           className={cn(

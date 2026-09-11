@@ -1,4 +1,5 @@
 import type { DownloadEvent } from "@/api/contracts";
+import { SectionLabel } from "@/components/shared/section-label";
 import { Dialog, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { getDownloadEventMetadataSummary } from "@/domain/download/event-metadata";
@@ -32,9 +33,7 @@ export function DownloadEventDetailsDialog(props: DownloadEventDetailsDialogProp
 
       <div className="space-y-4 text-sm">
         <div className="space-y-1">
-          <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Message
-          </div>
+          <SectionLabel as="div">Message</SectionLabel>
           <div className="rounded-none border border-border bg-muted p-3">
             {props.event?.message}
           </div>
@@ -67,18 +66,14 @@ export function DownloadEventDetailsDialog(props: DownloadEventDetailsDialogProp
 
         {summary?.source ? (
           <div className="space-y-1">
-            <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Release Context
-            </div>
+            <SectionLabel as="div">Release Context</SectionLabel>
             <div>{summary?.source}</div>
           </div>
         ) : null}
 
         {summary?.parsed || summary?.decision ? (
           <div className="space-y-1">
-            <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Parsed Context
-            </div>
+            <SectionLabel as="div">Parsed Context</SectionLabel>
             {summary?.parsed ? <div>{summary?.parsed}</div> : null}
             {summary?.decision ? <div>{summary?.decision}</div> : null}
           </div>
@@ -86,9 +81,7 @@ export function DownloadEventDetailsDialog(props: DownloadEventDetailsDialogProp
 
         {summary?.importedPath ? (
           <div className="space-y-1">
-            <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Imported Path
-            </div>
+            <SectionLabel as="div">Imported Path</SectionLabel>
             <div className="rounded-none border border-border bg-muted p-3 font-mono break-all text-xs">
               {summary?.importedPath}
             </div>
@@ -97,9 +90,7 @@ export function DownloadEventDetailsDialog(props: DownloadEventDetailsDialogProp
 
         {props.event?.metadata_json ? (
           <div className="space-y-1">
-            <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Raw Metadata
-            </div>
+            <SectionLabel as="div">Raw Metadata</SectionLabel>
             <pre className="rounded-none border border-border bg-muted p-3 text-xs overflow-x-auto whitespace-pre-wrap break-all">
               {JSON.stringify(props.event.metadata_json, null, 2)}
             </pre>

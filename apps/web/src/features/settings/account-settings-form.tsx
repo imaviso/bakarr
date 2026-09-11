@@ -23,7 +23,7 @@ import { FieldError } from "@/components/shared/field-error";
 import { useChangePasswordMutation, useRegenerateApiKeyMutation } from "@/api/auth";
 import { useAuth } from "@/app/auth";
 import { errorMessage, firstFieldErrorMessage } from "@/api/effect/errors";
-import { copyToClipboard } from "@/infra/utils";
+import { copyToClipboard } from "@/infra/clipboard";
 
 const ChangePasswordSchema = Schema.Struct({
   currentPassword: Schema.String.pipe(

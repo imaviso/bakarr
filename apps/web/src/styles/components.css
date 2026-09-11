@@ -87,3 +87,11 @@
     }
   }
 }
+
+/* z-index layers above the Tailwind scale (spinner, progress, skip-link). */
+@utility z-spinner {
+  z-index: 100;
+}
+@utility z-skip-link {
+  z-index: 200;
+}

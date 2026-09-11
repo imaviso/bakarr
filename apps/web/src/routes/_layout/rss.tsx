@@ -4,8 +4,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { EmptyState } from "@/components/shared/empty-state";
 import { GeneralError } from "@/components/shared/general-error";
-import { PageHeader } from "@/app/layout/page-header";
-import { PageShell } from "@/app/layout/page-shell";
+import { PageHeader } from "@/components/shared/page-header";
+import { PageShell } from "@/components/shared/page-shell";
 import { Button } from "@/components/ui/button";
 import { FeedCard } from "@/features/rss/feed-card";
 import { AddFeedForm } from "@/features/rss/add-feed-form";
@@ -15,7 +15,7 @@ import {
   rssFeedsQueryOptions,
 } from "@/api/system-rss-calendar";
 import { mediaListQueryOptions } from "@/api/media";
-import { usePageTitle } from "@/app/page-title";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 export const Route = createFileRoute("/_layout/rss")({
   loader: async ({ context: { queryClient } }) => {

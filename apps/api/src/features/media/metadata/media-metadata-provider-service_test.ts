@@ -757,7 +757,7 @@ function makeProviderLayer(input: {
                   input.onDetailLookup?.(id);
                   return Option.some(input.metadata ?? makeMetadata(id));
                 }),
-        searchAnimeMetadata: () => Effect.succeed([]),
+        searchAnimeMetadata: () => Effect.succeed({ results: [], hasMore: false }),
         getSeasonalAnime: () => Effect.succeed([]),
         resolveAniListIdFromMalId: (malId: number) =>
           input.resolveAniListIdFromMalIdError !== undefined
@@ -778,8 +778,8 @@ function makeProviderLayer(input: {
                 input.onTenraiLookup?.(malId);
                 return Option.fromNullishOr(input.tenraiMetadata);
               }),
-        getSeasonalAnime: () => Effect.succeed([]),
-        searchAnime: () => Effect.succeed([]),
+        getSeasonalAnime: () => Effect.succeed({ entries: [], hasMore: false }),
+        searchAnime: () => Effect.succeed({ entries: [], hasMore: false }),
       }),
     ),
     Layer.succeed(

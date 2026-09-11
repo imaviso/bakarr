@@ -87,7 +87,7 @@ export function BackgroundMatchingCard(props: {
           <p className="text-xs text-muted-foreground">{explanation}</p>
         </div>
 
-        <div className="grid grid-cols-2 gap-2 text-right text-xs text-muted-foreground sm:grid-cols-4 lg:min-w-[340px]">
+        <div className="grid grid-cols-2 gap-2 text-right text-xs text-muted-foreground sm:grid-cols-4 lg:min-w-85">
           <div className="border border-border bg-muted px-3 py-2">
             <SectionLabel as="div">Matched</SectionLabel>
             <div className="mt-1 text-lg font-medium text-foreground">{props.matchedCount}</div>

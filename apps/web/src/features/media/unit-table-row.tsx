@@ -25,7 +25,7 @@ import type {
 import type { MediaUnit } from "@/api/contracts";
 import { formatDate, isAired } from "@/domain/date-time";
 import { mediaUnitLabel } from "@/domain/media-unit";
-import { formatDurationSeconds } from "@/domain/scanned-file";
+import { formatDurationSeconds } from "@/domain/format";
 import { cn } from "@/infra/utils";
 
 interface EpisodeTableRowProps {
@@ -62,7 +62,7 @@ export function EpisodeTableRow(props: EpisodeTableRowProps) {
       <TableCell className="font-medium text-center text-muted-foreground group-hover:text-foreground">
         {episode.number}
       </TableCell>
-      <TableCell className="font-medium max-w-[150px] sm:max-w-[250px] md:max-w-[350px]">
+      <TableCell className="font-medium max-w-37.5 sm:max-w-62.5 md:max-w-87.5">
         <div className="truncate" title={episode.title || `${unitLabel} ${episode.number}`}>
           {episode.title || `${unitLabel} ${episode.number}`}
         </div>
@@ -93,7 +93,7 @@ export function EpisodeTableRow(props: EpisodeTableRowProps) {
           )}
         </div>
       </TableCell>
-      <TableCell className="hidden md:table-cell text-sm text-muted-foreground tabular-nums truncate max-w-[200px]">
+      <TableCell className="hidden md:table-cell text-sm text-muted-foreground tabular-nums truncate max-w-50">
         {episode.file_path ? (
           <div className="truncate" title={episode.file_path.split("/").pop()}>
             {episode.file_path.split("/").pop()}

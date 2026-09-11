@@ -38,11 +38,11 @@ import {
 import { EmptyState } from "@/components/shared/empty-state";
 import type { MediaKind } from "@/api/contracts";
 import { mediaUnitLabel } from "@/domain/media-unit";
-import { ReleaseSelectionMeta } from "@/features/downloads/release-search/release-meta";
+import { ReleaseSelectionMeta } from "@/features/search/release-cells/release-meta";
 import {
   ReleasePeersCell,
   ReleasePrimaryCell,
-} from "@/features/downloads/release-search/release-result-cells";
+} from "@/features/search/release-cells/release-result-cells";
 import {
   CATEGORY_LABELS,
   FILTER_LABELS,
@@ -100,7 +100,7 @@ export function SearchDialogContent(props: SearchDialogContentProps) {
             selectedKey={props.category}
             onSelectionChange={(value) => props.setCategory(String(value))}
           >
-            <SelectTrigger className="h-7 w-auto min-w-[130px] text-xs bg-muted border-transparent hover:bg-muted focus:ring-0 gap-2 rounded-none shadow-none px-2.5">
+            <SelectTrigger className="h-7 w-auto min-w-32.5 text-xs bg-muted border-transparent hover:bg-muted focus:ring-0 gap-2 rounded-none shadow-none px-2.5">
               <span className="text-muted-foreground">Category:</span>
               <SelectValue />
             </SelectTrigger>
@@ -119,7 +119,7 @@ export function SearchDialogContent(props: SearchDialogContentProps) {
             selectedKey={props.filter}
             onSelectionChange={(value) => props.setFilter(String(value))}
           >
-            <SelectTrigger className="h-7 w-auto min-w-[120px] text-xs bg-muted border-transparent hover:bg-muted focus:ring-0 gap-2 rounded-none shadow-none px-2.5">
+            <SelectTrigger className="h-7 w-auto min-w-30 text-xs bg-muted border-transparent hover:bg-muted focus:ring-0 gap-2 rounded-none shadow-none px-2.5">
               <RiFilterLine className="h-3 w-3 text-muted-foreground" />
               <SelectValue />
             </SelectTrigger>
@@ -219,7 +219,7 @@ function ReleaseResultsTableHeader(props: {
   return (
     <TableHeader className="sticky top-0 bg-background z-10 border-b border-border">
       <TableRow className="hover:bg-transparent border-border">
-        <TableHead scope="col" className="w-[45%] pl-6 h-9 text-xs font-medium">
+        <TableHead scope="col" className="w-2/5 pl-6 h-9 text-xs font-medium">
           Release{props.count !== undefined && ` (${props.count})`}
         </TableHead>
         <SortableTableHead label={props.unitHeader} sort={props.sort} column="parsed_unit" />
@@ -227,7 +227,7 @@ function ReleaseResultsTableHeader(props: {
         <SortableTableHead label="Size" sort={props.sort} column="size" />
         <SortableTableHead label="Seeds" align="right" sort={props.sort} column="seeders" />
         <SortableTableHead label="Age" align="right" sort={props.sort} column="pub_date" />
-        <TableHead scope="col" className="w-[50px] h-9"></TableHead>
+        <TableHead scope="col" className="w-12.5 h-9"></TableHead>
       </TableRow>
     </TableHeader>
   );
@@ -356,7 +356,7 @@ function ReleaseRow(props: {
 
   return (
     <TableRow className="group border-b border-border transition-colors hover:bg-muted data-[state=selected]:bg-muted">
-      <TableCell className="pl-6 py-2.5 max-w-[260px] sm:max-w-[420px] md:max-w-[520px]">
+      <TableCell className="pl-6 py-2.5 max-w-65 sm:max-w-105 md:max-w-130">
         <ReleasePrimaryCell
           title={props.result.title}
           sourceUrl={props.result.view_url}

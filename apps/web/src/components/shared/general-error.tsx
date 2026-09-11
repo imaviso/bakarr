@@ -12,7 +12,7 @@ export function GeneralError(props: GeneralErrorProps) {
   const [showDetails, setShowDetails] = useState(false);
 
   return (
-    <div className="flex min-h-[400px] flex-1 flex-col items-center justify-center bg-background">
+    <div className="flex min-h-100 flex-1 flex-col items-center justify-center bg-background">
       <div className="flex w-full max-w-xl flex-col items-start gap-6 px-4 text-left">
         <div className="font-mono text-xs text-muted-foreground">
           <span className="text-foreground">bakarr</span> render --route
@@ -39,7 +39,7 @@ export function GeneralError(props: GeneralErrorProps) {
               {showDetails ? "[-] hide trace" : "[+] show trace"}
             </Button>
             {showDetails && (
-              <pre className="mt-2 max-h-[240px] overflow-auto whitespace-pre-wrap break-all border border-border bg-muted p-3 font-mono text-xs text-muted-foreground">
+              <pre className="mt-2 max-h-60 overflow-auto whitespace-pre-wrap break-all border border-border bg-muted p-3 font-mono text-xs text-muted-foreground">
                 {props.error.message}
                 {props.error.stack && `\n\n${props.error.stack}`}
               </pre>

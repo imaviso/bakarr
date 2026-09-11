@@ -207,7 +207,7 @@ export function ReleaseProfileForm(props: {
 
                       <form.Field name={`rules[${index}].rule_type`}>
                         {(typeField) => (
-                          <div className="w-[140px]">
+                          <div className="w-35">
                             <Select
                               selectedKey={typeField.state.value}
                               onSelectionChange={(value) => {
@@ -241,7 +241,7 @@ export function ReleaseProfileForm(props: {
 
                       <form.Field name={`rules[${index}].score`}>
                         {(scoreField) => (
-                          <div className="w-[100px]">
+                          <div className="w-25">
                             <Input
                               type="number"
                               value={scoreField.state.value.toString()}

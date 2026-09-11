@@ -1,3 +1,4 @@
+import { Poster } from "@/components/shared/poster";
 import { RiDeleteBinLine, RiTvLine } from "@remixicon/react";
 import { Link } from "@tanstack/react-router";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
@@ -33,7 +34,7 @@ export function MediaGridCard(props: MediaGridCardProps) {
   const media = props.media;
   return (
     <Card className="group relative flex flex-col overflow-hidden bg-card card-hover transition-colors">
-      <div className="relative aspect-[2/3] w-full overflow-hidden bg-muted border-b border-border">
+      <Poster className="border-b border-border">
         <Link to="/media/$id" params={{ id: media.id.toString() }} className="block h-full w-full">
           {media.cover_image ? (
             <img
@@ -69,7 +70,7 @@ export function MediaGridCard(props: MediaGridCardProps) {
             }
           />
         </div>
-      </div>
+      </Poster>
       <div className="flex flex-1 flex-col gap-2 p-3">
         <Link
           to="/media/$id"

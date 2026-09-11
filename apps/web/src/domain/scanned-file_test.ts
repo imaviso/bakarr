@@ -1,6 +1,6 @@
 import { it } from "vitest";
+import { formatDurationSeconds } from "./format";
 import {
-  formatDurationSeconds,
   formatNamingTitleSource,
   namingMetadataBadges,
   summarizeImportNamingOutcome,

@@ -1,4 +1,4 @@
-import type { DownloadSourceMetadata, ParsedUnitIdentity } from "@/api/contracts";
+import type { DownloadSourceMetadata, ParsedUnitIdentity } from "@/domain/contracts";
 
 interface ParsedIdentityInput {
   parsedAirDate?: string | null | undefined;

@@ -7,9 +7,9 @@ import { syncAuthenticatedUser } from "@/app/auth-state";
 import { authMeQueryOptions } from "@/api/auth";
 import { isApiUnauthorizedError } from "@/api/effect/api-client";
 
-const SocketToastListenerLazy = lazy(() =>
-  import("@/components/shared/socket-toast-listener").then((module) => ({
-    default: module.SocketToastListener,
+const SocketEventsListenerLazy = lazy(() =>
+  import("@/app/socket-events-listener").then((module) => ({
+    default: module.SocketEventsListener,
   })),
 );
 
@@ -48,13 +48,13 @@ function LayoutComponent() {
     <SidebarProvider className="h-svh overflow-hidden">
       <a
         href="#main-content"
-        className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[200] focus:px-4 focus:py-2 focus:bg-primary focus:text-primary-foreground"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-skip-link focus:px-4 focus:py-2 focus:bg-primary focus:text-primary-foreground"
       >
         Skip to content
       </a>
       <AppSidebar />
       <SidebarInset className="min-h-0 overflow-hidden">
-        <div className="h-0.5 w-full bg-transparent overflow-hidden fixed top-0 left-0 z-[100] pointer-events-none">
+        <div className="h-0.5 w-full bg-transparent overflow-hidden fixed top-0 left-0 z-spinner pointer-events-none">
           {isFetching > 0 && (
             <div className="h-full bg-primary animate-progress-indeterminate w-full origin-left" />
           )}
@@ -70,7 +70,7 @@ function LayoutComponent() {
           <Outlet />
         </main>
         <Suspense fallback={null}>
-          <SocketToastListenerLazy />
+          <SocketEventsListenerLazy />
         </Suspense>
       </SidebarInset>
     </SidebarProvider>

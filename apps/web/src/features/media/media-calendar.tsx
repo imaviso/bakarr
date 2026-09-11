@@ -15,7 +15,7 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { PageShell } from "@/app/layout/page-shell";
+import { PageShell } from "@/components/shared/page-shell";
 import { SectionLabel } from "@/components/shared/section-label";
 import { calendarQueryOptions } from "@/api/system-rss-calendar";
 import { useSystemConfigQuery } from "@/api/system-config";
@@ -108,7 +108,7 @@ export function AnimeCalendar(props: AnimeCalendarProps) {
 
       {/* Calendar Grid */}
       <Card className="min-h-0 flex-1 overflow-auto border-border">
-        <div className="min-w-0 md:min-w-[800px]">
+        <div className="min-w-0 md:min-w-200">
           {/* Weekday Headers */}
           <div className="grid grid-cols-7 border-b border-border bg-muted">
             {WEEKDAYS.map((day) => (
@@ -129,7 +129,7 @@ export function AnimeCalendar(props: AnimeCalendarProps) {
                 <div
                   key={format(day, "yyyy-MM-dd")}
                   className={cn(
-                    "min-h-[120px] border-r border-b border-border p-1.5 transition-colors",
+                    "min-h-30 border-r border-b border-border p-1.5 transition-colors",
                     "last:border-r-0 [&:nth-child(7n)]:border-r-0",
                     !isCurrentMonth && "bg-muted opacity-50",
                     isCurrentDay && "bg-primary/10",

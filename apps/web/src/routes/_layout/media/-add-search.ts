@@ -1,4 +1,5 @@
 import { Schema, SchemaTransformation } from "effect";
+import { MediaKindSchema } from "@bakarr/shared";
 import { getCurrentSeasonWindow } from "@/domain/seasonal-navigation";
 
 export const DEFAULT_SEASON_WINDOW = getCurrentSeasonWindow();
@@ -43,9 +44,9 @@ const IdSchema = Schema.Union([Schema.Number, Schema.NumberFromString]).pipe(
   Schema.check(Schema.isInt()),
 );
 
-const MediaKindSchema = Schema.String.pipe(
+const MediaKindSchemaWithFallback = Schema.String.pipe(
   Schema.decodeTo(
-    Schema.Literals(["anime", "manga", "light_novel"]),
+    MediaKindSchema,
     SchemaTransformation.transform({
       decode: (value) =>
         value === "manga" || value === "light_novel" || value === "anime" ? value : "anime",
@@ -57,7 +58,7 @@ const MediaKindSchema = Schema.String.pipe(
 export const addAnimeSearchSchema = Schema.Struct({
   id: Schema.optionalKey(IdSchema),
   id_space: Schema.optionalKey(Schema.Literals(["anilist", "mal"])),
-  media_kind: Schema.optionalKey(MediaKindSchema),
+  media_kind: Schema.optionalKey(MediaKindSchemaWithFallback),
   q: Schema.optionalKey(Schema.String),
   tab: Schema.optionalKey(TabSchema),
   season: Schema.optionalKey(SeasonSchema),

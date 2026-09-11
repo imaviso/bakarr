@@ -6,8 +6,8 @@ import { QualityProfilesTab } from "@/features/settings/quality-profiles-tab";
 import { ReleaseProfilesTab } from "@/features/settings/release-profiles-tab";
 import { GeneralSettingsForm } from "@/features/settings/system-settings-form";
 import { GeneralError } from "@/components/shared/general-error";
-import { PageHeader } from "@/app/layout/page-header";
-import { PageShell } from "@/app/layout/page-shell";
+import { PageHeader } from "@/components/shared/page-header";
+import { PageShell } from "@/components/shared/page-shell";
 import { SettingsMobileSelect, SettingsNav } from "@/features/settings/settings-nav";
 import {
   profilesQueryOptions,
@@ -15,7 +15,7 @@ import {
   releaseProfilesQueryOptions,
 } from "@/api/profiles";
 import { observabilityStatusQueryOptions, systemConfigQueryOptions } from "@/api/system-config";
-import { usePageTitle } from "@/app/page-title";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 const SettingsTabSchema = Schema.String.pipe(
   Schema.decodeTo(

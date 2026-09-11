@@ -3,7 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Result } from "effect";
 import { decodeNotificationEventWire } from "@bakarr/shared";
 import { useAuth } from "@/app/auth";
-import { handleSocketEvent } from "@/infra/socket-event-handler";
+import { handleSocketEvent } from "@/app/socket-event-handler";
 
 const RECONNECT_DELAY_MS = 5000;
 
@@ -24,7 +24,12 @@ function decodeSocketPayload(data: unknown, textDecoder: TextDecoder): string | 
   return undefined;
 }
 
-export function useSocketEvents() {
+export function SocketEventsListener() {
+  useSocketEvents();
+  return null;
+}
+
+function useSocketEvents() {
   const queryClient = useQueryClient();
   const { auth } = useAuth();
   const socketRef = useRef<WebSocket | null>(null);

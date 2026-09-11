@@ -2,7 +2,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { GeneralError } from "@/components/shared/general-error";
-import { PageShell } from "@/app/layout/page-shell";
+import { PageShell } from "@/components/shared/page-shell";
 import { runBulkBackgroundMatchAction } from "@/features/scan/background-matching-actions";
 import { isBackgroundMatchingRunning } from "@/features/scan/background-matching-state";
 import { ScanContent } from "@/features/scan/sections/scan-content";
@@ -15,7 +15,7 @@ import {
 } from "@/api/system-library";
 import { systemJobsQueryOptions } from "@/api/system-config";
 import type { MediaSearchResult, UnmappedFolder } from "@/api/contracts";
-import { usePageTitle } from "@/app/page-title";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 export const Route = createFileRoute("/_layout/media/scan")({
   loader: async ({ context: { queryClient } }) => {

@@ -139,7 +139,7 @@ function LoginPage() {
   return (
     <main className="h-dvh overflow-y-auto bg-background p-4">
       <div className="flex min-h-full items-center justify-center">
-        <Card className="w-full max-w-[400px] p-2 bg-card">
+        <Card className="w-full max-w-100 p-2 bg-card">
           <CardHeader className="text-center pb-4 mb-2">
             <div
               aria-hidden="true"

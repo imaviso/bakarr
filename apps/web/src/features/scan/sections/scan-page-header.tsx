@@ -6,8 +6,8 @@ import {
   RiSparkling2Line,
 } from "@remixicon/react";
 import { SectionLabel } from "@/components/shared/section-label";
+import { StatItem } from "@/components/shared/stat-item";
 import { Button } from "@/components/ui/button";
-import { StatChip } from "@/features/scan/stat-chip";
 import { cn } from "@/infra/utils";
 
 interface ScanPageHeaderProps {
@@ -55,10 +55,19 @@ export function ScanPageHeader(props: ScanPageHeaderProps) {
           </div>
 
           <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-            <StatChip label="Unmapped" value={String(props.foldersCount)} />
-            <StatChip label="Queued" value={String(props.counts.queued + props.counts.matching)} />
-            <StatChip label="Paused" value={String(props.counts.paused)} />
-            <StatChip label="Already in library" value={String(props.counts.exact)} tone="info" />
+            <StatItem inline label="Unmapped" value={String(props.foldersCount)} />
+            <StatItem
+              inline
+              label="Queued"
+              value={String(props.counts.queued + props.counts.matching)}
+            />
+            <StatItem inline label="Paused" value={String(props.counts.paused)} />
+            <StatItem
+              inline
+              label="Already in library"
+              value={String(props.counts.exact)}
+              tone="info"
+            />
             <Button
               variant="outline"
               size="sm"

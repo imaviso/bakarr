@@ -79,15 +79,15 @@ describe("MediaSeasonalProviderService", () => {
               getAnimeMetadataById: () => Effect.succeed(Option.none()),
               getSeasonalAnime: () => Effect.succeed(anilistResults),
               resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
-              searchAnimeMetadata: () => Effect.succeed([]),
+              searchAnimeMetadata: () => Effect.succeed({ results: [], hasMore: false }),
             }),
           ),
           Layer.succeed(
             TenraiClient,
             TenraiClient.of({
               getAnimeByMalId: () => Effect.succeed(Option.none()),
-              getSeasonalAnime: () => Effect.succeed([]),
-              searchAnime: () => Effect.succeed([]),
+              getSeasonalAnime: () => Effect.succeed({ entries: [], hasMore: false }),
+              searchAnime: () => Effect.succeed({ entries: [], hasMore: false }),
             }),
           ),
         ),
@@ -124,7 +124,7 @@ describe("MediaSeasonalProviderService", () => {
               getAnimeMetadataById: () => Effect.succeed(Option.none()),
               getSeasonalAnime: () => Effect.succeed([]),
               resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
-              searchAnimeMetadata: () => Effect.succeed([]),
+              searchAnimeMetadata: () => Effect.succeed({ results: [], hasMore: false }),
             }),
           ),
           Layer.succeed(
@@ -194,15 +194,15 @@ describe("MediaSeasonalProviderService", () => {
                 ),
               resolveAniListIdFromMalId: () =>
                 Effect.die(new Error("unexpected anilist id resolution")),
-              searchAnimeMetadata: () => Effect.succeed([]),
+              searchAnimeMetadata: () => Effect.succeed({ results: [], hasMore: false }),
             }),
           ),
           Layer.succeed(
             TenraiClient,
             TenraiClient.of({
               getAnimeByMalId: () => Effect.succeed(Option.none()),
-              getSeasonalAnime: () => Effect.succeed(tenraiEntries),
-              searchAnime: () => Effect.succeed([]),
+              getSeasonalAnime: () => Effect.succeed({ entries: tenraiEntries, hasMore: false }),
+              searchAnime: () => Effect.succeed({ entries: [], hasMore: false }),
             }),
           ),
         ),
@@ -249,23 +249,26 @@ describe("MediaSeasonalProviderService", () => {
                   }),
                 ),
               resolveAniListIdFromMalId: () => Effect.succeed(Option.some(4404)),
-              searchAnimeMetadata: () => Effect.succeed([]),
+              searchAnimeMetadata: () => Effect.succeed({ results: [], hasMore: false }),
             }),
           ),
           Layer.succeed(
             TenraiClient,
             TenraiClient.of({
               getAnimeByMalId: () => Effect.succeed(Option.none()),
-              searchAnime: () => Effect.succeed([]),
+              searchAnime: () => Effect.succeed({ entries: [], hasMore: false }),
               getSeasonalAnime: () =>
-                Effect.succeed([
-                  makeTenraiSeasonalEntry(404, {
-                    season: undefined,
-                    seasonYear: undefined,
-                    startYear: undefined,
-                    title: { romaji: "Fallback Fill" },
-                  }),
-                ]),
+                Effect.succeed({
+                  entries: [
+                    makeTenraiSeasonalEntry(404, {
+                      season: undefined,
+                      seasonYear: undefined,
+                      startYear: undefined,
+                      title: { romaji: "Fallback Fill" },
+                    }),
+                  ],
+                  hasMore: false,
+                }),
             }),
           ),
         ),
@@ -319,15 +322,15 @@ describe("MediaSeasonalProviderService", () => {
                 ),
               resolveAniListIdFromMalId: () =>
                 Effect.die(new Error("unexpected anilist id resolution")),
-              searchAnimeMetadata: () => Effect.succeed([]),
+              searchAnimeMetadata: () => Effect.succeed({ results: [], hasMore: false }),
             }),
           ),
           Layer.succeed(
             TenraiClient,
             TenraiClient.of({
               getAnimeByMalId: () => Effect.succeed(Option.none()),
-              getSeasonalAnime: () => Effect.succeed(tenraiEntries),
-              searchAnime: () => Effect.succeed([]),
+              getSeasonalAnime: () => Effect.succeed({ entries: tenraiEntries, hasMore: false }),
+              searchAnime: () => Effect.succeed({ entries: [], hasMore: false }),
             }),
           ),
         ),
@@ -373,14 +376,14 @@ describe("MediaSeasonalProviderService", () => {
                   }),
                 ),
               resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
-              searchAnimeMetadata: () => Effect.succeed([]),
+              searchAnimeMetadata: () => Effect.succeed({ results: [], hasMore: false }),
             }),
           ),
           Layer.succeed(
             TenraiClient,
             TenraiClient.of({
               getAnimeByMalId: () => Effect.succeed(Option.none()),
-              searchAnime: () => Effect.succeed([]),
+              searchAnime: () => Effect.succeed({ entries: [], hasMore: false }),
               getSeasonalAnime: () =>
                 Effect.fail(
                   ExternalCallError.make({
@@ -422,7 +425,7 @@ describe("MediaSeasonalProviderService", () => {
                   }),
                 ),
               resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
-              searchAnimeMetadata: () => Effect.succeed([]),
+              searchAnimeMetadata: () => Effect.succeed({ results: [], hasMore: false }),
             }),
           ),
           Layer.succeed(
@@ -468,20 +471,23 @@ describe("MediaSeasonalProviderService", () => {
                 ),
               resolveAniListIdFromMalId: () =>
                 Effect.die(new Error("unexpected anilist id resolution")),
-              searchAnimeMetadata: () => Effect.succeed([]),
+              searchAnimeMetadata: () => Effect.succeed({ results: [], hasMore: false }),
             }),
           ),
           Layer.succeed(
             TenraiClient,
             TenraiClient.of({
               getAnimeByMalId: () => Effect.succeed(Option.none()),
-              searchAnime: () => Effect.succeed([]),
+              searchAnime: () => Effect.succeed({ entries: [], hasMore: false }),
               getSeasonalAnime: () =>
-                Effect.succeed([
-                  makeTenraiSeasonalEntry(777, {
-                    title: { romaji: "Needs Mapping" },
-                  }),
-                ]),
+                Effect.succeed({
+                  entries: [
+                    makeTenraiSeasonalEntry(777, {
+                      title: { romaji: "Needs Mapping" },
+                    }),
+                  ],
+                  hasMore: false,
+                }),
             }),
           ),
         ),

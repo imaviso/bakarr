@@ -1,4 +1,4 @@
-import type { DownloadEventsExportInput, DownloadEventsFilterInput } from "@/api/contracts";
+import type { DownloadEventsExportInput, DownloadEventsFilterInput } from "@/domain/contracts";
 
 export interface DownloadEventsQueryFields {
   mediaId: string;

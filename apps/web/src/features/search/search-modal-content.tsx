@@ -5,7 +5,7 @@ import { formatDistanceToNow } from "date-fns";
 import {
   ReleasePeersCell,
   ReleasePrimaryCell,
-} from "@/features/downloads/release-search/release-result-cells";
+} from "@/features/search/release-cells/release-result-cells";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { errorMessage } from "@/api/effect/errors";
@@ -61,19 +61,19 @@ export function SearchModalContent(props: SearchModalContentProps) {
                       <TableHeader className="bg-muted sticky top-0 z-10 border-b">
                         <TableRow>
                           <TableHead scope="col">Release</TableHead>
-                          <TableHead scope="col" className="w-[100px]">
+                          <TableHead scope="col" className="w-25">
                             Indexer
                           </TableHead>
-                          <TableHead scope="col" className="w-[80px]">
+                          <TableHead scope="col" className="w-20">
                             Size
                           </TableHead>
-                          <TableHead scope="col" className="w-[80px]">
+                          <TableHead scope="col" className="w-20">
                             Peers
                           </TableHead>
-                          <TableHead scope="col" className="w-[120px]">
+                          <TableHead scope="col" className="w-30">
                             Profile
                           </TableHead>
-                          <TableHead scope="col" className="w-[100px]">
+                          <TableHead scope="col" className="w-25">
                             Action
                           </TableHead>
                         </TableRow>
@@ -98,7 +98,7 @@ export function SearchModalContent(props: SearchModalContentProps) {
                 )}
               </>
             ) : (
-              <div className="flex flex-col items-center justify-center flex-1 text-error gap-2">
+              <div className="flex flex-col items-center justify-center flex-1 text-destructive gap-2">
                 <RiErrorWarningLine className="h-8 w-8" />
                 <p>Error searching for releases</p>
                 <p className="text-sm text-muted-foreground">
@@ -154,7 +154,7 @@ function SearchReleaseRow(props: {
 
   return (
     <TableRow className={cn("group", isRejected && "opacity-60 bg-muted")}>
-      <TableCell className="font-medium max-w-[300px]">
+      <TableCell className="font-medium max-w-75">
         <ReleasePrimaryCell
           title={props.release.title}
           sourceUrl={props.release.view_url}
@@ -217,7 +217,7 @@ function SearchReleaseRow(props: {
           </Button>
           {reason && (
             <span
-              className="text-xs text-error text-right leading-tight max-w-[100px]"
+              className="text-xs text-destructive text-right leading-tight max-w-25"
               title={reason || ""}
             >
               {reason}

@@ -97,27 +97,27 @@ export function AnimeEpisodesPanel(props: AnimeEpisodesPanelProps) {
           </TabsContent>
 
           <TabsContent id="table">
-            <div className="border rounded-none overflow-auto max-h-[600px] min-w-0">
+            <div className="border rounded-none overflow-auto max-h-150 min-w-0">
               <Table className="min-w-0">
                 <TableHeader className="sticky top-0 bg-card z-10 border-b">
                   <TableRow>
-                    <TableHead scope="col" className="w-[60px] text-center">
+                    <TableHead scope="col" className="w-15 text-center">
                       #
                     </TableHead>
                     <TableHead scope="col">Title</TableHead>
-                    <TableHead scope="col" className="hidden sm:table-cell w-[120px]">
+                    <TableHead scope="col" className="hidden sm:table-cell w-30">
                       Aired
                     </TableHead>
-                    <TableHead scope="col" className="hidden md:table-cell w-[80px]">
+                    <TableHead scope="col" className="hidden md:table-cell w-20">
                       Duration
                     </TableHead>
-                    <TableHead scope="col" className="w-[80px] text-right">
+                    <TableHead scope="col" className="w-20 text-right">
                       Status
                     </TableHead>
                     <TableHead scope="col" className="hidden md:table-cell">
                       Filename
                     </TableHead>
-                    <TableHead scope="col" className="w-[50px]"></TableHead>
+                    <TableHead scope="col" className="w-12.5"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>

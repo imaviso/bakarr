@@ -1,3 +1,4 @@
+import { cn } from "@/infra/utils";
 import { RiArrowDownLine, RiArrowUpLine, RiCloseLine, RiDraggable } from "@remixicon/react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -84,7 +85,10 @@ export function SortableQualityList(props: SortableQualityListProps) {
             onDragStart={(event) => handleDragStart(event, quality)}
             onDragOver={(event) => handleDragOver(event, quality)}
             onDragEnd={handleDragEnd}
-            className={`flex items-center gap-1 p-2.5 text-sm group bg-card hover:bg-accent transition-colors cursor-default ${draggedItem === quality ? "opacity-50" : ""}`}
+            className={cn(
+              "flex items-center gap-1 p-2.5 text-sm group bg-card hover:bg-accent transition-colors cursor-default",
+              draggedItem === quality && "opacity-50",
+            )}
           >
             <RiDraggable className="h-4 w-4 ml-2 mr-1 text-muted-foreground cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity" />
             <span className="flex-1 font-medium">{quality}</span>

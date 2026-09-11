@@ -2,7 +2,7 @@ import { RiExternalLinkLine } from "@remixicon/react";
 import { Badge } from "@/components/ui/badge";
 import type { ReleaseFlag } from "@/domain/release/metadata";
 import { releaseFlagBadgeClass } from "@/domain/release/metadata";
-import { safeExternalUrl } from "@/infra/utils";
+import { cn, safeExternalUrl } from "@/infra/utils";
 
 interface ReleaseMetadataSummaryProps {
   flags?: readonly ReleaseFlag[] | undefined;
@@ -22,7 +22,10 @@ export function ReleaseMetadataSummary(props: ReleaseMetadataSummaryProps) {
             <Badge
               key={`${flag.kind}-${flag.label}`}
               variant="outline"
-              className={`inline-flex items-center rounded-none h-4 px-1 text-xs font-normal ${releaseFlagBadgeClass(flag.kind)}`}
+              className={cn(
+                "inline-flex items-center rounded-none h-4 px-1 text-xs font-normal",
+                releaseFlagBadgeClass(flag.kind),
+              )}
             >
               {flag.label}
             </Badge>

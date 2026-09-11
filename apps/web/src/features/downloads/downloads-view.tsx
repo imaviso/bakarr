@@ -1,7 +1,7 @@
 import { RiRefreshLine, RiSearchLine } from "@remixicon/react";
 import { DownloadEventsDialog } from "@/features/downloads/download-events-dialog";
-import { PageHeader } from "@/app/layout/page-header";
-import { PageShell } from "@/app/layout/page-shell";
+import { PageHeader } from "@/components/shared/page-header";
+import { PageShell } from "@/components/shared/page-shell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -65,7 +65,7 @@ export function DownloadsView(props: DownloadsViewProps) {
           <TabsTrigger id="queue">
             Queue
             {props.state.queueCount > 0 && (
-              <Badge variant="secondary" className="ml-2 h-5 min-w-[1.25rem] px-1.5">
+              <Badge variant="secondary" className="ml-2 h-5 min-w-5 px-1.5">
                 {props.state.queueCount}
               </Badge>
             )}

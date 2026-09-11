@@ -12,9 +12,9 @@ import { DownloadEventsList } from "@/features/logs/download-events-list";
 import { LogDetailsDialog } from "@/features/logs/log-details-dialog";
 import { SystemLogsTable } from "@/features/logs/system-logs-table";
 import { DownloadEventsFilters } from "@/features/downloads/download-events/download-events-filters";
-import { Filter } from "@/features/filters";
-import { PageHeader } from "@/app/layout/page-header";
-import { PageShell } from "@/app/layout/page-shell";
+import { Filter } from "@/features/logs/filters";
+import { PageHeader } from "@/components/shared/page-header";
+import { PageShell } from "@/components/shared/page-shell";
 import { DownloadEventDetailsDialog } from "@/features/downloads/download-event-details-dialog";
 import { logsFilterColumns } from "@/features/logs/logs-filter-config";
 import { formatUiTimestamp } from "@/domain/date-time";
@@ -130,7 +130,7 @@ export function LogsView(props: LogsViewProps) {
                 <DashboardMetricCard
                   label="Failed"
                   value={props.state.dashboardQuery.data.failed_downloads}
-                  highlight="text-error"
+                  highlight="text-destructive"
                 />
                 <DashboardMetricCard
                   label="Imported"

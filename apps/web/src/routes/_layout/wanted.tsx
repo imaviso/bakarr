@@ -5,8 +5,8 @@ import { Suspense, lazy, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { EmptyState } from "@/components/shared/empty-state";
 import { GeneralError } from "@/components/shared/general-error";
-import { PageHeader } from "@/app/layout/page-header";
-import { PageShell } from "@/app/layout/page-shell";
+import { PageHeader } from "@/components/shared/page-header";
+import { PageShell } from "@/components/shared/page-shell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { IconButton } from "@/components/shared/icon-button";
@@ -25,7 +25,7 @@ import { systemConfigQueryOptions } from "@/api/system-config";
 import { wantedQueryOptions } from "@/api/system-wanted";
 import type { MissingUnit } from "@/api/contracts";
 import { mediaUnitLabel } from "@/domain/media-unit";
-import { usePageTitle } from "@/app/page-title";
+import { usePageTitle } from "@/hooks/use-page-title";
 import {
   formatAiringDateWithPreferences,
   formatNextAiringUnit,
@@ -125,18 +125,18 @@ function WantedPage() {
           <Table className="w-full min-w-0 table-fixed">
             <TableHeader className="sticky top-0 z-10 bg-background">
               <TableRow className="hover:bg-transparent">
-                <TableHead scope="col" className="w-[60px]" />
+                <TableHead scope="col" className="w-15" />
                 <TableHead scope="col">Title</TableHead>
-                <TableHead scope="col" className="w-[100px]">
+                <TableHead scope="col" className="w-25">
                   Unit
                 </TableHead>
                 <TableHead scope="col" className="hidden md:table-cell">
                   Unit Title
                 </TableHead>
-                <TableHead scope="col" className="w-[150px]">
+                <TableHead scope="col" className="w-37.5">
                   Air Date
                 </TableHead>
-                <TableHead scope="col" className="w-[50px]" />
+                <TableHead scope="col" className="w-12.5" />
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -270,7 +270,7 @@ function WantedRow(props: {
           )}
         </div>
       </TableCell>
-      <TableCell className="hidden md:table-cell text-muted-foreground truncate max-w-[200px]">
+      <TableCell className="hidden md:table-cell text-muted-foreground truncate max-w-50">
         {props.item.unit_title || "-"}
       </TableCell>
       <TableCell className="text-sm">

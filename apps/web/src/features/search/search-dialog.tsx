@@ -36,7 +36,7 @@ export function SearchDialog(props: SearchDialogProps) {
           props.trigger
         ))}
 
-      <ContentDialog size="lg" className="h-[85vh]">
+      <ContentDialog size="lg" height="tall">
         <SearchDialogContent
           mediaId={props.mediaId}
           mediaKind={props.mediaKind}

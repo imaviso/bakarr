@@ -98,7 +98,7 @@ describe("MediaQueryService.listSeasonalMedia", () => {
                 getAnimeMetadataById: () => Effect.succeed(Option.none()),
                 getSeasonalAnime: () => Effect.succeed([]),
                 resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
-                searchAnimeMetadata: () => Effect.succeed([]),
+                searchAnimeMetadata: () => Effect.succeed({ results: [], hasMore: false }),
               }),
             ),
             Layer.succeed(
@@ -113,8 +113,8 @@ describe("MediaQueryService.listSeasonalMedia", () => {
               TenraiClient,
               TenraiClient.of({
                 getAnimeByMalId: () => Effect.succeed(Option.none()),
-                getSeasonalAnime: () => Effect.succeed([]),
-                searchAnime: () => Effect.succeed([]),
+                getSeasonalAnime: () => Effect.succeed({ entries: [], hasMore: false }),
+                searchAnime: () => Effect.succeed({ entries: [], hasMore: false }),
               }),
             ),
             Layer.succeed(
@@ -133,8 +133,8 @@ describe("MediaQueryService.listSeasonalMedia", () => {
               TenraiClient,
               TenraiClient.of({
                 getAnimeByMalId: () => Effect.succeed(Option.none()),
-                getSeasonalAnime: () => Effect.succeed([]),
-                searchAnime: () => Effect.succeed([]),
+                getSeasonalAnime: () => Effect.succeed({ entries: [], hasMore: false }),
+                searchAnime: () => Effect.succeed({ entries: [], hasMore: false }),
               }),
             ),
             Layer.succeed(
@@ -235,7 +235,7 @@ describe("MediaQueryService.listSeasonalMedia", () => {
                     getAnimeMetadataById: () => Effect.succeed(Option.none()),
                     getSeasonalAnime: () => Effect.succeed([]),
                     resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
-                    searchAnimeMetadata: () => Effect.succeed([]),
+                    searchAnimeMetadata: () => Effect.succeed({ results: [], hasMore: false }),
                   }),
                 ),
                 Layer.succeed(
@@ -250,8 +250,8 @@ describe("MediaQueryService.listSeasonalMedia", () => {
                   TenraiClient,
                   TenraiClient.of({
                     getAnimeByMalId: () => Effect.succeed(Option.none()),
-                    getSeasonalAnime: () => Effect.succeed([]),
-                    searchAnime: () => Effect.succeed([]),
+                    getSeasonalAnime: () => Effect.succeed({ entries: [], hasMore: false }),
+                    searchAnime: () => Effect.succeed({ entries: [], hasMore: false }),
                   }),
                 ),
                 Layer.succeed(
@@ -345,7 +345,7 @@ describe("MediaQueryService.listSeasonalMedia", () => {
                     getAnimeMetadataById: () => Effect.succeed(Option.none()),
                     getSeasonalAnime: () => Effect.succeed([]),
                     resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
-                    searchAnimeMetadata: () => Effect.succeed([]),
+                    searchAnimeMetadata: () => Effect.succeed({ results: [], hasMore: false }),
                   }),
                 ),
                 Layer.succeed(
@@ -360,8 +360,8 @@ describe("MediaQueryService.listSeasonalMedia", () => {
                   TenraiClient,
                   TenraiClient.of({
                     getAnimeByMalId: () => Effect.succeed(Option.none()),
-                    getSeasonalAnime: () => Effect.succeed([]),
-                    searchAnime: () => Effect.succeed([]),
+                    getSeasonalAnime: () => Effect.succeed({ entries: [], hasMore: false }),
+                    searchAnime: () => Effect.succeed({ entries: [], hasMore: false }),
                   }),
                 ),
                 Layer.succeed(
@@ -487,7 +487,7 @@ describe("MediaQueryService.listSeasonalMedia", () => {
                     getAnimeMetadataById: () => Effect.succeed(Option.none()),
                     getSeasonalAnime: () => Effect.succeed([]),
                     resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
-                    searchAnimeMetadata: () => Effect.succeed([]),
+                    searchAnimeMetadata: () => Effect.succeed({ results: [], hasMore: false }),
                   }),
                 ),
                 Layer.succeed(
@@ -502,8 +502,8 @@ describe("MediaQueryService.listSeasonalMedia", () => {
                   TenraiClient,
                   TenraiClient.of({
                     getAnimeByMalId: () => Effect.succeed(Option.none()),
-                    getSeasonalAnime: () => Effect.succeed([]),
-                    searchAnime: () => Effect.succeed([]),
+                    getSeasonalAnime: () => Effect.succeed({ entries: [], hasMore: false }),
+                    searchAnime: () => Effect.succeed({ entries: [], hasMore: false }),
                   }),
                 ),
                 Layer.succeed(
@@ -584,7 +584,7 @@ describe("MediaQueryService.listSeasonalMedia", () => {
                     getAnimeMetadataById: () => Effect.succeed(Option.none()),
                     getSeasonalAnime: () => Effect.succeed([]),
                     resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
-                    searchAnimeMetadata: () => Effect.succeed([]),
+                    searchAnimeMetadata: () => Effect.succeed({ results: [], hasMore: false }),
                   }),
                 ),
                 Layer.succeed(
@@ -599,8 +599,8 @@ describe("MediaQueryService.listSeasonalMedia", () => {
                   TenraiClient,
                   TenraiClient.of({
                     getAnimeByMalId: () => Effect.succeed(Option.none()),
-                    getSeasonalAnime: () => Effect.succeed([]),
-                    searchAnime: () => Effect.succeed([]),
+                    getSeasonalAnime: () => Effect.succeed({ entries: [], hasMore: false }),
+                    searchAnime: () => Effect.succeed({ entries: [], hasMore: false }),
                   }),
                 ),
                 Layer.succeed(
@@ -703,22 +703,25 @@ describe("MediaQueryService.searchMedia", () => {
                 }),
                 tenrai: TenraiClient.of({
                   getAnimeByMalId: () => Effect.succeed(Option.none()),
-                  getSeasonalAnime: () => Effect.succeed([]),
+                  getSeasonalAnime: () => Effect.succeed({ entries: [], hasMore: false }),
                   searchAnime: () =>
-                    Effect.succeed([
-                      {
-                        coverImage: "https://cdn.example/media/101.jpg",
-                        unitCount: 12,
-                        format: "TV",
-                        genres: ["Action"],
-                        malId: 101,
-                        season: "spring",
-                        seasonYear: 2025,
-                        startYear: 2025,
-                        status: "Finished Airing",
-                        title: { english: "Fallback", romaji: "Fallback" },
-                      },
-                    ]),
+                    Effect.succeed({
+                      entries: [
+                        {
+                          coverImage: "https://cdn.example/media/101.jpg",
+                          unitCount: 12,
+                          format: "TV",
+                          genres: ["Action"],
+                          malId: 101,
+                          season: "spring",
+                          seasonYear: 2025,
+                          startYear: 2025,
+                          status: "Finished Airing",
+                          title: { english: "Fallback", romaji: "Fallback" },
+                        },
+                      ],
+                      hasMore: false,
+                    }),
                 }),
               }),
             ),
@@ -805,14 +808,14 @@ function makeQueryServiceLayer(
       getAnimeMetadataById: () => Effect.succeed(Option.none()),
       getSeasonalAnime: () => Effect.succeed([]),
       resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
-      searchAnimeMetadata: () => Effect.succeed([]),
+      searchAnimeMetadata: () => Effect.succeed({ results: [], hasMore: false }),
     });
   const tenrai =
     stubs.tenrai ??
     TenraiClient.of({
       getAnimeByMalId: () => Effect.succeed(Option.none()),
-      getSeasonalAnime: () => Effect.succeed([]),
-      searchAnime: () => Effect.succeed([]),
+      getSeasonalAnime: () => Effect.succeed({ entries: [], hasMore: false }),
+      searchAnime: () => Effect.succeed({ entries: [], hasMore: false }),
     });
   const idMap =
     stubs.idMap ??
@@ -1394,13 +1397,16 @@ it.effect("MediaQueryService.searchMedia reuses one upstream call for repeated q
                 getAnimeMetadataById: () => Effect.succeed(Option.none()),
                 searchAnimeMetadata: () => {
                   upstreamCalls += 1;
-                  return Effect.succeed([
-                    {
-                      already_in_library: false,
-                      id: brandMediaId(202),
-                      title: { romaji: "Bakemonogatari" },
-                    } satisfies MediaSearchResult,
-                  ]);
+                  return Effect.succeed({
+                    results: [
+                      {
+                        already_in_library: false,
+                        id: brandMediaId(202),
+                        title: { romaji: "Bakemonogatari" },
+                      } satisfies MediaSearchResult,
+                    ],
+                    hasMore: false,
+                  });
                 },
                 getSeasonalAnime: () => Effect.succeed([]),
                 resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
@@ -1441,13 +1447,16 @@ it.effect("MediaQueryService.searchMedia retries AniList after a failure", () =>
                           operation: "anilist.search.request",
                         }),
                       )
-                    : Effect.succeed([
-                        {
-                          already_in_library: false,
-                          id: brandMediaId(202),
-                          title: { romaji: "Bakemonogatari" },
-                        } satisfies MediaSearchResult,
-                      ]);
+                    : Effect.succeed({
+                        results: [
+                          {
+                            already_in_library: false,
+                            id: brandMediaId(202),
+                            title: { romaji: "Bakemonogatari" },
+                          } satisfies MediaSearchResult,
+                        ],
+                        hasMore: false,
+                      });
                 },
                 getSeasonalAnime: () => Effect.succeed([]),
                 resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
@@ -1567,13 +1576,16 @@ it.effect("MediaQueryService.searchMedia reports non-degraded when AniList searc
               aniList: AniListClient.of({
                 getAnimeMetadataById: () => Effect.succeed(Option.none()),
                 searchAnimeMetadata: () =>
-                  Effect.succeed([
-                    {
-                      already_in_library: false,
-                      id: brandMediaId(202),
-                      title: { romaji: "Bakemonogatari" },
-                    } satisfies MediaSearchResult,
-                  ]),
+                  Effect.succeed({
+                    results: [
+                      {
+                        already_in_library: false,
+                        id: brandMediaId(202),
+                        title: { romaji: "Bakemonogatari" },
+                      } satisfies MediaSearchResult,
+                    ],
+                    hasMore: false,
+                  }),
                 getSeasonalAnime: () => Effect.succeed([]),
                 resolveAniListIdFromMalId: () => Effect.succeed(Option.none()),
               }),

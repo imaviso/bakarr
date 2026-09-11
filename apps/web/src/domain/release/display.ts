@@ -1,4 +1,4 @@
-import type { DownloadAction, NyaaSearchResult } from "@/api/contracts";
+import type { DownloadAction, NyaaSearchResult } from "@/domain/contracts";
 import {
   formatReleaseParsedSummary,
   formatReleaseSourceSummary,

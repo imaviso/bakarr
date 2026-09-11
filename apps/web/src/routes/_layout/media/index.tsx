@@ -17,8 +17,8 @@ import { Schema, SchemaTransformation } from "effect";
 import { AnimeListSkeleton } from "@/features/media/media-list-skeleton";
 import { EmptyState } from "@/components/shared/empty-state";
 import { GeneralError } from "@/components/shared/general-error";
-import { PageHeader } from "@/app/layout/page-header";
-import { PageShell } from "@/app/layout/page-shell";
+import { PageHeader } from "@/components/shared/page-header";
+import { PageShell } from "@/components/shared/page-shell";
 import { Button } from "@/components/ui/button";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { DropdownMenu, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -30,7 +30,7 @@ import { useDeleteMediaMutation } from "@/api/media-mutations";
 import { systemConfigQueryOptions } from "@/api/system-config";
 import { filterAnimeLibrary } from "@/domain/media/library-filter";
 import { getAiringDisplayPreferences } from "@/domain/media/metadata";
-import { usePageTitle } from "@/app/page-title";
+import { usePageTitle } from "@/hooks/use-page-title";
 import { cn } from "@/infra/utils";
 
 const AnimeGridViewLazy = lazy(() =>

@@ -9,7 +9,7 @@ export function ManualMatchSearch(props: {
     <ManualSearchCore
       addedIndicator="badge"
       autoFocusInput={false}
-      containerClass="h-[320px] border border-border bg-background"
+      containerClass="h-80 border border-border bg-background"
       disableSelectionForAdded={false}
       emptyPrompt="Type at least 3 characters to search media"
       initialMediaKind={props.initialMediaKind}

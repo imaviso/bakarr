@@ -29,7 +29,7 @@ export function TimezonePicker(props: TimezonePickerProps) {
       <Button variant="outline" className={cn("w-56 justify-between font-normal", props.className)}>
         <span className="truncate">{formatTimeZoneLabel(selectedValue)}</span>
       </Button>
-      <Popover className="w-[320px] p-0">
+      <Popover className="w-80 p-0">
         <Command>
           <CommandInput placeholder="Search timezone..." />
           <CommandList>

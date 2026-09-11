@@ -4,8 +4,8 @@ import { useNavigate } from "@tanstack/react-router";
 import { useDebouncedValue } from "@tanstack/react-pacer";
 import { Suspense, lazy, useRef } from "react";
 import { GeneralError } from "@/components/shared/general-error";
-import { PageHeader } from "@/app/layout/page-header";
-import { PageShell } from "@/app/layout/page-shell";
+import { PageHeader } from "@/components/shared/page-header";
+import { PageShell } from "@/components/shared/page-shell";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import {
@@ -21,9 +21,9 @@ import {
   mediaByAnilistIdQueryOptions,
   mediaListQueryOptions,
   useMediaListQuery,
-  useMediaSearchQuery,
+  useMediaSearchInfiniteQuery,
 } from "@/api/media";
-import { usePageTitle } from "@/app/page-title";
+import { usePageTitle } from "@/hooks/use-page-title";
 import { DEFAULT_SEASON_WINDOW, parseAddMediaSearch, type AddMediaSearch } from "./-add-search";
 import { mediaKindLabel } from "@/domain/media-unit";
 import { shiftSeasonWindow } from "@/domain/seasonal-navigation";
@@ -77,10 +77,10 @@ function AddAnimePage() {
   const selectedSeason = search.season ?? DEFAULT_SEASON_WINDOW.season;
   const selectedYear = search.year ?? DEFAULT_SEASON_WINDOW.year;
 
-  const searchQuery = useMediaSearchQuery(debouncedQuery, mediaKind);
-  const searchResults = searchQuery.data?.results ?? [];
+  const searchQuery = useMediaSearchInfiniteQuery(debouncedQuery, mediaKind);
+  const searchResults = searchQuery.data?.pages.flatMap((page) => page.results) ?? [];
   const canSearch = debouncedQuery.trim().length >= 3;
-  const searchDegraded = searchQuery.data?.degraded ?? false;
+  const searchDegraded = searchQuery.data?.pages.some((page) => page.degraded) ?? false;
   const { data: animeList = [] } = useMediaListQuery();
   const libraryIds = new Set(
     animeList.flatMap((media) => (media.mal_id != null ? [media.id, media.mal_id] : [media.id])),

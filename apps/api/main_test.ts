@@ -4327,7 +4327,7 @@ const testAniListLayer = Layer.succeed(
           });
         }
       }
-      return Effect.succeed(results);
+      return Effect.succeed({ results, hasMore: false });
     },
     getAnimeMetadataById: (id: number) =>
       Effect.succeed(Option.fromNullishOr(TEST_ANIME_METADATA.get(id))),
@@ -4444,8 +4444,8 @@ const testTenraiLayer = Layer.succeed(
   TenraiClient,
   TenraiClient.of({
     getAnimeByMalId: () => Effect.succeed(Option.none()),
-    getSeasonalAnime: () => Effect.succeed([]),
-    searchAnime: () => Effect.succeed([]),
+    getSeasonalAnime: () => Effect.succeed({ entries: [], hasMore: false }),
+    searchAnime: () => Effect.succeed({ entries: [], hasMore: false }),
   }),
 );
 

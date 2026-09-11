@@ -5,7 +5,7 @@ import {
   RiInformationLine,
   RiPriceTagLine,
 } from "@remixicon/react";
-import type { FilterColumnConfig } from "@/features/filters";
+import type { FilterColumnConfig } from "@/features/logs/filters";
 
 function IconFilter() {
   return <RiPriceTagLine className="h-4 w-4" />;
@@ -32,7 +32,7 @@ export const logsFilterColumns: FilterColumnConfig[] = [
       {
         value: "error",
         label: "Error",
-        icon: <RiErrorWarningLine className="h-4 w-4 text-error" />,
+        icon: <RiErrorWarningLine className="h-4 w-4 text-destructive" />,
       },
       {
         value: "success",

@@ -1,5 +1,4 @@
 import { Cause, Effect, Exit, Option, Result, Schema } from "effect";
-import { getAuthHeaders } from "@/app/auth-state";
 import { API_BASE } from "@/api/constants";
 
 export class ApiClientError extends Schema.TaggedError<ApiClientError>()("ApiClientError", {
@@ -78,11 +77,19 @@ function serializeBody(body: unknown): BodyInit | undefined {
   return JSON.stringify(body);
 }
 
+// The api layer must not import from app/, so auth headers are injected here.
+// `main.tsx` wires the real provider (from auth-state) once at startup.
+type AuthHeadersProvider = () => HeadersInit;
+let authHeadersProvider: AuthHeadersProvider = () => ({});
+export function setAuthHeadersProvider(provider: AuthHeadersProvider) {
+  authHeadersProvider = provider;
+}
+
 // Merges request headers with auth headers. authHeadersInit override kept for testability;
-// defaults to module-level getAuthHeaders() singleton.
+// defaults to the registered auth-headers provider singleton.
 export function mergeHeaders(options?: ApiRequestOptions, authHeadersInit?: HeadersInit): Headers {
   const headers = new Headers(options?.headers);
-  const authHeaders = new Headers(authHeadersInit ?? getAuthHeaders());
+  const authHeaders = new Headers(authHeadersInit ?? authHeadersProvider());
   for (const [key, value] of authHeaders.entries()) {
     headers.set(key, value);
   }

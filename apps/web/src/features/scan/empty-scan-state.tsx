@@ -2,7 +2,7 @@ import { RiFolderLine } from "@remixicon/react";
 
 export function EmptyScanState(props: { hasOutstandingMatches: boolean; isScanning: boolean }) {
   return (
-    <div className="flex min-h-[50vh] flex-col items-center justify-center border border-dashed border-border bg-background px-6 text-center">
+    <div className="flex min-h-1/2 flex-col items-center justify-center border border-dashed border-border bg-background px-6 text-center">
       <div className="flex h-16 w-16 items-center justify-center border border-info/20 bg-info/10">
         <RiFolderLine className="h-8 w-8 text-info" />
       </div>

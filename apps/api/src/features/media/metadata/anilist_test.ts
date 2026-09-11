@@ -110,10 +110,10 @@ it.effect("AniListClient decodes search responses from the provided HttpClient",
       client.searchAnimeMetadata("custom remote media"),
     ).pipe(Effect.provide(clientLayer));
     const expected = expectedSearchResult();
-    const first = results[0];
+    const first = results.results[0];
     const expectedFirst = expected[0];
 
-    assert.deepStrictEqual(results.length, expected.length);
+    assert.deepStrictEqual(results.results.length, expected.length);
     assert.deepStrictEqual(first?.already_in_library, expectedFirst?.already_in_library);
     assert.deepStrictEqual(first?.banner_image, expectedFirst?.banner_image);
     assert.deepStrictEqual(first?.cover_image, expectedFirst?.cover_image);

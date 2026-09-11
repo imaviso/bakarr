@@ -1,14 +1,6 @@
 import { Predicate, Schema } from "effect";
 import { ApiClientError, ApiDecodeError, ApiUnauthorizedError } from "@/api/effect/api-client";
 
-export class ClipboardWriteError extends Schema.TaggedError<ClipboardWriteError>()(
-  "ClipboardWriteError",
-  {
-    cause: Schema.optional(Schema.Defect()),
-    message: Schema.String,
-  },
-) {}
-
 export class DownloadEventsExportError extends Schema.TaggedError<DownloadEventsExportError>()(
   "DownloadEventsExportError",
   {
@@ -21,7 +13,6 @@ type MessageTaggedError =
   | ApiClientError
   | ApiDecodeError
   | ApiUnauthorizedError
-  | ClipboardWriteError
   | DownloadEventsExportError;
 
 function isMessageTaggedError(error: unknown): error is MessageTaggedError {
@@ -29,7 +20,6 @@ function isMessageTaggedError(error: unknown): error is MessageTaggedError {
     error instanceof ApiClientError ||
     error instanceof ApiDecodeError ||
     error instanceof ApiUnauthorizedError ||
-    error instanceof ClipboardWriteError ||
     error instanceof DownloadEventsExportError
   );
 }

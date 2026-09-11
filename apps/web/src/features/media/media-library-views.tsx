@@ -1,3 +1,4 @@
+import { cn } from "@/infra/utils";
 import { RiDeleteBinLine, RiTvLine } from "@remixicon/react";
 import { Link } from "@tanstack/react-router";
 import { useRef } from "react";
@@ -195,7 +196,10 @@ export function AnimeListView(props: AnimeLibraryViewProps) {
                   <div className="flex flex-col items-start gap-1">
                     <div className="flex items-center gap-2">
                       <div
-                        className={`h-2 w-2 rounded-full ${media.monitored ? "bg-success" : "bg-warning"}`}
+                        className={cn(
+                          "h-2 w-2 rounded-full",
+                          media.monitored ? "bg-success" : "bg-warning",
+                        )}
                       />
                       <span className="text-sm">
                         {media.monitored ? "Monitored" : "Unmonitored"}

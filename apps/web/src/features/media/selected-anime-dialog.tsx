@@ -1,8 +1,7 @@
 import { lazy } from "react";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { mediaByAnilistIdQueryOptions } from "@/api/media";
-import type { MediaIdSpace } from "@/api/contracts";
-import type { AddMediaSearch } from "@/routes/_layout/media/-add-search";
+import type { MediaIdSpace, MediaKind } from "@/api/contracts";
 
 const AddAnimeDialogLazy = lazy(() =>
   import("@/features/media/add-media-dialog").then((module) => ({
@@ -19,7 +18,7 @@ export function SelectedAnimeDialog({
 }: {
   anilistId: number;
   idSpace?: MediaIdSpace | undefined;
-  mediaKind: NonNullable<AddMediaSearch["media_kind"]>;
+  mediaKind: MediaKind;
   onOpenChange: () => void;
   onSuccess: () => void;
 }) {

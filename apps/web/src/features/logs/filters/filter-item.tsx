@@ -85,7 +85,7 @@ export function FilterItem(props: FilterItemProps) {
           handleOperatorChange(matchedOperator ?? null);
         }}
       >
-        <SelectTrigger className="w-[140px] h-8 px-2 bg-background focus:ring-0 focus:ring-offset-0 border-muted-foreground/20">
+        <SelectTrigger className="w-35 h-8 px-2 bg-background focus:ring-0 focus:ring-offset-0 border-muted-foreground/20">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -107,14 +107,14 @@ export function FilterItem(props: FilterItemProps) {
           }
           onCommit={handleValueChange}
           placeholder={column?.placeholder || "Enter value"}
-          className="h-8 w-[160px] px-2 bg-background focus-visible:ring-0 focus-visible:ring-offset-0 border-muted-foreground/20"
+          className="h-8 w-40 px-2 bg-background focus-visible:ring-0 focus-visible:ring-offset-0 border-muted-foreground/20"
         />
       ) : (
         <Select
           {...(selectedValue !== undefined ? { selectedKey: selectedValue } : {})}
           onSelectionChange={(value) => handleValueChange(value === null ? null : String(value))}
         >
-          <SelectTrigger className="w-[160px] h-8 px-2 bg-background focus:ring-0 focus:ring-offset-0 border-muted-foreground/20">
+          <SelectTrigger className="w-40 h-8 px-2 bg-background focus:ring-0 focus:ring-offset-0 border-muted-foreground/20">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>

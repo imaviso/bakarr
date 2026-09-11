@@ -17,7 +17,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { IconButton } from "@/components/shared/icon-button";
 import { Suspense } from "react";
 import { AddAnimeDialog } from "@/features/media/add-media-dialog";
-import { FileBrowser } from "@/components/shared/file-browser";
+import { FileBrowser } from "@/features/import/file-browser";
 import { CandidateCard, FileRow, ManualSearch } from "@/features/import";
 import { importSteps, type ImportPageState } from "@/features/import/import-page-state";
 import { Badge } from "@/components/ui/badge";
@@ -219,7 +219,7 @@ function ImportScanStep(props: { state: ImportPageState }) {
             <section
               aria-label="Drop zone for folder import"
               className={cn(
-                "h-full min-h-[300px] border-2 border-dashed rounded-none p-8 transition-colors flex flex-col items-center justify-center",
+                "h-full min-h-75 border-2 border-dashed rounded-none p-8 transition-colors flex flex-col items-center justify-center",
                 props.state.flow.isDragOver
                   ? "border-primary bg-primary/10"
                   : "border-muted hover:border-muted-foreground",
@@ -336,7 +336,7 @@ function ImportReviewStep(props: { state: ImportPageState }) {
             <Dialog
               isOpen={props.state.flow.isSearchOpen}
               onOpenChange={props.state.flow.setIsSearchOpen}
-              className="sm:max-w-[500px]"
+              className="sm:max-w-125"
             >
               <Button
                 variant="outline"

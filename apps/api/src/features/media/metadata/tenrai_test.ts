@@ -539,8 +539,8 @@ it.effect("TenraiClient decodes seasonal media response and applies limit", () =
       client.getSeasonalAnime({ limit: 2, season: "spring", year: 2025 }),
     ).pipe(Effect.provide(clientLayer));
 
-    assert.deepStrictEqual(result.length, 2);
-    const first = result[0]!;
+    assert.deepStrictEqual(result.entries.length, 2);
+    const first = result.entries[0]!;
     assert.deepStrictEqual(first.malId, 50001);
     assert.deepStrictEqual(first.title.romaji, "Spring Hero");
     assert.deepStrictEqual(first.title.english, "Spring Hero");
@@ -554,7 +554,7 @@ it.effect("TenraiClient decodes seasonal media response and applies limit", () =
     assert.deepStrictEqual(first.genres, ["Action", "Drama"]);
     assert.deepStrictEqual(first.unitCount, 12);
 
-    const second = result[1]!;
+    const second = result.entries[1]!;
     assert.deepStrictEqual(second.malId, 50002);
     assert.deepStrictEqual(second.title.romaji, "Spring Fantasy");
     assert.deepStrictEqual(second.genres, ["Fantasy"]);
@@ -591,7 +591,7 @@ it.effect("TenraiClient getSeasonalAnime returns empty array on 404", () =>
       client.getSeasonalAnime({ limit: 10, season: "winter", year: 2025 }),
     ).pipe(Effect.provide(clientLayer));
 
-    assert.deepStrictEqual(result.length, 0);
+    assert.deepStrictEqual(result.entries.length, 0);
   }),
 );
 
@@ -755,9 +755,9 @@ it.effect("TenraiClient searches anime by query with limit", () =>
       client.searchAnime("Spring Hero", 1),
     ).pipe(Effect.provide(clientLayer));
 
-    assert.deepStrictEqual(result.length, 1);
-    assert.deepStrictEqual(result[0]?.malId, 50001);
-    assert.deepStrictEqual(result[0]?.title.romaji, "Spring Hero");
+    assert.deepStrictEqual(result.entries.length, 1);
+    assert.deepStrictEqual(result.entries[0]?.malId, 50001);
+    assert.deepStrictEqual(result.entries[0]?.title.romaji, "Spring Hero");
     assert.deepStrictEqual(requests.length, 1);
     assert.ok(requests[0]?.includes("/anime?q=Spring%20Hero&limit=1"));
   }),
@@ -789,7 +789,7 @@ it.effect("TenraiClient searchAnime returns empty without requesting on blank qu
       Effect.provide(clientLayer),
     );
 
-    assert.deepStrictEqual(result, []);
+    assert.deepStrictEqual(result, { entries: [], hasMore: false });
     assert.deepStrictEqual(requestCount, 0);
   }),
 );
@@ -823,7 +823,7 @@ it.effect("TenraiClient searchAnime returns empty array on 404", () =>
       client.searchAnime("missing"),
     ).pipe(Effect.provide(clientLayer));
 
-    assert.deepStrictEqual(result, []);
+    assert.deepStrictEqual(result, { entries: [], hasMore: false });
   }),
 );
 

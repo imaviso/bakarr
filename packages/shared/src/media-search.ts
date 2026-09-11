@@ -104,9 +104,25 @@ export const MediaSearchResultSchema = Schema.Struct({
 export interface MediaSearchResponse {
   results: MediaSearchResult[];
   degraded: boolean;
+  page: number;
+  has_more: boolean;
 }
 
 export const MediaSearchResponseSchema = Schema.Struct({
   degraded: Schema.Boolean,
+  page: Schema.Number.pipe(Schema.check(Schema.isInt(), Schema.isGreaterThan(0))),
+  has_more: Schema.Boolean,
   results: Schema.mutable(Schema.Array(MediaSearchResultSchema)),
+});
+
+export interface SearchMediaQueryParams {
+  q?: string | undefined;
+  media_kind?: MediaKind | undefined;
+  page?: number | undefined;
+}
+
+export const SearchMediaQueryParamsSchema = Schema.Struct({
+  q: Schema.optional(Schema.String),
+  media_kind: Schema.optional(MediaKindSchema),
+  page: Schema.optional(Schema.Number.pipe(Schema.check(Schema.isInt(), Schema.isGreaterThan(0)))),
 });

@@ -1,22 +1,9 @@
 import { type ClassValue, clsx } from "clsx";
-import { Effect } from "effect";
 import { twMerge } from "tailwind-merge";
-import { ClipboardWriteError } from "@/api/effect/errors";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
-
-export const copyToClipboard = Effect.fn("Clipboard.copyToClipboard")((text: string) =>
-  Effect.tryPromise({
-    try: () => navigator.clipboard.writeText(text),
-    catch: (cause) =>
-      new ClipboardWriteError({
-        cause,
-        message: "Failed to copy link",
-      }),
-  }),
-);
 
 export function safeExternalUrl(input: string | null | undefined): string | undefined {
   if (!input) return undefined;

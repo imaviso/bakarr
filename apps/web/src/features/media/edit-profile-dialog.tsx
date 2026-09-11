@@ -121,7 +121,7 @@ function EditProfileDialogContent(props: EditProfileDialogProps) {
           <div className="text-sm font-medium leading-none">Release Profiles (Optional)</div>
           <form.Field name="releaseProfileIds">
             {(field) => (
-              <div className="border rounded-none p-3 max-h-[150px] overflow-y-auto space-y-2">
+              <div className="border rounded-none p-3 max-h-37.5 overflow-y-auto space-y-2">
                 {props.releaseProfiles.length > 0 ? (
                   <>
                     {props.releaseProfiles.map((releaseProfile) => (

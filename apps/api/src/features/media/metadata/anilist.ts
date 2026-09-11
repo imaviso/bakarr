@@ -47,8 +47,11 @@ const ANILIST_SEASON_MAP: Record<MediaSeason, "WINTER" | "SPRING" | "SUMMER" | "
   fall: "FALL",
 };
 
-const SEARCH_ANIME_QUERY = `query ($search: String, $type: MediaType) {
-  Page(page: 1, perPage: 10) {
+const SEARCH_ANIME_QUERY = `query ($search: String, $type: MediaType, $page: Int, $perPage: Int) {
+  Page(page: $page, perPage: $perPage) {
+    pageInfo {
+      hasNextPage
+    }
     media(search: $search, type: $type, sort: SEARCH_MATCH) {
       id
       format
@@ -365,7 +368,8 @@ interface AniListClientShape {
   readonly searchAnimeMetadata: (
     query: string,
     mediaKind?: MediaKind,
-  ) => Effect.Effect<ProviderMediaSearchResult[], ExternalCallError>;
+    page?: number,
+  ) => Effect.Effect<{ results: ProviderMediaSearchResult[]; hasMore: boolean }, ExternalCallError>;
   readonly getAnimeMetadataById: (
     id: number,
     mediaKind?: MediaKind,
@@ -429,15 +433,16 @@ const makeAniListClient = Effect.fn("AniListClient.make")(function* () {
   const searchAnimeMetadata = Effect.fn("AniListClient.searchAnimeMetadata")(function* (
     query: string,
     mediaKind: MediaKind = "anime",
+    page = 1,
   ) {
     const trimmed = query.trim();
 
     if (trimmed.length === 0) {
-      return [];
+      return { results: [], hasMore: false };
     }
 
     yield* acquireRequestSlot();
-    return yield* trySearchRemote(client, externalCall, trimmed, mediaKind);
+    return yield* trySearchRemote(client, externalCall, trimmed, mediaKind, page);
   });
 
   const getAnimeMetadataById = Effect.fn("AniListClient.getAnimeMetadataById")(function* (
@@ -549,22 +554,30 @@ const callAniList = <A, I>(
     });
   });
 
+const SEARCH_PAGE_SIZE = 10;
+
 const trySearchRemote = Effect.fn("AniListClient.trySearchRemote")(function* (
   client: HttpClient.HttpClient,
   externalCall: ExternalCallShape,
   trimmed: string,
   mediaKind: MediaKind,
+  page: number,
 ) {
   const payload = yield* callAniList(
     client,
     externalCall,
     "search",
     SEARCH_ANIME_QUERY,
-    { search: trimmed, type: toAniListMediaType(mediaKind) },
+    {
+      search: trimmed,
+      type: toAniListMediaType(mediaKind),
+      page,
+      perPage: SEARCH_PAGE_SIZE,
+    },
     AniListSearchPayloadSchema,
   );
 
-  return yield* Effect.forEach(payload.data.Page.media, (entry) =>
+  const results = yield* Effect.forEach(payload.data.Page.media, (entry) =>
     Schema.decodeUnknownEffect(AnimeSearchResultFromAniListSchema)(entry).pipe(
       Effect.mapError((cause) =>
         ExternalCallError.make({
@@ -575,6 +588,11 @@ const trySearchRemote = Effect.fn("AniListClient.trySearchRemote")(function* (
       ),
     ),
   );
+
+  return {
+    results,
+    hasMore: payload.data.Page.pageInfo?.hasNextPage === true,
+  };
 });
 
 const tryFetchDetail = Effect.fn("AniListClient.tryFetchDetail")(function* (

@@ -25,7 +25,7 @@ const STATUS_ICON_MAP: Record<string, React.ReactNode> = {
   RELEASING: <RiBroadcastLine className="w-4 h-4 text-success" />,
   FINISHED: <RiCheckboxCircleLine className="w-4 h-4 text-info" />,
   NOT_YET_RELEASED: <RiCalendarLine className="w-4 h-4 text-warning" />,
-  CANCELLED: <RiForbidLine className="w-4 h-4 text-error" />,
+  CANCELLED: <RiForbidLine className="w-4 h-4 text-destructive" />,
 };
 
 function StatusIcon({ status }: { status: string }) {

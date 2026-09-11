@@ -52,8 +52,8 @@ it.effect("matchSingleUnmappedFolder falls back to Tenrai when AniList fails", (
             TenraiClient,
             TenraiClient.of({
               getAnimeByMalId: () => Effect.succeed(Option.none()),
-              getSeasonalAnime: () => Effect.succeed([]),
-              searchAnime: () => Effect.succeed(tenraiEntries),
+              getSeasonalAnime: () => Effect.succeed({ entries: [], hasMore: false }),
+              searchAnime: () => Effect.succeed({ entries: tenraiEntries, hasMore: false }),
             }),
           ),
           Layer.succeed(

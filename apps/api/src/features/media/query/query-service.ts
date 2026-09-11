@@ -69,19 +69,23 @@ const DTO_PROGRESS_YIELD_INTERVAL = 50;
 const SEARCH_CACHE_CAPACITY = 200;
 const SEARCH_CACHE_TTL = "5 minutes";
 
-function toSearchCacheKey(query: string, mediaKind: MediaKind) {
-  return `${mediaKind}:${query.trim().replace(/\s+/g, " ").toLowerCase()}`;
+function toSearchCacheKey(query: string, mediaKind: MediaKind, page: number) {
+  return `${mediaKind}:${page}:${query.trim().replace(/\s+/g, " ").toLowerCase()}`;
 }
 
 function fromSearchCacheKey(cacheKey: string): {
   readonly mediaKind: MediaKind;
+  readonly page: number;
   readonly query: string;
 } {
   const separator = cacheKey.indexOf(":");
   const kind = cacheKey.slice(0, separator);
+  const rest = cacheKey.slice(separator + 1);
+  const pageSeparator = rest.indexOf(":");
   return {
     mediaKind: kind === "manga" ? "manga" : "anime",
-    query: cacheKey.slice(separator + 1),
+    page: Number.parseInt(rest.slice(0, pageSeparator), 10),
+    query: rest.slice(pageSeparator + 1),
   };
 }
 
@@ -95,6 +99,7 @@ export interface MediaQueryServiceShape {
   readonly searchMedia: (
     query: string,
     mediaKind?: MediaKind,
+    page?: number,
   ) => Effect.Effect<MediaSearchResponse, DatabaseError | ExternalCallError | StoredDataError>;
   readonly getMediaByAnilistId: (
     id: number,
@@ -140,6 +145,7 @@ export const makeMediaQueryService = Effect.fn("MediaQueryService.make")(functio
       return searchMediaWithFallback({
         aniList,
         mediaKind: cached.mediaKind,
+        page: cached.page,
         query: cached.query,
         tenrai,
       });
@@ -335,17 +341,21 @@ export const makeMediaQueryService = Effect.fn("MediaQueryService.make")(functio
     searchMedia: Effect.fn("MediaQueryService.searchMedia")(function* (
       query: string,
       mediaKind?: MediaKind,
+      page?: number,
     ) {
       const effectiveMediaKind = mediaKind ?? "anime";
+      const effectivePage = page ?? 1;
       if (query.trim().length === 0) {
         return {
           degraded: false,
+          has_more: false,
+          page: effectivePage,
           results: [],
         } satisfies MediaSearchResponse;
       }
       const providerResult = yield* Cache.get(
         searchCache,
-        toSearchCacheKey(query, effectiveMediaKind),
+        toSearchCacheKey(query, effectiveMediaKind, effectivePage),
       );
 
       const annotated = annotateMediaSearchResultsForQuery(query, providerResult.results);
@@ -358,6 +368,8 @@ export const makeMediaQueryService = Effect.fn("MediaQueryService.make")(functio
 
       return {
         degraded: providerResult.degraded,
+        has_more: providerResult.hasMore,
+        page: providerResult.page,
         results: marked,
       } satisfies MediaSearchResponse;
     }),

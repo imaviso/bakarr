@@ -23,7 +23,7 @@ export function AnimeError() {
           <h1 className="text-4xl font-thin tracking-tight text-foreground select-none">
             Media Not Found
           </h1>
-          <p className="text-sm text-muted-foreground max-w-[400px] mx-auto leading-relaxed">
+          <p className="text-sm text-muted-foreground max-w-100 mx-auto leading-relaxed">
             The media you are looking for does not exist in your library or an error occurred while
             loading it.
           </p>

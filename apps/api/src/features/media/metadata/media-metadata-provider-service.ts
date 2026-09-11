@@ -56,15 +56,19 @@ export const searchMediaWithFallback = Effect.fn("MediaMetadata.searchMediaWithF
     tenrai: Pick<typeof TenraiClient.Service, "searchAnime">;
     query: string;
     mediaKind: MediaKind;
+    page?: number;
   }) {
+    const page = input.page ?? 1;
     const anilistAttempt = yield* input.aniList
-      .searchAnimeMetadata(input.query, input.mediaKind)
+      .searchAnimeMetadata(input.query, input.mediaKind, page)
       .pipe(Effect.result);
 
     if (anilistAttempt._tag === "Success") {
       return {
         degraded: false,
-        results: anilistAttempt.success.map(toMediaSearchResult),
+        hasMore: anilistAttempt.success.hasMore,
+        page,
+        results: anilistAttempt.success.results.map(toMediaSearchResult),
       };
     }
 
@@ -82,11 +86,13 @@ export const searchMediaWithFallback = Effect.fn("MediaMetadata.searchMediaWithF
 
     // MAL IDs are canonical in Tenrai-served results; detail lookup resolves
     // either ID space back to one metadata record.
-    const entries = yield* input.tenrai.searchAnime(input.query, 10);
+    const tenraiPage = yield* input.tenrai.searchAnime(input.query, 10, page);
 
     return {
       degraded: true,
-      results: entries.map((entry) =>
+      hasMore: tenraiPage.hasMore,
+      page,
+      results: tenraiPage.entries.map((entry) =>
         toMediaSearchResult(tenraiSeasonalEntryToSearchResult(entry)),
       ),
     };
@@ -135,7 +141,7 @@ export const seasonalWithFallback = Effect.fn("MediaMetadata.seasonalWithFallbac
       }),
     );
 
-    const tenraiEntries = yield* input.tenrai.getSeasonalAnime({
+    const tenraiPage = yield* input.tenrai.getSeasonalAnime({
       limit: input.limit,
       page: input.page,
       season: input.season,
@@ -146,7 +152,7 @@ export const seasonalWithFallback = Effect.fn("MediaMetadata.seasonalWithFallbac
     // either ID space back to one metadata record, so no AniList mapping
     // filter here — dropping unmapped entries is what emptied discovery
     // during outages.
-    const results = tenraiEntries.map((entry) =>
+    const results = tenraiPage.entries.map((entry) =>
       toMediaSearchResult(
         tenraiSeasonalEntryToSearchResult(entry, { season: input.season, year: input.year }),
       ),
@@ -154,7 +160,7 @@ export const seasonalWithFallback = Effect.fn("MediaMetadata.seasonalWithFallbac
 
     return {
       degraded: true,
-      hasMore: tenraiEntries.length === input.limit,
+      hasMore: tenraiPage.hasMore,
       provider: "tenrai_fallback",
       results,
       season: input.season,
@@ -280,9 +286,12 @@ export interface MediaMetadataProviderServiceShape {
   readonly searchMedia: (
     query: string,
     mediaKind?: MediaKind,
+    page?: number,
   ) => Effect.Effect<
     {
       readonly degraded: boolean;
+      readonly hasMore: boolean;
+      readonly page: number;
       readonly results: MediaSearchResult[];
     },
     ExternalCallError
@@ -333,10 +342,12 @@ const makeMediaMetadataProviderService = Effect.fn("MediaMetadataProviderService
     const searchMedia = Effect.fn("MediaMetadataProviderService.searchMedia")(function* (
       query: string,
       mediaKind?: MediaKind,
+      page?: number,
     ) {
       return yield* searchMediaWithFallback({
         aniList,
         mediaKind: mediaKind ?? "anime",
+        ...(page === undefined ? {} : { page }),
         query,
         tenrai,
       });

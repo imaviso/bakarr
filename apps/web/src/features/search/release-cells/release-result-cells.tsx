@@ -3,8 +3,8 @@ import type { ReactNode } from "react";
 import {
   ReleaseSeaDexMeta,
   ReleaseSelectionMeta,
-} from "@/features/downloads/release-search/release-meta";
-import { ReleaseMetadataSummary } from "@/features/downloads/release-metadata-summary";
+} from "@/features/search/release-cells/release-meta";
+import { ReleaseMetadataSummary } from "./release-metadata-summary";
 import type { ReleaseFlag } from "@/domain/release/metadata";
 import type { ReleaseConfidenceMetadata } from "@/domain/release/selection";
 import { Tooltip, TooltipTrigger } from "@/components/ui/tooltip";
@@ -48,7 +48,7 @@ export function ReleasePrimaryCell(props: ReleasePrimaryCellProps) {
           <a href={sourceUrl} target="_blank" rel="noopener noreferrer" className={titleClass}>
             {props.title}
           </a>
-          <Tooltip className="max-w-[400px]">
+          <Tooltip className="max-w-100">
             <p className="break-words font-normal">{props.title}</p>
           </Tooltip>
         </TooltipTrigger>
@@ -109,7 +109,7 @@ export function ReleasePeersCell(props: ReleasePeersCellProps) {
         <span className="sr-only"> seeders</span>
       </span>
       <span className="text-muted-foreground">/</span>
-      <span className={props.emphasizePresence ? "text-error" : "text-muted-foreground"}>
+      <span className={props.emphasizePresence ? "text-destructive" : "text-muted-foreground"}>
         {props.leechers}
         <span className="sr-only"> leechers</span>
       </span>

@@ -124,16 +124,16 @@ export function RenameDialog(props: RenameDialogProps) {
                   <Table aria-label="Rename preview" className="w-full">
                     <TableHeader className="sticky top-0 z-10 bg-background">
                       <TableRow>
-                        <TableHead scope="col" className="w-[70px] whitespace-nowrap">
+                        <TableHead scope="col" className="w-17.5 whitespace-nowrap">
                           MediaUnit
                         </TableHead>
-                        <TableHead scope="col" className="min-w-[220px]">
+                        <TableHead scope="col" className="min-w-55">
                           Current Filename
                         </TableHead>
-                        <TableHead scope="col" className="min-w-[220px]">
+                        <TableHead scope="col" className="min-w-55">
                           New Filename
                         </TableHead>
-                        <TableHead scope="col" className="min-w-[200px]">
+                        <TableHead scope="col" className="min-w-50">
                           Notes
                         </TableHead>
                       </TableRow>
@@ -142,10 +142,10 @@ export function RenameDialog(props: RenameDialogProps) {
                       {previewQuery.data.map((item) => (
                         <TableRow key={`${item.current_path}-${item.new_filename}`}>
                           <TableCell className="align-top">{item.unit_number}</TableCell>
-                          <TableCell className="font-mono text-xs break-all whitespace-normal align-top text-muted-foreground max-w-[280px]">
+                          <TableCell className="font-mono text-xs break-all whitespace-normal align-top text-muted-foreground max-w-70">
                             {item.current_path.split("/").pop()}
                           </TableCell>
-                          <TableCell className="font-mono text-xs break-all whitespace-normal align-top text-success max-w-[280px]">
+                          <TableCell className="font-mono text-xs break-all whitespace-normal align-top text-success max-w-70">
                             {item.new_filename}
                           </TableCell>
                           <TableCell>

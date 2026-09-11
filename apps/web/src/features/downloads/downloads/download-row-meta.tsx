@@ -10,7 +10,7 @@ import {
   selectionKindBadgeClass,
   selectionKindLabel,
 } from "@/domain/release/selection";
-import { safeExternalUrl } from "@/infra/utils";
+import { cn, safeExternalUrl } from "@/infra/utils";
 
 function animeInitials(title: string) {
   return title
@@ -125,7 +125,10 @@ export function DownloadRowMeta(props: DownloadRowMetaProps) {
             {selectionKindLabel(props.selectionKind ?? undefined) && (
               <Badge
                 variant="secondary"
-                className={`h-4 px-1.5 ${selectionKindBadgeClass(props.selectionKind ?? undefined)}`}
+                className={cn(
+                  "h-4 px-1.5",
+                  selectionKindBadgeClass(props.selectionKind ?? undefined),
+                )}
               >
                 {selectionKindLabel(props.selectionKind ?? undefined)}
               </Badge>
@@ -139,7 +142,7 @@ export function DownloadRowMeta(props: DownloadRowMetaProps) {
           <div className="flex flex-wrap items-center gap-1.5 text-xs leading-tight">
             <Badge
               variant="secondary"
-              className={`h-4 px-1.5 ${releaseConfidenceBadgeClass(props.confidence.tone)}`}
+              className={cn("h-4 px-1.5", releaseConfidenceBadgeClass(props.confidence.tone))}
             >
               {props.confidence.label}
             </Badge>

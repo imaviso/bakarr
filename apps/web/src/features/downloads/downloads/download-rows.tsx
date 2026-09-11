@@ -56,10 +56,10 @@ export function ActiveDownloadRow(props: { item: DownloadStatus }) {
 
   return (
     <TableRow className="group h-12 align-top">
-      <TableCell className="py-2 pl-4 w-[42px]">
+      <TableCell className="py-2 pl-4 w-10.5">
         <DownloadStatusIcon status={props.item.state} />
       </TableCell>
-      <TableCell className="font-medium py-2 min-w-[280px] md:min-w-[320px]">
+      <TableCell className="font-medium py-2 min-w-70 md:min-w-80">
         <DownloadRowMeta
           mediaId={props.item.media_id}
           mediaImage={props.item.media_image}
@@ -95,7 +95,7 @@ export function ActiveDownloadRow(props: { item: DownloadStatus }) {
           )}
         </DownloadRowMeta>
       </TableCell>
-      <TableCell className="py-2 min-w-[160px] md:min-w-[180px]">
+      <TableCell className="py-2 min-w-40 md:min-w-45">
         <div className="flex items-center gap-2">
           <Progress value={props.item.progress * 100} className="h-1.5 w-full bg-muted" />
           <span className="text-xs font-mono text-muted-foreground w-8 text-right">
@@ -134,10 +134,10 @@ export function DownloadRow(props: { item: Download; isHistory?: boolean }) {
 
   return (
     <TableRow className="group h-12 align-top">
-      <TableCell className="py-2 pl-4 w-[42px]">
+      <TableCell className="py-2 pl-4 w-10.5">
         <DownloadStatusIcon {...(props.item.status == null ? {} : { status: props.item.status })} />
       </TableCell>
-      <TableCell className="font-medium py-2 min-w-[280px] md:min-w-[320px]">
+      <TableCell className="font-medium py-2 min-w-70 md:min-w-80">
         <DownloadRowMeta
           mediaId={props.item.media_id}
           mediaImage={props.item.media_image}
@@ -162,7 +162,7 @@ export function DownloadRow(props: { item: Download; isHistory?: boolean }) {
           remake={props.item.source_metadata?.remake}
         />
       </TableCell>
-      <TableCell className="py-2 min-w-[110px] md:min-w-[120px]">
+      <TableCell className="py-2 min-w-27.5 md:min-w-30">
         <Badge variant="outline" className="tabular-nums text-xs">
           {formatEpisodeCoverage(
             props.item.unit_number,
@@ -181,7 +181,7 @@ export function DownloadRow(props: { item: Download; isHistory?: boolean }) {
           {dateStr ? formatDateTime(dateStr) : "-"}
         </TableCell>
       ) : (
-        <TableCell className="py-2 min-w-[140px] md:min-w-[180px]">
+        <TableCell className="py-2 min-w-35 md:min-w-45">
           {props.item.status?.toLowerCase() === "downloading" &&
           props.item.progress !== undefined ? (
             <div className="flex items-center gap-2">

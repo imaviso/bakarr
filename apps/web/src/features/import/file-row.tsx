@@ -12,12 +12,12 @@ import {
 import {
   buildFileDecisionSummary,
   formatEpisodeNumberList,
-  formatFileSize,
   formatMatchConfidence,
   formatNamingTitleSource,
   mediaMetadataBadges,
   namingMetadataBadges,
 } from "@/domain/scanned-file";
+import { formatFileSize } from "@/domain/format";
 import { cn } from "@/infra/utils";
 import type { FileRowProps } from "./types";
 
@@ -65,7 +65,7 @@ export function FileRow(props: FileRowProps) {
           {(props.file.unit_title || props.file.air_date) && (
             <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
               {props.file.unit_title && (
-                <span className="truncate max-w-[28rem]">{props.file.unit_title}</span>
+                <span className="truncate max-w-md">{props.file.unit_title}</span>
               )}
               {props.file.air_date && <span>{props.file.air_date}</span>}
               {fileSize !== undefined && <span>{fileSize}</span>}

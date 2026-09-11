@@ -113,7 +113,7 @@ export function BulkMappingDialog(props: BulkMappingDialogProps) {
           <Table className="w-full">
             <TableHeader className="sticky top-0 z-10 bg-background">
               <TableRow>
-                <TableHead scope="col" className="w-[90px] whitespace-nowrap">
+                <TableHead scope="col" className="w-22.5 whitespace-nowrap">
                   MediaUnit
                 </TableHead>
                 <TableHead scope="col">File to Map</TableHead>
@@ -234,7 +234,7 @@ export function ManualMappingDialog(props: ManualMappingDialogProps) {
 
       <ContentDialogBody className="p-4">
         {files ? (
-          <div className="border rounded-none max-h-[400px] overflow-auto w-full">
+          <div className="border rounded-none max-h-100 overflow-auto w-full">
             {files.length === 0 && (
               <div className="p-4 text-center text-sm text-muted-foreground">
                 No video files found in the media directory.
@@ -243,9 +243,9 @@ export function ManualMappingDialog(props: ManualMappingDialogProps) {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead scope="col" className="w-[30px]" />
+                  <TableHead scope="col" className="w-7.5" />
                   <TableHead scope="col">Filename</TableHead>
-                  <TableHead scope="col" className="w-[100px] text-right">
+                  <TableHead scope="col" className="w-25 text-right">
                     Size
                   </TableHead>
                 </TableRow>
@@ -303,7 +303,7 @@ export function ManualMappingDialog(props: ManualMappingDialogProps) {
                         )}
                       />
                     </TableCell>
-                    <TableCell className="font-mono text-xs break-all whitespace-normal max-w-[320px]">
+                    <TableCell className="font-mono text-xs break-all whitespace-normal max-w-80">
                       {file.name}
                       {file.unit_number && (
                         <span className="ml-2 text-muted-foreground italic">

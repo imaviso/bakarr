@@ -33,23 +33,23 @@ export function DownloadsQueueTab(props: DownloadsQueueTabProps) {
         <Table className="table-fixed w-full min-w-0">
           <TableHeader className="sticky top-0 bg-card z-10 border-b">
             <TableRow className="hover:bg-transparent border-none">
-              <TableHead scope="col" className="w-[50px]">
+              <TableHead scope="col" className="w-12.5">
                 <span className="sr-only">Status</span>
               </TableHead>
               <TableHead scope="col">Name</TableHead>
-              <TableHead scope="col" className="w-[200px]">
+              <TableHead scope="col" className="w-50">
                 Progress
               </TableHead>
-              <TableHead scope="col" className="w-[100px] hidden md:table-cell">
+              <TableHead scope="col" className="w-25 hidden md:table-cell">
                 Speed
               </TableHead>
-              <TableHead scope="col" className="w-[100px] hidden md:table-cell">
+              <TableHead scope="col" className="w-25 hidden md:table-cell">
                 ETA
               </TableHead>
-              <TableHead scope="col" className="w-[120px]">
+              <TableHead scope="col" className="w-30">
                 Status
               </TableHead>
-              <TableHead scope="col" className="w-[150px] text-right">
+              <TableHead scope="col" className="w-37.5 text-right">
                 Actions
               </TableHead>
             </TableRow>

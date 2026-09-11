@@ -19,15 +19,21 @@ const contentDialogVariants = cva(
         lg: "sm:max-w-7xl",
         xl: "max-w-none sm:max-w-none w-[min(calc(100vw-2rem),72rem)]",
       },
+      height: {
+        auto: "",
+        tall: "h-[85vh] max-h-none",
+      },
     },
     defaultVariants: {
       size: "md",
+      height: "auto",
     },
   },
 );
 
 export interface ContentDialogProps {
   readonly size?: VariantProps<typeof contentDialogVariants>["size"];
+  readonly height?: VariantProps<typeof contentDialogVariants>["height"];
   /** Escape hatch for one-off shells (e.g. fixed-height search palette). */
   readonly className?: string;
   readonly children: ReactNode;
@@ -44,7 +50,10 @@ export function ContentDialog(props: ContentDialogProps) {
       {...(props.onOpenChange === undefined ? {} : { onOpenChange: props.onOpenChange })}
       {...(props.isDismissable === undefined ? {} : { isDismissable: props.isDismissable })}
       {...(props.showCloseButton === undefined ? {} : { showCloseButton: props.showCloseButton })}
-      className={cn(contentDialogVariants({ size: props.size }), props.className)}
+      className={cn(
+        contentDialogVariants({ size: props.size, height: props.height }),
+        props.className,
+      )}
     >
       {props.children}
     </Dialog>

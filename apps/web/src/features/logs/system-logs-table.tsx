@@ -75,19 +75,19 @@ export function SystemLogsTable(props: SystemLogsTableProps) {
         <Table className="table-fixed w-full">
           <TableHeader className="sticky top-0 bg-card z-10">
             <TableRow className="hover:bg-transparent border-none">
-              <TableHead scope="col" className="w-[160px]">
+              <TableHead scope="col" className="w-40">
                 Timestamp
               </TableHead>
-              <TableHead scope="col" className="w-[100px]">
+              <TableHead scope="col" className="w-25">
                 Level
               </TableHead>
-              <TableHead scope="col" className="w-[180px]">
+              <TableHead scope="col" className="w-45">
                 Source
               </TableHead>
               <TableHead scope="col" className="w-full">
                 Message
               </TableHead>
-              <TableHead scope="col" className="w-[80px]" />
+              <TableHead scope="col" className="w-20" />
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -137,7 +137,7 @@ export function SystemLogsTable(props: SystemLogsTableProps) {
                               {log.event_type}
                             </div>
                           </TableCell>
-                          <TableCell className="text-sm max-w-[500px]">
+                          <TableCell className="text-sm max-w-125">
                             <div className="truncate" title={log.message}>
                               {log.message}
                             </div>
@@ -247,7 +247,7 @@ function CardShell(props: {
 
 const LEVEL_STYLES: Record<string, { readonly className: string; readonly icon: ReactNode }> = {
   error: {
-    className: "bg-error/15 text-error hover:bg-error/25 border-error/20",
+    className: "bg-destructive/15 text-destructive hover:bg-destructive/25 border-destructive/20",
     icon: <RiErrorWarningLine className="h-3.5 w-3.5 mr-1" />,
   },
   warn: {

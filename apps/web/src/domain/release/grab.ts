@@ -4,7 +4,7 @@ import type {
   NyaaSearchResult,
   SearchDownloadReleaseContext,
   SearchDownloadRequest,
-} from "@/api/contracts";
+} from "@/domain/contracts";
 import { brandMediaId } from "@bakarr/shared";
 import { formatReleaseSearchDecisionReason, inferBatchKind } from "@/domain/batch-kind";
 import { buildParsedEpisodeIdentity } from "@/domain/release/download";

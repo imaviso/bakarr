@@ -13,11 +13,11 @@ import { AnimeDetailsDialogsProvider } from "@/features/media/media-details-dial
 import { useAnimeDetailsActions } from "@/features/media/hooks/use-media-details-actions";
 import { useAnimeDetailsDialogState } from "@/features/media/hooks/use-media-details-dialog-state";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { PageShell } from "@/app/layout/page-shell";
+import { PageShell } from "@/components/shared/page-shell";
 import { mediaDetailsQueryOptions, mediaListQueryOptions, unitsQueryOptions } from "@/api/media";
 import { useAnimeScanTaskQuery, isTaskActive } from "@/api/operations-tasks";
 import { profilesQueryOptions, releaseProfilesQueryOptions } from "@/api/profiles";
-import { usePageTitle } from "@/app/page-title";
+import { usePageTitle } from "@/hooks/use-page-title";
 import { isAired } from "@/domain/date-time";
 
 const AnimeDetailsDialogsLazy = lazy(() =>

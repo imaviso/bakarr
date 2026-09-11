@@ -1,3 +1,5 @@
+import { cn } from "@/infra/utils";
+import { Poster } from "@/components/shared/poster";
 import { RiPlayLine } from "@remixicon/react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -15,18 +17,20 @@ export function AnimeDetailsSidebar(props: AnimeDetailsSidebarProps) {
   return (
     <div className="space-y-4">
       <Card className="overflow-hidden">
-        {props.media.cover_image ? (
-          <img
-            src={props.media.cover_image}
-            alt={props.media.title.english || props.media.title.romaji}
-            loading="lazy"
-            className="w-full aspect-[2/3] object-cover"
-          />
-        ) : (
-          <div className="w-full aspect-[2/3] bg-muted flex items-center justify-center">
-            <RiPlayLine className="h-16 w-16 text-muted-foreground" />
-          </div>
-        )}
+        <Poster className={cn(props.media.cover_image && "h-full")}>
+          {props.media.cover_image ? (
+            <img
+              src={props.media.cover_image}
+              alt={props.media.title.english || props.media.title.romaji}
+              loading="lazy"
+              className="h-full w-full object-cover"
+            />
+          ) : (
+            <div className="flex h-full items-center justify-center">
+              <RiPlayLine className="h-16 w-16 text-muted-foreground" />
+            </div>
+          )}
+        </Poster>
       </Card>
 
       {props.media.score && (

@@ -2,6 +2,7 @@ import { RiEditLine } from "@remixicon/react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { StatItem } from "@/components/shared/stat-item";
 import { formatDate } from "@/domain/date-time";
 
 interface AnimeDetailsMetaProps {
@@ -13,25 +14,6 @@ interface AnimeDetailsMetaProps {
   addedAt: string;
   onEditProfile: () => void;
   onEditPath: () => void;
-}
-
-function StatItem(props: { label: string; value: number | string; tone?: "success" | "warning" }) {
-  return (
-    <div className="flex items-baseline gap-2">
-      <span
-        className={`text-xl font-medium tabular-nums ${
-          props.tone === "success"
-            ? "text-success"
-            : props.tone === "warning"
-              ? "text-warning"
-              : "text-foreground"
-        }`}
-      >
-        {props.value}
-      </span>
-      <span className="text-xs text-muted-foreground">{props.label}</span>
-    </div>
-  );
 }
 
 export function AnimeDetailsMeta(props: AnimeDetailsMetaProps) {

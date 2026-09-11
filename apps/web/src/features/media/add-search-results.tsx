@@ -1,29 +1,34 @@
+import { Poster } from "@/components/shared/poster";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { RiErrorWarningLine, RiInformationLine, RiSearchLine } from "@remixicon/react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Spinner } from "@/components/ui/spinner";
 import { useContainerWidth } from "@/hooks/use-container-width";
+import { useInfiniteNearEnd } from "@/hooks/use-infinite-near-end";
 import { errorMessage } from "@/api/effect/errors";
 import type { MediaSearchResult } from "@/api/contracts";
-import type { useMediaSearchQuery } from "@/api/media";
+import type { useMediaSearchInfiniteQuery } from "@/api/media";
 import { MediaSearchResultCardLazy } from "./media-search-result-card-lazy";
 
-const SCREEN_SM = 640;
-const SCREEN_MD = 1024;
-const SCREEN_LG = 1280;
-const SCREEN_XL = 1536;
+const SCREEN_MD = 768;
+const SCREEN_LG = 1024;
+const SCREEN_XL = 1280;
+const SCREEN_2XL = 1536;
 
+// Must mirror the CSS grid below (sm/md/lg/xl/2xl = 640/768/1024/1280/1536)
+// exactly — the virtualizer slices items into rows by this count.
 function getSearchColCount(w: number) {
-  if (w >= SCREEN_XL) return 5;
-  if (w >= SCREEN_LG) return 4;
-  if (w >= SCREEN_MD) return 3;
-  if (w >= SCREEN_SM) return 2;
+  if (w >= SCREEN_2XL) return 5;
+  if (w >= SCREEN_XL) return 4;
+  if (w >= SCREEN_LG) return 3;
+  if (w >= SCREEN_MD) return 2;
   return 1;
 }
 
 interface SearchResultsProps {
   canSearch: boolean;
-  searchQuery: ReturnType<typeof useMediaSearchQuery>;
+  searchQuery: ReturnType<typeof useMediaSearchInfiniteQuery>;
   searchResults: MediaSearchResult[];
   searchDegraded: boolean;
   debouncedQuery: string;
@@ -54,6 +59,15 @@ export function SearchResults(props: SearchResultsProps) {
     const startIdx = rowIndex * cols;
     return props.searchResults.slice(startIdx, startIdx + cols);
   };
+
+  useInfiniteNearEnd({
+    hasNextPage: props.searchQuery.hasNextPage,
+    isFetchingNextPage: props.searchQuery.isFetchingNextPage,
+    total: rowCount,
+    threshold: 2,
+    lastIndex: virtualRows.at(-1)?.index ?? -1,
+    fetchNextPage: () => void props.searchQuery.fetchNextPage(),
+  });
 
   return (
     <div className="flex flex-1 min-h-0 overflow-hidden flex-col gap-4">
@@ -90,7 +104,7 @@ export function SearchResults(props: SearchResultsProps) {
           <div className="grid flex-1 grid-cols-1 gap-4 overflow-y-auto sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
             {[1, 2, 3, 4, 5, 6, 7, 8].map((row) => (
               <div key={`skeleton-${row}`} className="space-y-3">
-                <Skeleton className="aspect-[2/3] w-full rounded-none" />
+                <Poster skeleton />
                 <div className="space-y-2">
                   <Skeleton className="h-4 w-3/4" />
                   <Skeleton className="h-3 w-1/2" />
@@ -142,6 +156,12 @@ export function SearchResults(props: SearchResultsProps) {
             <p>No results found for &quot;{props.debouncedQuery}&quot;</p>
           </div>
         )}
+
+      {props.searchQuery.hasNextPage && props.searchQuery.isFetchingNextPage && (
+        <div className="flex shrink-0 justify-center py-3">
+          <Spinner className="h-5 w-5 text-muted-foreground" />
+        </div>
+      )}
     </div>
   );
 }

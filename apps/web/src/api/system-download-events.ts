@@ -1,5 +1,5 @@
 import { queryOptions, useMutation, useQuery } from "@tanstack/react-query";
-import { triggerBlobDownload } from "@/infra/blob-download";
+import { triggerBlobDownload } from "@/api/effect/blob-download";
 import type {
   DownloadEventsExportInput,
   DownloadEventsExportResult,

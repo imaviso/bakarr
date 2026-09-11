@@ -41,7 +41,7 @@ it("copyToClipboard uses clipboard API", async () => {
     },
   });
 
-  const { copyToClipboard } = await import("./utils");
+  const { copyToClipboard } = await import("./clipboard");
   await Effect.runPromise(copyToClipboard("abc123"));
 
   assertEquals(writes.length, 1);

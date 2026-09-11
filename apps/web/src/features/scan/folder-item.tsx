@@ -24,7 +24,7 @@ import {
 import type { MediaSearchResult, UnmappedFolder } from "@/api/contracts";
 import { animeDisplayTitle, animeSearchSubtitle } from "@/domain/media/metadata";
 import { mediaKindLabel, mediaUnitShortLabel } from "@/domain/media-unit";
-import { formatFileSize } from "@/domain/scanned-file";
+import { formatFileSize } from "@/domain/format";
 import { cn } from "@/infra/utils";
 import { useFolderItemController } from "@/features/scan/folder-item-controller";
 import {
@@ -200,13 +200,13 @@ export const FolderItem = memo(function FolderItem(props: {
             </div>
           </div>
         ) : (
-          <div className="flex min-h-[88px] items-center text-sm text-muted-foreground italic">
+          <div className="flex min-h-22 items-center text-sm text-muted-foreground italic">
             {emptyMatchMessage(props.folder)}
           </div>
         )}
       </div>
 
-      <div className="flex flex-col justify-start gap-2 lg:min-w-[160px]">
+      <div className="flex flex-col justify-start gap-2 lg:min-w-40">
         <div role="group" aria-label="Folder actions" className="grid grid-cols-2 gap-2">
           <Button
             size="sm"

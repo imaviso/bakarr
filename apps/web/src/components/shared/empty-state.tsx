@@ -33,11 +33,11 @@ export function EmptyState(props: EmptyStateProps) {
     <div
       className={cn(
         "relative flex flex-col items-center justify-center text-center border border-border bg-muted overflow-hidden",
-        props.compact ? "p-8 min-h-[160px]" : "p-12 min-h-[240px]",
+        props.compact ? "p-8 min-h-40" : "p-12 min-h-60",
         props.className,
       )}
     >
-      <div className="empty-state-pattern absolute inset-0 opacity-[0.03] pointer-events-none" />
+      <div className="empty-state-pattern absolute inset-0 opacity-3 pointer-events-none" />
 
       <div className="relative z-10 flex flex-col items-center gap-4 max-w-sm">
         {props.icon ? (

@@ -39,13 +39,20 @@ interface TenraiClientShape {
   readonly searchAnime: (
     query: string,
     limit?: number,
-  ) => Effect.Effect<ReadonlyArray<TenraiNormalizedSeasonalEntry>, ExternalCallError>;
+    page?: number,
+  ) => Effect.Effect<
+    { entries: ReadonlyArray<TenraiNormalizedSeasonalEntry>; hasMore: boolean },
+    ExternalCallError
+  >;
   readonly getSeasonalAnime: (input: {
     season: MediaSeason;
     year: number;
     limit: number;
     page?: number;
-  }) => Effect.Effect<ReadonlyArray<TenraiNormalizedSeasonalEntry>, ExternalCallError>;
+  }) => Effect.Effect<
+    { entries: ReadonlyArray<TenraiNormalizedSeasonalEntry>; hasMore: boolean },
+    ExternalCallError
+  >;
 }
 
 const makeTenraiClient = Effect.fn("TenraiClient.make")(function* () {
@@ -141,7 +148,7 @@ const makeTenraiClient = Effect.fn("TenraiClient.make")(function* () {
     );
 
     if (Option.isNone(response)) {
-      return [];
+      return { entries: [], hasMore: false };
     }
 
     return yield* decodeEntryList(response.value, input.limit, {
@@ -152,20 +159,24 @@ const makeTenraiClient = Effect.fn("TenraiClient.make")(function* () {
     });
   });
 
-  const searchAnime = Effect.fn("TenraiClient.searchAnime")(function* (query: string, limit = 10) {
+  const searchAnime = Effect.fn("TenraiClient.searchAnime")(function* (
+    query: string,
+    limit = 10,
+    page = 1,
+  ) {
     const trimmed = query.trim();
 
     if (trimmed.length === 0) {
-      return [];
+      return { entries: [], hasMore: false };
     }
 
     const response = yield* request(
-      `/anime?q=${encodeURIComponent(trimmed)}&limit=${limit}&page=1&order_by=members&sort=desc`,
+      `/anime?q=${encodeURIComponent(trimmed)}&limit=${limit}&page=${page}&order_by=members&sort=desc`,
       "tenrai.search",
     );
 
     if (Option.isNone(response)) {
-      return [];
+      return { entries: [], hasMore: false };
     }
 
     return yield* decodeEntryList(response.value, limit, {
@@ -226,7 +237,10 @@ const decodeEntryList = Effect.fn("TenraiClient.decodeEntryList")(function* (
     ),
   );
 
-  return entries.slice(0, limit);
+  return {
+    entries: entries.slice(0, limit),
+    hasMore: payload.pagination?.has_next_page === true,
+  };
 });
 
 const fetchDetail = Effect.fn("TenraiClient.fetchDetail")(function* (
