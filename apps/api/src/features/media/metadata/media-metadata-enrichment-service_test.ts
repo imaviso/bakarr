@@ -137,7 +137,11 @@ it.effect("episode cache older than 6h reads stale", () =>
           });
         }).pipe(
           Effect.provide(
-            makeEnrichmentLayer(db, client, AniDbClient.of({ getEpisodeMetadata: staticMissLookup })),
+            makeEnrichmentLayer(
+              db,
+              client,
+              AniDbClient.of({ getEpisodeMetadata: staticMissLookup }),
+            ),
           ),
         );
       }),
@@ -339,7 +343,11 @@ it.effect("successful lookup clears the miss", () =>
           assert.deepStrictEqual(cacheState._tag, "Fresh");
         }).pipe(
           Effect.provide(
-            makeEnrichmentLayer(db, client, AniDbClient.of({ getEpisodeMetadata: staticSuccessLookup })),
+            makeEnrichmentLayer(
+              db,
+              client,
+              AniDbClient.of({ getEpisodeMetadata: staticSuccessLookup }),
+            ),
           ),
         );
       }),
@@ -418,10 +426,7 @@ const waitForLookupCalls = (lookupCallsRef: Ref.Ref<number>, expected: number) =
     assert.deepStrictEqual(yield* Ref.get(lookupCallsRef), expected);
   });
 
-const waitForMiss = (
-  missRepository: typeof AniDbMissCacheRepository.Service,
-  mediaId: number,
-) =>
+const waitForMiss = (missRepository: typeof AniDbMissCacheRepository.Service, mediaId: number) =>
   Effect.gen(function* () {
     let found: AniDbMissCacheRecord | undefined;
     let attempts = 0;

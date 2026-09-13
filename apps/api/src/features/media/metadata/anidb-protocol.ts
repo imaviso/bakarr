@@ -13,6 +13,7 @@ export interface AniDbEpisodeLookupInput {
 
 export interface AniDbEpisodeMetadata {
   readonly aired?: string | undefined;
+  readonly durationSeconds?: number | undefined;
   readonly number: number;
   readonly title?: string | undefined;
 }
@@ -138,12 +139,14 @@ export function parseEpisodeResponse(
     return undefined;
   }
 
-  const parsedEpisodeNumber = parseEpisodeNumber(fields[5]) ?? fallbackEpisodeNumber;
+  const parsedEpisodeNumber = parsePositiveInt(fields[5]) ?? fallbackEpisodeNumber;
+  const durationSeconds = parsePositiveInt(fields[2]);
   const title = [fields[6], fields[7], fields[8]].map(normalizeAniDbText).find((value) => value);
   const aired = toIsoFromUnix(fields[9]);
 
   return {
     ...(aired === undefined ? {} : { aired }),
+    ...(durationSeconds === undefined ? {} : { durationSeconds }),
     number: parsedEpisodeNumber,
     ...(title === undefined ? {} : { title }),
   };
@@ -282,7 +285,7 @@ function parseAniDbHeader(
   };
 }
 
-function parseEpisodeNumber(value: string | undefined): number | undefined {
+function parsePositiveInt(value: string | undefined): number | undefined {
   if (!value) {
     return undefined;
   }

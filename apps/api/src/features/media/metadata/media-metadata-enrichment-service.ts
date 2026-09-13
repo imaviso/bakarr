@@ -88,14 +88,16 @@ const makeMediaMetadataEnrichmentService = Effect.fn("MediaMetadataEnrichmentSer
       mediaId: number,
       titleKey: string,
     ) {
-      const missOption = yield* aniDbMissCacheRepository.load(mediaId).pipe(
-        Effect.catch((cause) =>
-          Effect.logWarning("AniDB miss cache lookup degraded").pipe(
-            Effect.annotateLogs({ error: cause.message, mediaId }),
-            Effect.as(Option.none()),
+      const missOption = yield* aniDbMissCacheRepository
+        .load(mediaId)
+        .pipe(
+          Effect.catch((cause) =>
+            Effect.logWarning("AniDB miss cache lookup degraded").pipe(
+              Effect.annotateLogs({ error: cause.message, mediaId }),
+              Effect.as(Option.none()),
+            ),
           ),
-        ),
-      );
+        );
 
       if (Option.isNone(missOption)) {
         return false;

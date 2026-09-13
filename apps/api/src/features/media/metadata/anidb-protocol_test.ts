@@ -96,7 +96,7 @@ it("parseEpisodeResponse maps main mediaUnits with normalized text and aired dat
   const row = [
     "eid",
     "aid",
-    "unused",
+    "1440",
     "unused",
     "unused",
     "1",
@@ -109,8 +109,25 @@ it("parseEpisodeResponse maps main mediaUnits with normalized text and aired dat
 
   assert.deepStrictEqual(parseEpisodeResponse(row, 7), {
     aired: "2024-01-02T00:00:00.000Z",
+    durationSeconds: 1440,
     number: 1,
     title: "MediaUnit One",
+  });
+});
+
+it("parseEpisodeResponse omits unknown or zero lengths", () => {
+  const blank = ["1", "1", "", "", "", "1", "One", "", "", "1704153600", "1"].join("|");
+  const zero = ["1", "1", "0", "", "", "1", "One", "", "", "1704153600", "1"].join("|");
+
+  assert.deepStrictEqual(parseEpisodeResponse(blank, 1), {
+    aired: "2024-01-02T00:00:00.000Z",
+    number: 1,
+    title: "One",
+  });
+  assert.deepStrictEqual(parseEpisodeResponse(zero, 1), {
+    aired: "2024-01-02T00:00:00.000Z",
+    number: 1,
+    title: "One",
   });
 });
 

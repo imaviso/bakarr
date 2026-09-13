@@ -43,9 +43,7 @@ function seedSession(input: {
       passwordHash: "password-hash",
       username: "admin",
     });
-    const user = (yield* input.users.findUserByUsername("admin")).pipe(
-      Option.getOrThrow,
-    );
+    const user = (yield* input.users.findUserByUsername("admin")).pipe(Option.getOrThrow);
     const tokenHash = yield* input.hasher.hashToken(input.token);
     yield* input.users.createSession({
       createdAt: input.createdAt,
