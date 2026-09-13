@@ -106,7 +106,7 @@ function AddAnimePage() {
   };
 
   const clearSelectedAnime = () => {
-    updateSearch({ id: search.id, id_space: search.id_space });
+    updateSearch({ id: undefined, id_space: undefined });
   };
 
   const handleSelectAnime = (anime: MediaSearchResult) => {
