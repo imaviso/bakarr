@@ -6,6 +6,8 @@ import { MediaRepository } from "@/features/media/shared/media-repository.ts";
 import { makeMediaRepositoryShape } from "@/features/media/shared/media-repository.ts";
 import { AniDbUnitCacheRepository } from "@/features/media/units/anidb-unit-cache-repository.ts";
 import { makeAniDbUnitCacheRepositoryShape } from "@/features/media/units/anidb-unit-cache-repository.ts";
+import { AniDbMissCacheRepository } from "@/features/media/units/anidb-miss-cache-repository.ts";
+import { makeAniDbMissCacheRepositoryShape } from "@/features/media/units/anidb-miss-cache-repository.ts";
 import { MediaUnitRepository } from "@/features/media/units/media-unit-repository.ts";
 import { makeMediaUnitRepositoryShape } from "@/features/media/units/media-unit-repository.ts";
 import { SeasonalMediaCacheRepository } from "@/features/media/query/seasonal-media-cache-repository.ts";
@@ -50,6 +52,11 @@ export const makeAniDbUnitCacheRepository = (
   db: AppDatabase,
   sqlClient: NodeSqliteClient.SqliteClient,
 ) => AniDbUnitCacheRepository.of(makeAniDbUnitCacheRepositoryShape(db, sqlClient));
+
+export const makeAniDbMissCacheRepository = (
+  db: AppDatabase,
+  sqlClient: NodeSqliteClient.SqliteClient,
+) => AniDbMissCacheRepository.of(makeAniDbMissCacheRepositoryShape(db, sqlClient));
 
 export const makeSeasonalMediaCacheRepository = (
   db: AppDatabase,

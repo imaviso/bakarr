@@ -90,6 +90,12 @@ export const anidbEpisodeCache = sqliteTable("anidb_episode_cache", {
   updatedAt: text("updated_at").notNull(),
 });
 
+export const anidbMissCache = sqliteTable("anidb_miss_cache", {
+  mediaId: integer("media_id").primaryKey(),
+  titleKey: text("title_key").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
 export const seasonalAnimeCache = sqliteTable("seasonal_anime_cache", {
   cacheKey: text("cache_key").primaryKey(),
   season: text("season").notNull(),

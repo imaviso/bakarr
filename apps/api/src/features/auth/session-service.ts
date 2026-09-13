@@ -63,7 +63,7 @@ const SESSION_PRUNE_INTERVAL = Duration.minutes(5);
 
 type LoginAttemptError = DatabaseError | AuthCryptoError | AuthUnauthorizedError;
 
-const makeAuthSessionService = Effect.fn("AuthSessionService.make")(function* () {
+export const makeAuthSessionService = Effect.fn("AuthSessionService.make")(function* () {
   const usersRepository = yield* AuthUserRepository;
   const config = yield* AppConfig;
   const passwordCrypto = yield* PasswordCrypto;
@@ -256,7 +256,10 @@ const makeAuthSessionService = Effect.fn("AuthSessionService.make")(function* ()
         const now = yield* DateTime.now;
         const lastSeenAt = DateTime.makeUnsafe(new Date(row.lastSeenAt));
         const needsRefresh = Duration.isGreaterThanOrEqualTo(
-          DateTime.distance(now, lastSeenAt),
+          // distance(self, other) = other - self, so the earlier timestamp
+          // goes first; the previous order always yielded a negative
+          // duration, which meant sessions never refreshed.
+          DateTime.distance(lastSeenAt, now),
           SESSION_REFRESH_INTERVAL,
         );
 
