@@ -1201,6 +1201,42 @@ it.effect("MediaQueryService.getMediaByAnilistId serves Tenrai-canonical detail"
   }),
 );
 
+it.effect("MediaQueryService.getMediaByAnilistId keeps AniList space for manga with malId", () =>
+  withSqliteTestDbEffect({
+    run: (db, _databaseFile, client, _exec) =>
+      Effect.gen(function* () {
+        const appDb: AppDatabase = db;
+        const service = yield* MediaQueryService.pipe(
+          Effect.provide(
+            makeQueryServiceLayer(appDb, client, {
+              metadataProvider: MediaMetadataProviderService.of({
+                getAnimeMetadataById: () =>
+                  Effect.succeed(
+                    makeFoundLookup({
+                      format: "MANGA",
+                      id: 3001,
+                      malId: 4001,
+                      status: "FINISHED",
+                      title: { romaji: "Manga Detail" },
+                    }),
+                  ),
+                getSeasonalAnime: () => Effect.die(new Error("not used in test")),
+                searchMedia: () => Effect.die(new Error("not used in test")),
+              }),
+            }),
+          ),
+        );
+
+        const result = yield* service.getMediaByAnilistId(3001, "manga", "anilist");
+
+        assert.deepStrictEqual(result.id, 3001);
+        assert.deepStrictEqual(result.id_space, "anilist");
+        assert.deepStrictEqual(result.media_kind, "manga");
+      }),
+    schema,
+  }),
+);
+
 function makeFoundLookup(
   overrides: Partial<AnimeMetadata> & { id: number; title: AnimeMetadata["title"] },
   detailOrigin: "live" | "stale" | "tenrai" = "live",

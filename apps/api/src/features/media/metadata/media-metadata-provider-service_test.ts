@@ -644,6 +644,31 @@ it.effect("resolves MAL-space ids through the map without remote resolve", () =>
   }).pipe(Effect.provide(providerLayer));
 });
 
+it.effect("forces AniList path for manga with stale mal-space claim without Tenrai probe", () => {
+  const tenraiRequests: number[] = [];
+
+  const providerLayer = makeProviderLayer({
+    cacheState: { _tag: "Missing" },
+    metadata: makeMetadata(3001, { format: "MANGA", malId: 4001 }),
+    onTenraiLookup: (malId) => {
+      tenraiRequests.push(malId);
+    },
+    onRefresh: () => {},
+  });
+
+  return Effect.gen(function* () {
+    const service = yield* MediaMetadataProviderService;
+    const result = yield* service.getAnimeMetadataById(3001, "manga", "mal");
+
+    assert.deepStrictEqual(result._tag, "Found");
+    assert.deepStrictEqual(tenraiRequests, []);
+    if (result._tag === "Found") {
+      assert.deepStrictEqual(result.metadata.id, 3001);
+      assert.deepStrictEqual(result.metadata.format, "MANGA");
+    }
+  }).pipe(Effect.provide(providerLayer));
+});
+
 it.effect("drops Tenrai enrichment and skips upsert on MAL mismatch", () => {
   const upserts: Array<{ readonly anilistId: number; readonly malId?: number | undefined }> = [];
 

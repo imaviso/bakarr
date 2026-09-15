@@ -173,11 +173,10 @@ export const makeMediaQueryService = Effect.fn("MediaQueryService.make")(functio
       // space, validates cross-provider agreement, and canonicalizes to MAL.
       // Dialog opens may enqueue an AniDB refresh for uncached shows, which
       // warms episode data ahead of adding to the library.
-      const lookup = yield* metadataProvider.getAnimeMetadataById(
-        id,
-        mediaKind ?? "anime",
-        idSpace,
-      );
+      // Pass mediaKind through (no anime default): the provider derives the
+      // kind from AniList format when absent, so an omitted kind cannot
+      // mis-route a manga id through the anime type filter.
+      const lookup = yield* metadataProvider.getAnimeMetadataById(id, mediaKind, idSpace);
 
       if (lookup._tag === "NotFound") {
         return yield* new MediaNotFoundError({
@@ -187,6 +186,17 @@ export const makeMediaQueryService = Effect.fn("MediaQueryService.make")(functio
 
       const metadataValue = lookup.metadata;
       const effectiveMediaKind = mediaKind ?? mediaKindFromAniListFormat(metadataValue.format);
+
+      // MAL ids are canonical for anime only (merged records take Tenrai's
+      // malId). Manga/light novels keep AniList ids: Tenrai serves anime
+      // exclusively, so a mal space claim with an AniList number would route
+      // enrollment into malSpaceLookup and 404 as "Media not found".
+      const idSpaceForDetail =
+        effectiveMediaKind === "anime"
+          ? metadataValue.malId !== undefined
+            ? "mal"
+            : "anilist"
+          : "anilist";
 
       const unmarked: MediaSearchResult = {
         already_in_library: false,
@@ -201,7 +211,7 @@ export const makeMediaQueryService = Effect.fn("MediaQueryService.make")(functio
         format: metadataValue.format,
         genres: metadataValue.genres ? [...metadataValue.genres] : undefined,
         id: brandMediaId(metadataValue.id),
-        id_space: metadataValue.malId !== undefined ? "mal" : "anilist",
+        id_space: idSpaceForDetail,
         media_kind: effectiveMediaKind,
         members: metadataValue.members,
         popularity: metadataValue.popularity,

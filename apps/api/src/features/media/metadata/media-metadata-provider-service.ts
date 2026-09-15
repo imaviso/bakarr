@@ -312,10 +312,20 @@ const makeMediaMetadataProviderService = Effect.fn("MediaMetadataProviderService
         // declares the space for fresh search-result ids, and anything else
         // bootstraps via AniList (whose idMal is the exact MAL bridge). No
         // provider is ever queried with a number from the other space.
+        // Manga/light novels are AniList-only (Tenrai serves anime
+        // exclusively), so force the AniList path: a stale mal-space claim
+        // from before the detail id_space fix still resolves instead of
+        // 404ing as "Media not found".
         const known = yield* loadKnownMapping(idMap, id);
         const space =
-          idSpace ??
-          (Option.isSome(known) ? (known.value.anilistId === id ? "anilist" : "mal") : undefined);
+          mediaKind !== undefined && mediaKind !== "anime"
+            ? "anilist"
+            : (idSpace ??
+              (Option.isSome(known)
+                ? known.value.anilistId === id
+                  ? "anilist"
+                  : "mal"
+                : undefined));
 
         if (space === "mal") {
           return yield* malSpaceLookup({ id, known, mediaKind });
@@ -376,7 +386,22 @@ const makeMediaMetadataProviderService = Effect.fn("MediaMetadataProviderService
         let tenraiMetadata: Option.Option<TenraiNormalizedAnime> = Option.none();
         let tenraiFailure: ExternalCallError | undefined;
 
-        if (rowMalId !== undefined) {
+        // Tenrai serves anime exclusively and non-anime lookups return
+        // before any merge, so skip upstream probes for explicit non-anime
+        // kinds instead of burning a call that is always dropped.
+        const detailForProbe =
+          anilistAttempt._tag === "Success" && Option.isSome(anilistAttempt.success)
+            ? anilistAttempt.success.value.data
+            : undefined;
+        const effectiveKindForProbe =
+          input.mediaKind ??
+          (detailForProbe === undefined
+            ? undefined
+            : mediaKindFromAniListFormat(detailForProbe.format));
+        const shouldProbeTenrai =
+          effectiveKindForProbe === undefined || effectiveKindForProbe === "anime";
+
+        if (rowMalId !== undefined && shouldProbeTenrai) {
           const tenraiAttempt = yield* tenrai.getAnimeByMalId(rowMalId).pipe(Effect.result);
 
           if (tenraiAttempt._tag === "Failure") {
@@ -408,7 +433,14 @@ const makeMediaMetadataProviderService = Effect.fn("MediaMetadataProviderService
 
         // AniList hits may carry an idMal the map did not know yet: one
         // follow-up Tenrai lookup so synopsis/relations still merge.
-        if (Option.isNone(tenraiMetadata) && detail.data.malId !== undefined) {
+        // Skipped for non-anime: the base lookup returns before merging.
+        const effectiveKindForDetail =
+          input.mediaKind ?? mediaKindFromAniListFormat(detail.data.format);
+        if (
+          Option.isNone(tenraiMetadata) &&
+          detail.data.malId !== undefined &&
+          effectiveKindForDetail === "anime"
+        ) {
           tenraiMetadata = yield* optionalExternalMetadataLookup(
             tenrai.getAnimeByMalId(detail.data.malId),
             {
