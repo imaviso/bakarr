@@ -4,6 +4,7 @@ import { Cause, Context, Effect, Layer, Option } from "effect";
 import type { DatabaseError } from "@/db/database.ts";
 import type { BackgroundJobName } from "@/background/worker-model.ts";
 import { nowIso } from "@/infra/time.ts";
+import { errorCategory, errorLogAnnotations, errorValueKind } from "@/infra/logging.ts";
 import {
   markJobFailureOrFailWithCause,
   markJobFailureOrFailWithError,
@@ -81,14 +82,20 @@ export function makeBackgroundJobRunnerShape(
           cause,
           job: name,
           logMessage: `Failed to record ${name} job failure`,
-          logAnnotations: { run_failure_cause: Cause.pretty(cause) },
+          logAnnotations: {
+            run_failure_kind: errorCategory(cause),
+            ...errorLogAnnotations(Cause.squash(cause)),
+          },
           markFailed: repository.markFailed(name, cause, nowIso),
         })
       : markJobFailureOrFailWithError({
           error: cause,
           job: name,
           logMessage: `Failed to record ${name} job failure`,
-          logAnnotations: { run_failure: describeFailure(cause) },
+          logAnnotations: {
+            run_failure_kind: errorValueKind(cause),
+            ...errorLogAnnotations(cause),
+          },
           markFailed: repository.markFailed(name, cause, nowIso),
         });
 
@@ -155,18 +162,6 @@ export class BackgroundJobRunner extends Context.Service<
 }
 
 export const BackgroundJobRunnerLive = BackgroundJobRunner.layer;
-
-function describeFailure(cause: unknown): string {
-  if (Cause.isCause(cause)) {
-    return Cause.pretty(cause);
-  }
-
-  if (cause instanceof Error) {
-    return cause.message;
-  }
-
-  return globalThis.String(cause);
-}
 
 /**
  * Tests and the pure shape factory default to no locking; the live layer

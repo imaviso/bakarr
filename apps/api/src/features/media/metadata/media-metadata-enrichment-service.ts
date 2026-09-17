@@ -1,15 +1,4 @@
-import {
-  Cause,
-  Context,
-  DateTime,
-  Duration,
-  Effect,
-  HashSet,
-  Layer,
-  Option,
-  Queue,
-  Ref,
-} from "effect";
+import { Context, DateTime, Duration, Effect, HashSet, Layer, Option, Queue, Ref } from "effect";
 import type { DatabaseError } from "@/db/database.ts";
 import { AniDbClient } from "@/features/media/metadata/anidb.ts";
 import { AniDbMissCacheRepository } from "@/features/media/units/anidb-miss-cache-repository.ts";
@@ -20,6 +9,7 @@ import { MediaRepository } from "@/features/media/shared/media-repository.ts";
 import { MediaUnitRepository } from "@/features/media/units/media-unit-repository.ts";
 import type { StoredDataError } from "@/features/errors.ts";
 import { AniDbRuntimeConfigError } from "@/features/media/errors.ts";
+import { causeLogAnnotations } from "@/infra/logging.ts";
 import { nowIso as currentNowIso } from "@/infra/time.ts";
 
 const ANIDB_CACHE_STALE_AFTER = Duration.hours(6);
@@ -166,7 +156,7 @@ const makeMediaMetadataEnrichmentService = Effect.fn("MediaMetadataEnrichmentSer
             Effect.logWarning("AniDB background refresh failed").pipe(
               Effect.annotateLogs({
                 mediaId: request.mediaId,
-                cause: Cause.pretty(cause),
+                ...causeLogAnnotations(cause),
               }),
             ),
           ),

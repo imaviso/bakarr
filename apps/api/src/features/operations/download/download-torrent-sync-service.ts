@@ -344,8 +344,8 @@ export class DownloadTorrentSyncService extends Context.Service<
                   Effect.catch((cause) =>
                     Effect.logWarning("Failed to persist orphan status event").pipe(
                       Effect.annotateLogs({
-                        cause: globalThis.String(cause),
                         downloadId: orphan.downloadId,
+                        ...errorLogAnnotations(cause),
                       }),
                     ),
                   ),

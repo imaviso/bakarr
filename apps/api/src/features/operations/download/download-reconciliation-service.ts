@@ -1,4 +1,4 @@
-import { Cause, Context, Effect, Layer, Option, Ref } from "effect";
+import { Context, Effect, Layer, Option, Ref } from "effect";
 import type { Config } from "@packages/shared/index.ts";
 import { EventBus } from "@/infra/effect/event-bus.ts";
 import { nowIso as currentNowIso } from "@/infra/time.ts";
@@ -21,6 +21,7 @@ import {
   shouldRemoveTorrentOnImport,
 } from "@/features/operations/download/download-reconciliation-policy.ts";
 import { buildClaimToken } from "@/features/operations/download/download-claim-token.ts";
+import { causeLogAnnotations } from "@/infra/logging.ts";
 import { OperationsConflictError, OperationsNotFoundError } from "@/features/operations/errors.ts";
 import { MediaRepository } from "@/features/media/shared/media-repository.ts";
 import { MediaUnitRepository } from "@/features/media/units/media-unit-repository.ts";
@@ -91,7 +92,7 @@ export class DownloadReconciliationService extends Context.Service<
               Effect.logWarning("Failed to delete imported torrent").pipe(
                 Effect.annotateLogs({
                   infoHash,
-                  cause: Cause.pretty(cause),
+                  ...causeLogAnnotations(cause),
                 }),
               ),
             ),

@@ -29,6 +29,7 @@ import {
   type ProbedMediaMetadata,
 } from "@/infra/media/probe.ts";
 import { RandomService } from "@/infra/random.ts";
+import { errorLogAnnotations } from "@/infra/logging.ts";
 
 export interface LibraryNamingMedia {
   readonly titleRomaji: string;
@@ -358,7 +359,7 @@ const replaceDestinationWithStagedFile = Effect.fn(
         Effect.logWarning("Failed to remove backup file after successful import").pipe(
           Effect.annotateLogs({
             backup_path: input.backupDestination,
-            error: globalThis.String(error),
+            ...errorLogAnnotations(error),
           }),
           Effect.asVoid,
         ),

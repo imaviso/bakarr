@@ -6,6 +6,7 @@ import { collectBoundedBytes } from "@/infra/effect/bounded-stream.ts";
 
 import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import { isNotFoundError } from "@/infra/filesystem/fs-errors.ts";
+import { errorLogAnnotations } from "@/infra/logging.ts";
 import { ImageCacheError } from "@/features/media/metadata/media-image-cache-service.ts";
 
 export { ImageCacheError };
@@ -48,7 +49,7 @@ export const cacheMediaMetadataImages = Effect.fn("MediaService.cacheMediaMetada
     const withImageCacheWarning = (kind: "cover" | "banner") =>
       Effect.tapError((error: unknown) =>
         Effect.logWarning(`Failed to cache ${kind} image`).pipe(
-          Effect.annotateLogs({ mediaId, error }),
+          Effect.annotateLogs({ mediaId, ...errorLogAnnotations(error) }),
         ),
       );
 

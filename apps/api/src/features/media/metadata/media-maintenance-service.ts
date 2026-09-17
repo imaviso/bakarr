@@ -15,6 +15,7 @@ import { pdfCacheDirectory } from "@/features/media/reader/pdf-reader.ts";
 import { EventBus } from "@/infra/effect/event-bus.ts";
 import { SystemLogRepository } from "@/features/system/repository/log-repository.ts";
 import { nowIso as currentNowIso } from "@/infra/time.ts";
+import { errorLogAnnotations } from "@/infra/logging.ts";
 import { mediaUnits } from "@/db/schema.ts";
 import { FileSystem, type FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
@@ -75,7 +76,7 @@ const makeMediaMaintenanceService = Effect.fn("MediaMaintenanceService.make")(fu
     }).pipe(
       Effect.catch((cause) =>
         Effect.logWarning("Failed to prune cached files for deleted media").pipe(
-          Effect.annotateLogs({ mediaId: id, cause: globalThis.String(cause) }),
+          Effect.annotateLogs({ mediaId: id, ...errorLogAnnotations(cause) }),
         ),
       ),
     );

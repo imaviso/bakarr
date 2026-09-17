@@ -6,6 +6,7 @@ import { AppConfig } from "@/app/config/schema.ts";
 import { AuthForbiddenError, AuthUnauthorizedError } from "@/features/auth/errors.ts";
 import { AuthSessionService } from "@/features/auth/session-service.ts";
 import { Duration, Effect, Option, Record } from "effect";
+import { CurrentRequestLog } from "@/infra/http/request-logging.ts";
 
 function extractApiKeyFromHeaders(headers: Readonly<Record<string, string | undefined>>) {
   const headerApiKey = headers["x-api-key"];
@@ -30,6 +31,11 @@ export const requireViewerFromHttpRequest = Effect.fn("Http.requireViewerFromHtt
 
     if (Option.isNone(viewer)) {
       return yield* new AuthUnauthorizedError({ message: "Unauthorized" });
+    }
+
+    const requestLog = yield* CurrentRequestLog;
+    if (requestLog) {
+      requestLog.userId = viewer.value.id;
     }
 
     if (viewer.value.must_change_password && options.allowPasswordChangeRequired !== true) {

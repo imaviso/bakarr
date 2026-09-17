@@ -9,7 +9,7 @@ import type { BackgroundTaskRunnerShape } from "@/background/task-runner.ts";
 import type { BackgroundWorkerMonitorShape } from "@/background/monitor.ts";
 import { BACKGROUND_WORKER_NAMES, type BackgroundWorkerName } from "@/background/worker-model.ts";
 import { makeSerializedDropEffectRunner } from "@/infra/effect/serialized-runner.ts";
-import { compactLogAnnotations, errorLogAnnotations } from "@/infra/logging.ts";
+import { compactLogAnnotations, errorCategory, errorLogAnnotations } from "@/infra/logging.ts";
 
 export class WorkerTimeoutError extends Schema.TaggedError<WorkerTimeoutError>()(
   "WorkerTimeoutError",
@@ -70,18 +70,18 @@ export function makeBackgroundWorkerPolicy(): BackgroundWorkerPolicy {
     const isDefect = Cause.hasDies(exit.cause);
     const backoffMs = yield* nextFailureBackoffMs(workerName);
 
-    yield* (
-      isDefect
-        ? Effect.logError("background worker run defect; restarting worker loop")
-        : Effect.logWarning("background worker run failed; keeping daemon alive")
-    ).pipe(
+    // Recovery scheduling is expected resilience, not a new failure: the run
+    // attempt already logged its Error completion event. Keep this at Debug
+    // with a distinct event so one failure produces one error line.
+    yield* Effect.logDebug("background worker recovery scheduled").pipe(
       Effect.annotateLogs(
         compactLogAnnotations({
           backoffMs,
           component: "background",
-          event: isDefect ? "background.worker.run.defect" : "background.worker.run.failed",
+          error_kind: errorCategory(exit.cause),
+          event: "background.worker.recovery.scheduled",
+          outcome: isDefect ? "defect" : "failed",
           workerName,
-          error: Cause.pretty(exit.cause),
         }),
       ),
     );
@@ -166,6 +166,17 @@ export const withLockEffectOrFail = Effect.fn("Background.withLockEffectOrFail")
 
     if (exit._tag === "Success") {
       yield* monitor.markRunSucceeded(workerName, durationMs);
+      yield* Effect.logDebug("background worker run completed").pipe(
+        Effect.annotateLogs(
+          compactLogAnnotations({
+            component: "background",
+            durationMs,
+            event: "background.worker.run.completed",
+            outcome: "success",
+            workerName,
+          }),
+        ),
+      );
       return undefined;
     }
 
@@ -181,24 +192,21 @@ export const withLockEffectOrFail = Effect.fn("Background.withLockEffectOrFail")
     });
 
     yield* monitor.markRunFailed(workerName, errorMessage, durationMs);
-    yield* Effect.logError(
-      Option.isSome(timeoutErrorOption)
-        ? "background worker timed out"
-        : "background worker failed",
-    ).pipe(
+    yield* Effect.logError("background worker run completed").pipe(
       Effect.annotateLogs(
         compactLogAnnotations({
-          cause: Cause.pretty(exit.cause),
           component: "background",
           durationMs,
-          event: Option.isSome(timeoutErrorOption)
-            ? "background.worker.timeout"
-            : "background.worker.failed",
+          error_kind: errorCategory(exit.cause),
+          event: "background.worker.run.completed",
+          outcome: Option.isSome(timeoutErrorOption) ? "timeout" : "failed",
           timeoutMs: Option.isSome(timeoutErrorOption)
             ? timeoutErrorOption.value.timeoutMs
             : undefined,
           workerName,
-          ...errorLogAnnotations(errorMessage),
+          // Typed failure fields only: the full cause tree can embed request
+          // bodies or credentials, so it stays out of console annotations.
+          ...errorLogAnnotations(Option.getOrUndefined(Cause.findErrorOption(exit.cause))),
         }),
       ),
     );

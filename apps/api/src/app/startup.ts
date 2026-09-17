@@ -49,7 +49,7 @@ const pruneOldSystemLogs = Effect.fn("api.bootstrap.pruneSystemLogs")(function* 
     .pipe(
       Effect.catch((cause) =>
         Effect.logWarning("Failed to prune old system logs").pipe(
-          Effect.annotateLogs({ cause: globalThis.String(cause) }),
+          Effect.annotateLogs(errorLogAnnotations(cause)),
           Effect.as(0),
         ),
       ),

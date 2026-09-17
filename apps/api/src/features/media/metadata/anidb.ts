@@ -38,6 +38,7 @@ import { StoredConfigCorruptError } from "@/features/system/errors.ts";
 import { DEFAULT_ANIDB_METADATA_CONFIG } from "@/features/system/metadata-providers-config.ts";
 import { ExternalCallError, ExternalCall } from "@/infra/effect/retry.ts";
 import { FileSystem } from "@/infra/filesystem/filesystem.ts";
+import { errorLogAnnotations } from "@/infra/logging.ts";
 import { Cache, Context, Effect, Layer, Option, Ref, Semaphore } from "effect";
 
 const ANIDB_MIN_ANIME_MATCH_SCORE = 70;
@@ -238,9 +239,8 @@ export const AniDbClientLive = AniDbClient.layer;
 const logRuntimeConfigError = (error: DatabaseError | StoredConfigCorruptError, reason: string) =>
   Effect.logWarning("AniDB metadata lookup failed due to runtime config load failure").pipe(
     Effect.annotateLogs({
-      cause: globalThis.String(error.cause),
-      error: error.message,
       reason,
+      ...errorLogAnnotations(error),
     }),
   );
 

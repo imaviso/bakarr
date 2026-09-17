@@ -9,6 +9,7 @@ import { mediaRouter } from "@/features/media/router.ts";
 import { authRouter } from "@/features/auth/router.ts";
 import { createEmbeddedWebResponse, type EmbeddedWebAsset } from "@/infra/http/embedded-web.ts";
 import { isAllowedHostHeader } from "@/infra/http/host-guard.ts";
+import { withRequestLogging } from "@/infra/http/request-logging.ts";
 import { downloadsRouter } from "@/features/operations/downloads-router.ts";
 import { libraryRouter } from "@/features/operations/library-router.ts";
 import { rssRouter } from "@/features/operations/rss-router.ts";
@@ -70,7 +71,7 @@ export function createHttpApp(
         }
 
         return yield* route;
-      }),
+      }).pipe(withRequestLogging),
     { global: true },
   );
 

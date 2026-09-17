@@ -1,7 +1,9 @@
 import * as Terminal from "effect/Terminal";
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { Cause, Effect } from "effect";
+import { Effect } from "effect";
+
+import { causeLogAnnotations } from "@/infra/logging.ts";
 
 const CREDENTIALS_FILE_NAME = "bootstrap-credentials.txt";
 
@@ -24,7 +26,7 @@ export const announceBootstrapCredentials = Effect.fn(
         Effect.catchCause((cause) =>
           Effect.logWarning(
             "Failed to display bootstrap credentials in terminal; falling back to file output",
-          ).pipe(Effect.annotateLogs({ cause: Cause.pretty(cause) }), Effect.as(false)),
+          ).pipe(Effect.annotateLogs(causeLogAnnotations(cause)), Effect.as(false)),
         ),
       );
 
@@ -53,7 +55,7 @@ export const announceBootstrapCredentials = Effect.fn(
     Effect.as(true),
     Effect.catchCause((cause) =>
       Effect.logError("Failed to write bootstrap credentials file").pipe(
-        Effect.annotateLogs({ cause: Cause.pretty(cause), output_dir: input.outputDir }),
+        Effect.annotateLogs({ output_dir: input.outputDir, ...causeLogAnnotations(cause) }),
         Effect.as(false),
       ),
     ),

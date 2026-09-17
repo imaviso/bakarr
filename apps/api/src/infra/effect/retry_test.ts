@@ -1,7 +1,7 @@
 // oxlint-disable oxc/no-async-await -- async/await required by transaction callbacks, test callbacks, and tryPromise wrappers
 
 import * as TestClock from "effect/testing/TestClock";
-import { Effect, Fiber, Layer, Result } from "effect";
+import { Effect, Fiber, Layer, Logger, Result } from "effect";
 import { assert, it } from "@effect/vitest";
 
 import {
@@ -20,8 +20,12 @@ const TestExternalCallLayer = Layer.mergeAll(
   ExternalCallSemaphores.layer,
 );
 
-it.effect("tryExternal retries transient failures", () =>
+it.effect("tryExternal retries transient failures and emits one completion summary", () =>
   Effect.gen(function* () {
+    const logs: Array<ReturnType<typeof Logger.formatStructured.log>> = [];
+    const logger = Logger.make((options) => {
+      logs.push(Logger.formatStructured.log(options));
+    });
     let attempts = 0;
     const externalCall = yield* makeExternalCall();
 
@@ -35,7 +39,7 @@ it.effect("tryExternal retries transient failures", () =>
 
         return Promise.resolve("ok");
       })
-      .pipe(Effect.forkChild);
+      .pipe(Effect.provide(Logger.layer([logger])), Effect.forkChild);
 
     yield* TestClock.adjust("1 second");
 
@@ -43,6 +47,10 @@ it.effect("tryExternal retries transient failures", () =>
 
     assert.deepStrictEqual(result, "ok");
     assert.deepStrictEqual(attempts, 3);
+    assert.strictEqual(logs.length, 1);
+    assert.strictEqual(logs[0]?.annotations["attempts"], 3);
+    assert.strictEqual(logs[0]?.annotations["operation"], "test.retry");
+    assert.strictEqual(logs[0]?.annotations["outcome"], "success");
   }).pipe(Effect.provide(TestExternalCallLayer)),
 );
 

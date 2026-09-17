@@ -8,6 +8,7 @@ import { syncMediaMetadataEffect } from "@/features/media/metadata/media-metadat
 import { formatJobFailureMessage } from "@/background/job-status.ts";
 import { ExternalCallError } from "@/infra/effect/retry.ts";
 import { markJobFailureOrFailWithError } from "@/background/job-failure-support.ts";
+import { causeLogAnnotations, errorCategory } from "@/infra/logging.ts";
 import type { MediaRepositoryShape } from "@/features/media/shared/media-repository.ts";
 import type { MediaUnitRepositoryShape } from "@/features/media/units/media-unit-repository.ts";
 import type { BackgroundJobRepositoryShape } from "@/features/system/repository/background-job-repository.ts";
@@ -48,9 +49,9 @@ export const refreshMetadataForMonitoredMediaEffect = Effect.fn(
             Effect.catchCause((appendLogCause) =>
               Effect.logError("Failed to append metadata refresh failure log").pipe(
                 Effect.annotateLogs({
-                  append_log_cause: Cause.pretty(appendLogCause),
                   job: "metadata_refresh",
                   run_failure: error.message,
+                  ...causeLogAnnotations(appendLogCause),
                 }),
                 Effect.andThen(Effect.failCause(Cause.combine(Cause.fail(error), appendLogCause))),
               ),
@@ -69,7 +70,7 @@ export const refreshMetadataForMonitoredMediaEffect = Effect.fn(
     return markJobFailureOrFailWithError({
       error: infrastructureError,
       job: "metadata_refresh",
-      logAnnotations: { run_failure_cause: Cause.pretty(cause) },
+      logAnnotations: { ...causeLogAnnotations(cause) },
       logMessage: "Failed to record metadata refresh infrastructure failure",
       markFailed: input.backgroundJobRepository.markFailed("metadata_refresh", cause, nowIso),
     }).pipe(
@@ -86,9 +87,9 @@ export const refreshMetadataForMonitoredMediaEffect = Effect.fn(
             Effect.catchCause((appendLogCause) =>
               Effect.logError("Failed to append metadata refresh infrastructure failure log").pipe(
                 Effect.annotateLogs({
-                  append_log_cause: Cause.pretty(appendLogCause),
                   job: "metadata_refresh",
-                  run_failure_cause: Cause.pretty(cause),
+                  run_failure_kind: errorCategory(cause),
+                  ...causeLogAnnotations(appendLogCause),
                 }),
                 Effect.andThen(
                   Effect.failCause(Cause.combine(Cause.fail(infrastructureError), appendLogCause)),
@@ -148,7 +149,7 @@ export const refreshMetadataForMonitoredMediaEffect = Effect.fn(
               : Effect.logWarning("Skipping metadata refresh for media after failure").pipe(
                   Effect.annotateLogs({
                     mediaId,
-                    run_failure_cause: Cause.pretty(cause),
+                    ...causeLogAnnotations(cause),
                   }),
                   Effect.tap(() => Ref.update(skippedRef, (skipped) => skipped + 1)),
                 ),

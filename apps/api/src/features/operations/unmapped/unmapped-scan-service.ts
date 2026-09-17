@@ -38,6 +38,8 @@ import { UnmappedScanCoordinator } from "@/features/operations/tasks/task-coordi
 import { OperationsTaskLauncherService } from "@/features/operations/tasks/operations-task-launcher-service.ts";
 import { Cause, Context, Effect, Layer } from "effect";
 
+import { causeLogAnnotations } from "@/infra/logging.ts";
+
 export interface UnmappedScanServiceShape {
   readonly getUnmappedFolders: () => Effect.Effect<
     ScannerState,
@@ -338,7 +340,7 @@ const makeUnmappedScanService = Effect.fn("UnmappedScanService.make")(function* 
           const loop = unmappedScanLoop().pipe(
             Effect.catchCause((cause) =>
               Effect.logError("Unmapped scan loop failed").pipe(
-                Effect.annotateLogs({ error: Cause.pretty(cause) }),
+                Effect.annotateLogs(causeLogAnnotations(cause)),
                 Effect.andThen(Effect.failCause(cause)),
               ),
             ),

@@ -14,6 +14,8 @@ import {
 } from "@/features/operations/library/library-naming.ts";
 import { Effect, Result } from "effect";
 
+import { errorLogAnnotations } from "@/infra/logging.ts";
+
 export interface LibraryImportFileInput {
   readonly source_path: string;
   readonly media_id: number;
@@ -152,7 +154,7 @@ const writePlannedImportFile = Effect.fn("Operations.writePlannedImportFile")(fu
           Effect.annotateLogs({
             destination_path: placed.destination,
             source_path: plan.sourcePath,
-            error: globalThis.String(error),
+            ...errorLogAnnotations(error),
           }),
         ),
       ),

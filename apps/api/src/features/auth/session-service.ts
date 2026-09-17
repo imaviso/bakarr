@@ -10,6 +10,7 @@ import { AppConfig } from "@/app/config/schema.ts";
 import { DatabaseError } from "@/db/database.ts";
 import type { users } from "@/db/schema.ts";
 import { nowIso as currentNowIso } from "@/infra/time.ts";
+import { errorLogAnnotations } from "@/infra/logging.ts";
 import { randomHexFrom, RandomService } from "@/infra/random.ts";
 import {
   hashPassword,
@@ -121,7 +122,7 @@ export const makeAuthSessionService = Effect.fn("AuthSessionService.make")(funct
         .pipe(
           Effect.catch((cause) =>
             Effect.logWarning("Failed to prune expired sessions; will retry next interval").pipe(
-              Effect.annotateLogs({ cause: globalThis.String(cause) }),
+              Effect.annotateLogs(errorLogAnnotations(cause)),
               Effect.andThen(Effect.void),
             ),
           ),
@@ -165,7 +166,7 @@ export const makeAuthSessionService = Effect.fn("AuthSessionService.make")(funct
         const newHash = yield* hashPassword(passwordCrypto, request.password).pipe(
           Effect.catch((cause) =>
             Effect.logWarning("Failed to rehash outdated password hash").pipe(
-              Effect.annotateLogs({ cause: globalThis.String(cause), userId: row.id }),
+              Effect.annotateLogs({ userId: row.id, ...errorLogAnnotations(cause) }),
               Effect.andThen(Effect.succeed(undefined)),
             ),
           ),
@@ -177,7 +178,7 @@ export const makeAuthSessionService = Effect.fn("AuthSessionService.make")(funct
             .pipe(
               Effect.catch((cause) =>
                 Effect.logWarning("Failed to persist rehashed password").pipe(
-                  Effect.annotateLogs({ cause: globalThis.String(cause), userId: row.id }),
+                  Effect.annotateLogs({ userId: row.id, ...errorLogAnnotations(cause) }),
                 ),
               ),
             );

@@ -1,7 +1,7 @@
 // oxlint-disable typescript/no-restricted-types -- `unknown` is the honest type at error/cause boundaries (Effect error channels, try/catch causes, Logger messages)
 
 import * as TestClock from "effect/testing/TestClock";
-import { Deferred, Effect, Fiber, Logger, Metric, Record, Ref, Scope } from "effect";
+import { Deferred, Effect, Fiber, Logger, Metric, Record, Ref, References, Scope } from "effect";
 import { assert, it } from "@effect/vitest";
 
 import type { Config } from "@packages/shared/index.ts";
@@ -9,7 +9,11 @@ import { buildBackgroundSchedule } from "@/background/schedule.ts";
 import { makeBackgroundWorkerController } from "@/background/controller-core.ts";
 import { makeBackgroundWorkerMonitor } from "@/background/monitor.ts";
 import { BackgroundWorkerTimeouts } from "@/background/worker-timeouts.ts";
-import { repeatWorker, withLockEffectOrFail } from "@/background/workers.ts";
+import {
+  makeBackgroundWorkerPolicy,
+  repeatWorker,
+  withLockEffectOrFail,
+} from "@/background/workers.ts";
 import { BACKGROUND_WORKER_TIMEOUT_MS } from "@/background/worker-model.ts";
 import { makeLatestValuePublisher } from "@/infra/effect/coalescing-latest-value-publisher.ts";
 
@@ -298,9 +302,46 @@ it.effect("background worker timeouts are tagged and recorded", () =>
     assert.deepStrictEqual(snapshot.rss.lastErrorMessage, "Worker timed out after 1ms");
     assert.deepStrictEqual(snapshot.rss.runRunning, false);
     assert.deepStrictEqual(
-      messages.some((message) => message.includes("background worker timed out")),
+      messages.some((message) => message.includes("background worker run completed")),
       true,
     );
+  }),
+);
+
+it.effect("worker supervisor schedules recovery at debug level without a second error", () =>
+  Effect.gen(function* () {
+    const policy = makeBackgroundWorkerPolicy();
+    const logs: Array<{
+      level: string;
+      message: string;
+      annotations: Record<string, unknown>;
+    }> = [];
+    const logger = Logger.make<unknown, void>(({ fiber, logLevel, message }) => {
+      logs.push({
+        annotations: { ...fiber.getRef(References.CurrentLogAnnotations) },
+        level: logLevel,
+        message: globalThis.String(message),
+      });
+    });
+    const fiber = yield* policy
+      .resilientRun("rss", Effect.fail(new Error("boom")))
+      .pipe(
+        Effect.provide(Logger.layer([logger])),
+        Effect.provideService(References.MinimumLogLevel, "Debug"),
+        Effect.forkChild,
+      );
+
+    yield* TestClock.adjust("6 seconds");
+    const result = yield* Fiber.join(fiber);
+
+    assert.deepStrictEqual(result, undefined);
+    assert.deepStrictEqual(logs.length, 1);
+    assert.deepStrictEqual(logs[0]?.level, "Debug");
+    assert.deepStrictEqual(logs[0]?.message.includes("recovery scheduled"), true);
+    assert.deepStrictEqual(logs[0]?.annotations["event"], "background.worker.recovery.scheduled");
+    assert.deepStrictEqual(logs[0]?.annotations["backoffMs"], 5_000);
+    assert.deepStrictEqual(logs[0]?.annotations["error_kind"], "Error");
+    assert.deepStrictEqual(logs[0]?.annotations["workerName"], "rss");
   }),
 );
 

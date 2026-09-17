@@ -5,6 +5,8 @@ import { RssFeedRepository } from "@/features/operations/repository/rss-feed-rep
 import { OperationsProgress } from "@/features/operations/tasks/operations-progress-service.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 import { ExternalCallError } from "@/infra/effect/retry.ts";
+import { errorLogAnnotations } from "@/infra/logging.ts";
+import { sanitizeRssUrlForLogs } from "@/features/operations/rss/rss-client.ts";
 import { Context, Effect, Layer, Ref, Result } from "effect";
 
 export interface SearchBackgroundRssServiceShape {
@@ -52,9 +54,9 @@ export class SearchBackgroundRssService extends Context.Service<
                 Effect.tapError((error) =>
                   Effect.logWarning("RSS feed check failed; continuing with remaining feeds").pipe(
                     Effect.annotateLogs({
-                      error: globalThis.String(error),
                       feedId: feed.id,
-                      feedName: feed.name ?? feed.url,
+                      feedName: feed.name ?? sanitizeRssUrlForLogs(feed.url),
+                      ...errorLogAnnotations(error),
                     }),
                   ),
                 ),

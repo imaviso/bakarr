@@ -8,7 +8,12 @@ import {
 } from "@packages/shared/index.ts";
 import type { DatabaseError } from "@/db/database.ts";
 import { InfrastructureError } from "@/features/errors.ts";
-import { compactLogAnnotations, errorLogAnnotations } from "@/infra/logging.ts";
+import {
+  compactLogAnnotations,
+  causeLogAnnotations,
+  errorCategory,
+  errorLogAnnotations,
+} from "@/infra/logging.ts";
 import { nowIso as currentNowIso } from "@/infra/time.ts";
 
 import {
@@ -62,9 +67,9 @@ const makeOperationsTaskLauncherService = Effect.fn("OperationsTaskLauncherServi
           Effect.catchCause((cause) =>
             Effect.logError("Operations task launcher worker failed").pipe(
               Effect.annotateLogs({
-                cause: Cause.pretty(cause),
                 component: "operations",
                 event: "operations.task.launcher.worker.failed",
+                ...causeLogAnnotations(cause),
               }),
             ),
           ),
@@ -153,7 +158,7 @@ const makeOperationsTaskLauncherService = Effect.fn("OperationsTaskLauncherServi
                     compactLogAnnotations({
                       ...errorLogAnnotations(error),
                       mediaId: input.mediaId,
-                      cause: Cause.pretty(cause),
+                      error_kind: errorCategory(cause),
                       component: "operations",
                       event: "operations.task.failed",
                       taskId,

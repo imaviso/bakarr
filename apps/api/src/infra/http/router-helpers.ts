@@ -2,7 +2,9 @@
 import * as HttpRouter from "effect/unstable/http/HttpRouter";
 import * as HttpServerRequest from "effect/unstable/http/HttpServerRequest";
 import * as HttpServerResponse from "effect/unstable/http/HttpServerResponse";
-import { Cause, Effect, Option, Predicate, Record, Schema } from "effect";
+import { Cause, Effect, Option, Record, Schema } from "effect";
+
+import { errorCategory, errorValueKind } from "@/infra/logging.ts";
 
 import { collectBoundedText, StreamPayloadTooLargeError } from "@/infra/effect/bounded-stream.ts";
 import { mapRouteError } from "@/infra/http/route-errors/index.ts";
@@ -12,6 +14,7 @@ import {
   RequestValidationError,
 } from "@/infra/http/route-validation.ts";
 import type { RouteErrorResponse } from "@/infra/http/route-types.ts";
+import { CurrentRequestLog } from "@/infra/http/request-logging.ts";
 
 export const MAX_JSON_BODY_BYTES = 1_048_576;
 
@@ -103,9 +106,6 @@ export const routeResponse = <A, E, R, E2, R2>(
   mapError: (error: unknown) => RouteErrorResponse = mapRouteError,
 ) =>
   Effect.gen(function* () {
-    const request = yield* HttpServerRequest.HttpServerRequest;
-    const url = new URL(request.url, "http://bakarr.local");
-
     return yield* effect.pipe(
       Effect.flatMap((value) => onSuccess(value)),
       Effect.catchCause((cause) =>
@@ -122,22 +122,15 @@ export const routeResponse = <A, E, R, E2, R2>(
             onNone: (): RouteErrorResponse => ({ message: "Unexpected server error", status: 500 }),
             onSome: (error) => mapError(error),
           });
-          const logAsError = mapped.status >= 500 || Option.isNone(failure);
-
-          yield* (
-            logAsError ? Effect.logError("HTTP route failed") : Effect.logDebug("HTTP route failed")
-          ).pipe(
-            Effect.annotateLogs({
-              cause: Cause.pretty(cause),
-              ...Option.match(failure, {
-                onNone: () => ({ error_kind: "defect" }),
-                onSome: (error) => ({ error_kind: describeRouteFailure(error) }),
-              }),
-              http_method: request.method,
-              http_path: url.pathname,
-              http_status: mapped.status,
-            }),
-          );
+          const requestLog = yield* CurrentRequestLog;
+          if (requestLog) {
+            // Raw causes can contain request bodies, credentials, or SQL values.
+            // Keep a stable failure category on the single completion event.
+            requestLog.errorKind = Option.match(failure, {
+              onNone: () => errorCategory(cause),
+              onSome: (error) => errorValueKind(error),
+            });
+          }
 
           const response = HttpServerResponse.text(mapped.message, {
             status: mapped.status,
@@ -195,16 +188,4 @@ function mapLabeledBodyDecodeError(label: string, error: unknown) {
   }
 
   return error;
-}
-
-function describeRouteFailure(error: unknown): string {
-  if (Predicate.hasProperty(error, "_tag")) {
-    return globalThis.String(error._tag);
-  }
-
-  if (error instanceof Error) {
-    return error.constructor.name;
-  }
-
-  return typeof error;
 }

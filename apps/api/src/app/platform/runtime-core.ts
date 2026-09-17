@@ -73,7 +73,7 @@ export function makeAppPlatformCoreRuntimeLayer(
     httpAndRuntimeLayer,
     configLayer,
     runtimeLayer,
-    RuntimeLoggerLayer,
+    RuntimeLoggerLayer.pipe(Layer.provide(configLayer)),
     telemetryLayer,
     databaseLayer,
     externalCallLayer,

@@ -189,15 +189,22 @@ export const makeExternalCall = Effect.fn("ExternalCall.makeExternalCall")(funct
         const isRetryable = options?.isRetryableError ?? (() => true);
         const maxAttempts = allowRetry ? policy.retryDelaysMs.length + 1 : 1;
         const pool = policy.resolvePool(operation, options?.provider);
+        // Sequential-only counter: the retry loop below runs attempts one at
+        // a time, so a closure variable is exact. Do not reuse performAttempt
+        // concurrently (e.g. Effect.forEach par) — the count would race.
+        let attempts = 0;
 
-        const performAttempt = semaphores.withPermits(
-          pool,
-          effect.pipe(
-            Effect.timeout(policy.timeout),
-            Effect.scoped,
-            Effect.mapError((cause) => toExternalCallError(operation, cause, options?.provider)),
-          ),
-        );
+        const performAttempt = Effect.suspend(() => {
+          attempts += 1;
+          return semaphores.withPermits(
+            pool,
+            effect.pipe(
+              Effect.timeout(policy.timeout),
+              Effect.scoped,
+              Effect.mapError((cause) => toExternalCallError(operation, cause, options?.provider)),
+            ),
+          );
+        });
 
         // Manual retry loop so `isRetryable` gates retrying itself (not just the
         // log tap). A non-retryable failure must not schedule the next delay —
@@ -210,14 +217,7 @@ export const makeExternalCall = Effect.fn("ExternalCall.makeExternalCall")(funct
               if (!isRetryable(error) || index >= policy.retryDelaysMs.length) {
                 return Effect.fail(error);
               }
-              return Effect.logWarning("external call attempt failed; retrying").pipe(
-                Effect.annotateLogs(
-                  compactLogAnnotations({
-                    maxAttempts,
-                    ...errorLogAnnotations(error),
-                  }),
-                ),
-                Effect.andThen(Effect.sleep(Duration.millis(policy.retryDelaysMs[index] ?? 0))),
+              return Effect.sleep(Duration.millis(policy.retryDelaysMs[index] ?? 0)).pipe(
                 Effect.andThen(runAttemptWithRetries(index + 1)),
               );
             }),
@@ -231,14 +231,28 @@ export const makeExternalCall = Effect.fn("ExternalCall.makeExternalCall")(funct
 
         const [duration, exit] = yield* retryableAttempt.pipe(Effect.exit, Effect.timed);
 
+        const annotations = compactLogAnnotations({
+          event: "external.call.completed",
+          operation,
+          provider: options?.provider,
+          pool,
+          attempts,
+          maxAttempts,
+          durationMs: Duration.toMillis(duration),
+        });
+
         if (exit._tag === "Success") {
-          yield* Effect.logDebug("external call completed").pipe(
-            Effect.annotateLogs({
-              durationMs: Duration.toMillis(duration),
-              maxAttempts,
-            }),
+          yield* Effect.logInfo("external call completed").pipe(
+            Effect.annotateLogs({ ...annotations, outcome: "success" }),
           );
           return exit.value;
+        }
+
+        if (Cause.hasInterruptsOnly(exit.cause)) {
+          yield* Effect.logInfo("external call completed").pipe(
+            Effect.annotateLogs({ ...annotations, outcome: "interrupted" }),
+          );
+          return yield* Effect.failCause(exit.cause);
         }
 
         // Errors escaping the loop are already ExternalCallError (attempt
@@ -248,11 +262,11 @@ export const makeExternalCall = Effect.fn("ExternalCall.makeExternalCall")(funct
           ? failureResult.success
           : toExternalCallError(operation, Cause.squash(exit.cause), options?.provider);
 
-        yield* Effect.logError("external call failed").pipe(
+        yield* Effect.logError("external call completed").pipe(
           Effect.annotateLogs(
             compactLogAnnotations({
-              durationMs: Duration.toMillis(duration),
-              maxAttempts,
+              ...annotations,
+              outcome: "error",
               ...errorLogAnnotations(failure),
             }),
           ),

@@ -9,6 +9,7 @@ import { Cache, Clock, Duration, Effect, Stream } from "effect";
 import { type ExternalCallShape } from "@/infra/effect/retry.ts";
 import { executeProviderRequest } from "@/infra/effect/provider-http.ts";
 import { FileSystem } from "@/infra/filesystem/filesystem.ts";
+import { errorLogAnnotations } from "@/infra/logging.ts";
 import {
   normalizeTitleForMatch,
   scorePreNormalizedCandidate,
@@ -376,7 +377,7 @@ const downloadTitlesDump = Effect.fn("AniDbTitlesDump.download")(function* (
   const chunks = yield* Stream.runCollect(HttpClientResponse.stream(Effect.succeed(response))).pipe(
     Effect.catch((cause) =>
       Effect.logWarning("AniDB titles dump body degraded").pipe(
-        Effect.annotateLogs({ error: globalThis.String(cause) }),
+        Effect.annotateLogs(errorLogAnnotations(cause)),
         Effect.as(undefined),
       ),
     ),

@@ -197,7 +197,7 @@ const makeFetchItems = (
     });
   });
 
-function sanitizeRssUrlForLogs(url: string): string {
+export function sanitizeRssUrlForLogs(url: string): string {
   return Option.getOrElse(
     Option.liftThrowable(() => {
       const parsed = new URL(url);

@@ -9,7 +9,9 @@ import { DomainPathError } from "@/features/errors.ts";
 import type { MediaNotFoundError } from "@/features/media/errors.ts";
 import { MediaRepository } from "@/features/media/shared/media-repository.ts";
 import type { MediaUnitRepositoryShape } from "@/features/media/units/media-unit-repository.ts";
-import { Cause, Effect, Result } from "effect";
+import { Effect, Result } from "effect";
+
+import { causeLogAnnotations } from "@/infra/logging.ts";
 
 const fileExists = Effect.fn("Operations.renameFileExists")(function* (
   fs: FileSystemShape,
@@ -173,7 +175,7 @@ export const renameLibraryFiles = Effect.fn("Operations.renameLibraryFiles")((
             Effect.logWarning("Failed to remove claimed rename destination").pipe(
               Effect.annotateLogs({
                 path: item.new_path,
-                cause: Cause.pretty(cause),
+                ...causeLogAnnotations(cause),
               }),
             ),
           ),
