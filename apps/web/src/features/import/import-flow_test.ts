@@ -59,7 +59,7 @@ it("buildImportSourceMetadata includes only defined fields", () => {
   });
 });
 
-it("buildImportFileRequest floors episode number and derives metadata by default", () => {
+it("buildImportFileRequest passes unit number through and derives metadata by default", () => {
   const request = buildImportFileRequest({
     mediaId: brandMediaId(100),
     file: {
@@ -69,9 +69,10 @@ it("buildImportFileRequest floors episode number and derives metadata by default
     },
   });
 
+  // The server floors fractional unit numbers at the decode boundary.
   assertDeepEquals(request, {
     media_id: brandMediaId(100),
-    unit_number: 1,
+    unit_number: 1.9,
     source_metadata: {
       group: "SubsPlease",
     },

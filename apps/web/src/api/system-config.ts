@@ -8,6 +8,7 @@ import {
 import type { BackgroundJobStatus, Config } from "./contracts";
 import { Schema } from "effect";
 import {
+  BACKGROUND_JOB_UNMAPPED_SCAN,
   BackgroundJobStatusSchema,
   ConfigSchema,
   ObservabilityStatusSchema,
@@ -80,7 +81,7 @@ export function useTriggerMetadataRefreshMutation() {
 function jobsRefetchInterval(query: {
   readonly state: { readonly data: readonly BackgroundJobStatus[] | undefined };
 }): number | false {
-  const unmappedScan = query.state.data?.find((job) => job.name === "unmapped_scan");
+  const unmappedScan = query.state.data?.find((job) => job.name === BACKGROUND_JOB_UNMAPPED_SCAN);
   return unmappedScan?.is_running ? 1000 : false;
 }
 

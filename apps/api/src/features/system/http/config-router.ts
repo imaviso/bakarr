@@ -1,6 +1,6 @@
 import * as HttpRouter from "effect/unstable/http/HttpRouter";
 import { Effect, Layer, Schema } from "effect";
-import { QualitySchema, ReleaseProfileSchema } from "@packages/shared/index.ts";
+import { QualitiesResponseSchema, ReleaseProfileSchema } from "@packages/shared/index.ts";
 
 import { QualityProfileService } from "@/features/system/quality-profile-service.ts";
 import { ReleaseProfileService } from "@/features/system/release-profile-service.ts";
@@ -62,7 +62,7 @@ export const configRouter = Layer.mergeAll(
     "/api/profiles/qualities",
     authedRouteResponse(
       Effect.flatMap(QualityProfileService, (service) => service.listQualities()),
-      schemaJsonResponse(Schema.Array(QualitySchema)),
+      schemaJsonResponse(QualitiesResponseSchema),
     ),
   ),
   HttpRouter.add(

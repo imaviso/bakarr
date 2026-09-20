@@ -28,6 +28,7 @@ function makeFolder(input: Partial<UnmappedFolder> & Pick<UnmappedFolder, "match
     search_queries: ["Naruto Archive"],
     size: 0,
     suggested_matches: [] satisfies MediaSearchResult[],
+    will_retry: false,
     ...input,
   } satisfies UnmappedFolder;
 }
@@ -106,6 +107,7 @@ it("ensureFolderMatchStatus preserves cached size and source media kind", () => 
     search_queries: ["Series"],
     size: 0,
     suggested_matches: [],
+    will_retry: false,
   };
 
   const merged = ensureFolderMatchStatus(folder, {

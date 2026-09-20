@@ -99,11 +99,11 @@ export function useLogsFilters(options: UseLogsFiltersOptions) {
       }
 
       if (filter.columnId === "startDate") {
-        patch["startDate"] = `${value} 00:00:00`;
+        patch["startDate"] = value;
       }
 
       if (filter.columnId === "endDate") {
-        patch["endDate"] = `${value} 23:59:59`;
+        patch["endDate"] = value;
       }
     }
 

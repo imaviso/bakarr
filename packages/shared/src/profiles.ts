@@ -31,6 +31,17 @@ export const QualityProfileSchema = Schema.Struct({
 
 export type QualityProfile = Schema.Schema.Type<typeof QualityProfileSchema>;
 
+export interface QualitiesResponse {
+  qualities: Quality[];
+  /** Server-owned defaults for a "new profile" form. Undefined when no qualities exist. */
+  new_profile_template?: QualityProfile | null | undefined;
+}
+
+export const QualitiesResponseSchema = Schema.Struct({
+  qualities: Schema.mutable(Schema.Array(QualitySchema)),
+  new_profile_template: Schema.optional(Schema.NullOr(QualityProfileSchema)),
+});
+
 export const ReleaseProfileRuleSchema = Schema.Struct({
   term: Schema.String,
   score: Schema.Number,

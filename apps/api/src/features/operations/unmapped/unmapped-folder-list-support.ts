@@ -37,6 +37,7 @@ export function listUnmappedFolderEntries(
         search_queries: buildUnmappedFolderSearchQueries(entry.name),
         size: 0,
         suggested_matches: [],
+        will_retry: false,
       },
     ];
   });
@@ -60,6 +61,7 @@ export function ensureFolderMatchStatus(
     search_queries: folder.search_queries,
     size: cached.size,
     suggested_matches: cached.suggested_matches,
+    will_retry: cached.will_retry,
   };
 }
 
@@ -93,6 +95,7 @@ export function prepareUnmappedFoldersForScan(
       match_attempts: existing.match_attempts ?? 0,
       name: folder.name,
       path: folder.path,
+      will_retry: existing.will_retry,
     };
 
     if (existing.match_status === "done") {

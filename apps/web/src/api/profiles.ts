@@ -4,7 +4,11 @@ import type {
   ReleaseProfileCreateRequest,
   ReleaseProfileUpdateRequest,
 } from "./contracts";
-import { QualityProfileSchema, QualitySchema, ReleaseProfileSchema } from "@bakarr/shared";
+import {
+  QualitiesResponseSchema,
+  QualityProfileSchema,
+  ReleaseProfileSchema,
+} from "@bakarr/shared";
 import { API_BASE } from "@/api/constants";
 import { fetchJson, fetchUnit, runApiEffect } from "@/api/effect/api-client";
 import { Schema } from "effect";
@@ -30,7 +34,7 @@ export function qualitiesQueryOptions() {
     queryKey: animeKeys.profiles.qualities(),
     queryFn: ({ signal }) =>
       runApiEffect(
-        fetchJson(Schema.Array(QualitySchema), `${API_BASE}/profiles/qualities`, undefined, signal),
+        fetchJson(QualitiesResponseSchema, `${API_BASE}/profiles/qualities`, undefined, signal),
       ),
     staleTime: Infinity,
   });

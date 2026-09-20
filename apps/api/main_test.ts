@@ -901,8 +901,9 @@ itWithTestContext("quality and release profile CRUD works", async (ctx) => {
   });
   assert.deepStrictEqual(qualitiesResponse["status"], 200);
   const qualities = await qualitiesResponse.json();
-  assert.deepStrictEqual(Array.isArray(qualities), true);
-  assert.deepStrictEqual(qualities.length > 0, true);
+  assert.deepStrictEqual(Array.isArray(qualities.qualities), true);
+  assert.deepStrictEqual(qualities.qualities.length > 0, true);
+  assert.deepStrictEqual(qualities.new_profile_template?.cutoff, "480p");
 
   const createProfileResponse = await ctx.app.request("/api/profiles", {
     body: JSON.stringify({

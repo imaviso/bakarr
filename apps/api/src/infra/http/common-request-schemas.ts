@@ -1,4 +1,4 @@
-import { Schema } from "effect";
+import { Schema, SchemaTransformation } from "effect";
 
 import {
   MediaIdFromStringSchema,
@@ -40,6 +40,38 @@ export const IsoDateTimeStringSchema = Schema.String.pipe(
     Schema.isPattern(/^\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})?)?$/),
   ),
   Schema.brand("IsoDateTime"),
+);
+
+/**
+ * Query-schema date that owns day-boundary semantics server-side: a date-only
+ * value (`YYYY-MM-DD`) decodes to an inclusive whole-UTC-day bound, so clients
+ * never append ` 00:00:00` / ` 23:59:59` themselves. Full timestamps pass
+ * through unchanged.
+ */
+const DayBoundaryPatternSchema = Schema.String.pipe(
+  Schema.check(
+    Schema.isPattern(/^\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})?)?$/),
+  ),
+);
+
+export const DayStartStringSchema = DayBoundaryPatternSchema.pipe(
+  Schema.decodeTo(
+    Schema.brand("IsoDateTime")(Schema.String),
+    SchemaTransformation.transform({
+      decode: (value) => (value.includes("T") ? value : `${value}T00:00:00.000Z`),
+      encode: (value) => value,
+    }),
+  ),
+);
+
+export const DayEndStringSchema = DayBoundaryPatternSchema.pipe(
+  Schema.decodeTo(
+    Schema.brand("IsoDateTime")(Schema.String),
+    SchemaTransformation.transform({
+      decode: (value) => (value.includes("T") ? value : `${value}T23:59:59.999Z`),
+      encode: (value) => value,
+    }),
+  ),
 );
 
 export class IdParamsSchema extends Schema.Class<IdParamsSchema>("IdParamsSchema")({

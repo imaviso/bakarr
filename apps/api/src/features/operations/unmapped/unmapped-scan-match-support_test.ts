@@ -83,6 +83,7 @@ it.effect("matchSingleUnmappedFolder falls back to Tenrai when AniList fails", (
               path: "/library/Sousou no Frieren",
               size: 0,
               suggested_matches: [],
+              will_retry: false,
             },
             idMap: yield* ExternalIdMapRepository,
             mediaRepository: yield* MediaRepository,

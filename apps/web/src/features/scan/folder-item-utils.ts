@@ -32,9 +32,9 @@ const FOLDER_STATUS_CONFIG: Record<
     empty: () => "No automatic match yet. Search for an anime to import.",
   },
   failed: {
-    label: (folder) => (hasAutomaticRetryRemaining(folder) ? "Retrying soon" : "Needs review"),
+    label: (folder) => (folder.will_retry ? "Retrying soon" : "Needs review"),
     hint: (folder) =>
-      hasAutomaticRetryRemaining(folder)
+      folder.will_retry
         ? folder.last_match_error
           ? `Last attempt failed: ${folder.last_match_error}. Another background pass is queued.`
           : "The last attempt failed. Another background pass is queued."
@@ -42,7 +42,7 @@ const FOLDER_STATUS_CONFIG: Record<
           ? `Automatic matching stopped after ${MAX_UNMAPPED_FOLDER_MATCH_ATTEMPTS} failed attempts: ${folder.last_match_error}`
           : `Automatic matching stopped after ${MAX_UNMAPPED_FOLDER_MATCH_ATTEMPTS} failed attempts.`,
     empty: (folder) =>
-      hasAutomaticRetryRemaining(folder)
+      folder.will_retry
         ? "Automatic match failed for now. Another retry is queued."
         : "Automatic matching is paused. Search for an anime to import.",
   },
@@ -64,13 +64,6 @@ export function folderMatchHint(folder: UnmappedFolder) {
 
 export function emptyMatchMessage(folder: UnmappedFolder) {
   return FOLDER_STATUS_CONFIG[folder.match_status ?? "pending"].empty(folder);
-}
-
-export function hasAutomaticRetryRemaining(folder: UnmappedFolder) {
-  return (
-    folder.match_status === "failed" &&
-    (folder.match_attempts ?? 0) < MAX_UNMAPPED_FOLDER_MATCH_ATTEMPTS
-  );
 }
 
 const ApiErrorSchema = Schema.Struct({

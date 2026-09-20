@@ -339,6 +339,7 @@ export const makeMediaQueryService = Effect.fn("MediaQueryService.make")(functio
             file_size: unitRow.fileSize ?? undefined,
             group: unitRow.groupName ?? undefined,
             is_future: timeline.is_future,
+            missing: !unitRow.downloaded && timeline.airing_status === "aired",
             number: unitRow.number,
             quality: unitRow.quality ?? undefined,
             resolution: unitRow.resolution ?? undefined,

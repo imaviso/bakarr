@@ -382,6 +382,7 @@ it("shared search and scanner schemas accept canonical payloads", () => {
         path: "/imports/Naruto",
         size: 1024,
         suggested_matches: [animeSearchResult],
+        will_retry: false,
       },
     ],
     has_outstanding_matches: true,
@@ -531,6 +532,7 @@ it("shared media schemas accept canonical anime, episode, download, and calendar
     file_size: 734003200,
     group: "SubsPlease",
     is_future: false,
+    missing: false,
     number: 1,
     quality: "WEB-DL",
     resolution: "1080p",
@@ -933,6 +935,7 @@ it("shared operational detail schemas accept canonical payloads", () => {
         title: { romaji: "Scissor Seven" },
       },
     ],
+    will_retry: false,
   });
   const scanResult = Schema.decodeUnknownResult(ScanResultSchema)({
     candidates: [

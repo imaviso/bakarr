@@ -98,6 +98,7 @@ it("unmapped folder helpers track matching status transitions", () => {
   const base: UnmappedFolder = {
     match_status: "pending",
     match_attempts: 0,
+    will_retry: false,
     name: "Naruto Archive",
     path: "/library/Naruto Archive",
     search_queries: ["Naruto Archive"],
@@ -142,6 +143,7 @@ it("unmapped folder helpers support pause and reset controls", () => {
     last_matched_at: "2024-01-01T00:00:00.000Z",
     match_attempts: 2,
     match_status: "failed",
+    will_retry: true,
     name: "Naruto Archive",
     path: "/library/Naruto Archive",
     search_queries: ["Naruto Archive"],
@@ -173,6 +175,7 @@ it("unmapped folder retry helpers stop after three failed attempts", () => {
   const retryable: UnmappedFolder = {
     match_attempts: 2,
     match_status: "failed",
+    will_retry: true,
     name: "",
     path: "",
     size: 0,
@@ -181,6 +184,7 @@ it("unmapped folder retry helpers stop after three failed attempts", () => {
   const exhausted: UnmappedFolder = {
     match_attempts: 3,
     match_status: "failed",
+    will_retry: false,
     name: "",
     path: "",
     size: 0,

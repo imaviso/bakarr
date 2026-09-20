@@ -72,3 +72,6 @@ export const BackgroundJobStatusSchema = Schema.Struct({
   schedule_mode: Schema.optional(Schema.NullishOr(BackgroundJobScheduleModeSchema)),
   schedule_value: Schema.optional(Schema.NullishOr(Schema.String)),
 });
+
+/** Server-owned background job names that the UI keys behavior on. */
+export const BACKGROUND_JOB_UNMAPPED_SCAN = "unmapped_scan" as const;

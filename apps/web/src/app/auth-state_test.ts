@@ -26,13 +26,13 @@ it("replaceApiKey updates auth headers after regeneration", () => {
   expect(getAuthHeaders()).toEqual({ "X-Api-Key": "abc123" });
 });
 
-it("replaceApiKey ignores masked API key placeholders", () => {
+it("replaceApiKey stores the regenerated key verbatim", () => {
   loginSuccess("admin", "abc123", false);
 
-  replaceApiKey("************************");
+  replaceApiKey("def456");
 
-  expect(getAuthState().apiKey).toBeUndefined();
-  expect(getAuthHeaders()).toEqual({});
+  expect(getAuthState().apiKey).toBe("def456");
+  expect(getAuthHeaders()).toEqual({ "X-Api-Key": "def456" });
 });
 
 it("clearServerSession calls the logout endpoint with credentials", async () => {

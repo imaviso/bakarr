@@ -30,6 +30,29 @@ export const DEFAULT_PROFILES: readonly QualityProfile[] = [
   },
 ];
 
+/** Server-owned preset for "new profile" forms: lowest/highest quality by rank. */
+export function makeDefaultQualityProfileTemplate(
+  qualities: readonly Quality[],
+): QualityProfile | undefined {
+  const ranked = [...qualities].toSorted((left, right) => left.rank - right.rank);
+  const lowest = ranked[0];
+  const highest = ranked[ranked.length - 1];
+
+  if (!lowest || !highest) {
+    return undefined;
+  }
+
+  return {
+    allowed_qualities: [highest.name, lowest.name],
+    cutoff: lowest.name,
+    max_size: null,
+    min_size: null,
+    name: "",
+    seadex_preferred: true,
+    upgrade_allowed: true,
+  };
+}
+
 export const DEFAULT_RTORRENT_CONFIG: Config["rtorrent"] = {
   enabled: false,
   save_path: null,

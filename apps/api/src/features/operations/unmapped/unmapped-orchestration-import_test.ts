@@ -73,6 +73,9 @@ it.effect("unmapped import rolls back when a later insert fails", () =>
         });
 
         const workflow = makeUnmappedImportWorkflow({
+          enrollmentService: {
+            enroll: () => Effect.die(new Error("not used in test")),
+          },
           fs,
           getLibraryPath: (mediaKind) =>
             Effect.succeed(getLibraryPathForMediaKind(testConfig.library, mediaKind)),

@@ -5,6 +5,8 @@ import {
   SEARCH_RELEASE_FILTER_OPTIONS,
   DownloadSourceMetadataSchema,
   ImportFileSelectionSchema,
+  MediaIdSpaceSchema,
+  MediaKindSchema,
   ScannedFileSchema,
   SearchDownloadReleaseContextSchema,
 } from "@packages/shared/index.ts";
@@ -19,6 +21,8 @@ import {
 } from "@/infra/schema.ts";
 import {
   AbsoluteFilesystemPathStringSchema,
+  DayEndStringSchema,
+  DayStartStringSchema,
   HttpUrlStringSchema,
   IsoDateTimeStringSchema,
 } from "@/infra/http/common-request-schemas.ts";
@@ -105,12 +109,12 @@ export class DownloadEventsQuerySchema extends Schema.Class<DownloadEventsQueryS
   cursor: Schema.optional(DownloadCursorStringSchema),
   download_id: Schema.optional(DownloadIdFromStringSchema),
   direction: Schema.optional(Schema.Literals(["next", "prev"])),
-  end_date: Schema.optional(IsoDateTimeStringSchema),
+  end_date: Schema.optional(DayEndStringSchema),
   event_type: Schema.optional(DownloadEventTypeStringSchema),
   limit: Schema.optional(
     PositiveIntFromStringSchema.pipe(Schema.check(Schema.isLessThanOrEqualTo(500))),
   ),
-  start_date: Schema.optional(IsoDateTimeStringSchema),
+  start_date: Schema.optional(DayStartStringSchema),
   status: Schema.optional(DownloadEventStatusStringSchema),
 }) {}
 
@@ -119,14 +123,14 @@ export class DownloadEventsExportQuerySchema extends Schema.Class<DownloadEvents
 )({
   media_id: Schema.optional(MediaIdFromStringSchema),
   download_id: Schema.optional(DownloadIdFromStringSchema),
-  end_date: Schema.optional(IsoDateTimeStringSchema),
+  end_date: Schema.optional(DayEndStringSchema),
   event_type: Schema.optional(DownloadEventTypeStringSchema),
   format: Schema.optional(Schema.Literals(["csv", "json"])),
   limit: Schema.optional(
     PositiveIntFromStringSchema.pipe(Schema.check(Schema.isLessThanOrEqualTo(500))),
   ),
   order: Schema.optional(Schema.Literals(["asc", "desc"])),
-  start_date: Schema.optional(IsoDateTimeStringSchema),
+  start_date: Schema.optional(DayStartStringSchema),
   status: Schema.optional(DownloadEventStatusStringSchema),
 }) {}
 
@@ -228,6 +232,18 @@ export class ImportUnmappedFolderBodySchema extends Schema.Class<ImportUnmappedF
   media_id: MediaIdSchema,
   folder_name: FolderNameStringSchema,
   profile_name: Schema.optional(ProfileNameStringSchema),
+}) {}
+
+export class ImportUnmappedFolderCandidateBodySchema extends Schema.Class<ImportUnmappedFolderCandidateBodySchema>(
+  "ImportUnmappedFolderCandidateBodySchema",
+)({
+  media_id: Schema.optional(MediaIdSchema),
+  folder_name: FolderNameStringSchema,
+  profile_name: Schema.optional(ProfileNameStringSchema),
+  /** AniList/MAL id of a candidate not yet in the library. */
+  candidate_id: Schema.optional(Schema.Number),
+  candidate_id_space: Schema.optional(MediaIdSpaceSchema),
+  candidate_media_kind: Schema.optional(MediaKindSchema),
 }) {}
 
 export class ScanImportPathBodySchema extends Schema.Class<ScanImportPathBodySchema>(

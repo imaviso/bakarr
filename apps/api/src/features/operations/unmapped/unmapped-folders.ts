@@ -69,6 +69,7 @@ export const suggestUnmappedFolders = Effect.fn("Operations.suggestUnmappedFolde
     path: folder.path,
     search_queries: queriesByFolder.get(folder.path) ?? [],
     size: 0,
+    will_retry: false,
     suggested_matches: firstMatchingSuggestions(
       folder.name,
       queriesByFolder.get(folder.path) ?? [],
@@ -88,6 +89,7 @@ export function mergeUnmappedFolderSuggestions(
     last_match_error: undefined,
     last_matched_at: nowIso,
     match_status: "done",
+    will_retry: false,
     suggested_matches: [...suggestions],
   };
 }
@@ -98,6 +100,7 @@ export function markUnmappedFolderMatching(folder: UnmappedFolder): UnmappedFold
     match_attempts: folder.match_attempts ?? 0,
     last_match_error: undefined,
     match_status: "matching",
+    will_retry: false,
   };
 }
 
@@ -107,6 +110,7 @@ export function markUnmappedFolderPending(folder: UnmappedFolder): UnmappedFolde
     match_attempts: folder.match_attempts ?? 0,
     last_match_error: undefined,
     match_status: "pending",
+    will_retry: false,
   };
 }
 
@@ -115,6 +119,7 @@ export function markUnmappedFolderPaused(folder: UnmappedFolder): UnmappedFolder
     ...folder,
     match_attempts: folder.match_attempts ?? 0,
     match_status: "paused",
+    will_retry: false,
   };
 }
 
@@ -125,6 +130,7 @@ export function resetUnmappedFolderMatch(folder: UnmappedFolder): UnmappedFolder
     last_match_error: undefined,
     last_matched_at: undefined,
     match_status: "pending",
+    will_retry: false,
     suggested_matches: [],
   };
 }
@@ -134,6 +140,7 @@ export function markUnmappedFolderRetryPending(folder: UnmappedFolder): Unmapped
     ...folder,
     match_attempts: folder.match_attempts ?? 0,
     match_status: "pending",
+    will_retry: false,
   };
 }
 
@@ -150,6 +157,7 @@ export function markUnmappedFolderFailed(
     last_match_error: error,
     last_matched_at: nowIso,
     match_status: "failed",
+    will_retry: matchAttempts < MAX_UNMAPPED_FOLDER_MATCH_ATTEMPTS,
   };
 }
 
@@ -160,6 +168,12 @@ export function hasUnmappedFolderRetryAttemptsRemaining(
     folder.match_status === "failed" &&
     (folder.match_attempts ?? 0) < MAX_UNMAPPED_FOLDER_MATCH_ATTEMPTS
   );
+}
+
+export function markUnmappedFolderRetryRemaining(
+  folder: Pick<UnmappedFolder, "match_attempts" | "match_status">,
+): Pick<UnmappedFolder, "will_retry"> {
+  return { will_retry: hasUnmappedFolderRetryAttemptsRemaining(folder) };
 }
 
 export function isUnmappedFolderOutstanding(

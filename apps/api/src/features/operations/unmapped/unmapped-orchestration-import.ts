@@ -13,9 +13,19 @@ import {
   resolveMediaRootFolderEffect,
 } from "@/features/media/shared/config-support.ts";
 import { decodeStoredMediaKindEffect } from "@/features/media/shared/media-kind.ts";
-import { DomainInputError, DomainPathError, InfrastructureError } from "@/features/errors.ts";
+import { ExternalCallError } from "@/infra/effect/retry.ts";
+import {
+  DomainInputError,
+  DomainPathError,
+  InfrastructureError,
+  StoredDataError,
+} from "@/features/errors.ts";
 import { OperationsConflictError, OperationsNotFoundError } from "@/features/operations/errors.ts";
-import type { MediaNotFoundError } from "@/features/media/errors.ts";
+import type {
+  AniDbRuntimeConfigError,
+  MediaConflictError,
+  MediaNotFoundError,
+} from "@/features/media/errors.ts";
 import { scanVideoFilesStream } from "@/features/operations/import-scan/file-scanner.ts";
 import { MediaRepository } from "@/features/media/shared/media-repository.ts";
 import {
@@ -27,12 +37,20 @@ import { FileSystem } from "@/infra/filesystem/filesystem.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 import { SystemConfigRepository } from "@/features/system/repository/system-config-repository.ts";
 import { SystemLogRepository } from "@/features/system/repository/log-repository.ts";
-import type { MediaKind } from "@packages/shared/index.ts";
+import type { MediaKind, MediaIdSpace } from "@packages/shared/index.ts";
+import { MEDIA_KIND_VALUES } from "@packages/shared/index.ts";
+import { MediaEnrollmentService } from "@/features/media/add/media-enrollment-service.ts";
+import { buildFolderMatchEnrollmentInput } from "@/features/operations/unmapped/unmapped-folder-add-policy.ts";
 
 export interface UnmappedImportWorkflowShape {
   readonly importUnmappedFolder: (input: {
     folder_name: string;
-    media_id: number;
+    /** Library media id when the candidate is already enrolled. */
+    media_id?: number | undefined;
+    /** AniList/MAL id to enroll first when the candidate is not in the library. */
+    candidate_id?: number | undefined;
+    candidate_id_space?: MediaIdSpace | undefined;
+    candidate_media_kind?: MediaKind | undefined;
     profile_name?: string;
   }) => Effect.Effect<
     void,
@@ -40,6 +58,10 @@ export interface UnmappedImportWorkflowShape {
     | OperationsNotFoundError
     | OperationsConflictError
     | MediaNotFoundError
+    | MediaConflictError
+    | ExternalCallError
+    | StoredDataError
+    | AniDbRuntimeConfigError
     | DomainInputError
     | DomainPathError
     | InfrastructureError
@@ -81,6 +103,7 @@ export const cleanupPreviousMediaRootFolderAfterImport = Effect.fn(
 });
 
 function buildUnmappedImportWorkflow(input: {
+  enrollmentService: Pick<typeof MediaEnrollmentService.Service, "enroll">;
   fs: FileSystemShape;
   getLibraryPath: (
     mediaKind: MediaKind,
@@ -92,6 +115,7 @@ function buildUnmappedImportWorkflow(input: {
   systemLogRepository: typeof SystemLogRepository.Service;
 }) {
   const {
+    enrollmentService,
     fs,
     getLibraryPath,
     mediaRepository,
@@ -107,9 +131,61 @@ function buildUnmappedImportWorkflow(input: {
     readonly filePath: string;
   };
 
+  /** Resolve the library path a folder name belongs to (any media kind). */
+  const resolveFolderLibraryPath = Effect.fn(
+    "UnmappedImportService.resolveFolderLibraryPath",
+  )(function* (folderName: string) {
+    for (const mediaKind of MEDIA_KIND_VALUES) {
+      const libraryPath = yield* getLibraryPath(mediaKind);
+      const candidatePath = `${libraryPath.replace(/\/$/, "")}/${folderName}`;
+      const stats = yield* Effect.result(fs.stat(candidatePath));
+      if (stats._tag === "Success") {
+        return candidatePath;
+      }
+    }
+    return yield* new DomainInputError({
+      message: `Folder not found in any library root: ${folderName}`,
+    });
+  });
+
   const importUnmappedFolder = Effect.fn("UnmappedImportService.importUnmappedFolder")(
-    function* (input: { folder_name: string; media_id: number; profile_name?: string }) {
-      const animeRow = yield* mediaRepository.getMediaRow(input.media_id);
+    function* (input: {
+      folder_name: string;
+      media_id?: number | undefined;
+      candidate_id?: number | undefined;
+      candidate_id_space?: MediaIdSpace | undefined;
+      candidate_media_kind?: MediaKind | undefined;
+      profile_name?: string;
+    }) {
+      // Enrollment path: the candidate is not in the library yet. The server
+      // owns the add policy (monitored, monitor-and-search, root handling).
+      const resolvedMediaId = yield* Effect.gen(function* () {
+        if (input.media_id !== undefined) {
+          return input.media_id;
+        }
+
+        if (input.candidate_id === undefined) {
+          return yield* new DomainInputError({
+            message: "Either media_id or candidate_id is required",
+          });
+        }
+
+        // The folder path doubles as the new media's root folder: the folder
+        // lives under the library root already, so reuse it as-is.
+        const targetLibraryPath = yield* resolveFolderLibraryPath(input.folder_name);
+        const enrolled = yield* enrollmentService.enroll(
+          buildFolderMatchEnrollmentInput({
+            candidateId: input.candidate_id,
+            candidateIdSpace: input.candidate_id_space,
+            candidateMediaKind: input.candidate_media_kind,
+            profileName: input.profile_name?.trim() || "Default",
+            rootFolder: targetLibraryPath,
+          }),
+        );
+        return enrolled.id;
+      });
+
+      const animeRow = yield* mediaRepository.getMediaRow(resolvedMediaId);
       const mediaKind = yield* decodeStoredMediaKindEffect(animeRow.mediaKind).pipe(
         Effect.catchTag("StoredDataError", (e) =>
           Effect.fail(
@@ -140,7 +216,7 @@ function buildUnmappedImportWorkflow(input: {
 
       const existingOwner = yield* mediaRepository.findMediaByExactRootFolder(folderPath);
 
-      if (existingOwner && existingOwner.id !== input.media_id) {
+      if (existingOwner && existingOwner.id !== resolvedMediaId) {
         return yield* new OperationsConflictError({
           message: `Folder ${folderName} is already mapped to ${existingOwner.titleRomaji}`,
         });
@@ -216,7 +292,7 @@ function buildUnmappedImportWorkflow(input: {
       );
 
       yield* mediaUnitRepository.setMediaRootAndMapUnits(
-        input.media_id,
+        resolvedMediaId,
         {
           profileName: nextProfileName,
           rootFolder,
@@ -235,7 +311,7 @@ function buildUnmappedImportWorkflow(input: {
       yield* systemLogRepository.appendLog(
         "library.unmapped.imported",
         "success",
-        `Mapped ${folderName} as the root folder for media ${input.media_id} and imported ${imported} episode(s)`,
+        `Mapped ${folderName} as the root folder for media ${resolvedMediaId} and imported ${imported} episode(s)`,
         nowIso,
       );
       return undefined;
@@ -254,6 +330,7 @@ export class UnmappedImportService extends Context.Service<
   static readonly layer = Layer.effect(
     UnmappedImportService,
     Effect.gen(function* () {
+      const enrollmentService = yield* MediaEnrollmentService;
       const fs = yield* FileSystem;
       const mediaRepository = yield* MediaRepository;
       const mediaUnitRepository = yield* MediaUnitRepository;
@@ -262,6 +339,7 @@ export class UnmappedImportService extends Context.Service<
       const systemLogRepository = yield* SystemLogRepository;
 
       return buildUnmappedImportWorkflow({
+        enrollmentService,
         fs,
         getLibraryPath: Effect.fn("UnmappedImportService.getLibraryPath")(function* (mediaKind) {
           const config = yield* runtimeConfigSnapshot.getRuntimeConfig().pipe(

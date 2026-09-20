@@ -22,7 +22,7 @@ import {
   ControlUnmappedFolderBodySchema,
   ImportCandidateSelectionBodySchema,
   ImportFilesBodySchema,
-  ImportUnmappedFolderBodySchema,
+  ImportUnmappedFolderCandidateBodySchema,
   ScanImportPathBodySchema,
   toLibraryImportFileInputs,
 } from "@/features/operations/request-schemas.ts";
@@ -114,12 +114,19 @@ export const libraryRouter = Layer.mergeAll(
     authedRouteResponse(
       Effect.gen(function* () {
         const body = yield* decodeJsonBodyWithLabel(
-          ImportUnmappedFolderBodySchema,
+          ImportUnmappedFolderCandidateBodySchema,
           "import unmapped folder",
         );
         yield* (yield* UnmappedImportService).importUnmappedFolder({
-          media_id: body.media_id,
           folder_name: body.folder_name,
+          ...(body.media_id === undefined ? {} : { media_id: body.media_id }),
+          ...(body.candidate_id === undefined ? {} : { candidate_id: body.candidate_id }),
+          ...(body.candidate_id_space === undefined
+            ? {}
+            : { candidate_id_space: body.candidate_id_space }),
+          ...(body.candidate_media_kind === undefined
+            ? {}
+            : { candidate_media_kind: body.candidate_media_kind }),
           ...(body.profile_name === undefined ? {} : { profile_name: body.profile_name }),
         });
       }),

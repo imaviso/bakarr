@@ -602,6 +602,7 @@ it.effect("unmapped folder match rows persist cached suggestions", () =>
             {
               last_matched_at: "2024-01-01T00:00:00.000Z",
               match_status: "done",
+              will_retry: false,
               name: "Naruto Archive",
               path: "/library/Naruto Archive",
               size: 0,
@@ -683,6 +684,7 @@ it.effect("loadUnmappedFolderMatchRow returns a row by folder path", () =>
           [
             {
               match_status: "paused",
+              will_retry: false,
               name: "Naruto Archive",
               path: "/library/Naruto Archive",
               size: 0,

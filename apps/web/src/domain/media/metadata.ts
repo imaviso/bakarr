@@ -129,8 +129,8 @@ export function formatNextAiringUnit(
   return `Unit ${nextAiring.unit_number} airs ${airingLabel}`;
 }
 
-export function isUnitMissing(unit: Pick<MediaUnit, "downloaded" | "airing_status">) {
-  return !unit.downloaded && unit.airing_status === "aired";
+export function isUnitMissing(unit: Pick<MediaUnit, "missing">) {
+  return unit.missing;
 }
 
 export function formatAiringDateWithPreferences(

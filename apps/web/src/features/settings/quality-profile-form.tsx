@@ -61,13 +61,19 @@ export function ProfileForm(props: {
   const qualitiesQuery = useQualitiesQuery();
   const isEditing = !!props.profile;
 
+  const qualityNames = qualitiesQuery.data?.qualities.map((quality) => quality.name) ?? [];
+  const newProfileTemplate = qualitiesQuery.data?.new_profile_template ?? undefined;
+
   const form = useForm({
     defaultValues: {
       name: props.profile?.name || "",
-      cutoff: props.profile?.cutoff || "BluRay 1080p",
-      upgrade_allowed: props.profile?.upgrade_allowed ?? true,
-      seadex_preferred: props.profile?.seadex_preferred ?? true,
-      allowed_qualities: props.profile?.allowed_qualities || ["BluRay 1080p", "WEB-DL 1080p"],
+      cutoff: props.profile?.cutoff || newProfileTemplate?.cutoff || "",
+      upgrade_allowed:
+        props.profile?.upgrade_allowed ?? newProfileTemplate?.upgrade_allowed ?? true,
+      seadex_preferred:
+        props.profile?.seadex_preferred ?? newProfileTemplate?.seadex_preferred ?? true,
+      allowed_qualities:
+        props.profile?.allowed_qualities || newProfileTemplate?.allowed_qualities || [],
       min_size: props.profile?.min_size || undefined,
       max_size: props.profile?.max_size || undefined,
     },
@@ -90,8 +96,6 @@ export function ProfileForm(props: {
   const submitQualityProfileForm = async () => {
     await form.handleSubmit();
   };
-
-  const qualityNames = qualitiesQuery.data?.map((quality) => quality.name) ?? [];
 
   return (
     <Card className="border-primary/20">

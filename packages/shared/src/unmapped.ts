@@ -21,6 +21,7 @@ export const MAX_UNMAPPED_FOLDER_MATCH_ATTEMPTS = 3;
 
 export interface UnmappedFolder {
   match_attempts?: number | undefined | null;
+  will_retry: boolean;
   last_match_error?: string | undefined | null;
   last_matched_at?: string | undefined | null;
   match_status?: UnmappedFolderMatchStatus | undefined | null;
@@ -34,6 +35,7 @@ export interface UnmappedFolder {
 
 export const UnmappedFolderSchema = Schema.Struct({
   match_attempts: Schema.optional(Schema.NullishOr(Schema.Number)),
+  will_retry: Schema.Boolean,
   last_match_error: Schema.optional(Schema.NullishOr(Schema.String)),
   last_matched_at: Schema.optional(Schema.NullishOr(Schema.String)),
   match_status: Schema.optional(Schema.NullishOr(UnmappedFolderMatchStatusSchema)),

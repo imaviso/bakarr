@@ -83,12 +83,11 @@ export function useImportUnmappedFolderMutation() {
     onSuccess: (_, variables) => {
       void queryClient.invalidateQueries({ queryKey: animeKeys.library.unmapped() });
       void queryClient.invalidateQueries({ queryKey: animeKeys.lists() });
-      void queryClient.invalidateQueries({
-        queryKey: animeKeys.detail(variables.media_id),
-      });
-      void queryClient.invalidateQueries({
-        queryKey: animeKeys.units(variables.media_id),
-      });
+      const mediaId = variables.media_id ?? variables.candidate_id;
+      if (mediaId !== undefined) {
+        void queryClient.invalidateQueries({ queryKey: animeKeys.detail(mediaId) });
+        void queryClient.invalidateQueries({ queryKey: animeKeys.units(mediaId) });
+      }
       void queryClient.invalidateQueries({ queryKey: animeKeys.system.status() });
     },
   });

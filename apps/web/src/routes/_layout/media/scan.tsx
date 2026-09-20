@@ -3,7 +3,6 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { GeneralError } from "@/components/shared/general-error";
 import { PageShell } from "@/components/shared/page-shell";
-import { runBulkBackgroundMatchAction } from "@/features/scan/background-matching-actions";
 import { ScanContent } from "@/features/scan/sections/scan-content";
 import { ScanDialogs } from "@/features/scan/sections/scan-dialogs";
 import { ScanPageHeader } from "@/features/scan/sections/scan-page-header";
@@ -50,14 +49,11 @@ function LibraryScanPage() {
 
   const isWorkerRunning = scanState.match_status === "running";
   const isRescanning = scanMutation.isPending || isWorkerRunning;
+  // Server owns the follow-up: bulk actions trigger their own scan pass.
   const runBulkAction = (
     action: "pause_queued" | "resume_paused" | "reset_failed" | "retry_failed",
   ) => {
-    void runBulkBackgroundMatchAction({
-      action,
-      control: (data) => bulkControlMutation.mutateAsync(data),
-      startScan: () => scanMutation.mutateAsync(),
-    });
+    bulkControlMutation.mutate({ action });
   };
 
   const confirmBulkMeta = (() => {

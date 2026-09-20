@@ -1,14 +1,12 @@
 import { queryOptions, skipToken, useQuery } from "@tanstack/react-query";
+import { isOperationTaskStatusActive, OperationTaskSchema } from "@bakarr/shared";
 import type { OperationTask } from "./contracts";
-import { OperationTaskSchema } from "@bakarr/shared";
 import { API_BASE } from "@/api/constants";
 import { fetchJson, runApiEffect } from "@/api/effect/api-client";
 import { animeKeys } from "./keys";
 
-const ACTIVE_TASK_STATUSES = new Set(["queued", "running"]);
-
 export function isTaskActive(task: Pick<OperationTask, "status">) {
-  return ACTIVE_TASK_STATUSES.has(task.status);
+  return isOperationTaskStatusActive(task.status);
 }
 
 export function operationTaskPollInterval(task: OperationTask | undefined) {

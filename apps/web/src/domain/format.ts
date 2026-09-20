@@ -1,3 +1,5 @@
+import { UNKNOWN_ETA_SECONDS } from "@bakarr/shared";
+
 const BYTE_UNITS = ["B", "KB", "MB", "GB", "TB"] as const;
 const SPEED_UNITS = ["B/s", "KB/s", "MB/s", "GB/s"] as const;
 
@@ -39,7 +41,7 @@ export function formatSpeed(bytesPerSec: number): string {
  * Preserves the `download-rows` behavior: `8640000` → "∞", non-positive → "Done".
  */
 export function formatEta(seconds: number): string {
-  if (seconds === 8640000) return "∞";
+  if (seconds === UNKNOWN_ETA_SECONDS) return "∞";
   if (seconds <= 0) return "Done";
 
   if (seconds < 60) return `${seconds}s`;

@@ -29,7 +29,7 @@ function emit() {
 }
 
 export function loginSuccess(username: string, apiKey?: string, mustChangePassword = false) {
-  const key = normalizeApiKey(apiKey);
+  const key = apiKey?.trim();
   authState = {
     username,
     apiKey: key,
@@ -45,21 +45,13 @@ export function syncAuthenticatedUser(username: string, mustChangePassword = fal
 }
 
 export function replaceApiKey(apiKey: string) {
-  authState = { ...authState, apiKey: normalizeApiKey(apiKey), isAuthenticated: true };
+  authState = { ...authState, apiKey: apiKey.trim(), isAuthenticated: true };
   emit();
 }
 
 export function clearAuthState() {
   authState = { isAuthenticated: false };
   emit();
-}
-
-function normalizeApiKey(apiKey?: string): string | undefined {
-  const value = apiKey?.trim();
-  if (!value || /^\*+$/.test(value)) {
-    return undefined;
-  }
-  return value;
 }
 
 export async function clearServerSession() {

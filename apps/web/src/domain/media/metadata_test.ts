@@ -34,16 +34,12 @@ it("getAiringDisplayDateKey respects day start hour", () => {
   }
 });
 
-it("isUnitMissing reads server airing status instead of recomputing dates", () => {
-  if (!isUnitMissing({ downloaded: false, airing_status: "aired" })) {
-    throw new Error("Expected aired undownloaded unit to be missing");
+it("isUnitMissing reads the server-provided missing flag", () => {
+  if (!isUnitMissing({ missing: true })) {
+    throw new Error("Expected server-flagged missing unit to be missing");
   }
 
-  if (isUnitMissing({ downloaded: false, airing_status: "future" })) {
-    throw new Error("Expected future unit to be upcoming, not missing");
-  }
-
-  if (isUnitMissing({ downloaded: true, airing_status: "aired" })) {
-    throw new Error("Expected downloaded unit to never be missing");
+  if (isUnitMissing({ missing: false })) {
+    throw new Error("Expected non-missing unit to never be missing");
   }
 });

@@ -60,7 +60,7 @@ export function buildImportFileRequest(input: {
 }) {
   return {
     media_id: input.mediaId,
-    unit_number: input.unitNumber ?? Math.floor(input.file.unit_number),
+    unit_number: input.unitNumber ?? input.file.unit_number,
     ...(() => {
       const unitNumbers = input.unitNumbers ?? input.file.unit_numbers;
       return unitNumbers == null ? {} : { unit_numbers: unitNumbers };

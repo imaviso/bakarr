@@ -45,7 +45,6 @@ it("buildDownloadEventsExportInput omits invalid values and uses defaults", () =
 
   assertDeepEquals(output, {
     eventType: "grabbed",
-    limit: 10_000,
     order: "desc",
   });
 });
@@ -62,7 +61,6 @@ it("buildDownloadEventsExportInput trims text filters and omits whitespace-only 
 
   assertDeepEquals(output, {
     eventType: "imported",
-    limit: 10_000,
     order: "desc",
     startDate: "2026-03-01",
   });

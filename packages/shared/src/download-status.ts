@@ -5,6 +5,12 @@ import { DownloadAllowedActionSchema } from "./download.ts";
 import { DownloadSourceMetadataSchema, type DownloadSourceMetadata } from "./source-metadata.ts";
 import { type DownloadAllowedAction } from "./download.ts";
 
+/**
+ * qBittorrent reports this ETA value when it cannot compute one. The server
+ * relays the raw value; clients treat it as "unknown".
+ */
+export const UNKNOWN_ETA_SECONDS = 8640000 as const;
+
 export interface DownloadStatus {
   media_id?: MediaId | undefined | null;
   media_title?: string | undefined | null;

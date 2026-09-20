@@ -86,7 +86,7 @@ export function EpisodeTableRow(props: EpisodeTableRowProps) {
               <RiCloseLine
                 className={cn(
                   "h-4 w-4",
-                  isUnitMissing(episode) ? "text-warning" : "text-muted-foreground",
+                  episode.missing ? "text-warning" : "text-muted-foreground",
                 )}
               />
               <Tooltip>{isUnitMissing(episode) ? "Missing" : "Upcoming"}</Tooltip>

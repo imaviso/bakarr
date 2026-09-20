@@ -30,7 +30,7 @@ describe("buildDownloadEventsFilterInput", () => {
         startDate: "",
         status: "",
       }),
-    ).toEqual({ direction: "next", limit: 24 });
+    ).toEqual({ direction: "next" });
   });
 
   it("trims text filters and omits whitespace-only values", () => {
@@ -49,7 +49,6 @@ describe("buildDownloadEventsFilterInput", () => {
       cursor: "cursor-1",
       direction: "prev",
       eventType: "grabbed",
-      limit: 24,
       startDate: "2026-03-01",
     });
   });

@@ -90,6 +90,11 @@ export function AccountSettingsForm() {
   const handleRegenerateApiKey = () => {
     regenerateApiKey.mutate(undefined, {
       onSuccess: (response) => {
+        // Server flags masked placeholder responses; only store real keys.
+        if (response.api_key_masked) {
+          toast.error("Key regeneration returned a masked key. Sign in again.");
+          return;
+        }
         replaceApiKey(response.api_key);
         toast.success("API key regenerated. Copy it now and store it safely.");
       },

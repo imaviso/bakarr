@@ -43,7 +43,12 @@ export type RssFeedCreateRequest = Pick<RssFeed, "media_id" | "name" | "url">;
 
 export interface UnmappedFolderImportRequest {
   folder_name: string;
-  media_id: number;
+  /** Library media id when the candidate is already enrolled. */
+  media_id?: number;
+  /** AniList/MAL id to enroll first when the candidate is not in the library. */
+  candidate_id?: number;
+  candidate_id_space?: MediaIdSpace | null;
+  candidate_media_kind?: MediaKind | null;
   profile_name?: string;
 }
 

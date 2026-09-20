@@ -17,6 +17,7 @@ function makeFolder(input: Partial<UnmappedFolder> & Pick<UnmappedFolder, "match
     search_queries: ["Naruto Archive"],
     size: 0,
     suggested_matches: [] satisfies MediaSearchResult[],
+    will_retry: false,
     ...input,
   } satisfies UnmappedFolder;
 }

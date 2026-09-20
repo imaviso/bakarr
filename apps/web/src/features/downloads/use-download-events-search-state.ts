@@ -50,7 +50,7 @@ export function useDownloadEventsSearchState(options: UseDownloadEventsSearchSta
     eventType: read(options.keys.eventType),
     startDate: read(options.keys.startDate),
     status: read(options.keys.status),
-  });
+  }, { limit: 24 });
 
   const exportInput = buildDownloadEventsExportInput({
     mediaId: read(options.keys.mediaId),
@@ -59,7 +59,7 @@ export function useDownloadEventsSearchState(options: UseDownloadEventsSearchSta
     eventType: read(options.keys.eventType),
     startDate: read(options.keys.startDate),
     status: read(options.keys.status),
-  });
+  }, { limit: 10_000 });
 
   const activePreset = getDateRangePresetHours(
     read(options.keys.startDate),

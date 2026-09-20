@@ -5,7 +5,7 @@ import { Schema } from "effect";
 import { MediaDetailsHeader } from "@/features/media/media-details-header";
 import { AnimeDetailsMeta } from "@/features/media/media-details-meta";
 import { AnimeDetailsSidebar } from "@/features/media/media-details-sidebar";
-import { cleanSynopsis, isUnitMissing } from "@/domain/media/metadata";
+import { cleanSynopsis } from "@/domain/media/metadata";
 import { AnimeEpisodesPanel } from "@/features/media/media-units-panel";
 import { AnimeDiscoverySection } from "@/features/media/media-discovery";
 import { AnimeError } from "@/features/media/media-error";
@@ -67,7 +67,7 @@ function AnimeDetailsPage() {
 
   const episodesData = episodesQuery.data;
 
-  const missingCount = episodesData.filter((e) => isUnitMissing(e)).length;
+  const missingCount = episodesData.filter((e) => e.missing).length;
   const availableCount = episodesData.filter((e) => e.downloaded).length;
   const totalUnits = episodesData.length || media.unit_count || 0;
   const isMonitored = media.monitored ?? true;

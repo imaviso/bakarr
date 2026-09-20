@@ -1,5 +1,5 @@
 // Shared library scan and import wire contracts.
-import { Schema, Struct } from "effect";
+import { Schema, SchemaTransformation, Struct } from "effect";
 import { MediaIdSchema, type MediaId } from "./ids.ts";
 import { ParsedUnitIdentitySchema, type ParsedUnitIdentity } from "./parsed-identity.ts";
 import { StringListSchema } from "./config.ts";
@@ -179,9 +179,24 @@ export interface ImportFileSelection {
   source_path: string;
 }
 
+/**
+ * Parsed unit numbers can be fractional (e.g. "EP 01.5"); the canonical unit
+ * number is the floor, decided here at the server boundary rather than by
+ * clients.
+ */
+export const CanonicalUnitNumberSchema = Schema.Number.pipe(
+  Schema.decodeTo(
+    Schema.Number.pipe(Schema.check(Schema.isInt(), Schema.isGreaterThan(0))),
+    SchemaTransformation.transform({
+      decode: (value) => Math.floor(value),
+      encode: (value) => value,
+    }),
+  ),
+);
+
 export const ImportFileSelectionSchema = Schema.Struct({
   media_id: MediaIdSchema,
-  unit_number: Schema.Number,
+  unit_number: CanonicalUnitNumberSchema,
   unit_numbers: Schema.optional(Schema.NullishOr(Schema.mutable(Schema.Array(Schema.Number)))),
   season: Schema.optional(Schema.NullishOr(Schema.Number)),
   source_metadata: Schema.optional(

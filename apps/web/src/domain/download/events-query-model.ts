@@ -59,7 +59,7 @@ export function buildDownloadEventsFilterInput(
     ...(base.downloadId === undefined ? {} : { downloadId: base.downloadId }),
     ...(base.endDate === undefined ? {} : { endDate: base.endDate }),
     ...(base.eventType === undefined ? {} : { eventType: base.eventType }),
-    limit: options?.limit ?? 24,
+    ...(options?.limit === undefined ? {} : { limit: options.limit }),
     ...(base.startDate === undefined ? {} : { startDate: base.startDate }),
     ...(base.status === undefined ? {} : { status: base.status }),
   };
@@ -76,7 +76,7 @@ export function buildDownloadEventsExportInput(
     ...(base.downloadId === undefined ? {} : { downloadId: base.downloadId }),
     ...(base.endDate === undefined ? {} : { endDate: base.endDate }),
     ...(base.eventType === undefined ? {} : { eventType: base.eventType }),
-    limit: options?.limit ?? 10_000,
+    ...(options?.limit === undefined ? {} : { limit: options.limit }),
     order: options?.order ?? "desc",
     ...(base.startDate === undefined ? {} : { startDate: base.startDate }),
     ...(base.status === undefined ? {} : { status: base.status }),

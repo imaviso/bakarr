@@ -216,6 +216,7 @@ export interface MediaUnit {
   aired?: string | null | undefined;
   is_future?: boolean | null | undefined;
   airing_status?: UnitAiringStatus | null | undefined;
+  missing: boolean;
   downloaded: boolean;
   file_path?: string | null | undefined;
   file_size?: number | null | undefined;
@@ -235,6 +236,7 @@ export const MediaUnitSchema = Schema.Struct({
   aired: Schema.optional(Schema.NullishOr(Schema.String)),
   is_future: Schema.optional(Schema.NullishOr(Schema.Boolean)),
   airing_status: Schema.optional(Schema.NullishOr(UnitAiringStatusSchema)),
+  missing: Schema.Boolean,
   downloaded: Schema.Boolean,
   file_path: Schema.optional(Schema.NullishOr(Schema.String)),
   file_size: Schema.optional(Schema.NullishOr(Schema.Number)),

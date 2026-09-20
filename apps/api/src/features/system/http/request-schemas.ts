@@ -6,7 +6,7 @@ import {
   QualityProfileSchema,
   UpdateReleaseProfileSchema,
 } from "@/features/system/config-schema.ts";
-import { IsoDateTimeStringSchema } from "@/infra/http/common-request-schemas.ts";
+import { DayEndStringSchema, DayStartStringSchema } from "@/infra/http/common-request-schemas.ts";
 
 const ResourceNameStringSchema = Schema.String.pipe(Schema.check(Schema.isMinLength(1)));
 const SystemLogEventTypeStringSchema = Schema.String.pipe(Schema.check(Schema.isMinLength(1)));
@@ -29,23 +29,23 @@ export class NameParamsSchema extends Schema.Class<NameParamsSchema>("NameParams
 export class SystemLogsQuerySchema extends Schema.Class<SystemLogsQuerySchema>(
   "SystemLogsQuerySchema",
 )({
-  end_date: Schema.optional(IsoDateTimeStringSchema),
+  end_date: Schema.optional(DayEndStringSchema),
   event_type: Schema.optional(SystemLogEventTypeStringSchema),
   level: Schema.optional(SystemLogLevelSchema),
   page: Schema.optional(
     Schema.NumberFromString.pipe(Schema.check(Schema.isInt(), Schema.isGreaterThan(0))),
   ),
-  start_date: Schema.optional(IsoDateTimeStringSchema),
+  start_date: Schema.optional(DayStartStringSchema),
 }) {}
 
 export class SystemLogExportQuerySchema extends Schema.Class<SystemLogExportQuerySchema>(
   "SystemLogExportQuerySchema",
 )({
-  end_date: Schema.optional(IsoDateTimeStringSchema),
+  end_date: Schema.optional(DayEndStringSchema),
   event_type: Schema.optional(SystemLogExportEventTypeStringSchema),
   format: Schema.optional(Schema.Literals(["csv", "json"])),
   level: Schema.optional(SystemLogLevelSchema),
-  start_date: Schema.optional(IsoDateTimeStringSchema),
+  start_date: Schema.optional(DayStartStringSchema),
 }) {}
 
 export type SystemLogsQueryInput = Schema.Schema.Type<typeof SystemLogsQuerySchema>;

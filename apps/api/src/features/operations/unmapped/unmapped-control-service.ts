@@ -11,7 +11,11 @@ import {
   decodeUnmappedFolderMatchRow,
   SystemUnmappedRepository,
 } from "@/features/system/repository/unmapped-repository.ts";
-import { DomainInputError, StoredDataError } from "@/features/errors.ts";
+import {
+  DomainInputError,
+  InfrastructureError,
+  StoredDataError,
+} from "@/features/errors.ts";
 import { OperationsConflictError, OperationsNotFoundError } from "@/features/operations/errors.ts";
 import { SystemLogRepository } from "@/features/system/repository/log-repository.ts";
 import {
@@ -44,7 +48,13 @@ export interface UnmappedControlWorkflowShape {
     action: "pause_queued" | "resume_paused" | "reset_failed" | "retry_failed";
   }) => Effect.Effect<
     { affectedCount: number },
-    DatabaseError | DomainPathError | StoredDataError | OperationsNotFoundError
+    | DatabaseError
+    | DomainPathError
+    | StoredDataError
+    | OperationsNotFoundError
+    | OperationsConflictError
+    | DomainInputError
+    | InfrastructureError
   >;
   readonly controlUnmappedFolder: (input: {
     action: "pause" | "resume" | "reset" | "refresh";
@@ -57,6 +67,7 @@ export interface UnmappedControlWorkflowShape {
     | DomainPathError
     | StoredDataError
     | OperationsNotFoundError
+    | InfrastructureError
   >;
 }
 
@@ -179,6 +190,12 @@ const makeUnmappedControlService = Effect.fn("UnmappedControlService.make")(func
 
       yield* appendControlActionLog(input.action, current.name);
 
+      // Resume/reset re-queue work: the server starts the scan pass itself so
+      // clients fire a single control call.
+      if (input.action === "resume" || input.action === "reset") {
+        yield* scanService.startUnmappedScan();
+      }
+
       return { folderCount: 0, folderPath: input.path };
     },
   );
@@ -217,6 +234,12 @@ const makeUnmappedControlService = Effect.fn("UnmappedControlService.make")(func
         logMessage,
         nowIso,
       );
+
+      // Every bulk action except pause re-queues work; the server starts the
+      // scan pass itself so clients fire a single control call.
+      if (input.action !== "pause_queued") {
+        yield* scanService.startUnmappedScan();
+      }
 
       return { affectedCount: nextFolders.length };
     },

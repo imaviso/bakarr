@@ -191,7 +191,6 @@ export function makeApiLifecycleLayers(
     SystemConfigServiceLive,
     SystemEventsServiceLive,
     SystemLogServiceLive,
-    UnmappedImportServiceLive,
     UnmappedScanCoordinatorLive,
   ).pipe(Layer.provide(baseLayer));
 
@@ -236,11 +235,15 @@ export function makeApiLifecycleLayers(
 
   const stage3Layer = featureStage3Layer.pipe(Layer.provideMerge(stage2Layer));
 
-  const stage4Layer = BackgroundSearchRssWorkerServiceLive.pipe(Layer.provideMerge(stage3Layer));
+  const featureStage4Layer = Layer.mergeAll(UnmappedImportServiceLive);
 
-  const stage5Layer = BackgroundTaskRunnerLive.pipe(Layer.provideMerge(stage4Layer));
+  const stage4Layer = featureStage4Layer.pipe(Layer.provideMerge(stage3Layer));
 
-  const stage6Layer = BackgroundWorkerControllerLive.pipe(Layer.provideMerge(stage5Layer));
+  const stage5Layer = BackgroundSearchRssWorkerServiceLive.pipe(Layer.provideMerge(stage4Layer));
+
+  const stage5bLayer = BackgroundTaskRunnerLive.pipe(Layer.provideMerge(stage5Layer));
+
+  const stage6Layer = BackgroundWorkerControllerLive.pipe(Layer.provideMerge(stage5bLayer));
 
   // Leaf: only HTTP routes consume it, and it reloads workers through the
   // controller — so it sits above the controller, outside the cycle.

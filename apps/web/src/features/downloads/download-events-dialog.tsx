@@ -46,7 +46,7 @@ export function DownloadEventsDialog(props: DownloadEventsDialogProps) {
   const [selectedEvent, setSelectedEvent] = useState<DownloadEvent | null>(null);
   const queryInput: DownloadEventsFilterInput = {
     direction: pagination.direction,
-    limit: props.limit ?? 25,
+    ...(props.limit === undefined ? {} : { limit: props.limit }),
     ...(props.mediaId === undefined ? {} : { mediaId: props.mediaId }),
     ...(pagination.cursor === undefined ? {} : { cursor: pagination.cursor }),
     ...(props.downloadId == null ? {} : { downloadId: props.downloadId }),
@@ -58,7 +58,7 @@ export function DownloadEventsDialog(props: DownloadEventsDialogProps) {
     ...(props.mediaId === undefined ? {} : { mediaId: props.mediaId }),
     ...(props.downloadId == null ? {} : { downloadId: props.downloadId }),
     ...(props.eventType === undefined ? {} : { eventType: props.eventType }),
-    limit: props.exportLimit ?? 10_000,
+    ...(props.exportLimit === undefined ? {} : { limit: props.exportLimit }),
     order: "desc" as const,
   };
   const openExport = (format: "json" | "csv") => {

@@ -10,7 +10,6 @@ import type {
   AnimeSearchModalState,
 } from "@/features/media/media-details-types";
 import type { MediaUnit } from "@/api/contracts";
-import { isUnitMissing } from "@/domain/media/metadata";
 import { mediaUnitLabel } from "@/domain/media-unit";
 import { cn } from "@/infra/utils";
 
@@ -68,7 +67,7 @@ export function AnimeEpisodesPanel(props: AnimeEpisodesPanelProps) {
                 {props.episodes.map((episode) => {
                   const status = episode.downloaded
                     ? "Downloaded"
-                    : isUnitMissing(episode)
+                    : episode.missing
                       ? "Missing"
                       : "Upcoming";
 
@@ -80,7 +79,7 @@ export function AnimeEpisodesPanel(props: AnimeEpisodesPanelProps) {
                         "aspect-square flex items-center justify-center rounded-none text-xs font-mono transition-colors",
                         episode.downloaded
                           ? "bg-success/20 text-success border border-success/30"
-                          : isUnitMissing(episode)
+                          : episode.missing
                             ? "bg-warning/10 text-warning border border-warning/20"
                             : "bg-muted text-muted-foreground border border-transparent",
                       )}

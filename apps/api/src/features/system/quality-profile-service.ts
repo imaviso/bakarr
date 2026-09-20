@@ -5,9 +5,13 @@ import {
   decodeQualityProfileRow,
   encodeQualityProfileRow,
 } from "@/features/system/profile-codec.ts";
-import { DEFAULT_QUALITIES } from "@/features/system/defaults.ts";
+import {
+  DEFAULT_QUALITIES,
+  makeDefaultQualityProfileTemplate,
+} from "@/features/system/defaults.ts";
 import { SystemLogRepository } from "@/features/system/repository/log-repository.ts";
 import { QualityProfileRepository } from "@/features/system/repository/quality-profile-repository.ts";
+import type { QualitiesResponse } from "@packages/shared/index.ts";
 import { Context, Effect, Layer } from "effect";
 
 const makeQualityProfileService = Effect.fn("QualityProfileService.make")(function* () {
@@ -21,7 +25,10 @@ const makeQualityProfileService = Effect.fn("QualityProfileService.make")(functi
   });
 
   const listQualities = Effect.fn("QualityProfileService.listQualities")(() =>
-    Effect.succeed([...DEFAULT_QUALITIES]),
+    Effect.succeed({
+      qualities: [...DEFAULT_QUALITIES],
+      new_profile_template: makeDefaultQualityProfileTemplate(DEFAULT_QUALITIES) ?? null,
+    } satisfies QualitiesResponse),
   );
 
   const createProfile = Effect.fn("QualityProfileService.createProfile")(function* (

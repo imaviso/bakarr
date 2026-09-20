@@ -12,7 +12,10 @@ import {
 import { AppDrizzleDatabase, DatabaseError, type AppDatabase } from "@/db/database.ts";
 import { unmappedFolderMatches } from "@/db/schema.ts";
 import { makeDbExecutor, type DbExecutor } from "@/infra/effect/db.ts";
-import { buildUnmappedFolderSearchQueries } from "@/features/operations/unmapped/unmapped-folders.ts";
+import {
+  buildUnmappedFolderSearchQueries,
+  hasUnmappedFolderRetryAttemptsRemaining,
+} from "@/features/operations/unmapped/unmapped-folders.ts";
 import { StoredUnmappedFolderCorruptError } from "@/features/system/errors.ts";
 
 const MediaSearchResultListSchema = Schema.Array(MediaSearchResultSchema);
@@ -193,6 +196,10 @@ export const decodeUnmappedFolderMatchRow = Effect.fn(
     search_queries: buildUnmappedFolderSearchQueries(row.name),
     size: row.size,
     suggested_matches: suggestedMatches,
+    will_retry: hasUnmappedFolderRetryAttemptsRemaining({
+      match_attempts: row.matchAttempts,
+      match_status: matchStatus,
+    }),
   }).pipe(
     Effect.mapError(
       (cause) =>
