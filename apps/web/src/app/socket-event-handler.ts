@@ -2,7 +2,7 @@ import { toast } from "sonner";
 import type { QueryClient } from "@tanstack/react-query";
 import { type NotificationEvent } from "@bakarr/shared";
 import { animeKeys } from "@/api/keys";
-import type { BackgroundJobStatus, DownloadStatus, SystemStatus } from "@/api/contracts";
+import type { DownloadStatus, SystemStatus } from "@/api/contracts";
 import { getNotificationToastCopy } from "@/domain/notification-metadata";
 import {
   getNotificationPreferenceKeyForEvent,
@@ -41,45 +41,11 @@ type EventHandlers = {
   ) => void;
 };
 
-function updateJobStatus(
-  previousJobs: BackgroundJobStatus[] | undefined,
-  name: string,
-  updater: (job: BackgroundJobStatus) => BackgroundJobStatus,
-) {
-  if (!previousJobs) {
-    return previousJobs;
-  }
-
-  const targetIndex = previousJobs.findIndex((job) => job.name === name);
-  if (targetIndex < 0) {
-    return previousJobs;
-  }
-
-  const target = previousJobs[targetIndex];
-  if (target === undefined) {
-    return previousJobs;
-  }
-
-  const nextJobs = [...previousJobs];
-  nextJobs[targetIndex] = updater(target);
-  return nextJobs;
-}
-
 function invalidateLibraryActivity(qc: QueryClient) {
   void qc.invalidateQueries({ queryKey: animeKeys.all });
   void qc.invalidateQueries({ queryKey: animeKeys.downloads.all });
   void qc.invalidateQueries({ queryKey: animeKeys.library.activity() });
   void qc.invalidateQueries({ queryKey: animeKeys.system.status() });
-}
-
-function markJobRunning(qc: QueryClient, jobName: string) {
-  qc.setQueryData<BackgroundJobStatus[]>(animeKeys.system.jobs(), (previousJobs) =>
-    updateJobStatus(previousJobs, jobName, (job) => ({
-      ...job,
-      is_running: true,
-      last_status: "running",
-    })),
-  );
 }
 
 function loadingOptions(toastId: string | undefined): { readonly id: string } | undefined {
@@ -220,7 +186,7 @@ const eventHandlers: EventHandlers = {
     if (notificationsEnabled) {
       toast.loading("Library file scan started", loadingOptions(toastId));
     }
-    markJobRunning(qc, "unmapped_scan");
+    void qc.invalidateQueries({ queryKey: animeKeys.system.jobs() });
   },
 
   LibraryScanFinished: (event, { notificationsEnabled, qc, toastId }) => {
@@ -230,39 +196,19 @@ const eventHandlers: EventHandlers = {
         `Library file scan finished. Scanned ${event.payload.scanned}, Matched ${event.payload.matched}`,
       );
     }
-    qc.setQueryData<BackgroundJobStatus[]>(animeKeys.system.jobs(), (previousJobs) =>
-      updateJobStatus(previousJobs, "unmapped_scan", (job) => ({
-        ...job,
-        is_running: false,
-        last_message: `Scanned ${event.payload.scanned}, matched ${event.payload.matched}`,
-        last_status: "ok",
-        progress_current: event.payload.scanned,
-        progress_total: event.payload.scanned,
-      })),
-    );
     void qc.invalidateQueries({ queryKey: animeKeys.system.jobs() });
     void qc.invalidateQueries({ queryKey: animeKeys.library.unmapped() });
   },
 
-  LibraryScanProgress: (event, { qc }) => {
-    qc.setQueryData<BackgroundJobStatus[]>(animeKeys.system.jobs(), (previousJobs) =>
-      updateJobStatus(previousJobs, "unmapped_scan", (job) => ({
-        ...job,
-        is_running: true,
-        progress_current: event.payload.scanned,
-        progress_total:
-          typeof job.progress_total === "number"
-            ? Math.max(job.progress_total, event.payload.scanned)
-            : event.payload.scanned,
-      })),
-    );
+  LibraryScanProgress: () => {
+    // No-op: jobs query polls while running; Finished event invalidates.
   },
 
   RssCheckStarted: (_event, { notificationsEnabled, qc, toastId }) => {
     if (notificationsEnabled) {
       toast.loading("RSS check started", loadingOptions(toastId));
     }
-    markJobRunning(qc, "rss_check");
+    void qc.invalidateQueries({ queryKey: animeKeys.system.jobs() });
   },
 
   RssCheckFinished: (event, { notificationsEnabled, qc, toastId }) => {
@@ -270,37 +216,20 @@ const eventHandlers: EventHandlers = {
     if (notificationsEnabled) {
       toast.success(`RSS check finished. Found ${event.payload.new_items} new items.`);
     }
-    qc.setQueryData<BackgroundJobStatus[]>(animeKeys.system.jobs(), (previousJobs) =>
-      updateJobStatus(previousJobs, "rss_check", (job) => ({
-        ...job,
-        is_running: false,
-        last_message: `Found ${event.payload.new_items} new items`,
-        last_status: "ok",
-      })),
-    );
     void qc.invalidateQueries({ queryKey: animeKeys.system.jobs() });
     void qc.invalidateQueries({ queryKey: animeKeys.system.status() });
   },
 
-  RssCheckProgress: (event, { qc }) => {
-    qc.setQueryData<BackgroundJobStatus[]>(animeKeys.system.jobs(), (previousJobs) =>
-      updateJobStatus(previousJobs, "rss_check", (job) => ({
-        ...job,
-        is_running: true,
-        last_message: `Checking ${event.payload.feed_name}`,
-        progress_current: event.payload.current,
-        progress_total: event.payload.total,
-      })),
-    );
+  RssCheckProgress: () => {
+    // No-op: Finished event invalidates; no client progress synthesis.
   },
 
   PasswordChanged: (_event, { notificationsEnabled }) => {
     if (notificationsEnabled) toast.success("Password changed successfully");
   },
 
-  ApiKeyRegenerated: (_event, { notificationsEnabled, qc }) => {
+  ApiKeyRegenerated: (_event, { notificationsEnabled }) => {
     if (notificationsEnabled) toast.success("API key regenerated successfully");
-    void qc.invalidateQueries({ queryKey: animeKeys.auth.apiKey() });
   },
 
   Error: (event, { notificationsEnabled }) => {
@@ -313,15 +242,6 @@ const eventHandlers: EventHandlers = {
 
   DownloadProgress: (event, { qc }) => {
     qc.setQueryData<DownloadStatus[]>(animeKeys.downloads.queue(), event.payload.downloads);
-    qc.setQueryData<SystemStatus>(animeKeys.system.status(), (previousStatus) => {
-      if (!previousStatus) {
-        return previousStatus;
-      }
-      return {
-        ...previousStatus,
-        pending_downloads: event.payload.downloads.length,
-      };
-    });
   },
 
   SystemStatus: (event, { qc }) => {

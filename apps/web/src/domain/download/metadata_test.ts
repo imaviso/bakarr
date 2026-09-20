@@ -82,38 +82,15 @@ it("download metadata helpers expose decision, ranking, and confidence", () => {
   }
 });
 
-it("download metadata normalizes legacy manual batch decision reasons", () => {
-  const seasonPackDecision = formatDownloadDecisionSummary({
+it("download metadata passes server decision reasons through verbatim", () => {
+  const decision = formatDownloadDecisionSummary({
     decision_reason: "Manual grab from release search",
-    is_batch: true,
     source_metadata: {
-      source_identity: {
-        label: "S02",
-        scheme: "season",
-        season: 2,
-      },
       trusted: true,
     },
   });
 
-  if (seasonPackDecision !== "Manual season pack grab from trusted release search") {
-    throw new Error(`Unexpected season-pack decision summary: ${seasonPackDecision}`);
-  }
-
-  const batchDecision = formatDownloadDecisionSummary({
-    covered_units: [1, 2],
-    decision_reason: "Manual grab from trusted release search",
-    is_batch: true,
-    source_metadata: {
-      source_identity: {
-        unit_numbers: [1, 2],
-        label: "01-02",
-        scheme: "absolute",
-      },
-    },
-  });
-
-  if (batchDecision !== "Manual batch grab from trusted release search") {
-    throw new Error(`Unexpected batch decision summary: ${batchDecision}`);
+  if (decision !== "Manual grab from release search") {
+    throw new Error(`Unexpected decision summary: ${decision}`);
   }
 });

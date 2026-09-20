@@ -38,7 +38,6 @@ import {
 import { EmptyState } from "@/components/shared/empty-state";
 import type { MediaKind } from "@/api/contracts";
 import { mediaUnitLabel } from "@/domain/media-unit";
-import { ReleaseSelectionMeta } from "@/features/search/release-cells/release-meta";
 import {
   ReleasePeersCell,
   ReleasePrimaryCell,
@@ -370,9 +369,6 @@ function ReleaseRow(props: {
           seadexComparison={props.result.seadex_comparison}
           seadexClass="pr-4"
           seadexTagClass="rounded-none"
-          selectionKind={state.selectionMetadata.selection_kind}
-          selectionLabel={state.selectionLabel}
-          selectionSummary={state.selectionSummary}
           confidence={state.releaseConfidence}
           selectionClass="pr-4"
         />
@@ -419,13 +415,6 @@ function ReleaseRow(props: {
                     ? `Enter the ${props.unitLabel.toLowerCase()} number for the first file in this pack.`
                     : `Enter the ${props.unitLabel.toLowerCase()} number this release should map to.`}
                 </p>
-                {state.selectionSummary && (
-                  <ReleaseSelectionMeta
-                    selectionKind={state.selectionMetadata.selection_kind}
-                    selectionLabel={state.selectionLabel}
-                    selectionSummary={state.selectionSummary}
-                  />
-                )}
               </div>
               <div className="flex items-center gap-2">
                 <Checkbox

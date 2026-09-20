@@ -1,6 +1,5 @@
 import { format, isValid, parseISO } from "date-fns";
-import type { Media, MediaSearchResult, Config } from "@/domain/contracts";
-import { isAired } from "@/domain/date-time";
+import type { Media, MediaSearchResult, MediaUnit, Config } from "@/domain/contracts";
 
 type AnimeDateContext = {
   season?: Media["season"];
@@ -130,29 +129,8 @@ export function formatNextAiringUnit(
   return `Unit ${nextAiring.unit_number} airs ${airingLabel}`;
 }
 
-export function formatEpisodeStatusTooltip(input: {
-  aired?: string;
-  downloaded: boolean;
-  unitNumber?: number;
-  filePath?: string;
-  now?: Date;
-  preferences?: AiringDisplayPreferences;
-}) {
-  const status = input.downloaded
-    ? "Downloaded"
-    : isAired(input.aired, input.now)
-      ? "Missing"
-      : "Upcoming";
-  const prefix = input.unitNumber ? `MediaUnit ${input.unitNumber}: ` : "";
-  const fileName = input.filePath?.split("/").pop();
-
-  if (input.downloaded && fileName) {
-    return `${prefix}${status} - ${fileName}`;
-  }
-
-  const airedLabel = formatAiringDateTimeWithPreferences(input.aired, input.preferences);
-
-  return airedLabel ? `${prefix}${status} (Aired: ${airedLabel})` : `${prefix}${status}`;
+export function isUnitMissing(unit: Pick<MediaUnit, "downloaded" | "airing_status">) {
+  return !unit.downloaded && unit.airing_status === "aired";
 }
 
 export function formatAiringDateWithPreferences(

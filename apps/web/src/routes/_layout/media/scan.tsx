@@ -4,7 +4,6 @@ import { useState } from "react";
 import { GeneralError } from "@/components/shared/general-error";
 import { PageShell } from "@/components/shared/page-shell";
 import { runBulkBackgroundMatchAction } from "@/features/scan/background-matching-actions";
-import { isBackgroundMatchingRunning } from "@/features/scan/background-matching-state";
 import { ScanContent } from "@/features/scan/sections/scan-content";
 import { ScanDialogs } from "@/features/scan/sections/scan-dialogs";
 import { ScanPageHeader } from "@/features/scan/sections/scan-page-header";
@@ -13,16 +12,12 @@ import {
   useScanLibraryMutation,
   unmappedFoldersQueryOptions,
 } from "@/api/system-library";
-import { systemJobsQueryOptions } from "@/api/system-config";
 import type { MediaSearchResult, UnmappedFolder } from "@/api/contracts";
 import { usePageTitle } from "@/hooks/use-page-title";
 
 export const Route = createFileRoute("/_layout/media/scan")({
   loader: async ({ context: { queryClient } }) => {
-    await Promise.all([
-      queryClient.ensureQueryData(unmappedFoldersQueryOptions()),
-      queryClient.ensureQueryData(systemJobsQueryOptions()),
-    ]);
+    await queryClient.ensureQueryData(unmappedFoldersQueryOptions());
   },
   component: LibraryScanPage,
   errorComponent: GeneralError,
@@ -31,7 +26,6 @@ export const Route = createFileRoute("/_layout/media/scan")({
 function LibraryScanPage() {
   usePageTitle("Library Scan");
   const scanState = useSuspenseQuery(unmappedFoldersQueryOptions()).data;
-  const systemJobs = useSuspenseQuery(systemJobsQueryOptions()).data;
   const bulkControlMutation = useBulkControlUnmappedFoldersMutation();
   const scanMutation = useScanLibraryMutation();
   const navigate = useNavigate();
@@ -52,18 +46,9 @@ function LibraryScanPage() {
   const hasOutstandingMatches = scanState.has_outstanding_matches;
   const matchStatus = scanState.match_status;
 
-  const serverCounts = scanState.match_counts;
-  const counts = serverCounts ?? computeMatchCounts(folders);
+  const counts = scanState.match_counts;
 
-  const unmappedJob = systemJobs.find((job) => job.name === "unmapped_scan");
-  const isWorkerRunning = isBackgroundMatchingRunning({
-    failedCount: counts.failed,
-    hasOutstandingWork: hasOutstandingMatches,
-    job: unmappedJob,
-    matchingCount: counts.matching,
-    pausedCount: counts.paused,
-    status: matchStatus,
-  });
+  const isWorkerRunning = scanState.match_status === "running";
   const isRescanning = scanMutation.isPending || isWorkerRunning;
   const runBulkAction = (
     action: "pause_queued" | "resume_paused" | "reset_failed" | "retry_failed",
@@ -143,10 +128,8 @@ function LibraryScanPage() {
 
       <ScanContent
         foldersLength={folderList.length}
-        unmappedJob={unmappedJob}
         counts={counts}
         hasOutstandingMatches={hasOutstandingMatches}
-        isWorkerRunning={isWorkerRunning}
         isScanning={isScanning}
         matchStatus={matchStatus}
         folderPaths={folderPaths}
@@ -155,36 +138,6 @@ function LibraryScanPage() {
       />
     </PageShell>
   );
-}
-
-function computeMatchCounts(folders: readonly UnmappedFolder[]) {
-  let exact = 0;
-  let queued = 0;
-  let matching = 0;
-  let matched = 0;
-  let failed = 0;
-  let paused = 0;
-  for (const folder of folders) {
-    if (folder.suggested_matches[0]?.already_in_library) exact++;
-    switch (folder.match_status) {
-      case "pending":
-        queued++;
-        break;
-      case "matching":
-        matching++;
-        break;
-      case "done":
-        matched++;
-        break;
-      case "failed":
-        failed++;
-        break;
-      case "paused":
-        paused++;
-        break;
-    }
-  }
-  return { exact, queued, matching, matched, failed, paused };
 }
 
 function pluralizeFolderCount(count: number) {

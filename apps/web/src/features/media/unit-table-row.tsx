@@ -23,7 +23,8 @@ import type {
   AnimeSearchModalState,
 } from "@/features/media/media-details-types";
 import type { MediaUnit } from "@/api/contracts";
-import { formatDate, isAired } from "@/domain/date-time";
+import { formatDate } from "@/domain/date-time";
+import { isUnitMissing } from "@/domain/media/metadata";
 import { mediaUnitLabel } from "@/domain/media-unit";
 import { formatDurationSeconds } from "@/domain/format";
 import { cn } from "@/infra/utils";
@@ -81,14 +82,14 @@ export function EpisodeTableRow(props: EpisodeTableRowProps) {
               <Tooltip>Downloaded - {episode.file_path?.split("/").pop()}</Tooltip>
             </TooltipTrigger>
           ) : (
-            <TooltipTrigger aria-label={isAired(episode.aired) ? "Missing" : "Upcoming"}>
+            <TooltipTrigger aria-label={isUnitMissing(episode) ? "Missing" : "Upcoming"}>
               <RiCloseLine
                 className={cn(
                   "h-4 w-4",
-                  isAired(episode.aired) ? "text-warning" : "text-muted-foreground",
+                  isUnitMissing(episode) ? "text-warning" : "text-muted-foreground",
                 )}
               />
-              <Tooltip>{isAired(episode.aired) ? "Missing" : "Upcoming"}</Tooltip>
+              <Tooltip>{isUnitMissing(episode) ? "Missing" : "Upcoming"}</Tooltip>
             </TooltipTrigger>
           )}
         </div>

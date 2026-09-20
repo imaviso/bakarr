@@ -1,33 +1,23 @@
 import { Badge } from "@/components/ui/badge";
 import { SectionLabel } from "@/components/shared/section-label";
-import {
-  MAX_UNMAPPED_FOLDER_MATCH_ATTEMPTS,
-  type BackgroundJobStatus,
-  type ScannerMatchStatus,
-} from "@/api/contracts";
+import { MAX_UNMAPPED_FOLDER_MATCH_ATTEMPTS, type ScannerMatchStatus } from "@/api/contracts";
 import {
   backgroundMatchingStatusLabel,
   backgroundMatchingStatusVariant,
 } from "./background-matching-state";
 
 export function BackgroundMatchingCard(props: {
+  status: ScannerMatchStatus;
   failedCount: number;
   hasOutstandingWork: boolean;
-  job?: BackgroundJobStatus | undefined;
-  isRunning: boolean;
-  status?: ScannerMatchStatus | undefined;
   matchedCount: number;
   matchingCount: number;
   pausedCount: number;
   queuedCount: number;
   totalCount: number;
 }) {
-  const progressCurrentValue = props.job?.progress_current;
-  const progressTotalValue = props.job?.progress_total;
-  const progressCurrent =
-    typeof progressCurrentValue === "number" ? progressCurrentValue : props.matchedCount;
-  const progressTotal =
-    typeof progressTotalValue === "number" ? progressTotalValue : props.totalCount;
+  const progressTotal = props.totalCount - props.pausedCount;
+  const progressCurrent = Math.min(props.matchedCount, progressTotal);
 
   const progressPercent = progressTotal
     ? Math.min(100, Math.round((progressCurrent / progressTotal) * 100))
@@ -48,24 +38,8 @@ export function BackgroundMatchingCard(props: {
         <div className="space-y-1">
           <div className="flex flex-wrap items-center gap-2">
             <p className="text-sm font-medium text-foreground">Background folder matching</p>
-            <Badge
-              variant={backgroundMatchingStatusVariant({
-                failedCount: props.failedCount,
-                hasOutstandingWork: props.hasOutstandingWork,
-                job: props.job,
-                matchingCount: props.matchingCount,
-                pausedCount: props.pausedCount,
-                status: props.status,
-              })}
-            >
-              {backgroundMatchingStatusLabel({
-                failedCount: props.failedCount,
-                hasOutstandingWork: props.hasOutstandingWork,
-                job: props.job,
-                matchingCount: props.matchingCount,
-                pausedCount: props.pausedCount,
-                status: props.status,
-              })}
+            <Badge variant={backgroundMatchingStatusVariant(props.status)}>
+              {backgroundMatchingStatusLabel(props.status)}
             </Badge>
           </div>
           <p aria-live="polite" className="text-sm text-muted-foreground">
@@ -81,9 +55,6 @@ export function BackgroundMatchingCard(props: {
                       ? `Some folders hit the ${MAX_UNMAPPED_FOLDER_MATCH_ATTEMPTS}-attempt automatic match limit. Choose a manual match to continue.`
                       : "All discovered folders have finished their latest background match pass."}
           </p>
-          {props.job?.last_message && (
-            <p className="text-xs text-muted-foreground">{props.job?.last_message}</p>
-          )}
           <p className="text-xs text-muted-foreground">{explanation}</p>
         </div>
 

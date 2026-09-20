@@ -6,42 +6,6 @@ import type {
   SearchDownloadRequest,
 } from "@/domain/contracts";
 import { brandMediaId } from "@bakarr/shared";
-import { formatReleaseSearchDecisionReason, inferBatchKind } from "@/domain/batch-kind";
-import { buildParsedEpisodeIdentity } from "@/domain/release/download";
-
-export interface NyaaSelectionMetadata {
-  chosen_from_seadex?: boolean | null | undefined;
-  selection_kind: "accept" | "manual";
-}
-
-export function selectionMetadataFromNyaaResult(result: NyaaSearchResult): NyaaSelectionMetadata {
-  if (result.is_seadex_best || result.is_seadex) {
-    return {
-      chosen_from_seadex: true,
-      selection_kind: "accept",
-    };
-  }
-
-  return { selection_kind: "manual" };
-}
-
-export function decisionReasonFromNyaaResult(input: {
-  coveredUnits?: readonly number[] | undefined;
-  isBatch?: boolean | null | undefined;
-  isSeaDex: boolean;
-  isSeaDexBest: boolean;
-  trusted: boolean;
-}) {
-  return formatReleaseSearchDecisionReason({
-    batchKind: inferBatchKind({
-      coveredUnits: input.coveredUnits,
-      isBatch: input.isBatch,
-    }),
-    isSeaDex: input.isSeaDex,
-    isSeaDexBest: input.isSeaDexBest,
-    trusted: input.trusted,
-  });
-}
 
 export function buildGrabInputFromNyaaResult(input: {
   mediaId: number;
@@ -64,36 +28,6 @@ export function buildGrabInputFromNyaaResult(input: {
     title: result.title,
     ...(isBatch ? { is_batch: true } : {}),
   };
-}
-
-export function decisionReasonFromEpisodeResult(result: UnitSearchResult) {
-  if (result.download_action.Upgrade) {
-    return `Upgrade: ${result.download_action.Upgrade.reason}`;
-  }
-  if (result.download_action.Accept) {
-    return `Accepted ${result.download_action.Accept.quality.name} (score ${result.download_action.Accept.score})`;
-  }
-  if (result.download_action.Reject) {
-    return `Manual override: ${result.download_action.Reject.reason}`;
-  }
-
-  return formatReleaseSearchDecisionReason({
-    batchKind: inferBatchKind({
-      coveredUnits: result.parsed_unit_numbers,
-      isBatch:
-        (result.parsed_unit_numbers?.length ?? 0) > 1 ||
-        (result.parsed_unit_label !== undefined && result.parsed_unit_numbers === undefined),
-      sourceIdentity: buildParsedEpisodeIdentity({
-        parsedAirDate: result.parsed_air_date,
-        parsedEpisodeLabel: result.parsed_unit_label,
-        parsedEpisodeNumbers: result.parsed_unit_numbers,
-        labelFallback: true,
-      }),
-    }),
-    isSeaDex: result.is_seadex,
-    isSeaDexBest: result.is_seadex_best,
-    trusted: result.trusted,
-  });
 }
 
 export function buildGrabInputFromEpisodeResult(input: {

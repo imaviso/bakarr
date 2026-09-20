@@ -5,7 +5,7 @@ import { Schema } from "effect";
 import { MediaDetailsHeader } from "@/features/media/media-details-header";
 import { AnimeDetailsMeta } from "@/features/media/media-details-meta";
 import { AnimeDetailsSidebar } from "@/features/media/media-details-sidebar";
-import { cleanSynopsis } from "@/domain/media/metadata";
+import { cleanSynopsis, isUnitMissing } from "@/domain/media/metadata";
 import { AnimeEpisodesPanel } from "@/features/media/media-units-panel";
 import { AnimeDiscoverySection } from "@/features/media/media-discovery";
 import { AnimeError } from "@/features/media/media-error";
@@ -18,7 +18,6 @@ import { mediaDetailsQueryOptions, mediaListQueryOptions, unitsQueryOptions } fr
 import { useAnimeScanTaskQuery, isTaskActive } from "@/api/operations-tasks";
 import { profilesQueryOptions, releaseProfilesQueryOptions } from "@/api/profiles";
 import { usePageTitle } from "@/hooks/use-page-title";
-import { isAired } from "@/domain/date-time";
 
 const AnimeDetailsDialogsLazy = lazy(() =>
   import("@/features/media/media-details-dialogs").then((module) => ({
@@ -68,7 +67,7 @@ function AnimeDetailsPage() {
 
   const episodesData = episodesQuery.data;
 
-  const missingCount = episodesData.filter((e) => !e.downloaded && isAired(e.aired)).length;
+  const missingCount = episodesData.filter((e) => isUnitMissing(e)).length;
   const availableCount = episodesData.filter((e) => e.downloaded).length;
   const totalUnits = episodesData.length || media.unit_count || 0;
   const isMonitored = media.monitored ?? true;

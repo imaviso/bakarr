@@ -8,7 +8,7 @@ import {
   type MediaKind,
   type NyaaSearchResult,
 } from "@/api/contracts";
-import { buildReleaseDisplay, buildSelectionDisplayFromNyaaResult } from "@/domain/release/display";
+import { buildReleaseDisplay } from "@/domain/release/display";
 import { getReleaseConfidence } from "@/domain/release/selection";
 import { buildGrabInputFromNyaaResult } from "@/domain/release/grab";
 
@@ -120,18 +120,15 @@ export function useSearchDialogReleaseRowState(input: {
   result: NyaaSearchResult;
 }) {
   const grabMutation = useGrabReleaseMutation();
-  const detectedIsBatch =
-    (input.result.parsed_unit_numbers?.length ?? 0) > 1 || !input.result.parsed_unit;
   const [episodeNumberInput, setEpisodeNumberInput] = useState(
     () =>
       input.result.parsed_unit?.toString() ||
       input.result.parsed_unit_numbers?.[0]?.toString() ||
-      (detectedIsBatch ? "1" : ""),
+      "",
   );
-  const [isBatch, setIsBatch] = useState(detectedIsBatch);
+  const [isBatch, setIsBatch] = useState(false);
   const [popoverOpen, setPopoverOpen] = useState(false);
 
-  const selectionDisplay = buildSelectionDisplayFromNyaaResult(input.result);
   const releaseDisplay = buildReleaseDisplay({
     group: input.result.parsed_group,
     indexer: input.result.indexer,
@@ -160,9 +157,6 @@ export function useSearchDialogReleaseRowState(input: {
   const releaseFlags = releaseDisplay.flags;
   const releaseParsedSummary = releaseDisplay.parsedSummary;
   const releaseSourceSummary = releaseDisplay.sourceSummary;
-  const selectionLabel = selectionDisplay.label;
-  const selectionMetadata = selectionDisplay.metadata;
-  const selectionSummary = selectionDisplay.summary;
 
   const handleGrab = () => {
     grabMutation.mutate(grabPayload, {
@@ -184,9 +178,6 @@ export function useSearchDialogReleaseRowState(input: {
     releaseFlags,
     releaseParsedSummary,
     releaseSourceSummary,
-    selectionLabel,
-    selectionMetadata,
-    selectionSummary,
     setEpisodeNumberInput,
     setIsBatch,
     setPopoverOpen,

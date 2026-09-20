@@ -4,46 +4,7 @@ import {
   actionReasonFromDownloadAction,
   buildGrabInputFromEpisodeResult,
   buildGrabInputFromNyaaResult,
-  decisionReasonFromEpisodeResult,
-  decisionReasonFromNyaaResult,
-  selectionMetadataFromNyaaResult,
 } from "./grab";
-
-it("decisionReasonFromNyaaResult returns SeaDex Best reason for trusted batches", () => {
-  const reason = decisionReasonFromNyaaResult({
-    coveredUnits: [1, 2],
-    isBatch: true,
-    isSeaDex: true,
-    isSeaDexBest: true,
-    trusted: true,
-  });
-
-  if (reason !== "Batch SeaDex Best release") {
-    throw new Error(`Unexpected Nyaa decision reason: ${reason}`);
-  }
-});
-
-it("selectionMetadataFromNyaaResult marks SeaDex releases as accept", () => {
-  const selection = selectionMetadataFromNyaaResult({
-    indexer: "Nyaa",
-    info_hash: "hash",
-    is_seadex: true,
-    is_seadex_best: false,
-    leechers: 1,
-    magnet: "magnet:?xt=urn:btih:hash",
-    pub_date: "2025-01-01T00:00:00.000Z",
-    remake: false,
-    seeders: 10,
-    size: "1.0 GiB",
-    title: "[Group] Show - 01",
-    trusted: true,
-    view_url: "https://example.test/view",
-  });
-
-  if (selection.selection_kind !== "accept" || selection.chosen_from_seadex !== true) {
-    throw new Error(`Unexpected Nyaa selection metadata: ${JSON.stringify(selection)}`);
-  }
-});
 
 it("buildGrabInputFromNyaaResult maps fields consistently", () => {
   const payload = buildGrabInputFromNyaaResult({
@@ -79,46 +40,6 @@ it("buildGrabInputFromNyaaResult maps fields consistently", () => {
     payload.release_context?.info_hash !== "hash123"
   ) {
     throw new Error(`Unexpected Nyaa payload mapping: ${JSON.stringify(payload)}`);
-  }
-});
-
-it("decisionReasonFromEpisodeResult prefers upgrade reason", () => {
-  const reason = decisionReasonFromEpisodeResult({
-    download_action: {
-      Upgrade: {
-        is_seadex: false,
-        old_quality: {
-          id: brandQualityId(1),
-          name: "720p",
-          rank: 10,
-          resolution: 720,
-          source: "web",
-        },
-        old_score: 5,
-        quality: {
-          id: brandQualityId(2),
-          name: "1080p",
-          rank: 20,
-          resolution: 1080,
-          source: "web",
-        },
-        reason: "higher score",
-        score: 9,
-      },
-    },
-    indexer: "Nyaa",
-    info_hash: "hash-upgrade",
-    leechers: 0,
-    link: "magnet:?xt=urn:btih:hash-upgrade",
-    publish_date: "2025-03-11T00:00:00.000Z",
-    quality: "1080p",
-    seeders: 7,
-    size: 100,
-    title: "Upgrade title",
-  });
-
-  if (reason !== "Upgrade: higher score") {
-    throw new Error(`Unexpected episode decision reason: ${reason}`);
   }
 });
 

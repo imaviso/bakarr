@@ -1,4 +1,4 @@
-import type { DownloadAction, NyaaSearchResult } from "@/domain/contracts";
+import type { DownloadAction } from "@/domain/contracts";
 import {
   formatReleaseParsedSummary,
   formatReleaseSourceSummary,
@@ -11,7 +11,6 @@ import {
   selectionMetadataFromDownloadAction,
   type CompactSelectionMetadata,
 } from "@/domain/release/selection";
-import { selectionMetadataFromNyaaResult } from "@/domain/release/grab";
 
 interface ReleaseDisplayInput {
   group?: string | null | undefined;
@@ -66,8 +65,4 @@ export function buildSelectionDisplay(selection: CompactSelectionMetadata) {
 
 export function buildSelectionDisplayFromDownloadAction(action: DownloadAction) {
   return buildSelectionDisplay(selectionMetadataFromDownloadAction(action));
-}
-
-export function buildSelectionDisplayFromNyaaResult(result: NyaaSearchResult) {
-  return buildSelectionDisplay(selectionMetadataFromNyaaResult(result));
 }

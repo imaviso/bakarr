@@ -70,7 +70,6 @@ export function useChangePasswordMutation() {
 }
 
 export function useRegenerateApiKeyMutation() {
-  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: () =>
       runApiEffect(
@@ -78,8 +77,5 @@ export function useRegenerateApiKeyMutation() {
           method: "POST",
         }),
       ),
-    onSuccess: (data) => {
-      queryClient.setQueryData(animeKeys.auth.apiKey(), data);
-    },
   });
 }

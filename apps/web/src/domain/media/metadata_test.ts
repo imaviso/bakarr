@@ -1,9 +1,5 @@
 import { it } from "vitest";
-import {
-  formatEpisodeStatusTooltip,
-  getAiringDisplayDateKey,
-  getAiringDisplayPreferences,
-} from "./metadata";
+import { isUnitMissing, getAiringDisplayDateKey, getAiringDisplayPreferences } from "./metadata";
 
 it("getAiringDisplayPreferences normalizes system timezone", () => {
   const preferences = getAiringDisplayPreferences({
@@ -38,32 +34,16 @@ it("getAiringDisplayDateKey respects day start hour", () => {
   }
 });
 
-it("formatEpisodeStatusTooltip includes downloaded filename", () => {
-  const tooltip = formatEpisodeStatusTooltip({
-    downloaded: true,
-    unitNumber: 7,
-    filePath: "/library/Show/Show - 07.mkv",
-  });
-
-  if (tooltip !== "MediaUnit 7: Downloaded - Show - 07.mkv") {
-    throw new Error(`Unexpected downloaded tooltip: ${tooltip}`);
-  }
-});
-
-it("formatEpisodeStatusTooltip uses airing preferences for missing episodes", () => {
-  const tooltip = formatEpisodeStatusTooltip({
-    aired: "2024-01-10T02:30:00.000Z",
-    downloaded: false,
-    unitNumber: 3,
-    now: new Date("2024-01-10T03:00:00.000Z"),
-    preferences: { dayStartHour: 4, timeZone: "UTC" },
-  });
-
-  if (!tooltip.startsWith("MediaUnit 3: Missing (Aired:")) {
-    throw new Error(`Expected missing tooltip, got ${tooltip}`);
+it("isUnitMissing reads server airing status instead of recomputing dates", () => {
+  if (!isUnitMissing({ downloaded: false, airing_status: "aired" })) {
+    throw new Error("Expected aired undownloaded unit to be missing");
   }
 
-  if (!tooltip.includes("Jan 9, 2024") || !tooltip.includes("2:30")) {
-    throw new Error(`Expected day-start adjusted airing label, got ${tooltip}`);
+  if (isUnitMissing({ downloaded: false, airing_status: "future" })) {
+    throw new Error("Expected future unit to be upcoming, not missing");
+  }
+
+  if (isUnitMissing({ downloaded: true, airing_status: "aired" })) {
+    throw new Error("Expected downloaded unit to never be missing");
   }
 });

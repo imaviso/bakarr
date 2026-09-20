@@ -74,7 +74,6 @@ export const animeKeys = {
     ["browse", path, { offset: offset ?? 0, limit: limit ?? 0 }] as const,
   auth: {
     me: () => ["auth", "me"] as const,
-    apiKey: () => ["auth", "api-key"] as const,
   },
   system: {
     all: ["system"] as const,
