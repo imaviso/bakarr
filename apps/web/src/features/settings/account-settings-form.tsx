@@ -240,7 +240,7 @@ export function AccountSettingsForm() {
               <passwordForm.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
                 {(state) => (
                   <Button type="submit" isDisabled={!state[0] || changePassword.isPending}>
-                    {state[1] || changePassword.isPending ? "Changing..." : "Change Password"}
+                    {state[1] || changePassword.isPending ? "Changing…" : "Change Password"}
                   </Button>
                 )}
               </passwordForm.Subscribe>
@@ -304,7 +304,7 @@ export function AccountSettingsForm() {
               trigger={
                 <Button variant="outline" isDisabled={regenerateApiKey.isPending}>
                   <RiRefreshLine className="mr-2 h-4 w-4" />
-                  {regenerateApiKey.isPending ? "Regenerating..." : "Regenerate API Key"}
+                  {regenerateApiKey.isPending ? "Regenerating…" : "Regenerate API Key"}
                 </Button>
               }
               title="Regenerate API Key?"

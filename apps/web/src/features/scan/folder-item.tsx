@@ -46,7 +46,7 @@ export const FolderItem = memo(function FolderItem(props: {
   const state = useFolderItemController(props.folder);
 
   return (
-    <div className="grid gap-4 border border-border bg-background p-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)_auto] lg:items-start">
+    <div className="grid gap-4 border border-border bg-background p-4 lg:grid-cols-3 lg:items-start">
       <div className="min-w-0">
         <div className="flex items-start gap-3">
           <div className="mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center border border-info/20 bg-info/10 text-info">
@@ -92,6 +92,9 @@ export const FolderItem = memo(function FolderItem(props: {
               <img
                 src={state.selectedAnime.cover_image ?? undefined}
                 alt={state.selectedAnime.title.romaji ?? undefined}
+                width={44}
+                height={64}
+                loading="lazy"
                 className="h-16 w-11 shrink-0 border border-border object-cover"
               />
             )}

@@ -82,10 +82,7 @@ function DashboardPage() {
         </div>
       </div>
 
-      <div
-        className="flex flex-col gap-3 animate-in fade-in slide-in-from-bottom-2 zoom-in-95 ease-out"
-        style={{ animationDuration: "500ms" }}
-      >
+      <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
           <SectionLabel as="h2">Recent Activity</SectionLabel>
           {activity.length > 5 && (

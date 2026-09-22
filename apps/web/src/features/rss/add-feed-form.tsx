@@ -90,7 +90,7 @@ export function AddFeedForm(props: { onCancel: () => void; onSuccess: () => void
                   id="rss-url"
                   value={field.state.value}
                   onChange={(event) => field.handleChange(event.currentTarget.value)}
-                  placeholder="https://nyaa.si/?page=rss&..."
+                  placeholder="https://nyaa.si/?page=rss&…"
                 />
                 <FieldError error={field.state.meta.errors[0]?.message} />
               </div>
@@ -118,7 +118,7 @@ export function AddFeedForm(props: { onCancel: () => void; onSuccess: () => void
             <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
               {(state) => (
                 <Button type="submit" isDisabled={!state[0] || addFeed.isPending}>
-                  {state[1] || addFeed.isPending ? "Adding..." : "Add Feed"}
+                  {state[1] || addFeed.isPending ? "Adding…" : "Add Feed"}
                 </Button>
               )}
             </form.Subscribe>

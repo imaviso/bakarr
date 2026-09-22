@@ -11,11 +11,7 @@ import {
   decodeUnmappedFolderMatchRow,
   SystemUnmappedRepository,
 } from "@/features/system/repository/unmapped-repository.ts";
-import {
-  DomainInputError,
-  InfrastructureError,
-  StoredDataError,
-} from "@/features/errors.ts";
+import { DomainInputError, InfrastructureError, StoredDataError } from "@/features/errors.ts";
 import { OperationsConflictError, OperationsNotFoundError } from "@/features/operations/errors.ts";
 import { SystemLogRepository } from "@/features/system/repository/log-repository.ts";
 import {

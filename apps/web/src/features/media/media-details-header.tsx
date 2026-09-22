@@ -131,6 +131,8 @@ export function MediaDetailsHeader(props: MediaDetailsHeaderProps) {
         <div className="w-full h-48 md:h-64 overflow-hidden rounded-none relative border-b border-border">
           <img
             src={props.media.banner_image}
+            width={800}
+            height={256}
             alt={`${props.media.title.english || props.media.title.romaji} banner`}
             loading="lazy"
             className="w-full h-full object-cover"
@@ -150,7 +152,7 @@ export function MediaDetailsHeader(props: MediaDetailsHeaderProps) {
             <RiArrowLeftLine className="h-4 w-4" />
           </Link>
           <div className="flex-1 min-w-0">
-            <h1 className="text-xl font-medium tracking-tight overflow-hidden flex items-center gap-3 min-w-0">
+            <h1 className="text-xl font-medium tracking-tight overflow-hidden flex items-center gap-3 min-w-0 text-balance">
               <span
                 className="truncate min-w-0 flex-1"
                 title={props.media.title.english || props.media.title.romaji}

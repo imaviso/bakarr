@@ -113,7 +113,7 @@ function SettingsPage() {
               >
                 {activeTab === "general" ? (
                   <div className="flex flex-col gap-0.5">
-                    <h2 className="font-mono text-sm font-medium tracking-tight">
+                    <h2 className="font-mono text-sm font-medium tracking-tight text-balance">
                       General Settings
                     </h2>
                     <p className="text-xs text-muted-foreground">
@@ -122,7 +122,9 @@ function SettingsPage() {
                   </div>
                 ) : (
                   <div className="flex flex-col gap-0.5">
-                    <h2 className="font-mono text-sm font-medium tracking-tight">Automation</h2>
+                    <h2 className="font-mono text-sm font-medium tracking-tight text-balance">
+                      Automation
+                    </h2>
                     <p className="text-xs text-muted-foreground">
                       Search, qBittorrent, scheduling, and app-wide release defaults
                     </p>
@@ -146,7 +148,9 @@ function SettingsPage() {
                 className="space-y-6"
               >
                 <div className="flex flex-col gap-0.5">
-                  <h2 className="font-mono text-sm font-medium tracking-tight">Observability</h2>
+                  <h2 className="font-mono text-sm font-medium tracking-tight text-balance">
+                    Observability
+                  </h2>
                   <p className="text-xs text-muted-foreground">
                     Export status, scrape settings, and external observability links
                   </p>
@@ -173,7 +177,9 @@ function SettingsPage() {
                 className="space-y-6"
               >
                 <div className="flex flex-col gap-0.5">
-                  <h2 className="font-mono text-sm font-medium tracking-tight">Account</h2>
+                  <h2 className="font-mono text-sm font-medium tracking-tight text-balance">
+                    Account
+                  </h2>
                   <p className="text-xs text-muted-foreground">
                     Manage your password, API access, and notification preferences
                   </p>

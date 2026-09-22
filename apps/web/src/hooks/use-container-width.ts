@@ -29,6 +29,15 @@ export function useContainerWidth() {
         setWidth(Math.round(node.getBoundingClientRect().width));
       }
     });
+    return () => {
+      ro.disconnect();
+      if (roRef.current === ro) roRef.current = null;
+      if (nodeRef.current === node) nodeRef.current = null;
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = 0;
+      }
+    };
   }, []);
 
   return [ref, width, nodeRef] as const;

@@ -8,7 +8,7 @@ export function EmptyScanState(props: { hasOutstandingMatches: boolean; isScanni
       </div>
       <p className="mt-5 text-base font-medium text-foreground">
         {props.isScanning || props.hasOutstandingMatches
-          ? "Scanning for folders..."
+          ? "Scanning for folders…"
           : "No unmapped folders found"}
       </p>
       <p className="mt-2 max-w-md text-sm leading-6 text-muted-foreground">

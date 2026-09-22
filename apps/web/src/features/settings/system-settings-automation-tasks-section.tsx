@@ -29,7 +29,7 @@ export function SystemSettingsAutomationTasksSection(
           onPress={props.onTriggerScan}
           isDisabled={props.triggerScanPending}
         >
-          {props.triggerScanPending ? "Running..." : "Run Now"}
+          {props.triggerScanPending ? "Running…" : "Run Now"}
         </Button>
       </SettingRow>
 
@@ -44,7 +44,7 @@ export function SystemSettingsAutomationTasksSection(
           onPress={props.onTriggerRss}
           isDisabled={props.triggerRssPending}
         >
-          {props.triggerRssPending ? "Running..." : "Run Now"}
+          {props.triggerRssPending ? "Running…" : "Run Now"}
         </Button>
       </SettingRow>
 
@@ -56,7 +56,7 @@ export function SystemSettingsAutomationTasksSection(
           onPress={props.onTriggerMetadataRefresh}
           isDisabled={props.triggerMetadataRefreshPending}
         >
-          {props.triggerMetadataRefreshPending ? "Running..." : "Run Now"}
+          {props.triggerMetadataRefreshPending ? "Running…" : "Run Now"}
         </Button>
       </SettingRow>
     </SettingSection>

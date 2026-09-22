@@ -22,6 +22,8 @@ export function AnimeDetailsSidebar(props: AnimeDetailsSidebarProps) {
             <img
               src={props.media.cover_image}
               alt={props.media.title.english || props.media.title.romaji}
+              width={240}
+              height={360}
               loading="lazy"
               className="h-full w-full object-cover"
             />

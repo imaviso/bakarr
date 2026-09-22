@@ -134,7 +134,7 @@ export function QualityProfilesTab() {
         <>
           <div className="flex justify-between items-center mb-6">
             <div>
-              <h2 className="text-lg font-medium">Quality Profiles</h2>
+              <h2 className="text-lg font-medium text-balance">Quality Profiles</h2>
               <p className="text-sm text-muted-foreground">
                 Configure quality profiles for automatic downloads
               </p>

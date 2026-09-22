@@ -37,6 +37,9 @@ export function MediaDiscoveryRow(props: MediaDiscoveryRowProps) {
         <img
           src={props.entry.cover_image}
           alt={animeDisplayTitle(props.entry)}
+          loading="lazy"
+          width={32}
+          height={48}
           className={cn(
             "shrink-0 border border-border object-cover",
             props.compact ? "h-10 w-7" : "h-12 w-8",

@@ -18,6 +18,9 @@ export function DownloadEventCard(props: DownloadEventCardProps) {
             <img
               src={props.event.media_image}
               alt={props.event.media_title ?? props.event.torrent_name ?? props.event.message}
+              width={24}
+              height={32}
+              loading="lazy"
               className="h-8 w-6 object-cover border border-border shrink-0"
             />
           )}

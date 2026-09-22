@@ -147,7 +147,9 @@ function LoginPage() {
             >
               ▎
             </div>
-            <h1 className="text-2xl font-medium tracking-tight text-foreground">Bakarr</h1>
+            <h1 className="text-2xl font-medium tracking-tight text-foreground text-balance">
+              Bakarr
+            </h1>
             <CardDescription className="text-sm text-muted-foreground mt-1">
               Sign in to your account
             </CardDescription>
@@ -166,6 +168,7 @@ function LoginPage() {
                       onBlur={field.handleBlur}
                       placeholder="admin"
                       autoComplete="username"
+                      spellCheck={false}
                       aria-describedby={
                         field.state.meta.errors.length > 0 ? usernameErrorId : undefined
                       }
@@ -219,7 +222,7 @@ function LoginPage() {
                       !state.canSubmit || loginMutation.isPending || apiKeyLoginMutation.isPending
                     }
                   >
-                    {state.isSubmitting || loginMutation.isPending ? "Signing in..." : "Sign in"}
+                    {state.isSubmitting || loginMutation.isPending ? "Signing in…" : "Sign in"}
                   </Button>
                 )}
               </form.Subscribe>
@@ -245,6 +248,7 @@ function LoginPage() {
                       onBlur={field.handleBlur}
                       placeholder="Paste API key"
                       autoComplete="off"
+                      spellCheck={false}
                       aria-describedby={
                         field.state.meta.errors.length > 0 ? apiKeyErrorId : undefined
                       }
@@ -274,7 +278,7 @@ function LoginPage() {
                     }
                   >
                     {state.isSubmitting || apiKeyLoginMutation.isPending
-                      ? "Signing in..."
+                      ? "Signing in…"
                       : "Sign in with API key"}
                   </Button>
                 )}

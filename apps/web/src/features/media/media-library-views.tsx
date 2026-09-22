@@ -155,6 +155,8 @@ export function AnimeListView(props: AnimeLibraryViewProps) {
                       <img
                         src={media.cover_image}
                         alt={media.title.english || media.title.romaji}
+                        width={48}
+                        height={64}
                         loading="lazy"
                         className="w-full h-full object-cover"
                       />

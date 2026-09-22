@@ -165,7 +165,7 @@ function AnimeIndexPage() {
         <div className="relative flex-1">
           <RiSearchLine className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Filter media..."
+            placeholder="Filter media…"
             aria-label="Filter media"
             value={query}
             onInput={(event) => handleSearchInput(event.currentTarget.value)}

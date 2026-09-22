@@ -31,7 +31,7 @@ export function TimezonePicker(props: TimezonePickerProps) {
       </Button>
       <Popover className="w-80 p-0">
         <Command>
-          <CommandInput placeholder="Search timezone..." />
+          <CommandInput placeholder="Search timezone…" />
           <CommandList>
             <CommandEmpty>No timezone found.</CommandEmpty>
             <CommandGroup heading="Airing timezone">

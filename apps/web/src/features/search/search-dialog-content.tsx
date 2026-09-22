@@ -89,8 +89,8 @@ export function SearchDialogContent(props: SearchDialogContentProps) {
           <Input
             value={props.query}
             onChange={(event) => props.setQuery(event.currentTarget.value)}
-            placeholder="Search for releases..."
-            className="bg-transparent border-none shadow-none focus-visible:ring-0 text-lg px-0 h-9 placeholder:text-muted-foreground"
+            placeholder="Search for releases…"
+            className="bg-transparent border-none shadow-none focus-visible:ring-1 text-lg px-0 h-9 placeholder:text-muted-foreground"
           />
         </div>
 
@@ -99,7 +99,7 @@ export function SearchDialogContent(props: SearchDialogContentProps) {
             selectedKey={props.category}
             onSelectionChange={(value) => props.setCategory(String(value))}
           >
-            <SelectTrigger className="h-7 w-auto min-w-32.5 text-xs bg-muted border-transparent hover:bg-muted focus:ring-0 gap-2 rounded-none shadow-none px-2.5">
+            <SelectTrigger className="h-7 w-auto min-w-32.5 text-xs bg-muted border-transparent hover:bg-muted focus-visible:ring-1 gap-2 rounded-none shadow-none px-2.5">
               <span className="text-muted-foreground">Category:</span>
               <SelectValue />
             </SelectTrigger>
@@ -118,7 +118,7 @@ export function SearchDialogContent(props: SearchDialogContentProps) {
             selectedKey={props.filter}
             onSelectionChange={(value) => props.setFilter(String(value))}
           >
-            <SelectTrigger className="h-7 w-auto min-w-30 text-xs bg-muted border-transparent hover:bg-muted focus:ring-0 gap-2 rounded-none shadow-none px-2.5">
+            <SelectTrigger className="h-7 w-auto min-w-30 text-xs bg-muted border-transparent hover:bg-muted focus-visible:ring-1 gap-2 rounded-none shadow-none px-2.5">
               <RiFilterLine className="h-3 w-3 text-muted-foreground" />
               <SelectValue />
             </SelectTrigger>

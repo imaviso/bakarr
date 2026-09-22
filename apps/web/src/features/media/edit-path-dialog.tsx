@@ -101,7 +101,7 @@ export function EditPathDialog(props: EditPathDialogProps) {
           <form.Subscribe selector={(state) => [state.canSubmit]}>
             {([canSubmit]) => (
               <Button type="submit" isDisabled={!canSubmit || props.isPending}>
-                {props.isPending ? "Updating..." : "Save"}
+                {props.isPending ? "Updating…" : "Save"}
               </Button>
             )}
           </form.Subscribe>

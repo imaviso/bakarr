@@ -42,7 +42,7 @@ interface DownloadEventsFiltersProps {
 export function DownloadEventsFilters(props: DownloadEventsFiltersProps) {
   return (
     <>
-      <div className="grid gap-3 md:grid-cols-[1fr_1fr_240px_auto]">
+      <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
         <div className="space-y-1">
           <Label htmlFor="download-events-anime-id">Media ID</Label>
           <DebouncedInput
@@ -107,7 +107,7 @@ export function DownloadEventsFilters(props: DownloadEventsFiltersProps) {
         </div>
       </div>
 
-      <div className="grid gap-3 md:grid-cols-[220px_220px_220px_auto]">
+      <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
         <div className="space-y-1">
           <Label htmlFor="download-events-status">Status</Label>
           <DebouncedInput

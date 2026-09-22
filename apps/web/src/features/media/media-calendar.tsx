@@ -94,7 +94,7 @@ export function AnimeCalendar(props: AnimeCalendarProps) {
           <Button variant="ghost" size="icon" onPress={handlePrevMonth} aria-label="Previous month">
             <RiArrowLeftSLine className="h-4 w-4" />
           </Button>
-          <h2 className="w-40 text-center font-mono text-base font-medium tracking-tight">
+          <h2 className="w-40 text-center font-mono text-base font-medium tracking-tight text-balance">
             {format(currentDate, "MMMM yyyy")}
           </h2>
           <Button variant="ghost" size="icon" onPress={handleNextMonth} aria-label="Next month">

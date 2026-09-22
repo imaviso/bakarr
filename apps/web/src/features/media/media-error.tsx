@@ -20,7 +20,7 @@ export function AnimeError() {
 
         {/* Typography */}
         <div className="space-y-2">
-          <h1 className="text-4xl font-thin tracking-tight text-foreground select-none">
+          <h1 className="text-4xl font-thin tracking-tight text-foreground select-none text-balance">
             Media Not Found
           </h1>
           <p className="text-sm text-muted-foreground max-w-100 mx-auto leading-relaxed">

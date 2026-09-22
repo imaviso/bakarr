@@ -130,7 +130,7 @@ export function ReleaseProfilesTab() {
         <>
           <div className="flex justify-between items-center mb-6">
             <div>
-              <h2 className="text-lg font-medium">Release Profiles</h2>
+              <h2 className="text-lg font-medium text-balance">Release Profiles</h2>
               <p className="text-sm text-muted-foreground">
                 Global scoring and filtering rules for releases (Groups, Tags)
               </p>

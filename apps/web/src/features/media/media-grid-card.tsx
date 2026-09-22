@@ -40,6 +40,8 @@ export function MediaGridCard(props: MediaGridCardProps) {
             <img
               src={media.cover_image}
               alt={media.title.english || media.title.romaji}
+              width={200}
+              height={300}
               loading="lazy"
               className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
             />

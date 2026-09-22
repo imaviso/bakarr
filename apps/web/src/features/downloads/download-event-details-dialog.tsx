@@ -1,6 +1,11 @@
 import type { DownloadEvent } from "@/api/contracts";
 import { SectionLabel } from "@/components/shared/section-label";
-import { Dialog, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import {
+  ContentDialog,
+  ContentDialogBody,
+  ContentDialogHeader,
+} from "@/components/shared/content-dialog";
 import { Badge } from "@/components/ui/badge";
 import { getDownloadEventMetadataSummary } from "@/domain/download/event-metadata";
 
@@ -14,12 +19,12 @@ export function DownloadEventDetailsDialog(props: DownloadEventDetailsDialogProp
   const summary = props.event ? getDownloadEventMetadataSummary(props.event) : undefined;
 
   return (
-    <Dialog
+    <ContentDialog
+      size="md"
       isOpen={props.event !== null}
       onOpenChange={(open) => !open && props.onOpenChange(false)}
-      className="sm:max-w-2xl"
     >
-      <DialogHeader>
+      <ContentDialogHeader>
         <DialogTitle>
           {props.event?.media_title ??
             props.event?.torrent_name ??
@@ -29,9 +34,9 @@ export function DownloadEventDetailsDialog(props: DownloadEventDetailsDialogProp
         <DialogDescription>
           {props.event ? props.formatTimestamp(props.event.created_at) : ""}
         </DialogDescription>
-      </DialogHeader>
+      </ContentDialogHeader>
 
-      <div className="space-y-4 text-sm">
+      <ContentDialogBody className="p-4 space-y-4 text-sm">
         <div className="space-y-1">
           <SectionLabel as="div">Message</SectionLabel>
           <div className="rounded-none border border-border bg-muted p-3">
@@ -96,7 +101,7 @@ export function DownloadEventDetailsDialog(props: DownloadEventDetailsDialogProp
             </pre>
           </div>
         ) : null}
-      </div>
-    </Dialog>
+      </ContentDialogBody>
+    </ContentDialog>
   );
 }

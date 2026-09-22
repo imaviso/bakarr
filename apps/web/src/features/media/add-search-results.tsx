@@ -83,7 +83,9 @@ export function SearchResults(props: SearchResultsProps) {
       {!props.canSearch && (
         <div className="flex flex-1 flex-col items-center justify-center overflow-y-auto py-20 text-muted-foreground border-2 border-dashed rounded-none bg-muted">
           <RiSearchLine className="h-12 w-12 mb-4 opacity-50" />
-          <h2 className="font-medium text-lg">Search for your next {props.mediaLabel}</h2>
+          <h2 className="font-medium text-lg text-balance">
+            Search for your next {props.mediaLabel}
+          </h2>
           <p className="text-sm mt-1">Type at least 3 characters in the search bar above</p>
         </div>
       )}

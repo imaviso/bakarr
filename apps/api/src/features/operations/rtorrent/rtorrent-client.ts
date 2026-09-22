@@ -283,9 +283,7 @@ export const makeRtorrentClient = (
       // found" in that case and the deletion goal is already achieved.
       yield* call("rtorrent.deleteTorrent", "d.erase", [str(hash)]).pipe(
         Effect.catch((error) =>
-          error.message.includes("info-hash not found")
-            ? Effect.void
-            : Effect.fail(error),
+          error.message.includes("info-hash not found") ? Effect.void : Effect.fail(error),
         ),
       );
       if (deleteFiles) {

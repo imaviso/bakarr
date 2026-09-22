@@ -116,7 +116,7 @@ function WantedPage() {
           isDisabled={searchMissing.isPending || isSearchMissingRunning || data.length === 0}
         >
           <RiSearchLine className="mr-2 h-4 w-4" />
-          {searchMissing.isPending || isSearchMissingRunning ? "Searching..." : "Search All"}
+          {searchMissing.isPending || isSearchMissingRunning ? "Searching…" : "Search All"}
         </Button>
       </PageHeader>
 
@@ -237,6 +237,8 @@ function WantedRow(props: {
             <img
               src={props.item.media_image}
               alt={props.item.media_title}
+              width={28}
+              height={40}
               loading="lazy"
               className="h-full w-full object-cover"
             />

@@ -41,25 +41,31 @@ export function useDownloadEventsSearchState(options: UseDownloadEventsSearchSta
     status: read(options.keys.status),
   };
 
-  const queryInput = buildDownloadEventsFilterInput({
-    mediaId: read(options.keys.mediaId),
-    cursor: read(options.keys.cursor),
-    direction: read(options.keys.direction) === "prev" ? "prev" : "next",
-    downloadId: read(options.keys.downloadId),
-    endDate: read(options.keys.endDate),
-    eventType: read(options.keys.eventType),
-    startDate: read(options.keys.startDate),
-    status: read(options.keys.status),
-  }, { limit: 24 });
+  const queryInput = buildDownloadEventsFilterInput(
+    {
+      mediaId: read(options.keys.mediaId),
+      cursor: read(options.keys.cursor),
+      direction: read(options.keys.direction) === "prev" ? "prev" : "next",
+      downloadId: read(options.keys.downloadId),
+      endDate: read(options.keys.endDate),
+      eventType: read(options.keys.eventType),
+      startDate: read(options.keys.startDate),
+      status: read(options.keys.status),
+    },
+    { limit: 24 },
+  );
 
-  const exportInput = buildDownloadEventsExportInput({
-    mediaId: read(options.keys.mediaId),
-    downloadId: read(options.keys.downloadId),
-    endDate: read(options.keys.endDate),
-    eventType: read(options.keys.eventType),
-    startDate: read(options.keys.startDate),
-    status: read(options.keys.status),
-  }, { limit: 10_000 });
+  const exportInput = buildDownloadEventsExportInput(
+    {
+      mediaId: read(options.keys.mediaId),
+      downloadId: read(options.keys.downloadId),
+      endDate: read(options.keys.endDate),
+      eventType: read(options.keys.eventType),
+      startDate: read(options.keys.startDate),
+      status: read(options.keys.status),
+    },
+    { limit: 10_000 },
+  );
 
   const activePreset = getDateRangePresetHours(
     read(options.keys.startDate),

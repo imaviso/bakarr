@@ -15,7 +15,7 @@ const FOLDER_STATUS_CONFIG: Record<
   matching: {
     label: () => "Matching",
     hint: () => "Searching AniList in the background now.",
-    empty: () => "Matching in background...",
+    empty: () => "Matching in background…",
   },
   paused: {
     label: () => "Paused",

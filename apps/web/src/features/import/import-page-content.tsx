@@ -22,7 +22,12 @@ import { CandidateCard, FileRow, ManualSearch } from "@/features/import";
 import { importSteps, type ImportPageState } from "@/features/import/import-page-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import {
+  ContentDialog,
+  ContentDialogBody,
+  ContentDialogHeader,
+} from "@/components/shared/content-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -77,7 +82,9 @@ function ImportTopBar(props: { state: ImportPageState }) {
             </IconButton>
           </Link>
           <div>
-            <h1 className="text-xl font-medium tracking-tight text-foreground">Import Files</h1>
+            <h1 className="text-xl font-medium tracking-tight text-foreground text-balance">
+              Import Files
+            </h1>
             {props.state.flow.step === "review" && props.state.flow.path && (
               <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
                 <RiFolderOpenLine className="h-3 w-3" />
@@ -144,7 +151,7 @@ function ImportScanStep(props: { state: ImportPageState }) {
   return (
     <div className="h-full flex flex-col overflow-hidden">
       <div className="px-8 py-6 border-b">
-        <h2 className="text-lg font-medium">Select a folder</h2>
+        <h2 className="text-lg font-medium text-balance">Select a folder</h2>
         <p className="text-sm text-muted-foreground mt-1">
           Choose a folder containing video files to import. Files will be renamed and organized
           according to your naming format.
@@ -305,7 +312,7 @@ function ImportReviewStep(props: { state: ImportPageState }) {
       <div className="px-8 py-6 border-b">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-medium">Review files</h2>
+            <h2 className="text-lg font-medium text-balance">Review files</h2>
             <p className="text-sm text-muted-foreground mt-1">
               Found {props.state.flow.scannedFiles.length} file(s)
               {props.state.flow.skippedFiles.length > 0 && (
@@ -333,10 +340,10 @@ function ImportReviewStep(props: { state: ImportPageState }) {
               <RiNodeTree className="h-4 w-4 text-primary" />
               Suggested Series
             </h3>
-            <Dialog
+            <ContentDialog
+              size="md"
               isOpen={props.state.flow.isSearchOpen}
               onOpenChange={props.state.flow.setIsSearchOpen}
-              className="sm:max-w-125"
             >
               <Button
                 variant="outline"
@@ -347,19 +354,19 @@ function ImportReviewStep(props: { state: ImportPageState }) {
                 <RiAddLine className="h-3.5 w-3.5" />
                 Add Series
               </Button>
-              <DialogHeader>
+              <ContentDialogHeader>
                 <DialogTitle>Search Media</DialogTitle>
                 <DialogDescription>
                   Search for the series to match your files against.
                 </DialogDescription>
-              </DialogHeader>
-              <div className="py-4">
+              </ContentDialogHeader>
+              <ContentDialogBody className="p-4">
                 <ManualSearch
                   onSelect={props.state.flow.handleManualAdd}
                   existingIds={props.state.candidateIds}
                 />
-              </div>
-            </Dialog>
+              </ContentDialogBody>
+            </ContentDialog>
           </div>
 
           {props.state.flow.candidates.length > 0 ? (

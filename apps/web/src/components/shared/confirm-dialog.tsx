@@ -48,7 +48,7 @@ export function ConfirmDialog(props: ConfirmDialogProps) {
           {...(props.isPending === undefined ? {} : { isDisabled: props.isPending })}
           onPress={props.onConfirm}
         >
-          {props.isPending ? "Working..." : (props.confirmLabel ?? "Confirm")}
+          {props.isPending ? "Working…" : (props.confirmLabel ?? "Confirm")}
         </AlertDialogAction>
       </AlertDialogFooter>
     </AlertDialog>

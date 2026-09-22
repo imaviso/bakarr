@@ -182,7 +182,7 @@ function EditProfileDialogContent(props: EditProfileDialogProps) {
             }
           >
             {form.state.isSubmitting || props.isUpdatingProfile || props.isUpdatingReleaseProfiles
-              ? "Saving..."
+              ? "Saving…"
               : "Save Changes"}
           </Button>
         </DialogFooter>

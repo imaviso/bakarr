@@ -120,7 +120,7 @@ export function SearchModalContent(props: SearchModalContentProps) {
         ) : (
           <div className="h-full flex flex-col items-center justify-center gap-4 py-8">
             <Spinner className="size-8 text-muted-foreground" />
-            <p className="text-muted-foreground">Searching releases...</p>
+            <p className="text-muted-foreground">Searching releases…</p>
           </div>
         )}
       </ContentDialogBody>

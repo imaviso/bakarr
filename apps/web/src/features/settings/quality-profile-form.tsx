@@ -251,7 +251,7 @@ export function ProfileForm(props: {
                   type="submit"
                   isDisabled={!canSubmit || createProfile.isPending || updateProfile.isPending}
                 >
-                  {isSubmitting ? "Saving..." : isEditing ? "Update" : "Create"}
+                  {isSubmitting ? "Saving…" : isEditing ? "Update" : "Create"}
                 </Button>
               )}
             </form.Subscribe>

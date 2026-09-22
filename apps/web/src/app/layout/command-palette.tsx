@@ -68,7 +68,7 @@ function SearchResults(props: {
 
   return (
     <CommandList>
-      {props.animeList.isLoading && <CommandEmpty>Loading library...</CommandEmpty>}
+      {props.animeList.isLoading && <CommandEmpty>Loading library…</CommandEmpty>}
 
       {!props.animeList.isLoading &&
         filteredLibrary.length === 0 &&
@@ -108,6 +108,8 @@ function SearchResults(props: {
                     src={media.cover_image}
                     alt={media.title.romaji}
                     loading="lazy"
+                    width={24}
+                    height={32}
                     className="h-8 w-6 shrink-0 bg-muted object-cover"
                   />
                 ) : (
@@ -176,7 +178,7 @@ export function CommandPalette() {
         )}
       >
         <RiSearchLine className="h-4 w-4 shrink-0" />
-        <span className="truncate group-data-[collapsible=icon]:hidden">Search...</span>
+        <span className="truncate group-data-[collapsible=icon]:hidden">Search…</span>
         <Kbd className="ml-auto group-data-[collapsible=icon]:hidden">
           <RiCommandLine className="h-2.5 w-2.5" />K
         </Kbd>
@@ -185,7 +187,7 @@ export function CommandPalette() {
       <CommandDialog open={open} onOpenChange={setOpen}>
         <Command filter={() => true}>
           <CommandInput
-            placeholder="Search library or navigate..."
+            placeholder="Search library or navigate…"
             value={inputValue}
             onChange={(event) => setInputValue(event.currentTarget.value)}
           />

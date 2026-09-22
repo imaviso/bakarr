@@ -183,7 +183,7 @@ export function BulkMappingDialog(props: BulkMappingDialogProps) {
           onPress={handleSubmit}
           isDisabled={Object.keys(mappings).length === 0 || bulkMapMutation.isPending}
         >
-          {bulkMapMutation.isPending ? "Mapping..." : "Save Mappings"}
+          {bulkMapMutation.isPending ? "Mapping…" : "Save Mappings"}
         </Button>
       </ContentDialogFooter>
     </ContentDialog>
@@ -254,7 +254,7 @@ export function ManualMappingDialog(props: ManualMappingDialogProps) {
                 <TableRow
                   key="__unmap__"
                   className={cn(
-                    "cursor-pointer hover:bg-muted focus:bg-muted focus:outline-none",
+                    "cursor-pointer hover:bg-muted focus-visible:bg-muted focus-visible:ring-1 focus-visible:ring-ring/50 focus-visible:outline-none",
                     selectedFile === "" && "bg-muted",
                   )}
                   onClick={() => setSelectedFile("")}
@@ -283,7 +283,7 @@ export function ManualMappingDialog(props: ManualMappingDialogProps) {
                   <TableRow
                     key={file.path}
                     className={cn(
-                      "cursor-pointer hover:bg-muted focus:bg-muted focus:outline-none",
+                      "cursor-pointer hover:bg-muted focus-visible:bg-muted focus-visible:ring-1 focus-visible:ring-ring/50 focus-visible:outline-none",
                       selectedFile === file.path && "bg-muted",
                     )}
                     onClick={() => setSelectedFile(file.path)}
@@ -331,11 +331,7 @@ export function ManualMappingDialog(props: ManualMappingDialogProps) {
           Cancel
         </Button>
         <Button onPress={handleSubmit} isDisabled={selectedFile === null || mapMutation.isPending}>
-          {mapMutation.isPending
-            ? "Mapping..."
-            : selectedFile === ""
-              ? "Clear Mapping"
-              : "Map File"}
+          {mapMutation.isPending ? "Mapping…" : selectedFile === "" ? "Clear Mapping" : "Map File"}
         </Button>
       </ContentDialogFooter>
     </ContentDialog>

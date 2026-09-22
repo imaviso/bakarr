@@ -18,9 +18,7 @@ export function buildFolderMatchEnrollmentInput(input: {
   const policy: AddMediaInput = {
     id: brandMediaId(input.candidateId),
     ...(input.candidateIdSpace === undefined ? {} : { id_space: input.candidateIdSpace }),
-    ...(input.candidateMediaKind === undefined
-      ? {}
-      : { media_kind: input.candidateMediaKind }),
+    ...(input.candidateMediaKind === undefined ? {} : { media_kind: input.candidateMediaKind }),
     monitor_and_search: ADD_FOLDER_MATCH_POLICY.monitor_and_search,
     monitored: ADD_FOLDER_MATCH_POLICY.monitored,
     profile_name: input.profileName,

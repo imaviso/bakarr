@@ -133,7 +133,7 @@ function AddAnimePage() {
             ref={searchInputRef}
             value={query}
             onChange={(event) => updateSearch({ q: event.currentTarget.value })}
-            placeholder="Search by title..."
+            placeholder="Search by title…"
             aria-label={`Search for ${mediaLabel} by title`}
             className="pl-9 h-9"
           />

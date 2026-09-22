@@ -1,5 +1,10 @@
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
-import { Dialog, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import {
+  ContentDialog,
+  ContentDialogBody,
+  ContentDialogHeader,
+} from "@/components/shared/content-dialog";
 import { ManualMatchSearch } from "@/features/scan/manual-match-search";
 import type { MediaSearchResult, UnmappedFolder } from "@/api/contracts";
 
@@ -37,28 +42,30 @@ export function ScanDialogs(props: ScanDialogsProps) {
         onConfirm={props.onConfirmBulkAction}
       />
 
-      <Dialog
+      <ContentDialog
+        size="sm"
         isOpen={props.manualMatchDialog !== null}
         onOpenChange={(open) => {
           if (!open) {
             props.onCloseManualMatch();
           }
         }}
-        className="sm:max-w-md"
       >
-        <DialogHeader>
+        <ContentDialogHeader>
           <DialogTitle>Match folder to anime</DialogTitle>
           <DialogDescription>
             Search for the anime to associate with{" "}
             <span className="font-mono text-xs">{props.manualMatchDialog?.folder.name ?? ""}</span>
           </DialogDescription>
-        </DialogHeader>
-        <ManualMatchSearch
-          key={props.manualMatchDialog?.folder.path ?? "closed"}
-          initialMediaKind={props.manualMatchDialog?.folder.media_kind}
-          onSelect={props.onManualMatchSelect}
-        />
-      </Dialog>
+        </ContentDialogHeader>
+        <ContentDialogBody className="p-4">
+          <ManualMatchSearch
+            key={props.manualMatchDialog?.folder.path ?? "closed"}
+            initialMediaKind={props.manualMatchDialog?.folder.media_kind}
+            onSelect={props.onManualMatchSelect}
+          />
+        </ContentDialogBody>
+      </ContentDialog>
     </>
   );
 }

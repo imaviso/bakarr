@@ -115,7 +115,7 @@ function SystemForm(props: {
               isDisabled={!canSubmit || Boolean(props.isSaving)}
               className="w-full sm:w-auto"
             >
-              {props.isSaving ? "Saving..." : "Save Changes"}
+              {props.isSaving ? "Saving…" : "Save Changes"}
             </Button>
           )}
         </form.Subscribe>

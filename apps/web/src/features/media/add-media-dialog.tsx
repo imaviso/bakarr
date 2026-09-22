@@ -94,6 +94,9 @@ export function AddAnimeDialog(props: AddAnimeDialogProps) {
             <img
               src={props.media.cover_image ?? undefined}
               alt={props.media.title.romaji ?? undefined}
+              width={48}
+              height={64}
+              loading="lazy"
               className="w-12 h-16 object-cover rounded-none"
             />
           ) : (

@@ -6,7 +6,7 @@ interface FieldErrorProps {
 export function FieldError(props: FieldErrorProps) {
   if (!props.error) return null;
   return (
-    <div id={props.id} className="text-xs text-destructive">
+    <div id={props.id} role="alert" aria-live="polite" className="text-xs text-destructive">
       {props.error}
     </div>
   );

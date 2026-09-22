@@ -21,7 +21,10 @@ export type OperationTaskStatus = (typeof OPERATION_TASK_STATUS_VALUES)[number];
 export const OperationTaskStatusSchema = Schema.Literals([...OPERATION_TASK_STATUS_VALUES]);
 
 /** Server task lifecycle: these statuses mean the task still owns work. */
-export const OPERATION_TASK_ACTIVE_STATUSES = ["queued", "running"] as const satisfies readonly OperationTaskStatus[];
+export const OPERATION_TASK_ACTIVE_STATUSES = [
+  "queued",
+  "running",
+] as const satisfies readonly OperationTaskStatus[];
 
 export function isOperationTaskStatusActive(status: OperationTaskStatus) {
   return (OPERATION_TASK_ACTIVE_STATUSES as readonly string[]).includes(status);

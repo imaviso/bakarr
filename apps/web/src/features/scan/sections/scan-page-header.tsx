@@ -41,7 +41,7 @@ export function ScanPageHeader(props: ScanPageHeaderProps) {
               Library Scan
             </SectionLabel>
             <div>
-              <h1 className="text-2xl font-medium tracking-tight text-foreground md:text-3xl">
+              <h1 className="text-2xl font-medium tracking-tight text-foreground md:text-3xl text-balance">
                 Import folders
               </h1>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground md:text-base">
@@ -75,7 +75,7 @@ export function ScanPageHeader(props: ScanPageHeaderProps) {
               onPress={props.onRescan}
             >
               <RiRefreshLine className={cn("mr-2 h-4 w-4", props.isRescanning && "animate-spin")} />
-              {props.isRescanning ? "Scanning..." : "Rescan"}
+              {props.isRescanning ? "Scanning…" : "Rescan"}
             </Button>
             <Button
               variant="outline"

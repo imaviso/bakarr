@@ -135,6 +135,8 @@ export function ManualSearchCore(props: ManualSearchCoreProps) {
                         <img
                           src={media.cover_image}
                           alt={animeDisplayTitle(media)}
+                          width={40}
+                          height={40}
                           loading="lazy"
                           className="h-full w-full object-cover"
                         />

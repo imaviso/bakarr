@@ -143,7 +143,7 @@ export function FileBrowser(props: FileBrowserProps) {
             value={manualPath}
             onChange={(event) => setManualPath(event.currentTarget.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Enter path..."
+            placeholder="Enter path…"
             className="h-8 text-sm font-mono"
           />
         </div>

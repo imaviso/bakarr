@@ -111,7 +111,7 @@ export function LogsView(props: LogsViewProps) {
 
         <Card>
           <div className="p-4 border-b border-border">
-            <h2 className="text-sm font-medium text-foreground">Ops Summary</h2>
+            <h2 className="text-sm font-medium text-foreground text-balance">Ops Summary</h2>
             <p className="text-xs text-muted-foreground mt-1">
               High-level download and worker health
             </p>
@@ -157,7 +157,7 @@ export function LogsView(props: LogsViewProps) {
 
         <Card>
           <div className="p-4 border-b border-border">
-            <h2 className="text-sm font-medium text-foreground">Background Jobs</h2>
+            <h2 className="text-sm font-medium text-foreground text-balance">Background Jobs</h2>
             <p className="text-xs text-muted-foreground mt-1">
               Current scheduler and worker visibility
             </p>
@@ -186,7 +186,9 @@ export function LogsView(props: LogsViewProps) {
           <div className="p-4 border-b border-border">
             <div className="flex flex-col gap-3">
               <div>
-                <h2 className="text-sm font-medium text-foreground">Recent Download Events</h2>
+                <h2 className="text-sm font-medium text-foreground text-balance">
+                  Recent Download Events
+                </h2>
                 <p className="text-xs text-muted-foreground mt-1">
                   Latest queued, retried, reconciled, and imported download actions
                 </p>
@@ -234,7 +236,7 @@ export function LogsView(props: LogsViewProps) {
           )}
         </Card>
 
-        <Card className="border-primary/20 h-[clamp(20rem,45vh,34rem)] flex flex-col overflow-hidden">
+        <Card className="border-primary/20 min-h-80 max-h-136 h-120 flex flex-col overflow-hidden">
           <SystemLogsTable
             logs={props.state.allLogs}
             isLoading={props.state.logsQuery.isLoading}

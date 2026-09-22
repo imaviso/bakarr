@@ -71,7 +71,7 @@ export function RenameDialog(props: RenameDialogProps) {
             aria-label="Loading preview"
           >
             <Spinner className="size-8" />
-            <span className="sr-only">Loading...</span>
+            <span className="sr-only">Loading…</span>
           </div>
         ) : (
           <>

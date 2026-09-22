@@ -132,21 +132,21 @@ function buildUnmappedImportWorkflow(input: {
   };
 
   /** Resolve the library path a folder name belongs to (any media kind). */
-  const resolveFolderLibraryPath = Effect.fn(
-    "UnmappedImportService.resolveFolderLibraryPath",
-  )(function* (folderName: string) {
-    for (const mediaKind of MEDIA_KIND_VALUES) {
-      const libraryPath = yield* getLibraryPath(mediaKind);
-      const candidatePath = `${libraryPath.replace(/\/$/, "")}/${folderName}`;
-      const stats = yield* Effect.result(fs.stat(candidatePath));
-      if (stats._tag === "Success") {
-        return candidatePath;
+  const resolveFolderLibraryPath = Effect.fn("UnmappedImportService.resolveFolderLibraryPath")(
+    function* (folderName: string) {
+      for (const mediaKind of MEDIA_KIND_VALUES) {
+        const libraryPath = yield* getLibraryPath(mediaKind);
+        const candidatePath = `${libraryPath.replace(/\/$/, "")}/${folderName}`;
+        const stats = yield* Effect.result(fs.stat(candidatePath));
+        if (stats._tag === "Success") {
+          return candidatePath;
+        }
       }
-    }
-    return yield* new DomainInputError({
-      message: `Folder not found in any library root: ${folderName}`,
-    });
-  });
+      return yield* new DomainInputError({
+        message: `Folder not found in any library root: ${folderName}`,
+      });
+    },
+  );
 
   const importUnmappedFolder = Effect.fn("UnmappedImportService.importUnmappedFolder")(
     function* (input: {

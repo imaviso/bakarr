@@ -100,7 +100,7 @@ function ProgressIndicator({ className, style, ...props }: React.ComponentProps<
   return (
     <span
       data-slot="progress-indicator"
-      className={cn("h-full bg-primary transition-all", className)}
+      className={cn("h-full bg-primary transition-[width]", className)}
       style={{
         ...style,
         width: `${isIndeterminate ? 100 : (percentage ?? 0)}%`,
