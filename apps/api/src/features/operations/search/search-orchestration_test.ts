@@ -380,6 +380,83 @@ it.effect("searchUnitReleases finds long titles via truncated alias", () =>
   }),
 );
 
+it.effect("searchUnitReleases rejects season packs with no episode numbers", () =>
+  withSqliteTestDbEffect({
+    run: (db, _databaseFile, client, _exec) =>
+      Effect.gen(function* () {
+        const config = makeTestConfig("/tmp/test.sqlite");
+        const searchReleaseService = yield* withSearchReleaseService({
+          client,
+          config,
+          db,
+          rssClient: RssClient.of({
+            fetchItems: () =>
+              Effect.succeed([
+                makeRelease({
+                  infoHash: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  title:
+                    "[CRUCiBLE] Clevatess Season 1 (S01) REPACK (BD Remux 1080p FLAC H.264) [Dual Audio] | Clevatess: Majuu no Ou to Akago to Kabane no Yuusha",
+                }),
+              ]),
+          }),
+          seadexClient: makeSeaDexNoneClient(),
+        });
+
+        const releases = yield* searchReleaseService.searchUnitReleases(
+          makeMediaRow({ titleRomaji: "Clevatess II" }),
+          12,
+          config,
+        );
+
+        assert.deepStrictEqual(
+          releases.map((release) => release.title),
+          [],
+        );
+      }),
+    schema: dbSchema,
+  }),
+);
+
+it.effect("searchUnitReleases only keeps batches containing requested unit", () =>
+  withSqliteTestDbEffect({
+    run: (db, _databaseFile, client, _exec) =>
+      Effect.gen(function* () {
+        const config = makeTestConfig("/tmp/test.sqlite");
+        const searchReleaseService = yield* withSearchReleaseService({
+          client,
+          config,
+          db,
+          rssClient: RssClient.of({
+            fetchItems: () =>
+              Effect.succeed([
+                makeRelease({
+                  infoHash: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                  title: "[Group] Show - 01-03 [1080p]",
+                }),
+                makeRelease({
+                  infoHash: "cccccccccccccccccccccccccccccccccccccccc",
+                  title: "[Group] Show - 01-12 Batch [1080p]",
+                }),
+              ]),
+          }),
+          seadexClient: makeSeaDexNoneClient(),
+        });
+
+        const releases = yield* searchReleaseService.searchUnitReleases(
+          makeMediaRow({ titleRomaji: "Show" }),
+          12,
+          config,
+        );
+
+        assert.deepStrictEqual(
+          releases.map((release) => release.title),
+          ["[Group] Show - 01-12 Batch [1080p]"],
+        );
+      }),
+    schema: dbSchema,
+  }),
+);
+
 function makeMediaRow(input: Partial<typeof media.$inferSelect> = {}): typeof media.$inferSelect {
   return {
     addedAt: "2024-01-01T00:00:00.000Z",

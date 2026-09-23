@@ -211,11 +211,11 @@ function getUnitReleaseRejectionReason(
 ): "episode_mismatch" | "duplicate_info_hash" | null {
   const parsedRelease = parseReleaseName(item.title);
 
-  if (
-    parsedRelease.unitNumbers.length > 0 &&
-    !parsedRelease.unitNumbers.includes(unitNumber) &&
-    !parsedRelease.isBatch
-  ) {
+  if (parsedRelease.unitNumbers.length === 0) {
+    return "episode_mismatch";
+  }
+
+  if (!parsedRelease.unitNumbers.includes(unitNumber)) {
     return "episode_mismatch";
   }
 
@@ -233,7 +233,11 @@ function getVolumeReleaseRejectionReason(
 ): "volume_mismatch" | "duplicate_info_hash" | null {
   const volumes = parseVolumeNumbersFromTitle(item.title);
 
-  if (volumes.length > 0 && !volumes.includes(volumeNumber)) {
+  if (volumes.length === 0) {
+    return "volume_mismatch";
+  }
+
+  if (!volumes.includes(volumeNumber)) {
     return "volume_mismatch";
   }
 
