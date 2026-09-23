@@ -12,6 +12,10 @@ import {
   validateQualityProfileSizeLabels,
 } from "@/features/operations/search/release-ranking.ts";
 import { parseRssReleaseUnitNumbers } from "@/features/operations/background-search/background-search-rss-release.ts";
+import {
+  decodeSynonyms,
+  isAnimeReleaseSeasonMismatch,
+} from "@/features/operations/search/release-season.ts";
 import { MediaRepository } from "@/features/media/shared/media-repository.ts";
 import { RssFeedRepository } from "@/features/operations/repository/rss-feed-repository.ts";
 import { QualityProfileRepository } from "@/features/system/repository/quality-profile-repository.ts";
@@ -177,6 +181,27 @@ export class BackgroundSearchRssFeedService extends Context.Service<
                     feedId: feed.id,
                     feedName: feed.name ?? feed.url,
                     reason: `could not parse unit number: ${item.title}`,
+                  });
+                  continue;
+                }
+
+                if (
+                  animeRow.mediaKind === "anime" &&
+                  isAnimeReleaseSeasonMismatch({
+                    media: {
+                      titleRomaji: animeRow.titleRomaji,
+                      titleEnglish: animeRow.titleEnglish,
+                      synonyms: decodeSynonyms(animeRow.synonyms),
+                      format: animeRow.format,
+                    },
+                    releaseTitle: item.title,
+                  })
+                ) {
+                  yield* logRssSkip({
+                    mediaId: animeRow.id,
+                    feedId: feed.id,
+                    feedName: feed.name ?? feed.url,
+                    reason: `season mismatch: ${item.title}`,
                   });
                   continue;
                 }

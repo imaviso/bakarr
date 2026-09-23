@@ -457,6 +457,52 @@ it.effect("searchUnitReleases only keeps batches containing requested unit", () 
   }),
 );
 
+it.effect("searchUnitReleases rejects wrong-season SxxEyy for sequel media", () =>
+  withSqliteTestDbEffect({
+    run: (db, _databaseFile, client, _exec) =>
+      Effect.gen(function* () {
+        const config = makeTestConfig("/tmp/test.sqlite");
+        const searchReleaseService = yield* withSearchReleaseService({
+          client,
+          config,
+          db,
+          rssClient: RssClient.of({
+            fetchItems: () =>
+              Effect.succeed([
+                makeRelease({
+                  infoHash: "dddddddddddddddddddddddddddddddddddddddd",
+                  title:
+                    "[DKB] ReZero kara Hajimeru Isekai Seikatsu 2nd Season - S02E18 [1080p][HEVC-265 10bit][Multi-Subs][weekly",
+                }),
+                makeRelease({
+                  infoHash: "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+                  title:
+                    "[Erai-raws] Re:Zero kara Hajimeru Isekai Seikatsu 4th Season - 18 [1080p CR WEB-DL AVC AAC][MultiSub]",
+                }),
+              ]),
+          }),
+          seadexClient: makeSeaDexNoneClient(),
+        });
+
+        const releases = yield* searchReleaseService.searchUnitReleases(
+          makeMediaRow({
+            titleRomaji: "Re:Zero kara Hajimeru Isekai Seikatsu 4th Season",
+          }),
+          18,
+          config,
+        );
+
+        assert.deepStrictEqual(
+          releases.map((release) => release.title),
+          [
+            "[Erai-raws] Re:Zero kara Hajimeru Isekai Seikatsu 4th Season - 18 [1080p CR WEB-DL AVC AAC][MultiSub]",
+          ],
+        );
+      }),
+    schema: dbSchema,
+  }),
+);
+
 function makeMediaRow(input: Partial<typeof media.$inferSelect> = {}): typeof media.$inferSelect {
   return {
     addedAt: "2024-01-01T00:00:00.000Z",

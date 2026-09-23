@@ -23,6 +23,11 @@ import {
 } from "@/features/operations/search/search-support.ts";
 import { parseReleaseName } from "@/features/operations/search/release-ranking.ts";
 import { parseVolumeNumbersFromTitle } from "@/features/operations/search/release-volume.ts";
+import {
+  decodeSynonyms,
+  inferExpectedAnimeSeason,
+  isAnimeReleaseSeasonMismatch,
+} from "@/features/operations/search/release-season.ts";
 import { DomainInputError } from "@/features/errors.ts";
 import { MediaNotFoundError } from "@/features/media/errors.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
@@ -77,7 +82,13 @@ function buildNyaaSearchUrl(query: string, category: string, filter: string) {
 
 function buildUnitSearchQueries(animeRow: typeof media.$inferSelect, unitNumber: number) {
   const paddedEpisode = globalThis.String(unitNumber).padStart(2, "0");
-  const seasonEpisode = `S01E${paddedEpisode}`;
+  const expectedSeason =
+    inferExpectedAnimeSeason({
+      titleRomaji: animeRow.titleRomaji,
+      titleEnglish: animeRow.titleEnglish,
+      synonyms: decodeSynonyms(animeRow.synonyms),
+    }) ?? 1;
+  const seasonEpisode = `S${globalThis.String(expectedSeason).padStart(2, "0")}E${paddedEpisode}`;
   const aliases = buildAnimeSearchAliases(animeRow);
 
   return uniqueStrings(
@@ -208,7 +219,8 @@ function getUnitReleaseRejectionReason(
   item: ParsedRelease,
   unitNumber: number,
   seenInfoHashes: ReadonlySet<string>,
-): "episode_mismatch" | "duplicate_info_hash" | null {
+  animeRow: typeof media.$inferSelect,
+): "episode_mismatch" | "season_mismatch" | "duplicate_info_hash" | null {
   const parsedRelease = parseReleaseName(item.title);
 
   if (parsedRelease.unitNumbers.length === 0) {
@@ -217,6 +229,20 @@ function getUnitReleaseRejectionReason(
 
   if (!parsedRelease.unitNumbers.includes(unitNumber)) {
     return "episode_mismatch";
+  }
+
+  if (
+    isAnimeReleaseSeasonMismatch({
+      media: {
+        titleRomaji: animeRow.titleRomaji,
+        titleEnglish: animeRow.titleEnglish,
+        synonyms: decodeSynonyms(animeRow.synonyms),
+        format: animeRow.format,
+      },
+      releaseTitle: item.title,
+    })
+  ) {
+    return "season_mismatch";
   }
 
   if (seenInfoHashes.has(item.infoHash)) {
@@ -260,7 +286,7 @@ function collectUnitSearchReleases(
   const keepUnitRelease = (item: ParsedRelease, query: string, phase: "unit" | "fallback") => {
     const rejectionReason =
       mediaKind === "anime"
-        ? getUnitReleaseRejectionReason(item, unitNumber, seenInfoHashes)
+        ? getUnitReleaseRejectionReason(item, unitNumber, seenInfoHashes, animeRow)
         : getVolumeReleaseRejectionReason(item, unitNumber, seenInfoHashes);
 
     if (rejectionReason !== null) {
