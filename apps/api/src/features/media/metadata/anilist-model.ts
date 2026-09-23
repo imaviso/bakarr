@@ -214,7 +214,7 @@ export const AnimeSearchResultFromAniListSchema = AniListSearchMediaSchema.pipe(
       duration: normalizeDuration(entry.duration),
       end_date: toIsoDate(entry.endDate),
       end_year: entry.endDate?.year ?? undefined,
-      unit_count: normalizeUnitCountForFormat(entry.format, entry.episodes, undefined),
+      unit_count: normalizeUnitCountForFormat(entry.format, entry.episodes, entry.volumes),
       favorites: entry.favourites ?? undefined,
       format: entry.format ?? undefined,
       genres: entry.genres ? [...entry.genres] : undefined,

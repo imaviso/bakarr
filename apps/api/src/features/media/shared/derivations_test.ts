@@ -72,6 +72,32 @@ it("inferAiredAt interpolates finished series across start and end dates", () =>
   );
 });
 
+it("inferAiredAt returns null for manga and light novels instead of anime inference", () => {
+  const schedule = new Map<number, string>([[1, "2025-04-01T00:00:00.000Z"]]);
+
+  assert.deepStrictEqual(
+    inferAiredAt("FINISHED", 2, 3, "2025-01-01", "2025-01-15", undefined, undefined, "manga"),
+    null,
+  );
+  assert.deepStrictEqual(
+    inferAiredAt(
+      "RELEASING",
+      1,
+      6,
+      "2025-04-01",
+      undefined,
+      schedule,
+      "2025-04-01T00:00:00.000Z",
+      "light_novel",
+    ),
+    null,
+  );
+  assert.deepStrictEqual(
+    inferAiredAt("RELEASING", 1, 6, "2025-04-01", undefined, schedule, undefined, "anime"),
+    "2025-04-01T00:00:00.000Z",
+  );
+});
+
 it("scoreAnimeSearchResultMatch normalizes stop words, years, and roman numerals", () => {
   const candidate = {
     synonyms: ["Dungeon Meshi"],

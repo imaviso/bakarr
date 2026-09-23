@@ -280,6 +280,7 @@ function buildUnmappedImportWorkflow(input: {
                   animeRow.endDate ?? undefined,
                   undefined,
                   fallbackNowIso,
+                  animeRow.mediaKind,
                 ),
                 unitNumber,
                 filePath: file.path,

@@ -140,6 +140,7 @@ export const makeMediaEnrollmentService = Effect.fn("MediaEnrollmentService.make
 
     const normalizedUnitCount =
       validMetadata.format === "MOVIE" ? 1 : (validMetadata.unitCount ?? null);
+    const isLiterature = mediaKind !== "anime";
     const mediaRow = {
       addedAt: createdAt,
       background: validMetadata.background ?? null,
@@ -166,8 +167,8 @@ export const makeMediaEnrollmentService = Effect.fn("MediaEnrollmentService.make
       mediaKind,
       members: validMetadata.members ?? null,
       monitored: input.monitored,
-      nextAiringAt: validMetadata.nextAiringUnit?.airingAt ?? null,
-      nextAiringUnit: validMetadata.nextAiringUnit?.episode ?? null,
+      nextAiringAt: isLiterature ? null : (validMetadata.nextAiringUnit?.airingAt ?? null),
+      nextAiringUnit: isLiterature ? null : (validMetadata.nextAiringUnit?.episode ?? null),
       popularity: validMetadata.popularity ?? null,
       profileName: input.profile_name,
       rank: validMetadata.rank ?? null,
@@ -210,10 +211,11 @@ export const makeMediaEnrollmentService = Effect.fn("MediaEnrollmentService.make
       endDate: validMetadata.endDate ?? undefined,
       existingRows: [],
       futureAiringSchedule:
-        normalizedUnitCount === 1 ? undefined : validMetadata.futureAiringSchedule,
+        isLiterature || normalizedUnitCount === 1 ? undefined : validMetadata.futureAiringSchedule,
       nowIso: createdAt,
       startDate: validMetadata.startDate ?? undefined,
       status: validMetadata.status,
+      mediaKind,
     });
 
     yield* mediaRepository.insertMediaAggregate({

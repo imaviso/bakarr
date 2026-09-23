@@ -198,7 +198,10 @@ export function AnimeCalendar(props: AnimeCalendarProps) {
                                     </span>
                                   </div>
                                   <span className="text-xs opacity-70 truncate block">
-                                    <span>Ep {event.extended_props.unit_number}</span>
+                                    <span>
+                                      {event.extended_props.unit_kind === "volume" ? "Vol" : "Ep"}{" "}
+                                      {event.extended_props.unit_number}
+                                    </span>
                                     {airingTime && <span> • {airingTime}</span>}
                                   </span>
                                   {event.extended_props.unit_title && (

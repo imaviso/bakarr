@@ -95,6 +95,7 @@ export interface MediaUnitRepositoryShape {
     endDate: string | undefined,
     futureAiringSchedule: ReadonlyArray<FutureAiringScheduleEntry> | undefined,
     nowIso: () => Effect.Effect<string, E>,
+    mediaKind?: string,
   ) => Effect.Effect<void, DatabaseError | E>;
   readonly updateUnitAirDates: <E>(
     mediaId: number,
@@ -104,6 +105,7 @@ export interface MediaUnitRepositoryShape {
     endDate: string | undefined,
     futureAiringSchedule: ReadonlyArray<FutureAiringScheduleEntry> | undefined,
     nowIso: () => Effect.Effect<string, E>,
+    mediaKind?: string,
   ) => Effect.Effect<void, DatabaseError | E>;
   readonly syncUnitMetadata: (
     mediaId: number,
@@ -116,9 +118,11 @@ export interface MediaUnitRepositoryShape {
       readonly status: string;
       readonly startDate: string | null;
       readonly endDate: string | null;
+      readonly mediaKind?: string | null;
     },
     futureAiringSchedule: ReadonlyArray<FutureAiringScheduleEntry> | undefined,
     nowIso: () => Effect.Effect<string, E>,
+    mediaKind?: string,
   ) => Effect.Effect<void, DatabaseError | E>;
   readonly backfillFromNextAiring: (input: {
     readonly mediaId?: number;
@@ -167,7 +171,16 @@ export function makeMediaUnitRepositoryShape(
     patchUnitProbeMetadata: (unitId, patch) => patchUnitProbeMetadata(db, exec, unitId, patch),
     setMediaRootAndMapUnits: (mediaId, patch, mappings) =>
       setMediaRootAndMapUnits(db, exec, mediaId, patch, mappings),
-    ensureUnits: (mediaId, unitCount, status, startDate, endDate, futureAiringSchedule, nowIso) =>
+    ensureUnits: (
+      mediaId,
+      unitCount,
+      status,
+      startDate,
+      endDate,
+      futureAiringSchedule,
+      nowIso,
+      mediaKind,
+    ) =>
       ensureUnits(
         db,
         exec,
@@ -178,6 +191,7 @@ export function makeMediaUnitRepositoryShape(
         endDate,
         futureAiringSchedule,
         nowIso,
+        mediaKind,
       ),
     updateUnitAirDates: (
       mediaId,
@@ -187,6 +201,7 @@ export function makeMediaUnitRepositoryShape(
       endDate,
       futureAiringSchedule,
       nowIso,
+      mediaKind,
     ) =>
       updateUnitAirDates(
         db,
@@ -198,11 +213,12 @@ export function makeMediaUnitRepositoryShape(
         endDate,
         futureAiringSchedule,
         nowIso,
+        mediaKind,
       ),
     syncUnitMetadata: (mediaId, episodeMetadata) =>
       syncUnitMetadata(db, exec, mediaId, episodeMetadata),
-    syncUnitSchedule: (mediaId, nextMediaRow, futureAiringSchedule, nowIso) =>
-      syncUnitSchedule(db, exec, mediaId, nextMediaRow, futureAiringSchedule, nowIso),
+    syncUnitSchedule: (mediaId, nextMediaRow, futureAiringSchedule, nowIso, mediaKind) =>
+      syncUnitSchedule(db, exec, mediaId, nextMediaRow, futureAiringSchedule, nowIso, mediaKind),
     backfillFromNextAiring: (input) => backfillFromNextAiring(db, exec, input),
   } satisfies MediaUnitRepositoryShape;
 }
@@ -564,9 +580,12 @@ const ensureUnits = Effect.fn("MediaUnitRepository.ensureUnits")(function* <E>(
   endDate: string | undefined,
   futureAiringSchedule: ReadonlyArray<FutureAiringScheduleEntry> | undefined,
   nowIso: () => Effect.Effect<string, E>,
+  mediaKind?: string,
 ) {
   const now = yield* nowIso();
-  const hasFutureSchedule = Array.isArray(futureAiringSchedule) && futureAiringSchedule.length > 0;
+  const schedule =
+    mediaKind !== undefined && mediaKind !== "anime" ? undefined : futureAiringSchedule;
+  const hasFutureSchedule = Array.isArray(schedule) && schedule.length > 0;
   const existingRows =
     (!unitCount || unitCount <= 0) && !hasFutureSchedule
       ? []
@@ -599,10 +618,11 @@ const ensureUnits = Effect.fn("MediaUnitRepository.ensureUnits")(function* <E>(
     unitCount,
     endDate,
     existingRows,
-    futureAiringSchedule,
+    futureAiringSchedule: schedule,
     nowIso: now,
     startDate,
     status,
+    ...(mediaKind === undefined ? {} : { mediaKind }),
   });
 
   if (missingRows.length === 0) {
@@ -630,7 +650,14 @@ const updateUnitAirDates = Effect.fn("MediaUnitRepository.updateUnitAirDates")(f
   endDate: string | undefined,
   futureAiringSchedule: ReadonlyArray<FutureAiringScheduleEntry> | undefined,
   nowIso: () => Effect.Effect<string, E>,
+  mediaKind?: string,
 ) {
+  // Literature volumes have no broadcast dates; never overwrite stored aired
+  // values with anime-style inference.
+  if (mediaKind !== undefined && mediaKind !== "anime") {
+    return;
+  }
+
   const scheduleMap = new Map(
     (futureAiringSchedule ?? []).map((entry) => [entry.episode, entry.airingAt]),
   );
@@ -664,6 +691,7 @@ const updateUnitAirDates = Effect.fn("MediaUnitRepository.updateUnitAirDates")(f
       endDate,
       scheduleMap,
       now,
+      mediaKind,
     );
 
     if (row.aired === inferred) {
@@ -750,10 +778,15 @@ const syncUnitSchedule = Effect.fn("MediaUnitRepository.syncUnitSchedule")(funct
     readonly status: string;
     readonly startDate: string | null;
     readonly endDate: string | null;
+    readonly mediaKind?: string | null;
   },
   futureAiringSchedule: ReadonlyArray<FutureAiringScheduleEntry> | undefined,
   nowIso: () => Effect.Effect<string, E>,
+  mediaKind?: string,
 ) {
+  const effectiveKind = mediaKind ?? nextMediaRow.mediaKind ?? undefined;
+  const schedule =
+    effectiveKind !== undefined && effectiveKind !== "anime" ? undefined : futureAiringSchedule;
   yield* ensureUnits(
     db,
     exec,
@@ -762,8 +795,9 @@ const syncUnitSchedule = Effect.fn("MediaUnitRepository.syncUnitSchedule")(funct
     nextMediaRow.status,
     nextMediaRow.startDate ?? undefined,
     nextMediaRow.endDate ?? undefined,
-    futureAiringSchedule,
+    schedule,
     nowIso,
+    effectiveKind,
   );
   yield* updateUnitAirDates(
     db,
@@ -773,8 +807,9 @@ const syncUnitSchedule = Effect.fn("MediaUnitRepository.syncUnitSchedule")(funct
     nextMediaRow.status,
     nextMediaRow.startDate ?? undefined,
     nextMediaRow.endDate ?? undefined,
-    futureAiringSchedule,
+    schedule,
     nowIso,
+    effectiveKind,
   );
 });
 
@@ -789,6 +824,7 @@ const backfillFromNextAiring = Effect.fn("MediaUnitRepository.backfillFromNextAi
   const whereClause = and(
     input.mediaId === undefined ? undefined : eq(media.id, input.mediaId),
     input.monitoredOnly ? eq(media.monitored, true) : undefined,
+    eq(media.mediaKind, "anime"),
     isNull(media.unitCount),
     isNotNull(media.nextAiringUnit),
     isNotNull(media.nextAiringAt),
@@ -877,6 +913,8 @@ const backfillFromNextAiring = Effect.fn("MediaUnitRepository.backfillFromNextAi
         undefined,
         undefined,
         scheduleMap,
+        undefined,
+        "anime",
       );
 
       if (aired === null) {

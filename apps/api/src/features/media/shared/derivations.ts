@@ -71,7 +71,15 @@ export function inferAiredAt(
   endDate: string | undefined,
   futureAiringSchedule?: ReadonlyMap<number, string>,
   fallbackNowIso?: string,
+  mediaKind?: string,
 ) {
+  // Manga/LN volumes have no weekly broadcast cadence and AniList exposes no
+  // per-volume dates: anime-style inference (weekly offsets, FINISHED span
+  // interpolation, airing-schedule backfill) fabricates wrong "aired" dates.
+  if (mediaKind !== undefined && mediaKind !== "anime") {
+    return null;
+  }
+
   const scheduledAiringAt = futureAiringSchedule?.get(unitNumber);
 
   if (scheduledAiringAt) {

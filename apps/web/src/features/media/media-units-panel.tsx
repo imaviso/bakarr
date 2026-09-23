@@ -28,6 +28,7 @@ export function AnimeEpisodesPanel(props: AnimeEpisodesPanelProps) {
   const unitKind = props.episodes[0]?.unit_kind;
   const unitLabel = mediaUnitLabel(unitKind);
   const unitLabelPlural = mediaUnitLabel(unitKind, 2);
+  const dateLabel = unitKind === "volume" ? "Published" : "Aired";
 
   return (
     <Tabs defaultSelectedKey="grid" className="w-full">
@@ -84,7 +85,7 @@ export function AnimeEpisodesPanel(props: AnimeEpisodesPanelProps) {
                             : "bg-muted text-muted-foreground border border-transparent",
                       )}
                       title={`${unitLabel} ${episode.number}: ${status}${
-                        episode.aired ? ` (Aired: ${episode.aired})` : ""
+                        episode.aired ? ` (${dateLabel}: ${episode.aired})` : ""
                       }`}
                     >
                       {episode.number}
@@ -105,7 +106,7 @@ export function AnimeEpisodesPanel(props: AnimeEpisodesPanelProps) {
                     </TableHead>
                     <TableHead scope="col">Title</TableHead>
                     <TableHead scope="col" className="hidden sm:table-cell w-30">
-                      Aired
+                      {dateLabel}
                     </TableHead>
                     <TableHead scope="col" className="hidden md:table-cell w-20">
                       Duration

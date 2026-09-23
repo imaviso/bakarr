@@ -20,15 +20,18 @@ export function buildMissingEpisodeRows(input: {
   futureAiringSchedule: ReadonlyArray<FutureAiringScheduleEntry> | undefined;
   nowIso?: string;
   existingRows: readonly (typeof mediaUnits.$inferSelect)[];
+  mediaKind?: string;
 }): (typeof mediaUnits.$inferInsert)[] {
-  const unitNumbers = resolveEpisodeNumbers(input.unitCount, input.futureAiringSchedule);
+  const isLiterature = input.mediaKind !== undefined && input.mediaKind !== "anime";
+  const schedule = isLiterature ? undefined : input.futureAiringSchedule;
+  const unitNumbers = resolveEpisodeNumbers(input.unitCount, schedule);
 
   if (unitNumbers.length === 0) {
     return [];
   }
 
   const existingByNumber = new Map(input.existingRows.map((row) => [row.number, row]));
-  const airingScheduleByEpisode = buildAiringScheduleMap(input.futureAiringSchedule);
+  const airingScheduleByEpisode = buildAiringScheduleMap(schedule);
 
   return unitNumbers.flatMap((number) => {
     const existing = existingByNumber.get(number);
@@ -47,6 +50,7 @@ export function buildMissingEpisodeRows(input: {
           input.endDate,
           airingScheduleByEpisode,
           input.nowIso,
+          input.mediaKind,
         ),
         mediaId: input.mediaId,
         downloaded: false,

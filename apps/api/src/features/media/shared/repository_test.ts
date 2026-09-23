@@ -315,6 +315,43 @@ it("buildMissingEpisodeRows caps inferred rows when schedule episode is too larg
   assert.deepStrictEqual(rows[rows.length - 1]?.number, MAX_INFERRED_EPISODE_NUMBER);
 });
 
+it("buildMissingEpisodeRows leaves aired unknown for manga volumes", () => {
+  const rows = buildMissingEpisodeRows({
+    mediaId: 99,
+    unitCount: 3,
+    status: "FINISHED",
+    startDate: "2024-01-01",
+    endDate: "2024-06-01",
+    futureAiringSchedule: [{ airingAt: "2024-02-01T00:00:00.000Z", episode: 2 }],
+    existingRows: [],
+    mediaKind: "manga",
+  });
+
+  assert.deepStrictEqual(
+    rows.map((row) => ({ aired: row.aired, number: row.number })),
+    [
+      { aired: null, number: 1 },
+      { aired: null, number: 2 },
+      { aired: null, number: 3 },
+    ],
+  );
+});
+
+it("buildMissingEpisodeRows ignores future schedule for manga without unit count", () => {
+  const rows = buildMissingEpisodeRows({
+    mediaId: 99,
+    unitCount: undefined,
+    status: "RELEASING",
+    startDate: undefined,
+    endDate: undefined,
+    futureAiringSchedule: [{ airingAt: "2026-04-11T22:30:00.000Z", episode: 2 }],
+    existingRows: [],
+    mediaKind: "manga",
+  });
+
+  assert.deepStrictEqual(rows, []);
+});
+
 it("inferAiredAt backfills earlier mediaUnits from nearest schedule anchor", () => {
   const airedAt = inferAiredAt(
     "RELEASING",

@@ -349,15 +349,16 @@ export const makeMediaFileService = Effect.fn("MediaFileService.make")(function*
     );
 
     let found = 0;
+    const isLiteratureScan = mediaRow.mediaKind !== "anime";
     const airingScheduleByEpisode = buildAiringScheduleMap(
-      mediaRow.nextAiringAt && mediaRow.nextAiringUnit
-        ? [
+      isLiteratureScan || !(mediaRow.nextAiringAt && mediaRow.nextAiringUnit)
+        ? undefined
+        : [
             {
               airingAt: mediaRow.nextAiringAt,
               episode: mediaRow.nextAiringUnit,
             },
-          ]
-        : undefined,
+          ],
     );
 
     for (const file of files) {
@@ -411,6 +412,7 @@ export const makeMediaFileService = Effect.fn("MediaFileService.make")(function*
             mediaRow.endDate ?? undefined,
             airingScheduleByEpisode,
             currentIso,
+            mediaRow.mediaKind,
           ),
           downloaded: true,
           filePath: file.path,

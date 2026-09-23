@@ -1,4 +1,5 @@
 import type { AnimeMetadata } from "@/features/media/metadata/metadata-model.ts";
+import { mediaKindFromAniListFormat } from "@/features/media/shared/media-kind.ts";
 import { media } from "@/db/schema.ts";
 
 /**
@@ -25,6 +26,7 @@ export function toMediaRowFields(input: {
   previous?: typeof media.$inferSelect;
 }) {
   const { metadata, previous } = input;
+  const isLiterature = mediaKindFromAniListFormat(metadata.format) !== "anime";
 
   return {
     background: keep(metadata.background, previous?.background),
@@ -47,8 +49,8 @@ export function toMediaRowFields(input: {
     endYear: metadata.endYear ?? null,
     startDate: metadata.startDate ?? null,
     startYear: metadata.startYear ?? null,
-    nextAiringAt: metadata.nextAiringUnit?.airingAt ?? null,
-    nextAiringUnit: metadata.nextAiringUnit?.episode ?? null,
+    nextAiringAt: isLiterature ? null : (metadata.nextAiringUnit?.airingAt ?? null),
+    nextAiringUnit: isLiterature ? null : (metadata.nextAiringUnit?.episode ?? null),
     format: metadata.format,
     status: metadata.status,
     titleRomaji: metadata.title.romaji,
