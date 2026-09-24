@@ -33,6 +33,7 @@ import {
 } from "@/features/media/files/media-file-path-policy.ts";
 import { buildAiringScheduleMap } from "@/features/media/units/media-schedule-repository.ts";
 import { inferAiredAt } from "@/features/media/shared/derivations.ts";
+import { isLiteratureMediaKind } from "@/features/media/shared/media-kind.ts";
 import { MediaRepository } from "@/features/media/shared/media-repository.ts";
 import { MediaUnitRepository } from "@/features/media/units/media-unit-repository.ts";
 import { SystemLogRepository } from "@/features/system/repository/log-repository.ts";
@@ -220,7 +221,7 @@ export const makeMediaFileService = Effect.fn("MediaFileService.make")(function*
       const parsed = parseFileSourceIdentity(file.path);
       const identity = parsed.source_identity;
       const sharedIdentity = toSharedParsedEpisodeIdentity(identity);
-      const isVolumeMedia = mediaRow.mediaKind !== "anime";
+      const isVolumeMedia = isLiteratureMediaKind(mediaRow.mediaKind);
       const unitNumbers = extractUnitNumbersFromFile(file.name, file.path, isVolumeMedia);
       const unitNumber = unitNumbers.length > 0 ? unitNumbers[0] : undefined;
 
@@ -349,7 +350,7 @@ export const makeMediaFileService = Effect.fn("MediaFileService.make")(function*
     );
 
     let found = 0;
-    const isLiteratureScan = mediaRow.mediaKind !== "anime";
+    const isLiteratureScan = isLiteratureMediaKind(mediaRow.mediaKind);
     const airingScheduleByEpisode = buildAiringScheduleMap(
       isLiteratureScan || !(mediaRow.nextAiringAt && mediaRow.nextAiringUnit)
         ? undefined
@@ -394,7 +395,7 @@ export const makeMediaFileService = Effect.fn("MediaFileService.make")(function*
 
       const mergedMetadata = mergeProbedMediaMetadata(probeInput, probedMetadata);
 
-      const isVolumeMedia = mediaRow.mediaKind !== "anime";
+      const isVolumeMedia = isLiteratureMediaKind(mediaRow.mediaKind);
       const unitNumbers = extractUnitNumbersFromFile(file.name, file.path, isVolumeMedia);
       if (unitNumbers.length === 0) {
         continue;

@@ -6,6 +6,7 @@ import { Context, Effect, Layer, Record, Schema } from "effect";
 import { AppDrizzleDatabase, type AppDatabase, type DatabaseError } from "@/db/database.ts";
 import { media, mediaUnits } from "@/db/schema.ts";
 import { inferAiredAt } from "@/features/media/shared/derivations.ts";
+import { isLiteratureMediaKind } from "@/features/media/shared/media-kind.ts";
 import type { AnimeMetadataEpisode } from "@/features/media/metadata/anilist-model.ts";
 import {
   buildMissingEpisodeRows,
@@ -122,7 +123,6 @@ export interface MediaUnitRepositoryShape {
     },
     futureAiringSchedule: ReadonlyArray<FutureAiringScheduleEntry> | undefined,
     nowIso: () => Effect.Effect<string, E>,
-    mediaKind?: string,
   ) => Effect.Effect<void, DatabaseError | E>;
   readonly backfillFromNextAiring: (input: {
     readonly mediaId?: number;
@@ -217,8 +217,8 @@ export function makeMediaUnitRepositoryShape(
       ),
     syncUnitMetadata: (mediaId, episodeMetadata) =>
       syncUnitMetadata(db, exec, mediaId, episodeMetadata),
-    syncUnitSchedule: (mediaId, nextMediaRow, futureAiringSchedule, nowIso, mediaKind) =>
-      syncUnitSchedule(db, exec, mediaId, nextMediaRow, futureAiringSchedule, nowIso, mediaKind),
+    syncUnitSchedule: (mediaId, nextMediaRow, futureAiringSchedule, nowIso) =>
+      syncUnitSchedule(db, exec, mediaId, nextMediaRow, futureAiringSchedule, nowIso),
     backfillFromNextAiring: (input) => backfillFromNextAiring(db, exec, input),
   } satisfies MediaUnitRepositoryShape;
 }
@@ -583,8 +583,7 @@ const ensureUnits = Effect.fn("MediaUnitRepository.ensureUnits")(function* <E>(
   mediaKind?: string,
 ) {
   const now = yield* nowIso();
-  const schedule =
-    mediaKind !== undefined && mediaKind !== "anime" ? undefined : futureAiringSchedule;
+  const schedule = isLiteratureMediaKind(mediaKind) ? undefined : futureAiringSchedule;
   const hasFutureSchedule = Array.isArray(schedule) && schedule.length > 0;
   const existingRows =
     (!unitCount || unitCount <= 0) && !hasFutureSchedule
@@ -654,7 +653,7 @@ const updateUnitAirDates = Effect.fn("MediaUnitRepository.updateUnitAirDates")(f
 ) {
   // Literature volumes have no broadcast dates; never overwrite stored aired
   // values with anime-style inference.
-  if (mediaKind !== undefined && mediaKind !== "anime") {
+  if (isLiteratureMediaKind(mediaKind)) {
     return;
   }
 
@@ -782,11 +781,9 @@ const syncUnitSchedule = Effect.fn("MediaUnitRepository.syncUnitSchedule")(funct
   },
   futureAiringSchedule: ReadonlyArray<FutureAiringScheduleEntry> | undefined,
   nowIso: () => Effect.Effect<string, E>,
-  mediaKind?: string,
 ) {
-  const effectiveKind = mediaKind ?? nextMediaRow.mediaKind ?? undefined;
-  const schedule =
-    effectiveKind !== undefined && effectiveKind !== "anime" ? undefined : futureAiringSchedule;
+  const effectiveKind = nextMediaRow.mediaKind ?? undefined;
+  const schedule = isLiteratureMediaKind(effectiveKind) ? undefined : futureAiringSchedule;
   yield* ensureUnits(
     db,
     exec,

@@ -1,3 +1,5 @@
+import { Result, Schema } from "effect";
+
 import { parseReleaseSourceIdentity } from "@/features/media/identity/identity.ts";
 
 const ROMAN_SEASON: Record<string, number> = {
@@ -6,36 +8,53 @@ const ROMAN_SEASON: Record<string, number> = {
   IV: 4,
   V: 5,
   VI: 6,
+  VII: 7,
+  VIII: 8,
+  IX: 9,
+  X: 10,
 };
 
 const SPECIAL_FORMATS = new Set(["OVA", "ONA", "OAD", "SPECIAL", "MOVIE"]);
+
+const ORDINAL_SEASON_PATTERN = /\b(\d{1,2})(?:st|nd|rd|th)\s+season\b/i;
+const LONG_SEASON_PATTERN = /\bseason\s+(\d{1,2})\b/i;
+const PART_COUR_PATTERN = /\b(?:part|cour)\s+(\d{1,2})\b/i;
+const SHORT_SEASON_PATTERN = /\bS(\d{1,2})\b/i;
+const ROMAN_SEASON_PATTERN = /\b(II|III|IV|V|VI|VII|VIII|IX|X)\s*(?:\(.*\))?\s*$/i;
+const SPECIAL_TITLE_PATTERN = /\b(?:ova|ona|oad|special|specials|movie|film)\b/i;
+
+const AnimeSynonymsJsonSchema = Schema.fromJsonString(Schema.Array(Schema.String));
+
+function parseSeasonNumber(match: RegExpMatchArray | null): number | undefined {
+  const raw = match?.[1];
+  if (raw === undefined) return undefined;
+  const n = globalThis.Number(raw);
+  return n >= 1 && n <= 99 ? n : undefined;
+}
 
 export function inferSeasonFromTitle(title: string | null | undefined): number | undefined {
   if (!title) return undefined;
   const value = title.trim();
   if (value.length === 0) return undefined;
 
-  const ordinal = value.match(/(\d{1,2})(?:st|nd|rd|th)\s+season\b/i);
-  if (ordinal?.[1]) {
-    const n = Number(ordinal[1]);
-    if (n >= 1 && n <= 99) return n;
-  }
+  const ordinal = parseSeasonNumber(value.match(ORDINAL_SEASON_PATTERN));
+  if (ordinal !== undefined) return ordinal;
 
-  const longSeason = value.match(/\bseason\s+(\d{1,2})\b/i);
-  if (longSeason?.[1]) {
-    const n = Number(longSeason[1]);
-    if (n >= 1 && n <= 99) return n;
-  }
+  const longSeason = parseSeasonNumber(value.match(LONG_SEASON_PATTERN));
+  if (longSeason !== undefined) return longSeason;
 
-  const part = value.match(/\b(?:part|cour)\s+(\d{1,2})\b/i);
-  if (part?.[1]) {
-    const n = Number(part[1]);
-    if (n >= 1 && n <= 99) return n;
-  }
+  // Split-cour Part/Cour markers denote the same season split, not a new
+  // season, but for search filtering they behave like a season marker:
+  // "Part 2" releases must not match "Part 1" media.
+  const part = parseSeasonNumber(value.match(PART_COUR_PATTERN));
+  if (part !== undefined) return part;
 
-  const roman = value.match(/\b(II|III|IV|V|VI)\s*(?:\(.*\))?\s*$/i);
-  if (roman?.[1]) {
-    const n = ROMAN_SEASON[roman[1].toUpperCase()];
+  const short = parseSeasonNumber(value.match(SHORT_SEASON_PATTERN));
+  if (short !== undefined) return short;
+
+  const romanMatch = value.match(ROMAN_SEASON_PATTERN);
+  if (romanMatch?.[1]) {
+    const n = ROMAN_SEASON[romanMatch[1].toUpperCase()];
     if (n !== undefined) return n;
   }
 
@@ -51,6 +70,7 @@ export function inferExpectedAnimeSeason(input: {
   const titles: (string | null | undefined)[] = [
     input.titleRomaji,
     input.titleEnglish,
+    input.titleNative,
     ...(input.synonyms ?? []),
   ];
   for (const title of titles) {
@@ -74,7 +94,7 @@ function isSpecialLikeMedia(input: {
 }): boolean {
   if (input.format && SPECIAL_FORMATS.has(input.format.toUpperCase())) return true;
   const titles = `${input.titleRomaji ?? ""} ${input.titleEnglish ?? ""}`.toLowerCase();
-  return /\b(?:ova|ona|oad|special|specials|movie)\b/i.test(titles);
+  return SPECIAL_TITLE_PATTERN.test(titles);
 }
 
 export function isAnimeReleaseSeasonMismatch(input: {
@@ -86,9 +106,8 @@ export function isAnimeReleaseSeasonMismatch(input: {
     readonly format?: string | null;
   };
   readonly releaseTitle: string;
-  readonly releaseSeason?: number | null;
 }): boolean {
-  const releaseSeason = input.releaseSeason ?? getReleaseSeason(input.releaseTitle);
+  const releaseSeason = getReleaseSeason(input.releaseTitle);
   if (releaseSeason === undefined || releaseSeason === null) return false;
 
   if (releaseSeason === 0) {
@@ -101,13 +120,7 @@ export function isAnimeReleaseSeasonMismatch(input: {
 
 export function decodeSynonyms(value: string | null | undefined): string[] {
   if (!value) return [];
-  try {
-    const parsed: unknown = JSON.parse(value);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter(
-      (entry): entry is string => typeof entry === "string" && entry.trim().length > 0,
-    );
-  } catch {
-    return [];
-  }
+  const result = Schema.decodeUnknownResult(AnimeSynonymsJsonSchema)(value);
+  if (!Result.isSuccess(result)) return [];
+  return result.success.filter((entry) => entry.trim().length > 0);
 }

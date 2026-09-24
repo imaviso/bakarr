@@ -9,7 +9,9 @@ import {
 } from "@packages/shared/index.ts";
 
 import {
+  compareAcceptableReleases,
   compareUnitSearchResults,
+  isBatchReleaseTitle,
   validateQualityProfileSizeLabels,
 } from "@/features/operations/search/release-ranking-policy.ts";
 
@@ -124,6 +126,52 @@ it("compareUnitSearchResults treats batch releases as last resort behind singles
   assert.deepStrictEqual(
     [batch, single].toSorted(compareUnitSearchResults).map((item) => item.title),
     [single.title, batch.title],
+  );
+});
+
+it("isBatchReleaseTitle detects anime and volume batches", () => {
+  assert.deepStrictEqual(isBatchReleaseTitle("[Group] Show - 12 [1080p]"), false);
+  assert.deepStrictEqual(isBatchReleaseTitle("[Group] Show 01-12 [Batch]"), true);
+  assert.deepStrictEqual(isBatchReleaseTitle("[Group] Manga Vol 01-03"), true);
+  assert.deepStrictEqual(isBatchReleaseTitle("[Group] Manga Vol 02"), false);
+});
+
+it("compareAcceptableReleases ranks singles before batches within same action tier", () => {
+  const single = {
+    action: { Accept: { is_seadex: false, quality: web1080, score: 5 } } as DownloadAction,
+    isBatch: false,
+    seeders: 1,
+    sizeBytes: 100,
+  };
+  const batch = {
+    action: { Accept: { is_seadex: false, quality: web1080, score: 70 } } as DownloadAction,
+    isBatch: true,
+    seeders: 50,
+    sizeBytes: 3000,
+  };
+  const upgradeSingle = {
+    action: {
+      Upgrade: {
+        is_seadex: false,
+        old_quality: web720,
+        quality: web1080,
+        reason: "better",
+        score: 5,
+      },
+    } as DownloadAction,
+    isBatch: false,
+    seeders: 1,
+    sizeBytes: 100,
+  };
+
+  assert.deepStrictEqual(
+    [batch, single].toSorted(compareAcceptableReleases).map((entry) => entry.isBatch),
+    [false, true],
+  );
+  // Accept tier still beats Upgrade tier: Accept batch > Upgrade single.
+  assert.deepStrictEqual(
+    [upgradeSingle, batch].toSorted(compareAcceptableReleases)[0]?.isBatch,
+    true,
   );
 });
 

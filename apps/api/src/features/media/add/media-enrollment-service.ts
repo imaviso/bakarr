@@ -32,7 +32,10 @@ import {
   checkRootFolderNotOwnedEffect,
   requireMediaMetadataEffect,
 } from "@/features/media/add/media-add-validation.ts";
-import { mediaKindFromAniListFormat } from "@/features/media/shared/media-kind.ts";
+import {
+  isLiteratureMediaKind,
+  mediaKindFromAniListFormat,
+} from "@/features/media/shared/media-kind.ts";
 import { Context, Effect, Layer, Option } from "effect";
 
 export type MediaEnrollmentError =
@@ -140,7 +143,7 @@ export const makeMediaEnrollmentService = Effect.fn("MediaEnrollmentService.make
 
     const normalizedUnitCount =
       validMetadata.format === "MOVIE" ? 1 : (validMetadata.unitCount ?? null);
-    const isLiterature = mediaKind !== "anime";
+    const isLiterature = isLiteratureMediaKind(mediaKind);
     const mediaRow = {
       addedAt: createdAt,
       background: validMetadata.background ?? null,

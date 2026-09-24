@@ -30,3 +30,11 @@ export function mediaKindFromAniListFormat(format: string | undefined): MediaKin
 
   return "anime";
 }
+
+export function isLiteratureMediaKind(kind: string | null | undefined): boolean {
+  return kind !== undefined && kind !== null && kind !== "anime";
+}
+
+export function isAnimeMediaKind(kind: string | null | undefined): boolean {
+  return !isLiteratureMediaKind(kind);
+}

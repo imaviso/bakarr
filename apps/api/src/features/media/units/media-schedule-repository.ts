@@ -1,6 +1,7 @@
 import { mediaUnits } from "@/db/schema.ts";
 import { clampInferredEpisodeUpperBound } from "@/features/media/units/unit-backfill-policy.ts";
 import { inferAiredAt } from "@/features/media/shared/derivations.ts";
+import { isLiteratureMediaKind } from "@/features/media/shared/media-kind.ts";
 
 export interface FutureAiringScheduleEntry {
   readonly airingAt: string;
@@ -22,7 +23,9 @@ export function buildMissingEpisodeRows(input: {
   existingRows: readonly (typeof mediaUnits.$inferSelect)[];
   mediaKind?: string;
 }): (typeof mediaUnits.$inferInsert)[] {
-  const isLiterature = input.mediaKind !== undefined && input.mediaKind !== "anime";
+  const isLiterature = isLiteratureMediaKind(input.mediaKind);
+  // Literature without known volumes creates no rows: no per-volume dates
+  // exist to infer from, and fabricating from anime schedules is wrong.
   const schedule = isLiterature ? undefined : input.futureAiringSchedule;
   const unitNumbers = resolveEpisodeNumbers(input.unitCount, schedule);
 

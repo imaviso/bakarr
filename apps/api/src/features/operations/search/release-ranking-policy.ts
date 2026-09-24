@@ -51,16 +51,28 @@ export function compareUnitSearchResults(left: UnitSearchResult, right: UnitSear
   );
 }
 
+const batchTitleCache = new Map<string, boolean>();
+
+export function isBatchReleaseTitle(title: string): boolean {
+  const cached = batchTitleCache.get(title);
+  if (cached !== undefined) return cached;
+  const isBatch = parseReleaseName(title).isBatch || parseVolumeNumbersFromTitle(title).length > 1;
+  // Bounded cache: titles repeat across sorts, but RSS titles are unbounded.
+  if (batchTitleCache.size > 1000) batchTitleCache.clear();
+  batchTitleCache.set(title, isBatch);
+  return isBatch;
+}
+
+export function isSingleUnitReleaseTitle(title: string): boolean {
+  return !isBatchReleaseTitle(title);
+}
+
 function batchPenalty(result: UnitSearchResult): number {
   if ((result.parsed_unit_numbers?.length ?? 0) > 1) {
     return 1;
   }
 
-  if (parseReleaseName(result.title).isBatch) {
-    return 1;
-  }
-
-  return parseVolumeNumbersFromTitle(result.title).length > 1 ? 1 : 0;
+  return isBatchReleaseTitle(result.title) ? 1 : 0;
 }
 
 function actionWeight(action: DownloadAction): number {
@@ -78,5 +90,29 @@ function actionQualityRank(action: DownloadAction): number {
     action.Accept?.quality.rank ??
     action.Upgrade?.quality.rank ??
     globalThis.Number.POSITIVE_INFINITY
+  );
+}
+
+export function compareAcceptableReleases(
+  left: {
+    readonly action: DownloadAction;
+    readonly isBatch: boolean;
+    readonly seeders: number;
+    readonly sizeBytes: number;
+  },
+  right: {
+    readonly action: DownloadAction;
+    readonly isBatch: boolean;
+    readonly seeders: number;
+    readonly sizeBytes: number;
+  },
+): number {
+  return (
+    actionWeight(right.action) - actionWeight(left.action) ||
+    globalThis.Number(left.isBatch) - globalThis.Number(right.isBatch) ||
+    actionScore(right.action) - actionScore(left.action) ||
+    actionQualityRank(left.action) - actionQualityRank(right.action) ||
+    right.seeders - left.seeders ||
+    right.sizeBytes - left.sizeBytes
   );
 }

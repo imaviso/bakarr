@@ -1,4 +1,4 @@
-import { Context, Effect, Layer, Option, Result, Schema } from "effect";
+import { Context, Effect, Layer, Option } from "effect";
 
 import type { Config, SearchResults } from "@packages/shared/index.ts";
 import { DatabaseError } from "@/db/database.ts";
@@ -53,8 +53,6 @@ type SearchNyaaReleases = (
 ) => Effect.Effect<readonly ParsedRelease[], SearchReleaseSourceError>;
 type UnitSearchCategory = string | undefined;
 
-const AnimeSynonymsJsonSchema = Schema.fromJsonString(Schema.Array(Schema.String));
-
 export interface SearchReleaseServiceShape {
   readonly enrichSeaDexReleases: (
     animeRow: typeof media.$inferSelect,
@@ -86,6 +84,7 @@ function buildUnitSearchQueries(animeRow: typeof media.$inferSelect, unitNumber:
     inferExpectedAnimeSeason({
       titleRomaji: animeRow.titleRomaji,
       titleEnglish: animeRow.titleEnglish,
+      titleNative: animeRow.titleNative,
       synonyms: decodeSynonyms(animeRow.synonyms),
     }) ?? 1;
   const seasonEpisode = `S${globalThis.String(expectedSeason).padStart(2, "0")}E${paddedEpisode}`;
@@ -122,7 +121,8 @@ function buildAnimeSearchAliases(animeRow: typeof media.$inferSelect) {
   const aliases = [
     animeRow.titleRomaji,
     animeRow.titleEnglish,
-    ...decodeAnimeSynonyms(animeRow.synonyms),
+    animeRow.titleNative,
+    ...decodeSynonyms(animeRow.synonyms),
   ];
 
   return uniqueStrings(
@@ -146,15 +146,6 @@ function buildAnimeSearchAliases(animeRow: typeof media.$inferSelect) {
       return variants;
     }),
   );
-}
-
-function decodeAnimeSynonyms(value: string | null) {
-  if (!value) {
-    return [];
-  }
-
-  const result = Schema.decodeUnknownResult(AnimeSynonymsJsonSchema)(value);
-  return Result.isSuccess(result) ? result.success.filter((entry) => entry.trim().length > 0) : [];
 }
 
 function normalizeSearchAlias(value: string) {
@@ -222,12 +213,13 @@ function getUnitReleaseRejectionReason(
   animeRow: typeof media.$inferSelect,
 ): "episode_mismatch" | "season_mismatch" | "duplicate_info_hash" | null {
   const parsedRelease = parseReleaseName(item.title);
+  const isSingleUnitMovie = animeRow.format === "MOVIE" || animeRow.unitCount === 1;
 
   if (parsedRelease.unitNumbers.length === 0) {
-    return "episode_mismatch";
-  }
-
-  if (!parsedRelease.unitNumbers.includes(unitNumber)) {
+    if (!isSingleUnitMovie) {
+      return "episode_mismatch";
+    }
+  } else if (!parsedRelease.unitNumbers.includes(unitNumber)) {
     return "episode_mismatch";
   }
 
@@ -236,6 +228,7 @@ function getUnitReleaseRejectionReason(
       media: {
         titleRomaji: animeRow.titleRomaji,
         titleEnglish: animeRow.titleEnglish,
+        titleNative: animeRow.titleNative,
         synonyms: decodeSynonyms(animeRow.synonyms),
         format: animeRow.format,
       },
@@ -256,14 +249,15 @@ function getVolumeReleaseRejectionReason(
   item: ParsedRelease,
   volumeNumber: number,
   seenInfoHashes: ReadonlySet<string>,
+  animeRow: typeof media.$inferSelect,
 ): "volume_mismatch" | "duplicate_info_hash" | null {
   const volumes = parseVolumeNumbersFromTitle(item.title);
 
   if (volumes.length === 0) {
-    return "volume_mismatch";
-  }
-
-  if (!volumes.includes(volumeNumber)) {
+    if (animeRow.unitCount !== 1) {
+      return "volume_mismatch";
+    }
+  } else if (!volumes.includes(volumeNumber)) {
     return "volume_mismatch";
   }
 
@@ -287,7 +281,7 @@ function collectUnitSearchReleases(
     const rejectionReason =
       mediaKind === "anime"
         ? getUnitReleaseRejectionReason(item, unitNumber, seenInfoHashes, animeRow)
-        : getVolumeReleaseRejectionReason(item, unitNumber, seenInfoHashes);
+        : getVolumeReleaseRejectionReason(item, unitNumber, seenInfoHashes, animeRow);
 
     if (rejectionReason !== null) {
       return Effect.logDebug("Rejected unit search release").pipe(

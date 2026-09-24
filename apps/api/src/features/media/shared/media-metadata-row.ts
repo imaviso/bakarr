@@ -1,5 +1,8 @@
 import type { AnimeMetadata } from "@/features/media/metadata/metadata-model.ts";
-import { mediaKindFromAniListFormat } from "@/features/media/shared/media-kind.ts";
+import {
+  isLiteratureMediaKind,
+  mediaKindFromAniListFormat,
+} from "@/features/media/shared/media-kind.ts";
 import { media } from "@/db/schema.ts";
 
 /**
@@ -26,7 +29,7 @@ export function toMediaRowFields(input: {
   previous?: typeof media.$inferSelect;
 }) {
   const { metadata, previous } = input;
-  const isLiterature = mediaKindFromAniListFormat(metadata.format) !== "anime";
+  const isLiterature = isLiteratureMediaKind(mediaKindFromAniListFormat(metadata.format));
 
   return {
     background: keep(metadata.background, previous?.background),

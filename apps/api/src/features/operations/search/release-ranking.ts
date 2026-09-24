@@ -24,8 +24,11 @@ import {
   parseResolution,
 } from "@/features/operations/search/release-ranking-quality.ts";
 import {
+  compareAcceptableReleases,
   compareUnitSearchResults,
   decideDownloadAction,
+  isBatchReleaseTitle,
+  isSingleUnitReleaseTitle,
   validateQualityProfileSizeLabels,
 } from "@/features/operations/search/release-ranking-policy.ts";
 
@@ -108,8 +111,11 @@ function toUnitSearchResult(input: {
 }
 
 export {
+  compareAcceptableReleases,
   compareUnitSearchResults,
   decideDownloadAction,
+  isBatchReleaseTitle,
+  isSingleUnitReleaseTitle,
   parseQualityFromTitle,
   parseReleaseName,
   parseResolution,

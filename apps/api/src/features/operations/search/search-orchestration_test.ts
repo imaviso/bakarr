@@ -503,6 +503,46 @@ it.effect("searchUnitReleases rejects wrong-season SxxEyy for sequel media", () 
   }),
 );
 
+it.effect("searchUnitReleases accepts number-less titles for single-unit movies", () =>
+  withSqliteTestDbEffect({
+    run: (db, _databaseFile, client, _exec) =>
+      Effect.gen(function* () {
+        const config = makeTestConfig("/tmp/test.sqlite");
+        const searchReleaseService = yield* withSearchReleaseService({
+          client,
+          config,
+          db,
+          rssClient: RssClient.of({
+            fetchItems: () =>
+              Effect.succeed([
+                makeRelease({
+                  infoHash: "ffffffffffffffffffffffffffffffffffffffff",
+                  title: "[Group] Your Name [1080p]",
+                }),
+              ]),
+          }),
+          seadexClient: makeSeaDexNoneClient(),
+        });
+
+        const releases = yield* searchReleaseService.searchUnitReleases(
+          makeMediaRow({
+            format: "MOVIE",
+            titleRomaji: "Your Name",
+            unitCount: 1,
+          }),
+          1,
+          config,
+        );
+
+        assert.deepStrictEqual(
+          releases.map((release) => release.title),
+          ["[Group] Your Name [1080p]"],
+        );
+      }),
+    schema: dbSchema,
+  }),
+);
+
 function makeMediaRow(input: Partial<typeof media.$inferSelect> = {}): typeof media.$inferSelect {
   return {
     addedAt: "2024-01-01T00:00:00.000Z",

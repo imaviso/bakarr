@@ -253,6 +253,13 @@
       "when": 1774850000000,
       "tag": "0035_anidb_miss_cache",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1774860000000,
+      "tag": "0036_clear_literature_next_airing",
+      "breakpoints": true
     }
   ]
 }

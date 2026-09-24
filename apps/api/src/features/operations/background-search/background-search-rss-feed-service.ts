@@ -162,6 +162,14 @@ export class BackgroundSearchRssFeedService extends Context.Service<
                 .map((row) => row.number)
                 .toSorted((left, right) => left - right);
 
+              const seasonMedia = {
+                titleRomaji: animeRow.titleRomaji,
+                titleEnglish: animeRow.titleEnglish,
+                titleNative: animeRow.titleNative,
+                synonyms: decodeSynonyms(animeRow.synonyms),
+                format: animeRow.format,
+              };
+
               for (const parsed of parsedItems) {
                 const { item, unitNumber } = parsed;
 
@@ -188,12 +196,7 @@ export class BackgroundSearchRssFeedService extends Context.Service<
                 if (
                   animeRow.mediaKind === "anime" &&
                   isAnimeReleaseSeasonMismatch({
-                    media: {
-                      titleRomaji: animeRow.titleRomaji,
-                      titleEnglish: animeRow.titleEnglish,
-                      synonyms: decodeSynonyms(animeRow.synonyms),
-                      format: animeRow.format,
-                    },
+                    media: seasonMedia,
                     releaseTitle: item.title,
                   })
                 ) {

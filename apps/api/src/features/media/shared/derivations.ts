@@ -1,6 +1,8 @@
 import type { MediaSearchResult, MediaUnit } from "@packages/shared/index.ts";
 import { DateTime, Duration, Option } from "effect";
 
+import { isLiteratureMediaKind } from "@/features/media/shared/media-kind.ts";
+
 export function deriveEpisodeTimelineMetadata(
   aired?: string,
   now?: Date,
@@ -76,7 +78,7 @@ export function inferAiredAt(
   // Manga/LN volumes have no weekly broadcast cadence and AniList exposes no
   // per-volume dates: anime-style inference (weekly offsets, FINISHED span
   // interpolation, airing-schedule backfill) fabricates wrong "aired" dates.
-  if (mediaKind !== undefined && mediaKind !== "anime") {
+  if (isLiteratureMediaKind(mediaKind)) {
     return null;
   }
 

@@ -114,4 +114,37 @@ it("inferExpectedAnimeSeason uses synonyms and decodeSynonyms parses JSON", () =
   );
   assert.deepStrictEqual(decodeSynonyms('["A 2nd Season","B"]'), ["A 2nd Season", "B"]);
   assert.deepStrictEqual(decodeSynonyms(null), []);
+  assert.deepStrictEqual(decodeSynonyms("not-json"), []);
+  assert.deepStrictEqual(decodeSynonyms('["A","","  "]'), ["A"]);
+});
+
+it("inferSeasonFromTitle parses short Sxx and extended roman markers", () => {
+  assert.deepStrictEqual(inferSeasonFromTitle("Overlord VII"), 7);
+  assert.deepStrictEqual(inferSeasonFromTitle("Show VIII"), 8);
+  assert.deepStrictEqual(inferSeasonFromTitle("Show IX"), 9);
+  assert.deepStrictEqual(inferSeasonFromTitle("Show X"), 10);
+  assert.deepStrictEqual(inferSeasonFromTitle("Overlord S02"), 2);
+  assert.deepStrictEqual(inferSeasonFromTitle("  ReZero 2nd Season  "), 2);
+  assert.deepStrictEqual(inferSeasonFromTitle("Frieren"), undefined);
+});
+
+it("inferExpectedAnimeSeason includes native titles", () => {
+  assert.deepStrictEqual(
+    inferExpectedAnimeSeason({
+      titleRomaji: "Show",
+      titleNative: "Show 2nd Season",
+      synonyms: [],
+    }),
+    2,
+  );
+});
+
+it("isAnimeReleaseSeasonMismatch allows S00 for film-like media", () => {
+  assert.deepStrictEqual(
+    isAnimeReleaseSeasonMismatch({
+      media: { titleRomaji: "Show Film", format: "TV", synonyms: [] as string[] },
+      releaseTitle: "Show S00E01 [1080p]",
+    }),
+    false,
+  );
 });
