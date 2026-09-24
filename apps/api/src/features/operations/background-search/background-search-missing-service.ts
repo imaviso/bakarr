@@ -10,8 +10,10 @@ import { EventBus } from "@/infra/effect/event-bus.ts";
 import { errorLogAnnotations } from "@/infra/logging.ts";
 import {
   decideDownloadAction,
+  parseReleaseName,
   validateQualityProfileSizeLabels,
 } from "@/features/operations/search/release-ranking.ts";
+import { parseVolumeNumbersFromTitle } from "@/features/operations/search/release-volume.ts";
 import { MediaRepository } from "@/features/media/shared/media-repository.ts";
 import { MediaUnitRepository } from "@/features/media/units/media-unit-repository.ts";
 import { BackgroundSearchQueueService } from "@/features/operations/background-search/background-search-queue-service.ts";
@@ -139,14 +141,19 @@ export class SearchBackgroundMissingService extends Context.Service<
             row.media_units.number,
             runtimeConfig,
           );
-          const best = candidates
+          const acceptable = candidates
             .map((item) => ({
               action: decideDownloadAction(profile, rules, currentEpisode, item, runtimeConfig, {
                 allowUnknownQuality: row.media.mediaKind !== "anime",
               }),
               item,
+              isBatch:
+                row.media.mediaKind === "anime"
+                  ? parseReleaseName(item.title).isBatch
+                  : parseVolumeNumbersFromTitle(item.title).length > 1,
             }))
-            .find((entry) => entry.action.Accept || entry.action.Upgrade);
+            .filter((entry) => entry.action.Accept || entry.action.Upgrade);
+          const best = acceptable.find((entry) => !entry.isBatch) ?? acceptable[0];
 
           if (!best) {
             yield* logSearchMissingSkip({

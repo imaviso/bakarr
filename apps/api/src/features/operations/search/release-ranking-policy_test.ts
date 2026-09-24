@@ -105,6 +105,28 @@ it("compareUnitSearchResults breaks ties by score, quality rank, seeders, then s
   );
 });
 
+it("compareUnitSearchResults treats batch releases as last resort behind singles", () => {
+  const single = result(
+    "[SubsPlease] Super no Ura de Yani Suu Futari Mini - 12 (1080p)",
+    { Accept: { is_seadex: false, quality: web1080, score: 20 } },
+    { seeders: 2, size: 300_000_000, parsed_unit_numbers: [12] },
+  );
+  const batch = result(
+    "[SubsPlease] Super no Ura de Yani Suu Futari Mini (01-12) (1080p) [Batch]",
+    { Accept: { is_seadex: false, quality: web1080, score: 70 } },
+    {
+      seeders: 50,
+      size: 3_000_000_000,
+      parsed_unit_numbers: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+    },
+  );
+
+  assert.deepStrictEqual(
+    [batch, single].toSorted(compareUnitSearchResults).map((item) => item.title),
+    [single.title, batch.title],
+  );
+});
+
 it.effect("validateQualityProfileSizeLabels accepts valid ranges and rejects inverted ranges", () =>
   Effect.gen(function* () {
     const valid = yield* Effect.exit(
