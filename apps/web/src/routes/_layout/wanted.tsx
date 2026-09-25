@@ -276,8 +276,10 @@ function WantedRow(props: {
         {props.item.unit_title || "-"}
       </TableCell>
       <TableCell className="text-sm tabular-nums">
-        {formatAiringDateTimeWithPreferences(props.item.aired ?? undefined, props.airingPreferences) ||
-          "-"}
+        {formatAiringDateTimeWithPreferences(
+          props.item.aired ?? undefined,
+          props.airingPreferences,
+        ) || "-"}
       </TableCell>
       <TableCell>
         <DropdownMenuTrigger>
