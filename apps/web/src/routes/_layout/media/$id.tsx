@@ -5,7 +5,7 @@ import { Schema } from "effect";
 import { MediaDetailsHeader } from "@/features/media/media-details-header";
 import { AnimeDetailsMeta } from "@/features/media/media-details-meta";
 import { AnimeDetailsSidebar } from "@/features/media/media-details-sidebar";
-import { cleanSynopsis } from "@/domain/media/metadata";
+import { cleanSynopsis, getAiringDisplayPreferences } from "@/domain/media/metadata";
 import { AnimeEpisodesPanel } from "@/features/media/media-units-panel";
 import { AnimeDiscoverySection } from "@/features/media/media-discovery";
 import { AnimeError } from "@/features/media/media-error";
@@ -15,6 +15,7 @@ import { useAnimeDetailsDialogState } from "@/features/media/hooks/use-media-det
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageShell } from "@/components/shared/page-shell";
 import { mediaDetailsQueryOptions, mediaListQueryOptions, unitsQueryOptions } from "@/api/media";
+import { systemConfigQueryOptions } from "@/api/system-config";
 import { useAnimeScanTaskQuery, isTaskActive } from "@/api/operations-tasks";
 import { profilesQueryOptions, releaseProfilesQueryOptions } from "@/api/profiles";
 import { usePageTitle } from "@/hooks/use-page-title";
@@ -36,6 +37,7 @@ export const Route = createFileRoute("/_layout/media/$id")({
       queryClient.ensureQueryData(mediaListQueryOptions()),
       queryClient.ensureQueryData(profilesQueryOptions()),
       queryClient.ensureQueryData(releaseProfilesQueryOptions()),
+      queryClient.ensureQueryData(systemConfigQueryOptions()),
     ]);
     return { mediaId };
   },
@@ -66,6 +68,8 @@ function AnimeDetailsPage() {
   const isScanTaskRunning = scanTaskQuery.data !== undefined && isTaskActive(scanTaskQuery.data);
 
   const episodesData = episodesQuery.data;
+  const systemConfig = useSuspenseQuery(systemConfigQueryOptions()).data;
+  const airingPreferences = getAiringDisplayPreferences(systemConfig.library);
 
   const missingCount = episodesData.filter((e) => e.missing).length;
   const availableCount = episodesData.filter((e) => e.downloaded).length;
@@ -195,6 +199,7 @@ function AnimeDetailsPage() {
 
             <AnimeEpisodesPanel
               episodes={episodesData}
+              airingPreferences={airingPreferences}
               onRefreshMetadata={actions.handleRefreshEpisodes}
               onOpenSearchModal={dialogState.setSearchModalState}
               onOpenMappingDialog={dialogState.setMappingDialogState}

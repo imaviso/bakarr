@@ -27,7 +27,7 @@ import type { MissingUnit } from "@/api/contracts";
 import { mediaUnitLabel } from "@/domain/media-unit";
 import { usePageTitle } from "@/hooks/use-page-title";
 import {
-  formatAiringDateWithPreferences,
+  formatAiringDateTimeWithPreferences,
   formatNextAiringUnit,
   getAiringDisplayPreferences,
 } from "@/domain/media/metadata";
@@ -133,7 +133,7 @@ function WantedPage() {
                 <TableHead scope="col" className="hidden md:table-cell">
                   Unit Title
                 </TableHead>
-                <TableHead scope="col" className="w-37.5">
+                <TableHead scope="col" className="w-50">
                   Air Date
                 </TableHead>
                 <TableHead scope="col" className="w-12.5" />
@@ -275,8 +275,9 @@ function WantedRow(props: {
       <TableCell className="hidden md:table-cell text-muted-foreground truncate max-w-50">
         {props.item.unit_title || "-"}
       </TableCell>
-      <TableCell className="text-sm">
-        {formatAiringDateWithPreferences(props.item.aired, props.airingPreferences) || "-"}
+      <TableCell className="text-sm tabular-nums">
+        {formatAiringDateTimeWithPreferences(props.item.aired ?? undefined, props.airingPreferences) ||
+          "-"}
       </TableCell>
       <TableCell>
         <DropdownMenuTrigger>

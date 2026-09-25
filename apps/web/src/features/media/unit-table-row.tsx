@@ -23,14 +23,18 @@ import type {
   AnimeSearchModalState,
 } from "@/features/media/media-details-types";
 import type { MediaUnit } from "@/api/contracts";
-import { formatDate } from "@/domain/date-time";
-import { isUnitMissing } from "@/domain/media/metadata";
+import {
+  formatAiringDateTimeWithPreferences,
+  isUnitMissing,
+  type AiringDisplayPreferences,
+} from "@/domain/media/metadata";
 import { mediaUnitLabel } from "@/domain/media-unit";
 import { formatDurationSeconds } from "@/domain/format";
 import { cn } from "@/infra/utils";
 
 interface EpisodeTableRowProps {
   episode: MediaUnit;
+  airingPreferences?: AiringDisplayPreferences | undefined;
   onOpenSearchModal: (state: AnimeSearchModalState) => void;
   onOpenMappingDialog: (state: AnimeEpisodeDialogState) => void;
   onOpenDeleteDialog: (state: AnimeEpisodeDialogState) => void;
@@ -68,8 +72,9 @@ export function EpisodeTableRow(props: EpisodeTableRowProps) {
           {episode.title || `${unitLabel} ${episode.number}`}
         </div>
       </TableCell>
-      <TableCell className="hidden sm:table-cell text-muted-foreground text-sm">
-        {episode.aired ? formatDate(episode.aired) : "-"}
+      <TableCell className="hidden sm:table-cell text-muted-foreground text-sm tabular-nums">
+        {formatAiringDateTimeWithPreferences(episode.aired ?? undefined, props.airingPreferences) ??
+          "-"}
       </TableCell>
       <TableCell className="hidden md:table-cell text-muted-foreground text-sm">
         {formatDurationSeconds(episode.duration_seconds) || "-"}

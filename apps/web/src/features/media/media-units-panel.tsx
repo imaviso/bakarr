@@ -11,10 +11,15 @@ import type {
 } from "@/features/media/media-details-types";
 import type { MediaUnit } from "@/api/contracts";
 import { mediaUnitLabel } from "@/domain/media-unit";
+import {
+  formatAiringDateTimeWithPreferences,
+  type AiringDisplayPreferences,
+} from "@/domain/media/metadata";
 import { cn } from "@/infra/utils";
 
 interface AnimeEpisodesPanelProps {
   episodes: readonly MediaUnit[];
+  airingPreferences?: AiringDisplayPreferences | undefined;
   onRefreshMetadata: () => void;
   onOpenSearchModal: (state: AnimeSearchModalState) => void;
   onOpenMappingDialog: (state: AnimeEpisodeDialogState) => void;
@@ -71,6 +76,11 @@ export function AnimeEpisodesPanel(props: AnimeEpisodesPanelProps) {
                     : episode.missing
                       ? "Missing"
                       : "Upcoming";
+                  const airedLabel =
+                    formatAiringDateTimeWithPreferences(
+                      episode.aired ?? undefined,
+                      props.airingPreferences,
+                    ) ?? undefined;
 
                   return (
                     <li
@@ -85,7 +95,7 @@ export function AnimeEpisodesPanel(props: AnimeEpisodesPanelProps) {
                             : "bg-muted text-muted-foreground border border-transparent",
                       )}
                       title={`${unitLabel} ${episode.number}: ${status}${
-                        episode.aired ? ` (${dateLabel}: ${episode.aired})` : ""
+                        airedLabel ? ` (${dateLabel}: ${airedLabel})` : ""
                       }`}
                     >
                       {episode.number}
@@ -105,7 +115,7 @@ export function AnimeEpisodesPanel(props: AnimeEpisodesPanelProps) {
                       #
                     </TableHead>
                     <TableHead scope="col">Title</TableHead>
-                    <TableHead scope="col" className="hidden sm:table-cell w-30">
+                    <TableHead scope="col" className="hidden sm:table-cell w-45">
                       {dateLabel}
                     </TableHead>
                     <TableHead scope="col" className="hidden md:table-cell w-20">
@@ -134,6 +144,7 @@ export function AnimeEpisodesPanel(props: AnimeEpisodesPanelProps) {
                     <EpisodeTableRow
                       key={episode.number}
                       episode={episode}
+                      airingPreferences={props.airingPreferences}
                       onOpenSearchModal={props.onOpenSearchModal}
                       onOpenMappingDialog={props.onOpenMappingDialog}
                       onOpenDeleteDialog={props.onOpenDeleteDialog}
