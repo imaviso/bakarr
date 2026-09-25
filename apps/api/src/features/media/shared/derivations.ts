@@ -112,9 +112,13 @@ export function inferAiredAt(
     if (Option.isSome(endOption)) {
       const spanMs = Math.max(Duration.toMillis(DateTime.distance(start, endOption.value)), 0);
       const intervalMs = unitCount > 1 ? Math.floor(spanMs / (unitCount - 1)) : 0;
-      return DateTime.formatIso(
+      const interpolated = DateTime.formatIso(
         DateTime.add(start, { milliseconds: intervalMs * (unitNumber - 1) }),
       );
+      // Span interpolation is date precision only: fractional-day intervals
+      // fabricate clock times, so truncate to UTC midnight. WebUI formats
+      // the UTC instant into display timezone.
+      return `${interpolated.slice(0, 10)}T00:00:00.000Z`;
     }
   }
 

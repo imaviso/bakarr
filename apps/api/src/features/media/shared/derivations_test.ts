@@ -72,6 +72,13 @@ it("inferAiredAt interpolates finished series across start and end dates", () =>
   );
 });
 
+it("inferAiredAt truncates uneven interpolation spans to UTC midnight", () => {
+  assert.deepStrictEqual(
+    inferAiredAt("FINISHED", 2, 3, "2025-01-01", "2025-01-16"),
+    "2025-01-08T00:00:00.000Z",
+  );
+});
+
 it("inferAiredAt returns null for manga and light novels instead of anime inference", () => {
   const schedule = new Map<number, string>([[1, "2025-04-01T00:00:00.000Z"]]);
 
