@@ -20,7 +20,12 @@ const ORDINAL_SEASON_PATTERN = /\b(\d{1,2})(?:st|nd|rd|th)\s+season\b/i;
 const LONG_SEASON_PATTERN = /\bseason\s+(\d{1,2})\b/i;
 const PART_COUR_PATTERN = /\b(?:part|cour)\s+(\d{1,2})\b/i;
 const SHORT_SEASON_PATTERN = /\bS(\d{1,2})\b/i;
-const ROMAN_SEASON_PATTERN = /\b(II|III|IV|V|VI|VII|VIII|IX|X)\s*(?:\(.*\))?\s*$/i;
+// Roman season markers appear either trailing ("Overlord II") or mid-title
+// before a subtitle separator ("Mushoku Tensei III: ...", "Mushoku Tensei III - 14",
+// "無職転生III ～..."). Require a separator/end lookahead so "Hunter x Hunter"
+// (X between words) is not season 10.
+const ROMAN_SEASON_PATTERN = /\b(II|III|IV|V|VI|VII|VIII|IX|X)\b(?=\s*(?:[:(\[–—\-～~]|$))/i;
+const ROMAN_SEASON_TRAILING_PAREN_PATTERN = /\b(II|III|IV|V|VI|VII|VIII|IX|X)\s*\(.*\)\s*$/i;
 const SPECIAL_TITLE_PATTERN = /\b(?:ova|ona|oad|special|specials|movie|film)\b/i;
 
 const AnimeSynonymsJsonSchema = Schema.fromJsonString(Schema.Array(Schema.String));
@@ -32,9 +37,25 @@ function parseSeasonNumber(match: RegExpMatchArray | null): number | undefined {
   return n >= 1 && n <= 99 ? n : undefined;
 }
 
+const FULLWIDTH_ROMAN: Record<string, string> = {
+  Ⅱ: "II",
+  Ⅲ: "III",
+  Ⅳ: "IV",
+  Ⅴ: "V",
+  Ⅵ: "VI",
+  Ⅶ: "VII",
+  Ⅷ: "VIII",
+  Ⅸ: "IX",
+  Ⅹ: "X",
+};
+
+function normalizeRomanNumerals(value: string): string {
+  return value.replace(/[ⅡⅢⅣⅤⅥⅦⅧⅨⅩ]/g, (ch) => FULLWIDTH_ROMAN[ch] ?? ch);
+}
+
 export function inferSeasonFromTitle(title: string | null | undefined): number | undefined {
   if (!title) return undefined;
-  const value = title.trim();
+  const value = normalizeRomanNumerals(title.trim());
   if (value.length === 0) return undefined;
 
   const ordinal = parseSeasonNumber(value.match(ORDINAL_SEASON_PATTERN));
@@ -52,7 +73,8 @@ export function inferSeasonFromTitle(title: string | null | undefined): number |
   const short = parseSeasonNumber(value.match(SHORT_SEASON_PATTERN));
   if (short !== undefined) return short;
 
-  const romanMatch = value.match(ROMAN_SEASON_PATTERN);
+  const romanMatch =
+    value.match(ROMAN_SEASON_PATTERN) ?? value.match(ROMAN_SEASON_TRAILING_PAREN_PATTERN);
   if (romanMatch?.[1]) {
     const n = ROMAN_SEASON[romanMatch[1].toUpperCase()];
     if (n !== undefined) return n;
@@ -83,8 +105,8 @@ export function inferExpectedAnimeSeason(input: {
 export function getReleaseSeason(title: string): number | undefined {
   const result = parseReleaseSourceIdentity(title);
   const identity = result.source_identity;
-  if (!identity || identity.scheme !== "season") return undefined;
-  return identity.season;
+  if (identity?.scheme === "season") return identity.season;
+  return inferSeasonFromTitle(title);
 }
 
 function isSpecialLikeMedia(input: {
@@ -108,13 +130,17 @@ export function isAnimeReleaseSeasonMismatch(input: {
   readonly releaseTitle: string;
 }): boolean {
   const releaseSeason = getReleaseSeason(input.releaseTitle);
-  if (releaseSeason === undefined || releaseSeason === null) return false;
 
   if (releaseSeason === 0) {
     return !isSpecialLikeMedia(input.media);
   }
 
   const expected = inferExpectedAnimeSeason(input.media) ?? 1;
+  // Absolute "- 14" releases carry no season marker. For season 1 media that
+  // is normal; for sequels it is ambiguous per-season numbering that collides
+  // across seasons (S1E14 vs S3E14) and must not match.
+  if (releaseSeason === undefined || releaseSeason === null) return expected > 1;
+
   return releaseSeason !== expected;
 }
 

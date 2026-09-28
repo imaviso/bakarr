@@ -503,6 +503,50 @@ it.effect("searchUnitReleases rejects wrong-season SxxEyy for sequel media", () 
   }),
 );
 
+it.effect("searchUnitReleases rejects marker-less absolute for sequel media", () =>
+  withSqliteTestDbEffect({
+    run: (db, _databaseFile, client, _exec) =>
+      Effect.gen(function* () {
+        const config = makeTestConfig("/tmp/test.sqlite");
+        const searchReleaseService = yield* withSearchReleaseService({
+          client,
+          config,
+          db,
+          rssClient: RssClient.of({
+            fetchItems: () =>
+              Effect.succeed([
+                makeRelease({
+                  infoHash: "1111111111111111111111111111111111111111",
+                  title: "[SubsPlease] Mushoku Tensei - 14 (1080p) [63A05157]",
+                }),
+                makeRelease({
+                  infoHash: "2222222222222222222222222222222222222222",
+                  title:
+                    "[SubsPlease] Mushoku Tensei III: Isekai Ittara Honki Dasu - 14 (1080p) [XXXX]",
+                }),
+              ]),
+          }),
+          seadexClient: makeSeaDexNoneClient(),
+        });
+
+        const releases = yield* searchReleaseService.searchUnitReleases(
+          makeMediaRow({
+            titleEnglish: "Mushoku Tensei: Jobless Reincarnation Season 3",
+            titleRomaji: "Mushoku Tensei III: Isekai Ittara Honki Dasu",
+          }),
+          14,
+          config,
+        );
+
+        assert.deepStrictEqual(
+          releases.map((release) => release.title),
+          ["[SubsPlease] Mushoku Tensei III: Isekai Ittara Honki Dasu - 14 (1080p) [XXXX]"],
+        );
+      }),
+    schema: dbSchema,
+  }),
+);
+
 it.effect("searchUnitReleases accepts number-less titles for single-unit movies", () =>
   withSqliteTestDbEffect({
     run: (db, _databaseFile, client, _exec) =>

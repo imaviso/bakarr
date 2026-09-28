@@ -148,3 +148,52 @@ it("isAnimeReleaseSeasonMismatch allows S00 for film-like media", () => {
     false,
   );
 });
+
+it("inferSeasonFromTitle parses mid-title roman and ignores Hunter x Hunter", () => {
+  assert.deepStrictEqual(inferSeasonFromTitle("Mushoku Tensei III: Isekai Ittara Honki Dasu"), 3);
+  assert.deepStrictEqual(inferSeasonFromTitle("Mushoku Tensei II: Isekai Ittara Honki Dasu"), 2);
+  assert.deepStrictEqual(
+    inferSeasonFromTitle("[SubsPlease] Mushoku Tensei III - Isekai Ittara Honki Dasu - 14 (1080p)"),
+    3,
+  );
+  assert.deepStrictEqual(inferSeasonFromTitle("Hunter x Hunter"), undefined);
+  assert.deepStrictEqual(inferSeasonFromTitle("Hunter X Hunter - 10"), undefined);
+  assert.deepStrictEqual(inferSeasonFromTitle("Vivy: Fluorite Eye's Song"), undefined);
+  assert.deepStrictEqual(inferSeasonFromTitle("無職転生Ⅲ ～異世界行ったら本気だす～"), 3);
+});
+
+it("getReleaseSeason falls back to roman markers in release titles", () => {
+  assert.deepStrictEqual(
+    getReleaseSeason("[SubsPlease] Mushoku Tensei III: Isekai Ittara Honki Dasu - 14 (1080p)"),
+    3,
+  );
+  assert.deepStrictEqual(
+    getReleaseSeason("[SubsPlease] Mushoku Tensei - 14 (1080p) [63A05157]"),
+    undefined,
+  );
+});
+
+it("isAnimeReleaseSeasonMismatch rejects marker-less absolute for sequels", () => {
+  const media = {
+    titleRomaji: "Mushoku Tensei III: Isekai Ittara Honki Dasu",
+    titleEnglish: "Mushoku Tensei: Jobless Reincarnation Season 3",
+    format: "TV",
+    synonyms: [] as string[],
+  };
+
+  assert.deepStrictEqual(
+    isAnimeReleaseSeasonMismatch({
+      media,
+      releaseTitle: "[SubsPlease] Mushoku Tensei - 14 (1080p) [63A05157].mkv",
+    }),
+    true,
+  );
+
+  assert.deepStrictEqual(
+    isAnimeReleaseSeasonMismatch({
+      media,
+      releaseTitle: "[SubsPlease] Mushoku Tensei III: Isekai Ittara Honki Dasu - 14 (1080p) [XXXX]",
+    }),
+    false,
+  );
+});
