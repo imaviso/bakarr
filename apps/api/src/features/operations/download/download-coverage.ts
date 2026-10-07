@@ -7,6 +7,10 @@ import {
   classifyMediaArtifact,
   parseFileSourceIdentity,
 } from "@/features/media/identity/identity.ts";
+import {
+  VIDEO_UNIT_FILE_EXTENSIONS,
+  VOLUME_UNIT_FILE_EXTENSIONS,
+} from "@/features/media/files/media-file-path-policy.ts";
 import { parseVolumeNumbersFromTitle } from "@/features/operations/search/release-volume.ts";
 import type { TorrentFile } from "@/features/operations/torrent/torrent-domain.ts";
 import { StoredDataError } from "@/features/errors.ts";
@@ -138,14 +142,38 @@ export function inferCoveredUnitsFromTorrentContents(input: {
   readonly rootName: string;
 }) {
   const mediaUnits = new Set<number>();
+  const wantVolumes = input.parseVolumeNumbers === true;
 
   for (const file of input.files) {
     const fullPath = `${input.rootName.replace(/\/+$/, "")}/${file.name.replace(/^\/+/, "")}`;
     const fileName = file.name.split("/").pop() ?? file.name;
+
+    // Cross-type files never contribute coverage: anime episodes must not
+    // refine manga coverage (and vice versa) when torrents share a client
+    // save directory with unrelated downloads.
+    if (
+      hasUnitExtension(
+        fileName,
+        wantVolumes ? VIDEO_UNIT_FILE_EXTENSIONS : VOLUME_UNIT_FILE_EXTENSIONS,
+      )
+    ) {
+      continue;
+    }
+
     const classification = classifyMediaArtifact(fullPath, fileName);
 
     if (classification.kind !== "episode") {
       continue;
+    }
+
+    if (wantVolumes) {
+      const volumes = parseVolumeNumbersFromTitle(fileName);
+      if (volumes.length > 0) {
+        for (const volume of volumes) {
+          mediaUnits.add(volume);
+        }
+        continue;
+      }
     }
 
     const context = buildPathParseContext(input.rootName, fullPath);
@@ -153,11 +181,6 @@ export function inferCoveredUnitsFromTorrentContents(input: {
     const identity = parsed.source_identity;
 
     if (!identity || identity.scheme === "daily") {
-      if (input.parseVolumeNumbers) {
-        for (const volume of parseVolumeNumbersFromTitle(fileName)) {
-          mediaUnits.add(volume);
-        }
-      }
       continue;
     }
 
@@ -175,18 +198,31 @@ export function resolveReconciledBatchUnitNumbers(input: {
   readonly parseVolumeNumbers?: boolean;
   readonly totalCandidateCount: number;
 }) {
-  const identity = parseFileSourceIdentity(input.path).source_identity;
+  const fileName = input.path.split("/").pop() ?? input.path;
+  const wantVolumes = input.parseVolumeNumbers === true;
 
-  if (identity && identity.scheme !== "daily") {
-    return [...identity.unit_numbers];
+  // Cross-type files never map: a video file is not a manga volume even
+  // when its bare number coincides (and vice versa for anime).
+  if (
+    hasUnitExtension(
+      fileName,
+      wantVolumes ? VIDEO_UNIT_FILE_EXTENSIONS : VOLUME_UNIT_FILE_EXTENSIONS,
+    )
+  ) {
+    return [];
   }
 
-  if (input.parseVolumeNumbers) {
-    const fileName = input.path.split("/").pop() ?? input.path;
+  if (wantVolumes) {
     const volumes = parseVolumeNumbersFromTitle(fileName);
     if (volumes.length > 0) {
       return volumes;
     }
+  }
+
+  const identity = parseFileSourceIdentity(input.path).source_identity;
+
+  if (identity && identity.scheme !== "daily") {
+    return [...identity.unit_numbers];
   }
 
   if (input.totalCandidateCount === 1 && input.coveredUnits.length > 0) {
@@ -204,4 +240,9 @@ function rangeArray(start: number, end: number): number[] {
   }
 
   return values;
+}
+
+function hasUnitExtension(name: string, extensions: readonly string[]) {
+  const lower = name.toLowerCase();
+  return extensions.some((ext) => lower.endsWith(ext));
 }

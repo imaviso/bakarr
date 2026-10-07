@@ -34,6 +34,7 @@ import {
   encodeDownloadEventMetadata,
 } from "@/features/operations/repository/download-repository.ts";
 import { DownloadRepository } from "@/features/operations/repository/download-repository.ts";
+import { TorrentClientService } from "@/features/operations/torrent/torrent-client-service.ts";
 import type {
   OperationsConflictError,
   OperationsNotFoundError,
@@ -54,6 +55,7 @@ type DownloadReconciliationContext = {
   readonly repo: typeof DownloadRepository.Service;
   readonly mediaRepository: typeof MediaRepository.Service;
   readonly mediaUnitRepository: MediaUnitRepositoryShape;
+  readonly torrentClientService: typeof TorrentClientService.Service;
   readonly fs: FileSystemShape;
   readonly naming: LibraryNamingShape;
   readonly nowIso: () => Effect.Effect<string>;
@@ -99,6 +101,7 @@ export const loadDownloadReconciliationContext = Effect.fn(
     | "claimToken"
     | "repo"
     | "mediaUnitRepository"
+    | "torrentClientService"
     | "fs"
     | "naming"
     | "eventBus"
@@ -137,6 +140,7 @@ export const loadDownloadReconciliationContext = Effect.fn(
     repo: input.repo,
     mediaRepository: input.mediaRepository,
     mediaUnitRepository: input.mediaUnitRepository,
+    torrentClientService: input.torrentClientService,
     animeRow,
     eventBus: input.eventBus,
     fs: input.fs,
@@ -148,6 +152,64 @@ export const loadDownloadReconciliationContext = Effect.fn(
     row: input.row,
     storedSourceMetadata,
   } satisfies DownloadReconciliationContext);
+});
+
+/**
+ * Restrict directory-scan candidates to files belonging to this torrent.
+ * Returns the scoped paths, or null when the torrent file list is
+ * unavailable (fall back to the unscoped scan) versus an empty list when
+ * the list resolved but nothing usable is on disk yet (retry later).
+ */
+const resolveTorrentScopedBatchPaths = Effect.fn(
+  "DownloadReconcile.resolveTorrentScopedBatchPaths",
+)(function* (input: DownloadReconciliationContext, batchPaths: readonly string[]) {
+  if (!input.row.infoHash) {
+    return [...batchPaths];
+  }
+
+  const files = yield* input.torrentClientService
+    .listTorrentContentsIfEnabled(input.row.infoHash)
+    .pipe(
+      Effect.map((result) => (result._tag === "Found" ? result.files : null)),
+      Effect.catch(() => Effect.succeed(null)),
+    );
+
+  if (files === null) {
+    return [...batchPaths];
+  }
+
+  const root = input.resolvedContentRoot.replace(/\/+$/, "");
+  const completePaths = new Set(
+    files
+      .filter((file) => file.progress >= 1)
+      .map((file) => `${root}/${file.name.replace(/^\/+/, "")}`),
+  );
+  const scoped = batchPaths.filter((path) => completePaths.has(path));
+
+  if (scoped.length === 0) {
+    yield* Effect.logWarning(
+      "Batch torrent file list matched no complete on-disk files; leaving unreconciled for retry",
+    ).pipe(
+      Effect.annotateLogs({
+        mediaTitle: input.row.mediaTitle,
+        downloadId: input.row.id,
+      }),
+    );
+    return null;
+  }
+
+  if (scoped.length !== batchPaths.length) {
+    yield* Effect.logDebug("Filtered batch candidates to torrent file list").pipe(
+      Effect.annotateLogs({
+        mediaTitle: input.row.mediaTitle,
+        downloadId: input.row.id,
+        kept: scoped.length,
+        scanned: batchPaths.length,
+      }),
+    );
+  }
+
+  return scoped;
 });
 
 export const reconcileBatchDownloadEffect = Effect.fn("DownloadReconcile.reconcileBatchDownload")(
@@ -171,6 +233,21 @@ export const reconcileBatchDownloadEffect = Effect.fn("DownloadReconcile.reconci
       return false;
     }
 
+    // Scope candidates to this torrent's own fully-downloaded files. The
+    // client save directory is shared between torrents, so an unscoped
+    // directory scan picks up unrelated downloads (and zero-filled
+    // preallocated pieces of incomplete files) and maps them onto this
+    // media's units.
+    const candidatePaths = yield* resolveTorrentScopedBatchPaths(input, batchPaths);
+
+    if (candidatePaths === null) {
+      return true;
+    }
+
+    if (candidatePaths.length === 0) {
+      return false;
+    }
+
     const accountedEpisodes = new Set<number>();
     const expectedEpisodeCount = coveredUnits.length > 0 ? new Set(coveredUnits).size : undefined;
     let alreadyImportedEpisodeCount = 0;
@@ -184,7 +261,7 @@ export const reconcileBatchDownloadEffect = Effect.fn("DownloadReconcile.reconci
 
     const allRelevantEpisodes = new Set<number>();
 
-    for (const path of batchPaths) {
+    for (const path of candidatePaths) {
       const fileName = pathBasename(path);
       const classification = classifyMediaArtifact(path, fileName);
       if (classification.kind === "extra" || classification.kind === "sample") {
@@ -195,7 +272,7 @@ export const reconcileBatchDownloadEffect = Effect.fn("DownloadReconcile.reconci
         coveredUnits,
         parseVolumeNumbers: input.animeRow.mediaKind !== "anime",
         path,
-        totalCandidateCount: batchPaths.length,
+        totalCandidateCount: candidatePaths.length,
       });
       if (unitNumbers.length === 0) {
         continue;
@@ -398,7 +475,10 @@ export const reconcileSingleDownloadEffect = Effect.fn(
     input.fs,
     input.resolvedContentRoot,
     input.row.unitNumber,
-    expectedAirDate ? { expectedAirDate } : undefined,
+    {
+      ...(expectedAirDate ? { expectedAirDate } : {}),
+      ...(input.animeRow.mediaKind === "anime" ? {} : { isVolumeMedia: true }),
+    },
   ).pipe(
     Effect.mapError(
       (cause) =>

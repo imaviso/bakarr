@@ -146,6 +146,7 @@ export class DownloadReconciliationService extends Context.Service<
             claimToken,
             repo,
             mediaUnitRepository,
+            torrentClientService,
             eventBus,
             fs,
             naming,

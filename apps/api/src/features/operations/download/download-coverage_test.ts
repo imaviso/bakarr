@@ -101,6 +101,74 @@ it("resolveReconciledBatchUnitNumbers parses literature volume files when enable
   );
 });
 
+it("resolveReconciledBatchUnitNumbers never maps video files to literature volumes", () => {
+  assert.deepStrictEqual(
+    resolveReconciledBatchUnitNumbers({
+      coveredUnits: [],
+      parseVolumeNumbers: true,
+      path: "/mnt/media2/Downloads/torrents/Tenjou Tenge - 12 - [1080p][HEVC][AAC 2.0].mkv",
+      totalCandidateCount: 83,
+    }),
+    [],
+  );
+  assert.deepStrictEqual(
+    resolveReconciledBatchUnitNumbers({
+      coveredUnits: [],
+      parseVolumeNumbers: true,
+      path: "/mnt/media2/Downloads/torrents/[Erai-raws] Clevatess II - 13 [1080p CR WEB-DL AVC AAC][MultiSub][DD04FD6F].mkv",
+      totalCandidateCount: 83,
+    }),
+    [],
+  );
+});
+
+it("resolveReconciledBatchUnitNumbers never maps volume files to anime episodes", () => {
+  assert.deepStrictEqual(
+    resolveReconciledBatchUnitNumbers({
+      coveredUnits: [],
+      path: "/mnt/media2/Downloads/torrents/Tenjou Tenge - 01.cbz",
+      totalCandidateCount: 2,
+    }),
+    [],
+  );
+});
+
+it("inferCoveredUnitsFromTorrentContents prefers volume labels over air years", () => {
+  assert.deepStrictEqual(
+    inferCoveredUnitsFromTorrentContents({
+      files: [qbitFile("Tenjo Tenge Omnibus v01 (2011) (Digital) (LuCaZ).cbz")],
+      parseVolumeNumbers: true,
+      rootName: "Tenjo Tenge (2011-2013) (Digital) (LuCaZ)",
+    }),
+    [1],
+  );
+});
+
+it("inferCoveredUnitsFromTorrentContents skips cross-type files from shared save directories", () => {
+  assert.deepStrictEqual(
+    inferCoveredUnitsFromTorrentContents({
+      files: [
+        qbitFile("Tenjo Tenge Omnibus v01 (2011) (Digital) (LuCaZ).cbz"),
+        qbitFile("Air Gear Omnibus v01 (2016) (Digital) (3-in-1) (Shadowcat-Empire) (ED).cbz"),
+        qbitFile("[Erai-raws] Clevatess II - 13 [1080p CR WEB-DL AVC AAC][MultiSub][DD04FD6F].mkv"),
+      ],
+      parseVolumeNumbers: true,
+      rootName: "Tenjo Tenge (2011-2013) (Digital) (LuCaZ)",
+    }),
+    [1],
+  );
+  assert.deepStrictEqual(
+    inferCoveredUnitsFromTorrentContents({
+      files: [
+        { name: "Tenjou Tenge - 01.cbz", progress: 1, size: 1 },
+        { name: "Show - 01.mkv", progress: 1, size: 1 },
+      ],
+      rootName: "Show",
+    }),
+    [1],
+  );
+});
+
 it("inferCoveredUnitsFromTorrentContents parses qBittorrent literature file lists", () => {
   assert.deepStrictEqual(
     inferCoveredUnitsFromTorrentContents({

@@ -75,6 +75,28 @@ it.effect("resolveCompletedContentPath falls back to a lone generic video file",
   ),
 );
 
+it.effect("resolveCompletedContentPath matches volume files and ignores video for manga", () =>
+  withFileSystemSandboxEffect(({ fs, root }) =>
+    Effect.gen(function* () {
+      const dir = `${root}/manga`;
+      yield* fs.mkdir(dir, { recursive: true });
+      const volume = `${dir}/Tenjou Tenge - 01.cbz`;
+      const video = `${dir}/Tenjou Tenge - 12 - [1080p][HEVC][AAC 2.0].mkv`;
+      yield* writeTextFile(fs, volume, "cbz");
+      yield* writeTextFile(fs, video, "video");
+
+      assert.deepStrictEqual(
+        yield* resolveCompletedContentPath(fs, dir, 1, { isVolumeMedia: true }),
+        Option.some(volume),
+      );
+      assert.deepStrictEqual(
+        yield* resolveCompletedContentPath(fs, dir, 12, { isVolumeMedia: true }),
+        Option.none(),
+      );
+    }),
+  ),
+);
+
 it.effect("resolveBatchContentPaths collects video files from completed batch directories", () =>
   withFileSystemSandboxEffect(({ fs, root }) =>
     Effect.gen(function* () {

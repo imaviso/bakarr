@@ -5,6 +5,8 @@ import {
   classifyMediaArtifact,
   parseFileSourceIdentity,
 } from "@/features/media/identity/identity.ts";
+import { extractUnitNumbersFromFile } from "@/features/media/files/files.ts";
+import { pathBasename } from "@/infra/path.ts";
 import {
   scanVideoFilesStream,
   type ScannedVideoFile,
@@ -31,7 +33,7 @@ export const resolveCompletedContentPath = Effect.fn("Operations.resolveComplete
     fs: FileSystemShape,
     contentPath: string,
     unitNumber: number,
-    options?: { expectedAirDate?: string },
+    options?: { expectedAirDate?: string; isVolumeMedia?: boolean },
   ) {
     const stat = yield* statMaybe(fs, contentPath);
 
@@ -68,7 +70,12 @@ export const resolveCompletedContentPath = Effect.fn("Operations.resolveComplete
             candidateCount === 1 ? Option.some(file.path) : state.firstCandidatePath;
           const matchingPath = Option.isSome(state.matchingPath)
             ? state.matchingPath
-            : matchesCompletedDownloadFile(file.path, unitNumber, options?.expectedAirDate)
+            : matchesCompletedDownloadFile(
+                  file.path,
+                  unitNumber,
+                  options?.expectedAirDate,
+                  options?.isVolumeMedia,
+                )
               ? Option.some(file.path)
               : Option.none<string>();
 
@@ -180,7 +187,16 @@ const statMaybe = Effect.fn("Operations.statMaybe")(function* (fs: FileSystemSha
   );
 });
 
-function matchesCompletedDownloadFile(path: string, unitNumber: number, expectedAirDate?: string) {
+function matchesCompletedDownloadFile(
+  path: string,
+  unitNumber: number,
+  expectedAirDate?: string,
+  isVolumeMedia?: boolean,
+) {
+  if (isVolumeMedia) {
+    return extractUnitNumbersFromFile(pathBasename(path), path, true).includes(unitNumber);
+  }
+
   const identity = parseFileSourceIdentity(path).source_identity;
 
   if (!identity) {

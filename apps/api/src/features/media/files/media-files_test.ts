@@ -1,6 +1,10 @@
 import { assert, it } from "@effect/vitest";
 
-import { collectVideoFiles, collectVolumeFiles } from "@/features/media/files/files.ts";
+import {
+  collectVideoFiles,
+  collectVolumeFiles,
+  extractUnitNumbersFromFile,
+} from "@/features/media/files/files.ts";
 import { withFileSystemSandboxEffect, writeTextFile } from "@/test/filesystem-test.ts";
 import { Effect } from "effect";
 
@@ -102,3 +106,26 @@ it.effect("collectVideoFiles handles missing root folder by failing", () =>
     }),
   ),
 );
+
+it("extractUnitNumbersFromFile never maps video files to literature volumes", () => {
+  assert.deepStrictEqual(
+    extractUnitNumbersFromFile(
+      "Tenjou Tenge - 12 - [1080p][HEVC][AAC 2.0].mkv",
+      "/mnt/media2/Manga/Tenjou Tenge/Tenjou Tenge - 12 - [1080p][HEVC][AAC 2.0].mkv",
+      true,
+    ),
+    [],
+  );
+  assert.deepStrictEqual(
+    extractUnitNumbersFromFile(
+      "Tenjou Tenge - 01.cbz",
+      "/mnt/media2/Manga/Tenjou Tenge/Tenjou Tenge - 01.cbz",
+      true,
+    ),
+    [1],
+  );
+  assert.deepStrictEqual(
+    extractUnitNumbersFromFile("Tenjou Tenge - 01.cbz", "/manga/Tenjou Tenge - 01.cbz", false),
+    [],
+  );
+});

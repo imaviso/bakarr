@@ -25,6 +25,10 @@ function parseEpisodeNumber(
 /**
  * Extract unit numbers from a file, preferring volume-number parsing for
  * non-video media (manga/LN). Falls back to the episode identity parser.
+ *
+ * Cross-type files never map: video files are not volumes (an anime episode
+ * sitting in a manga folder must not satisfy a volume), and volume files
+ * are not episodes.
  */
 export function extractUnitNumbersFromFile(
   name: string,
@@ -32,8 +36,11 @@ export function extractUnitNumbersFromFile(
   isVolumeMedia: boolean,
 ): readonly number[] {
   if (isVolumeMedia) {
+    if (hasExtension(name, VIDEO_UNIT_FILE_EXTENSIONS)) return [];
     const volumeNumbers = parseVolumeNumbersFromTitle(name);
     if (volumeNumbers.length > 0) return volumeNumbers;
+  } else if (hasExtension(name, VOLUME_UNIT_FILE_EXTENSIONS)) {
+    return [];
   }
 
   const identity = parseFileSourceIdentity(path).source_identity;
