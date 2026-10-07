@@ -1,5 +1,6 @@
 import { assert, it } from "@effect/vitest";
 import { brandMediaId } from "@packages/shared/index.ts";
+import { Schema } from "effect";
 
 import {
   applyImportCandidateSelection,
@@ -9,6 +10,10 @@ import {
   setImportFileMediaSelection,
   toggleImportFileSelection,
 } from "@/features/operations/import-scan/import-selection-support.ts";
+import {
+  ImportFilesBodySchema,
+  toLibraryImportFileInputs,
+} from "@/features/operations/request-schemas.ts";
 
 function scannedFile(
   overrides: Partial<Parameters<typeof buildInitialImportSelection>[0][number]> & {
@@ -162,11 +167,16 @@ it("buildInitialImportSelection preselects matched and suggested files", () => {
     }),
   ]);
 
-  assert.deepStrictEqual([...result.selected_candidate_ids].toSorted(), [7, 8]);
-  assert.deepStrictEqual(result.selected_files.map((file) => file.source_path).toSorted(), [
-    "/imports/a-01.mkv",
-    "/imports/b-01.mkv",
-  ]);
+  assert.deepStrictEqual(
+    [...result.selected_candidate_ids].toSorted((left, right) => left - right),
+    [7, 8],
+  );
+  assert.deepStrictEqual(
+    result.selected_files
+      .map((file) => file.source_path)
+      .toSorted((left, right) => left.localeCompare(right)),
+    ["/imports/a-01.mkv", "/imports/b-01.mkv"],
+  );
 });
 
 it("toggleImportFileSelection assigns the file affinity when no media is given", () => {
@@ -268,4 +278,58 @@ it("selectAllImportFiles skips unaffiliated and unusable files", () => {
     result.selected_files.map((file) => file.source_path),
     ["/imports/a-01.mkv"],
   );
+});
+
+it("selection outputs never carry null or NaN seasons", () => {
+  const initial = buildInitialImportSelection([
+    scannedFile({
+      source_path: "/imports/a-01.mkv",
+      suggested_candidate_id: brandMediaId(7),
+      season: null,
+    }),
+  ]);
+
+  assert.deepStrictEqual(initial.selected_files.length, 1);
+  assert.deepStrictEqual("season" in (initial.selected_files[0] ?? {}), false);
+
+  const media = setImportFileMediaSelection({
+    files: [
+      scannedFile({
+        source_path: "/imports/a-01.mkv",
+        suggested_candidate_id: brandMediaId(7),
+        season: null,
+      }),
+    ],
+    selected_candidate_ids: [brandMediaId(7)],
+    selected_files: [
+      {
+        media_id: brandMediaId(7),
+        unit_number: 1,
+        season: null,
+        source_path: "/imports/a-01.mkv",
+      },
+    ],
+    source_path: "/imports/a-01.mkv",
+    media_id: brandMediaId(8),
+  });
+
+  assert.deepStrictEqual("season" in (media.selected_files[0] ?? {}), false);
+});
+
+it("import body accepts a null season and drops it for the import plan", () => {
+  const body = Schema.decodeUnknownSync(ImportFilesBodySchema)({
+    files: [
+      {
+        media_id: 7,
+        unit_number: 1,
+        season: null,
+        source_path: "/imports/a-01.mkv",
+      },
+    ],
+  });
+
+  const inputs = toLibraryImportFileInputs(body);
+
+  assert.deepStrictEqual(inputs.length, 1);
+  assert.deepStrictEqual("season" in (inputs[0] ?? {}), false);
 });

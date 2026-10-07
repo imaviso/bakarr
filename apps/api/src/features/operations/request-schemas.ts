@@ -204,7 +204,7 @@ class ImportFilesItem extends Schema.Class<ImportFilesItem>("ImportFilesItem")({
   media_id: MediaIdSchema,
   unit_number: CanonicalUnitNumberSchema,
   unit_numbers: Schema.optional(Schema.Array(CanonicalUnitNumberSchema)),
-  season: Schema.optional(Schema.Number),
+  season: Schema.optional(Schema.NullishOr(Schema.Number)),
   source_metadata: Schema.optional(DownloadSourceMetadataSchema),
   source_path: AbsoluteFilesystemPathStringSchema,
 }) {}
@@ -223,7 +223,7 @@ export function toLibraryImportFileInputs(body: ImportFilesBodyInput) {
     source_path: file.source_path,
     unit_number: file.unit_number,
     ...(file.unit_numbers === undefined ? {} : { unit_numbers: [...file.unit_numbers] }),
-    ...(file.season === undefined ? {} : { season: file.season }),
+    ...(file.season == null ? {} : { season: file.season }),
     ...(file.source_metadata === undefined ? {} : { source_metadata: file.source_metadata }),
   }));
 }

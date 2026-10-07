@@ -25,6 +25,10 @@ export function normalizeImportUnitNumber(value: number): number {
   return Math.floor(value);
 }
 
+function cleanSeason(value: number | null | undefined): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
 export function normalizeImportUnitNumbers(
   values: readonly number[] | undefined | null,
   fallback: number,
@@ -245,6 +249,7 @@ export function setImportFileMappingSelection(
   }
 
   const sourceMetadata = current?.source_metadata ?? toImportSourceMetadata(file);
+  const resolvedSeason = season ?? cleanSeason(current?.season) ?? cleanSeason(file.season);
 
   selectedCandidateIds.add(mediaId);
   selectedFilesByPath.set(input.source_path, {
@@ -253,11 +258,7 @@ export function setImportFileMappingSelection(
     ...(unitNumbers.length === 1 && unitNumbers[0] === unitNumber
       ? {}
       : { unit_numbers: unitNumbers }),
-    ...(season === undefined && current?.season === undefined && file.season === undefined
-      ? {}
-      : {
-          season: season ?? current?.season ?? file.season ?? undefined,
-        }),
+    ...(resolvedSeason === undefined ? {} : { season: resolvedSeason }),
     ...(sourceMetadata === undefined ? {} : { source_metadata: sourceMetadata }),
     source_path: input.source_path,
   });
@@ -313,11 +314,13 @@ function buildImportFileSelectionFromCurrent(
       return undefined;
     }
 
+    const fallbackSeason = cleanSeason(current.season);
+
     return {
       media_id: mediaId,
       unit_number: normalizeImportUnitNumber(current.unit_number),
       ...(current.unit_numbers === undefined ? {} : { unit_numbers: fallbackUnits }),
-      ...(current.season === undefined ? {} : { season: current.season }),
+      ...(fallbackSeason === undefined ? {} : { season: fallbackSeason }),
       ...(current.source_metadata === undefined
         ? {}
         : { source_metadata: current.source_metadata }),
@@ -325,7 +328,7 @@ function buildImportFileSelectionFromCurrent(
     };
   }
 
-  const season = current?.season ?? file.season ?? undefined;
+  const season = cleanSeason(current?.season) ?? cleanSeason(file.season);
   const sourceMetadata = current?.source_metadata ?? toImportSourceMetadata(file);
 
   return {
@@ -346,6 +349,7 @@ export function buildImportFileSelection(
 ): ImportFileSelection {
   const unitNumber = normalizeImportUnitNumber(file.unit_number);
   const unitNumbers = normalizeImportUnitNumbers(file.unit_numbers, unitNumber);
+  const fileSeason = cleanSeason(file.season);
   const sourceMetadata = toImportSourceMetadata(file);
 
   return {
@@ -354,7 +358,7 @@ export function buildImportFileSelection(
     ...(unitNumbers === undefined || (unitNumbers.length === 1 && unitNumbers[0] === unitNumber)
       ? {}
       : { unit_numbers: unitNumbers }),
-    ...(file.season === undefined ? {} : { season: file.season }),
+    ...(fileSeason === undefined ? {} : { season: fileSeason }),
     ...(sourceMetadata === undefined ? {} : { source_metadata: sourceMetadata }),
     source_path: file.source_path,
   };

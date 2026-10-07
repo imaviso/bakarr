@@ -253,7 +253,7 @@ const scanImportPathEffect = Effect.fn("ImportPathScanService.scanImportPathEffe
           parsed_title: file.parsed_title,
           quality: file.quality,
           resolution: file.resolution,
-          season: file.season,
+          ...(file.season == null ? {} : { season: file.season }),
           size: file.size,
           source_identity: file.source_identity,
           source_path: file.source_path,
