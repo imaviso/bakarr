@@ -5,11 +5,11 @@ import assert from "node:assert/strict";
 import * as SqliteClient from "@effect/sql-sqlite-node/SqliteClient";
 import * as it from "@effect/vitest";
 import * as PlatformFileSystem from "effect/FileSystem";
-import * as CommandExecutor from "effect/unstable/process/ChildProcessSpawner";
+import * as CommandExecutor from "effect/process/ChildProcessSpawner";
 import * as NodeFileSystem from "@effect/platform-node/NodeFileSystem";
-import * as HttpRouter from "effect/unstable/http/HttpRouter";
-import * as HttpServerRequest from "effect/unstable/http/HttpServerRequest";
-import * as HttpServerResponse from "effect/unstable/http/HttpServerResponse";
+import * as HttpRouter from "effect/http/HttpRouter";
+import * as HttpServerRequest from "effect/http/HttpServerRequest";
+import * as HttpServerResponse from "effect/http/HttpServerResponse";
 
 import {
   AsyncOperationAcceptedSchema,

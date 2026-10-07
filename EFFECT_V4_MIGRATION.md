@@ -1,6 +1,6 @@
 # Effect v3 → v4 Migration Progress
 
-Target: `effect@4.0.0-rc.112` (single version across all `@effect/*` packages).
+Target: `effect@4.0.1` stable (single version across all `@effect/*` packages).
 Reference sources, in priority order:
 
 1. Local Effect repo checkout `/home/yunyun/Dev/effect` (source + `migration/v3-to-v4.md`, `migration/schema.md`, `migration/services.md`)
@@ -9,17 +9,17 @@ Reference sources, in priority order:
 
 Install equivalent of v3 packages used here:
 
-| v3 package                | v4 location                                                                                                 |
-| ------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| `effect`                  | `effect@4.0.0-rc.112`                                                                                       |
-| `@effect/platform`        | folded into `effect` (`effect/FileSystem`, `effect/unstable/http/*`, ...)                                   |
-| `@effect/platform-node`   | `@effect/platform-node@4.0.0-rc.112`                                                                        |
-| `@effect/opentelemetry`   | `@effect/opentelemetry@4.0.0-rc.112` (barrel split; OTLP now lives in `effect/unstable/observability/Otlp`) |
-| `@effect/vitest`          | `@effect/vitest@4.0.0-rc.112`                                                                               |
-| `@effect/sql`             | `effect/unstable/sql/*`                                                                                     |
-| `@effect/sql-sqlite-node` | `@effect/sql-sqlite-node@4.0.0-rc.112`                                                                      |
-| `@effect/sql-drizzle`     | **removed** → `drizzle-orm@1.0.0-beta.1-cdf226f` dist-tag `effect`, import `drizzle-orm/effect/sqlite`      |
-| `better-sqlite3`          | **removed** — v4 SQLite client uses `node:sqlite` (`DatabaseSync`), Node ≥22.5                              |
+| v3 package                | v4 location                                                                                                     |
+| ------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `effect`                  | `effect@4.0.1`                                                                                                  |
+| `@effect/platform`        | folded into `effect` (`effect/FileSystem`, `effect/http/*`, ...)                                                |
+| `@effect/platform-node`   | `@effect/platform-node@4.0.1` (slim: NodeFileSystem/NodePath/Runtime/child-process only — no TCP socket client) |
+| `@effect/opentelemetry`   | `@effect/opentelemetry@4.0.1` (barrel split; OTLP now lives in `effect/observability/Otlp`)                     |
+| `@effect/vitest`          | `@effect/vitest@4.0.1`                                                                                          |
+| `@effect/sql`             | `effect/sql/*`                                                                                                  |
+| `@effect/sql-sqlite-node` | `@effect/sql-sqlite-node@4.0.1`                                                                                 |
+| `@effect/sql-drizzle`     | **removed** → `drizzle-orm@1.0.0-beta.1-cdf226f` dist-tag `effect`, import `drizzle-orm/effect/sqlite`          |
+| `better-sqlite3`          | **removed** — v4 SQLite client uses `node:sqlite` (`DatabaseSync`), Node ≥22.5                                  |
 
 Status legend: ✅ done · 🔶 partially done · ⬜ not started
 
@@ -40,8 +40,8 @@ v4 idiomatic guidance wins over house conventions. Priority: pinned `effect` sou
 
 ### Dependencies ✅
 
-- `apps/api`, `apps/web`, `packages/shared` on `effect@4.0.0-rc.112`
-- `@effect/platform-node`, `@effect/platform-node-shared`, `@effect/opentelemetry`, `@effect/vitest`, `@effect/sql-sqlite-node` pinned to `4.0.0-rc.112`
+- `apps/api`, `apps/web`, `packages/shared` on `effect@4.0.1`
+- `@effect/platform-node`, `@effect/platform-node-shared`, `@effect/opentelemetry`, `@effect/vitest`, `@effect/sql-sqlite-node` pinned to `4.0.1`
 - Removed `@effect/platform`, `@effect/experimental`, `@effect/sql`, `@effect/sql-drizzle`, `better-sqlite3`
 - `drizzle-orm` switched to `1.0.0-beta.1-cdf226f` (the `effect` dist-tag). No newer `effect` dist-tag exists (checked `npm view`), so beta type bugs are worked around locally, not pinned away.
 - `drizzle-kit` kept (`^0.31.10`) for `db:generate` — unaffected by runtime migration.
@@ -74,7 +74,7 @@ Other non-test fixes:
 
 ### Mechanical codemods ✅ (all packages: api/web/shared)
 
-- Import paths: `@effect/platform/X` → `effect/FileSystem`, `effect/unstable/http/*`, `effect/unstable/socket/Socket`, `effect/unstable/process/*`, `effect/PlatformError`; `@effect/sql/*` → `effect/unstable/sql/*`; `effect/Either` → `effect/Result`; `effect/TestClock` → `effect/testing/TestClock` (namespace import); `@effect/platform-node/NodeContext` → `NodeServices` (`@effect/platform-node/NodeServices`); namespace imports (`import * as HttpRouter ...`) for modules whose service tag shadows the module name.
+- Import paths: `@effect/platform/X` → `effect/FileSystem`, `effect/http/*`, `effect/socket/Socket`, `effect/process/*`, `effect/PlatformError`; `@effect/sql/*` → `effect/sql/*`; `effect/Either` → `effect/Result`; `effect/TestClock` → `effect/testing/TestClock` (namespace import); `@effect/platform-node/NodeContext` → `NodeServices` (`@effect/platform-node/NodeServices`); namespace imports (`import * as HttpRouter ...`) for modules whose service tag shadows the module name.
 - `Schema.Literal(a, b, c)` → `Schema.Literals([a, b, c])`; spread `Schema.Literal(...VALUES)` → `Schema.Literals([...VALUES])`; `Schema.Union(A, B)` → `Schema.Union([A, B])`; `Schema.Tuple(A, B)` → `Schema.Tuple([A, B])`
 - Filters: `Schema.int()` → `Schema.check(Schema.isInt())` (merged with adjacent checks), `Schema.between(a, b)` → `Schema.check(Schema.isBetween({ minimum: a, maximum: b }))`, `greaterThan`/`lessThan`(+`OrEqualTo`) → `Schema.check(Schema.is*)`, `positive()` → `Schema.check(Schema.isGreaterThan(0))`, `nonNegative()` → `Schema.check(Schema.isGreaterThanOrEqualTo(0))`, `minLength`/`maxLength`/`pattern` → `Schema.check(Schema.is*)`
 - Decoding: `Schema.decodeUnknownEither` → `Schema.decodeUnknownResult`, `decodeEither` → `decodeResult`, `encodeUnknown` → `encodeUnknownEffect`, `decodeUnknown` → `decodeUnknownEffect`, `Schema.encode(...)` → `Schema.encodeEffect(...)`, `Schema.parseJson(S)` → `Schema.fromJsonString(S)`
@@ -90,6 +90,14 @@ Other non-test fixes:
 - Router (v3 builder → v4 layer collector): `HttpRouter.empty.pipe(HttpRouter.get(...), ...)` → `Layer.mergeAll(HttpRouter.add("GET", ...), ...)` (no per-file `Layer.provide(HttpRouter.layer)`); `HttpRouter.concatAll/concat` → `Layer.mergeAll`; `HttpRouter.prefixAll(p, x)` → `addPrefixed` helper (provides `router.prefixed(p)` view); `HttpRouter.toHttpApp` → `HttpRouter.serve(appLayer)`; `HttpServer.serve(httpEffect)` wiring replaced by serve; `NodeHttpServer.layer(() => createServer(), { port })` unchanged; `NodeRuntime.runMain` still the entrypoint
 - `it.scoped(...)` → `it.effect(...)` (v4 `it.effect` already supplies `Scope`); `describe` now imported from `@effect/vitest` where missing
 - `HttpServerResponse.expireCookie(name, opts)` returns an Effect — call sites `yield* expireCookie(name, opts)(response)`
+
+### RC → stable (`4.0.0-rc.112` → `4.0.1`)
+
+- `effect/unstable/*` → `effect/*` (`http`, `sql`, `socket`, `process`, `observability`); `@effect/platform-node` slimmed (TCP socket client gone — SCGI transport rewritten on `node:net` with `Effect.acquireRelease` + `Deferred`)
+- `Config.string/number/boolean` → `Config.String/Number/Boolean` (same for `EffectConfig` alias); `Encoding` namespace gone → `Hex` from `effect/encoding` (`encode`/`decode`; decode returns `Result`)
+- `SchemaGetter.transformOrFail` → `transformEffect`; free `Schema.check` gone → `.check(...)` method (variadic); `isLengthBetween` gone → `isMinLength` + `isMaxLength` (cover arrays too)
+- `Scope.make()` returns `Effect<Closeable>` (not `Scope`); `Fiber.currentSpan` gone (log-line trace fields dropped — OTLP tracing unaffected)
+- Web: router `ErrorComponentProps` required on error components (cascade broke search inference); `GeneralError` takes `ErrorComponentProps`
 
 ### Services ✅ (75 classes migrated + stragglers)
 

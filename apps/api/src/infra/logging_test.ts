@@ -15,8 +15,6 @@ const LogEntry = Schema.fromJsonString(
   Schema.Struct({
     level: Schema.String,
     message: Schema.String,
-    traceId: Schema.optional(Schema.String),
-    spanId: Schema.optional(Schema.String),
     resource: Schema.Struct({
       "service.name": Schema.String,
       "service.version": Schema.String,
@@ -27,7 +25,7 @@ const LogEntry = Schema.fromJsonString(
 );
 
 it.effect(
-  "runtime logger emits structured deployment and trace context without exposing Redacted values",
+  "runtime logger emits structured deployment context without exposing Redacted values",
   () =>
     Effect.gen(function* () {
       const lines: string[] = [];
@@ -71,8 +69,6 @@ it.effect(
       assert.strictEqual(entry.resource["service.version"], "test-version");
       assert.strictEqual(entry.resource["deployment.environment.name"], "test");
       assert.strictEqual(entry.annotations["requestId"], "request-1");
-      assert.isNotEmpty(entry.traceId);
-      assert.isNotEmpty(entry.spanId);
       assert.isFalse(lines.join("").includes("secret-value"));
     }),
 );

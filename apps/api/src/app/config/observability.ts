@@ -196,7 +196,7 @@ export class ObservabilityConfig extends Context.Service<
 
         const metricsRequireAuth =
           overrides.metricsRequireAuth ??
-          (yield* EffectConfig.boolean("BAKARR_METRICS_REQUIRE_AUTH").pipe(
+          (yield* EffectConfig.Boolean("BAKARR_METRICS_REQUIRE_AUTH").pipe(
             EffectConfig.withDefault(defaults.metricsRequireAuth),
           ));
 

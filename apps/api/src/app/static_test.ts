@@ -1,4 +1,4 @@
-import * as HttpServerResponse from "effect/unstable/http/HttpServerResponse";
+import * as HttpServerResponse from "effect/http/HttpServerResponse";
 
 import { createEmbeddedWebResponse, type EmbeddedWebAsset } from "@/infra/http/embedded-web.ts";
 import { assert, it } from "@effect/vitest";

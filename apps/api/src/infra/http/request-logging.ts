@@ -1,8 +1,8 @@
 import { Cause, Clock, Context, Effect, Exit } from "effect";
-import * as HttpMiddleware from "effect/unstable/http/HttpMiddleware";
-import * as HttpServerError from "effect/unstable/http/HttpServerError";
-import * as HttpServerRequest from "effect/unstable/http/HttpServerRequest";
-import * as HttpServerResponse from "effect/unstable/http/HttpServerResponse";
+import * as HttpMiddleware from "effect/http/HttpMiddleware";
+import * as HttpServerError from "effect/http/HttpServerError";
+import * as HttpServerRequest from "effect/http/HttpServerRequest";
+import * as HttpServerResponse from "effect/http/HttpServerResponse";
 
 import { errorCategory } from "@/infra/logging.ts";
 import { randomUuid } from "@/infra/random.ts";

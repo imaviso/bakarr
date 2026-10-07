@@ -1,4 +1,5 @@
-import { Context, Effect, Encoding, Layer, Result, Schema } from "effect";
+import { Context, Effect, Layer, Result, Schema } from "effect";
+import { Hex } from "effect/encoding";
 
 import { RandomService } from "@/infra/random.ts";
 
@@ -43,7 +44,7 @@ const makeStreamTokenSigner = Effect.fn("StreamTokenSigner.make")(function* () {
         }),
     });
 
-    return Encoding.encodeHex(new Uint8Array(signature));
+    return Hex.encode(new Uint8Array(signature));
   });
 
   const verify = Effect.fn("StreamTokenSigner.verify")(function* (input: {
@@ -57,7 +58,7 @@ const makeStreamTokenSigner = Effect.fn("StreamTokenSigner.make")(function* () {
       return false;
     }
 
-    const signatureBytes = Encoding.decodeHex(input.signatureHex);
+    const signatureBytes = Hex.decode(input.signatureHex);
     if (Result.isFailure(signatureBytes) || signatureBytes.success.length !== 32) {
       return false;
     }

@@ -1,5 +1,5 @@
 // oxlint-disable oxc/no-async-await -- async/await required by transaction callbacks, test callbacks, and tryPromise wrappers
-import * as CommandExecutor from "effect/unstable/process/ChildProcessSpawner";
+import * as CommandExecutor from "effect/process/ChildProcessSpawner";
 import { dirname } from "node:path";
 import { TextEncoder } from "node:util";
 import { Deferred, Effect, Fiber, Layer } from "effect";

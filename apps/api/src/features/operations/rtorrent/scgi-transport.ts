@@ -1,8 +1,7 @@
 // oxlint-disable typescript/no-restricted-types -- `unknown` is the honest type at error/cause boundaries (Effect error channels, try/catch causes, Logger messages)
 
-import { Deferred, Effect, Fiber, Record } from "effect";
-import type * as Net from "node:net";
-import * as NetSocket from "@effect/platform-node/NodeSocket";
+import { Deferred, Effect, Record } from "effect";
+import { createConnection } from "node:net";
 
 import { TorrentClientUnavailableError } from "@/features/operations/torrent/torrent-domain.ts";
 
@@ -61,86 +60,95 @@ const transportError = (cause: unknown, message: string) =>
  * response can never poison the next call).
  */
 export const makeScgiTransport = (target: ScgiTarget): Effect.Effect<ScgiTransportShape> =>
-  Effect.sync(() => {
-    const connectOptions: Net.NetConnectOpts =
-      target.kind === "tcp" ? { host: target.host, port: target.port } : { path: target.path };
+  Effect.sync(
+    () =>
+      ({
+        request: (xml: string): Effect.Effect<string, TorrentClientUnavailableError> =>
+          scgiRequest(target, xml),
+      }) satisfies ScgiTransportShape,
+  );
 
-    const request = (xml: string): Effect.Effect<string, TorrentClientUnavailableError> =>
-      Effect.gen(function* () {
-        const encoded = encodeScgiRequest(
-          {
-            CONTENT_LENGTH: globalThis.String(Buffer.byteLength(xml, "utf8")),
-            SCGI: "1",
-          },
-          xml,
-        );
+const scgiRequest = (
+  target: ScgiTarget,
+  xml: string,
+): Effect.Effect<string, TorrentClientUnavailableError> =>
+  Effect.gen(function* () {
+    const payload = encodeScgiRequest(
+      {
+        CONTENT_LENGTH: globalThis.String(Buffer.byteLength(xml, "utf8")),
+        SCGI: "1",
+      },
+      xml,
+    );
 
-        const socket = yield* NetSocket.makeNet({
-          ...connectOptions,
-          openTimeout: "10 seconds",
-        }).pipe(
-          Effect.mapError((cause) => transportError(cause, "rTorrent SCGI connection failed")),
-        );
+    const responseDeferred = yield* Deferred.make<string, TorrentClientUnavailableError>();
+    const chunks: Array<Buffer> = [];
 
-        const responseDeferred = yield* Deferred.make<string, TorrentClientUnavailableError>();
-        const chunks: Array<Buffer> = [];
+    const complete = (body: string) => Deferred.doneUnsafe(responseDeferred, Effect.succeed(body));
+    const fail = (message: string, cause?: unknown) =>
+      Deferred.doneUnsafe(responseDeferred, Effect.fail(transportError(cause, message)));
 
-        const complete = (body: string) =>
-          Deferred.doneUnsafe(responseDeferred, Effect.succeed(body));
+    const onData = (chunk: Buffer) => {
+      chunks.push(chunk);
+      const concatenated = Buffer.concat(chunks);
+      const text = concatenated.toString("utf8");
+      const separator = text.indexOf("\r\n\r\n");
 
-        const readerFiber = yield* Effect.forkScoped(
-          socket
-            .run<never, TorrentClientUnavailableError>((chunk) => {
-              chunks.push(Buffer.from(chunk));
-              const concatenated = Buffer.concat(chunks);
-              const text = concatenated.toString("utf8");
-              const separator = text.indexOf("\r\n\r\n");
+      if (separator === -1) {
+        if (concatenated.length > MAX_RESPONSE_BYTES) {
+          fail("rTorrent SCGI header block too large");
+        }
+        return;
+      }
 
-              if (separator === -1) {
-                if (concatenated.length > MAX_RESPONSE_BYTES) {
-                  Deferred.doneUnsafe(
-                    responseDeferred,
-                    Effect.fail(transportError(undefined, "rTorrent SCGI header block too large")),
-                  );
-                }
-                return;
-              }
+      const contentLength = /Content-Length:\s*(\d+)/i.exec(text.slice(0, separator));
+      const bodyBytes = concatenated.length - separator - 4;
 
-              const contentLength = /Content-Length:\s*(\d+)/i.exec(text.slice(0, separator));
-              const bodyBytes = concatenated.length - separator - 4;
+      if (!contentLength) {
+        complete(text.slice(separator + 4));
+        return;
+      }
 
-              if (!contentLength) {
-                complete(text.slice(separator + 4));
-                return;
-              }
+      if (bodyBytes >= globalThis.Number(contentLength[1])) {
+        complete(text.slice(separator + 4));
+      }
+    };
 
-              if (bodyBytes >= globalThis.Number(contentLength[1])) {
-                complete(text.slice(separator + 4));
-              }
-            })
-            .pipe(
-              Effect.andThen(
-                Deferred.fail(
-                  responseDeferred,
-                  transportError(undefined, "rTorrent closed the SCGI connection"),
-                ),
-              ),
-            ),
-        );
+    yield* Effect.acquireRelease(
+      Effect.sync(() => {
+        const socket =
+          target.kind === "tcp"
+            ? createConnection({ host: target.host, port: target.port })
+            : createConnection({ path: target.path });
+        socket.setTimeout(10_000);
+        socket.on("data", onData);
+        socket.on("timeout", () => {
+          fail("rTorrent SCGI connection timed out");
+          socket.destroy();
+        });
+        socket.on("error", (cause) => {
+          fail("rTorrent SCGI connection failed", cause);
+        });
+        socket.on("close", () => {
+          fail("rTorrent closed the SCGI connection");
+        });
+        socket.write(payload, (cause) => {
+          if (cause) {
+            fail("rTorrent SCGI write failed", cause);
+            socket.destroy();
+          }
+        });
+        return socket;
+      }),
+      (socket) =>
+        Effect.sync(() => {
+          socket.removeAllListeners();
+          socket.destroy();
+        }),
+    );
 
-        const writer = yield* socket.writer;
-        yield* writer(encoded).pipe(
-          Effect.mapError((cause) => transportError(cause, "rTorrent SCGI write failed")),
-        );
-
-        const response = yield* Deferred.await(responseDeferred);
-
-        yield* Fiber.interrupt(readerFiber).pipe(Effect.orDie);
-        return response;
-      }).pipe(Effect.scoped);
-
-    return { request } satisfies ScgiTransportShape;
-  });
+    return yield* Deferred.await(responseDeferred);
+  }).pipe(Effect.scoped);
 
 /**
  * Reverse-proxied SCGI endpoint (nginx `scgi_pass`, Apache `ProxyPass`): the

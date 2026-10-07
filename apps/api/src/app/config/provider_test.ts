@@ -5,8 +5,8 @@ import { Config, ConfigProvider, Effect, Layer } from "effect";
 
 describe("ConfigProvider dotenv", () => {
   const ExampleConfig = Config.all({
-    value: Config.string("VALUE"),
-    number: Config.number("NUMBER"),
+    value: Config.String("VALUE"),
+    number: Config.Number("NUMBER"),
   });
 
   it.effect("loads values from dotenv when current values are missing", () =>

@@ -2,9 +2,9 @@
 
 import { Cause, Effect, Exit } from "effect";
 import { assert, it } from "@effect/vitest";
-import * as HttpClient from "effect/unstable/http/HttpClient";
-import * as HttpClientError from "effect/unstable/http/HttpClientError";
-import * as HttpClientResponse from "effect/unstable/http/HttpClientResponse";
+import * as HttpClient from "effect/http/HttpClient";
+import * as HttpClientError from "effect/http/HttpClientError";
+import * as HttpClientResponse from "effect/http/HttpClientResponse";
 
 import { exists, withFileSystemSandboxEffect } from "@/test/filesystem-test.ts";
 

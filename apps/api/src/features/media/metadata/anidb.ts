@@ -1,5 +1,5 @@
 import { type Socket } from "node:dgram";
-import * as HttpClient from "effect/unstable/http/HttpClient";
+import * as HttpClient from "effect/http/HttpClient";
 
 import type { Config } from "@packages/shared/index.ts";
 import { type DatabaseError } from "@/db/database.ts";

@@ -1,5 +1,5 @@
-import * as HttpApp from "effect/unstable/http/HttpEffect";
-import * as HttpRouter from "effect/unstable/http/HttpRouter";
+import * as HttpApp from "effect/http/HttpEffect";
+import * as HttpRouter from "effect/http/HttpRouter";
 
 import { assert, it } from "@effect/vitest";
 import { AppConfig, makeDefaultAppConfig } from "@/app/config/schema.ts";

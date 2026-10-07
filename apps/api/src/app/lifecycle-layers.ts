@@ -1,4 +1,4 @@
-import * as CommandExecutor from "effect/unstable/process/ChildProcessSpawner";
+import * as CommandExecutor from "effect/process/ChildProcessSpawner";
 import { Layer } from "effect";
 
 import {

@@ -1,4 +1,5 @@
-import { Context, Effect, Encoding, Layer } from "effect";
+import { Context, Effect, Layer } from "effect";
+import { Hex } from "effect/encoding";
 
 export interface RandomServiceShape {
   readonly randomBytes: (bytes: number) => Effect.Effect<Uint8Array>;
@@ -6,11 +7,11 @@ export interface RandomServiceShape {
 }
 
 const makeRandomService: RandomServiceShape = {
-  randomBytes: Effect.fn("RandomService.randomBytes")(
-    (bytes: number): Effect.Effect<Uint8Array> => Effect.sync(() => randomBytesSync(bytes)),
+  randomBytes: Effect.fn("RandomService.randomBytes")((bytes: number): Effect.Effect<Uint8Array> =>
+    Effect.sync(() => randomBytesSync(bytes)),
   ),
-  randomUuid: Effect.fn("RandomService.randomUuid")(
-    (): Effect.Effect<string> => Effect.sync(() => crypto.randomUUID()),
+  randomUuid: Effect.fn("RandomService.randomUuid")((): Effect.Effect<string> =>
+    Effect.sync(() => crypto.randomUUID()),
   )(),
 };
 
@@ -22,14 +23,14 @@ export class RandomService extends Context.Service<RandomService, RandomServiceS
 
 export const randomHexFrom = Effect.fn("Random.randomHexFrom")(
   (random: RandomServiceShape, bytes: number): Effect.Effect<string> =>
-    Effect.map(random.randomBytes(bytes), (data) => Encoding.encodeHex(data)),
+    Effect.map(random.randomBytes(bytes), (data) => Hex.encode(data)),
 );
 
 /**
  * Generate random hex string. Use in service/orchestration code.
  */
-export const randomHex = Effect.fn("Random.randomHex")(
-  (bytes: number): Effect.Effect<string> => Effect.sync(() => randomHexSync(bytes)),
+export const randomHex = Effect.fn("Random.randomHex")((bytes: number): Effect.Effect<string> =>
+  Effect.sync(() => randomHexSync(bytes)),
 );
 
 export const randomBytes = Effect.fn("Random.randomBytes")(
@@ -42,7 +43,7 @@ export const randomBytes = Effect.fn("Random.randomBytes")(
  */
 export function randomHexSync(bytes: number): string {
   const data = randomBytesSync(bytes);
-  return Encoding.encodeHex(data);
+  return Hex.encode(data);
 }
 
 export function randomBytesSync(bytes: number): Uint8Array {
@@ -54,9 +55,8 @@ export function randomBytesSync(bytes: number): Uint8Array {
 /**
  * Generate random UUID. Use in service/orchestration code.
  */
-export const randomUuid = Effect.fn("Random.randomUuid")(
-  (): Effect.Effect<string> =>
-    Effect.sync(() => crypto.randomUUID()).pipe(Effect.withSpan("Random.randomUuid")),
+export const randomUuid = Effect.fn("Random.randomUuid")((): Effect.Effect<string> =>
+  Effect.sync(() => crypto.randomUUID()).pipe(Effect.withSpan("Random.randomUuid")),
 );
 
 export function randomUuidSync(): string {

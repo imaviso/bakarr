@@ -1,9 +1,9 @@
 import { stat as nodeStat } from "node:fs/promises";
 import { gunzipSync } from "node:zlib";
 import { dirname, join } from "node:path";
-import * as HttpClient from "effect/unstable/http/HttpClient";
-import * as HttpClientRequest from "effect/unstable/http/HttpClientRequest";
-import * as HttpClientResponse from "effect/unstable/http/HttpClientResponse";
+import * as HttpClient from "effect/http/HttpClient";
+import * as HttpClientRequest from "effect/http/HttpClientRequest";
+import * as HttpClientResponse from "effect/http/HttpClientResponse";
 import { Cache, Clock, Duration, Effect, Stream } from "effect";
 
 import { type ExternalCallShape } from "@/infra/effect/retry.ts";

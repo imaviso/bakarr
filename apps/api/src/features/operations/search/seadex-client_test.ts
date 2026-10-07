@@ -1,7 +1,7 @@
 // oxlint-disable typescript/no-restricted-types -- `unknown` is the honest type at error/cause boundaries (Effect error channels, try/catch causes, Logger messages)
 import { assert, it } from "@effect/vitest";
-import * as HttpClient from "effect/unstable/http/HttpClient";
-import * as HttpClientResponse from "effect/unstable/http/HttpClientResponse";
+import * as HttpClient from "effect/http/HttpClient";
+import * as HttpClientResponse from "effect/http/HttpClientResponse";
 
 import { ExternalCallError, ExternalCallLive } from "@/infra/effect/retry.ts";
 import { SeaDexClient, SeaDexClientLive } from "@/features/operations/search/seadex-client.ts";

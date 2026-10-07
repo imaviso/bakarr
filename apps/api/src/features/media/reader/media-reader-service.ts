@@ -1,4 +1,4 @@
-import * as CommandExecutor from "effect/unstable/process/ChildProcessSpawner";
+import * as CommandExecutor from "effect/process/ChildProcessSpawner";
 import { dirname, join, resolve } from "node:path";
 import { Cache, Context, Effect, Layer, Schema, Semaphore } from "effect";
 import type { ReaderPage, ReaderPagesResponse } from "@packages/shared/index.ts";
@@ -323,21 +323,18 @@ const deriveReadablePageSources = Effect.fn("MediaReader.deriveReadablePageSourc
 
     if (hasExtension(input.unitFile.fileName, PDF_EXTENSIONS)) {
       const pageCount = yield* getPdfPageCount(input.executor, input.unitFile.filePath);
-      return Array.from(
-        { length: pageCount },
-        (_, index): ReaderPageSource => ({
-          _tag: "PdfPage",
-          cacheDirectory: pdfCacheDirectory({
-            cacheRoot: input.cacheRoot,
-            filePath: input.unitFile.filePath,
-            fileSize: input.unitFile.fileSize,
-          }),
-          fileName: `page-${index + 1}.jpg`,
+      return Array.from({ length: pageCount }, (_, index): ReaderPageSource => ({
+        _tag: "PdfPage",
+        cacheDirectory: pdfCacheDirectory({
+          cacheRoot: input.cacheRoot,
           filePath: input.unitFile.filePath,
-          mediaType: "image/jpeg",
-          pageNumber: index + 1,
+          fileSize: input.unitFile.fileSize,
         }),
-      );
+        fileName: `page-${index + 1}.jpg`,
+        filePath: input.unitFile.filePath,
+        mediaType: "image/jpeg",
+        pageNumber: index + 1,
+      }));
     }
 
     return yield* new ReaderAccessError({

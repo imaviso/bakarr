@@ -1,6 +1,6 @@
 // oxlint-disable typescript/no-restricted-types -- `unknown` is the honest type at error/cause boundaries (Effect error channels, try/catch causes, Logger messages)
 import { assert, it } from "@effect/vitest";
-import * as CommandExecutor from "effect/unstable/process/ChildProcessSpawner";
+import * as CommandExecutor from "effect/process/ChildProcessSpawner";
 import * as PlatformError from "effect/PlatformError";
 
 import {

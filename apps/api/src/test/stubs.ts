@@ -1,5 +1,5 @@
 import { Effect, Predicate, Stream } from "effect";
-import * as CommandExecutor from "effect/unstable/process/ChildProcessSpawner";
+import * as CommandExecutor from "effect/process/ChildProcessSpawner";
 import type * as PlatformError from "effect/PlatformError";
 
 import type { Config } from "@packages/shared/index.ts";

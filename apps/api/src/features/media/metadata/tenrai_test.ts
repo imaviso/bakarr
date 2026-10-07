@@ -1,5 +1,5 @@
-import * as HttpClient from "effect/unstable/http/HttpClient";
-import * as HttpClientResponse from "effect/unstable/http/HttpClientResponse";
+import * as HttpClient from "effect/http/HttpClient";
+import * as HttpClientResponse from "effect/http/HttpClientResponse";
 import { assert, it } from "@effect/vitest";
 
 import { TenraiClient, TenraiClientLive } from "@/features/media/metadata/tenrai.ts";

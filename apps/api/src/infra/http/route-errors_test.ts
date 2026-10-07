@@ -2,8 +2,8 @@
 
 import { Effect, Logger } from "effect";
 import { assert, it } from "@effect/vitest";
-import * as HttpServerRequest from "effect/unstable/http/HttpServerRequest";
-import * as HttpServerResponse from "effect/unstable/http/HttpServerResponse";
+import * as HttpServerRequest from "effect/http/HttpServerRequest";
+import * as HttpServerResponse from "effect/http/HttpServerResponse";
 
 import { DatabaseError } from "@/db/database.ts";
 import { AuthForbiddenError, AuthUnauthorizedError } from "@/features/auth/errors.ts";

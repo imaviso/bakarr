@@ -1,9 +1,9 @@
 import * as TestClock from "effect/testing/TestClock";
 import { Cause, Deferred, Effect, Exit, Fiber, Layer, Redacted } from "effect";
 import { assert, it } from "@effect/vitest";
-import * as HttpClient from "effect/unstable/http/HttpClient";
-import * as HttpClientError from "effect/unstable/http/HttpClientError";
-import * as HttpClientResponse from "effect/unstable/http/HttpClientResponse";
+import * as HttpClient from "effect/http/HttpClient";
+import * as HttpClientError from "effect/http/HttpClientError";
+import * as HttpClientResponse from "effect/http/HttpClientResponse";
 
 import { ExternalCallLive } from "@/infra/effect/retry.ts";
 

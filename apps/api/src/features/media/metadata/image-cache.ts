@@ -1,5 +1,5 @@
 // oxlint-disable typescript/no-restricted-types -- `unknown` is the honest type at error/cause boundaries (Effect error channels, try/catch causes, Logger messages)
-import * as HttpClient from "effect/unstable/http/HttpClient";
+import * as HttpClient from "effect/http/HttpClient";
 import { Effect, Option, Schema } from "effect";
 
 import { collectBoundedBytes } from "@/infra/effect/bounded-stream.ts";

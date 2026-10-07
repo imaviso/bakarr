@@ -1201,7 +1201,7 @@ it("shared config and notification schemas reject invalid payloads", () => {
   }
 
   if (config._tag === "Failure") {
-    assertMatch(config.failure.message, /copy|move|items count/i);
+    assertMatch(config.failure.message, /copy|move|length/i);
   }
 });
 

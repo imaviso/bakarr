@@ -1,7 +1,7 @@
 import { gzipSync } from "node:zlib";
 import { utimes } from "node:fs/promises";
-import * as HttpClient from "effect/unstable/http/HttpClient";
-import * as HttpClientResponse from "effect/unstable/http/HttpClientResponse";
+import * as HttpClient from "effect/http/HttpClient";
+import * as HttpClientResponse from "effect/http/HttpClientResponse";
 import { assert, it } from "@effect/vitest";
 import { Cache, Effect, Layer } from "effect";
 import * as TestClock from "effect/testing/TestClock";

@@ -102,7 +102,7 @@ export class AppConfig extends Context.Service<AppConfig, AppConfigShape>()(
           ));
         const sessionCookieSecure =
           overrides.sessionCookieSecure ??
-          (yield* Config.boolean("SESSION_COOKIE_SECURE").pipe(
+          (yield* Config.Boolean("SESSION_COOKIE_SECURE").pipe(
             Config.withDefault(defaults.sessionCookieSecure),
           ));
         const sessionDurationDays =

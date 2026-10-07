@@ -1,5 +1,5 @@
 import { Effect, Record, Stream } from "effect";
-import * as HttpServerResponse from "effect/unstable/http/HttpServerResponse";
+import * as HttpServerResponse from "effect/http/HttpServerResponse";
 
 export interface ExportHeaderInput {
   readonly exported: number;

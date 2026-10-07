@@ -1,5 +1,5 @@
-import * as HttpRouter from "effect/unstable/http/HttpRouter";
-import * as HttpServerResponse from "effect/unstable/http/HttpServerResponse";
+import * as HttpRouter from "effect/http/HttpRouter";
+import * as HttpServerResponse from "effect/http/HttpServerResponse";
 import { Effect, Layer, Schema } from "effect";
 
 import {

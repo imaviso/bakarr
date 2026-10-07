@@ -1,6 +1,6 @@
 # Bakarr API Effect Principles
 
-Keep `apps/api` aligned with Effect v4 (`effect@4.0.0-rc.112`) idioms as used in
+Keep `apps/api` aligned with Effect v4 (`effect@4.0.1`) idioms as used in
 `/home/yunyun/Dev/effect` source, examples, and tests.
 
 This repo is pre-release alpha, so prefer current Effect patterns over
@@ -110,7 +110,7 @@ compatibility layers.
   `Layer.effect` supplies/excludes `Scope` (replaces `scoped`/`scopedDiscard`/
   `scopedContext`).
 - **Chain stages with `Layer.provideMerge(...)`**: `stage = next.pipe(
-Layer.provideMerge(prev))`. Never hand the same layer object to both
+  Layer.provideMerge(prev))`. Never hand the same layer object to both
   `mergeAll` and `Layer.provide` — v4 memoization then builds the whole
   sub-graph twice (measured 2.3GB at build) and hangs on repeated runtime
   builds. `provideMerge` keeps the previous context in the output, so routes
@@ -242,7 +242,7 @@ Preferred replacements, in order:
    ```
 7. **Effect Schema** for hand-rolled JSON/response validation — decode the
    whole payload instead of `const raw: Record<string, unknown> = await
-response.json()`:
+   response.json()`:
    ```ts
    const envelope = Schema.decodeUnknownSync(EnvelopeSchema)(await response.json());
    ```
@@ -618,7 +618,7 @@ describe("job", () => {
 
 ```ts
 import { Effect, Layer } from "effect";
-import * as HttpRouter from "effect/unstable/http/HttpRouter";
+import * as HttpRouter from "effect/http/HttpRouter";
 
 const UserIdParams = Schema.Struct({ id: Schema.NumberFromString });
 

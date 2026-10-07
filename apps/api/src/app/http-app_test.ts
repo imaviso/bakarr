@@ -1,4 +1,4 @@
-import * as HttpApp from "effect/unstable/http/HttpEffect";
+import * as HttpApp from "effect/http/HttpEffect";
 
 import { createHttpAppFallbackResponse } from "@/app/http-app.ts";
 import { type EmbeddedWebAsset } from "@/infra/http/embedded-web.ts";

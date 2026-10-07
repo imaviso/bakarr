@@ -1,15 +1,12 @@
 import { RiArrowLeftLine } from "@remixicon/react";
 import { useState } from "react";
-import { useNavigate } from "@tanstack/react-router";
+import { useNavigate, type ErrorComponentProps } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 
-interface GeneralErrorProps {
-  error?: Error;
-}
-
-export function GeneralError(props: GeneralErrorProps) {
+export function GeneralError(props: ErrorComponentProps) {
   const navigate = useNavigate();
   const [showDetails, setShowDetails] = useState(false);
+  const error = props.error instanceof Error ? props.error : undefined;
 
   return (
     <div className="flex min-h-100 flex-1 flex-col items-center justify-center bg-background">
@@ -28,7 +25,7 @@ export function GeneralError(props: GeneralErrorProps) {
           </div>
         </div>
 
-        {props.error && (
+        {error && (
           <div className="w-full">
             <Button
               variant="ghost"
@@ -40,8 +37,8 @@ export function GeneralError(props: GeneralErrorProps) {
             </Button>
             {showDetails && (
               <pre className="mt-2 max-h-60 overflow-auto whitespace-pre-wrap break-all border border-border bg-muted p-3 font-mono text-xs text-muted-foreground">
-                {props.error.message}
-                {props.error.stack && `\n\n${props.error.stack}`}
+                {error.message}
+                {error.stack && `\n\n${error.stack}`}
               </pre>
             )}
           </div>

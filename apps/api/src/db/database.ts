@@ -1,5 +1,5 @@
 // oxlint-disable typescript/no-restricted-types -- `unknown` is the honest type at error/cause boundaries (Effect error channels, try/catch causes, Logger messages)
-import * as SqlClient from "effect/unstable/sql/SqlClient";
+import * as SqlClient from "effect/sql/SqlClient";
 import * as NodeSqliteClient from "@effect/sql-sqlite-node/SqliteClient";
 import { Context, Effect, Layer, Schema } from "effect";
 import { drizzle } from "drizzle-orm/effect/sqlite";

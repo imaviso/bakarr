@@ -1,4 +1,4 @@
-import * as HttpRouter from "effect/unstable/http/HttpRouter";
+import * as HttpRouter from "effect/http/HttpRouter";
 import { Effect, Layer, Schema } from "effect";
 import {
   ActivityItemSchema,

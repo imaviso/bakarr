@@ -7,7 +7,7 @@ import { QualityProfileSchema } from "./profiles.ts";
 export const StringListSchema = Schema.mutable(Schema.Array(Schema.String));
 
 export const RemotePathMappingSchema = Schema.mutable(
-  Schema.Array(Schema.String).pipe(Schema.check(Schema.isLengthBetween(2, 2))),
+  Schema.Array(Schema.String).check(Schema.isMinLength(2), Schema.isMaxLength(2)),
 );
 
 export const GeneralConfigSchema = Schema.Struct({

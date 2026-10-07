@@ -1,4 +1,4 @@
-import * as SqlClient from "effect/unstable/sql/SqlClient";
+import * as SqlClient from "effect/sql/SqlClient";
 import * as NodeSqliteClient from "@effect/sql-sqlite-node/SqliteClient";
 import type { EffectSQLiteDatabase } from "drizzle-orm/effect/sqlite/db";
 import { drizzle } from "drizzle-orm/effect/sqlite";

@@ -1,4 +1,4 @@
-import * as FetchHttpClient from "effect/unstable/http/FetchHttpClient";
+import * as FetchHttpClient from "effect/http/FetchHttpClient";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import * as NodeFileSystem from "@effect/platform-node/NodeFileSystem";
 import { ConfigProvider, Effect, Layer } from "effect";

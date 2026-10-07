@@ -1,4 +1,5 @@
-import { Cause, Effect, Encoding } from "effect";
+import { Cause, Effect } from "effect";
+import { Hex } from "effect/encoding";
 import { assert, it } from "@effect/vitest";
 
 import {
@@ -71,12 +72,9 @@ it.effect("hashes written with older iteration counts still verify", () =>
       Uint8Array.from(salt).buffer,
       310_000,
     );
-    const legacyStoredHash = [
-      "pbkdf2_sha256",
-      "310000",
-      Encoding.encodeHex(salt),
-      Encoding.encodeHex(hash),
-    ].join("$");
+    const legacyStoredHash = ["pbkdf2_sha256", "310000", Hex.encode(salt), Hex.encode(hash)].join(
+      "$",
+    );
 
     assert.deepStrictEqual(
       yield* verifyPassword(WebPasswordCrypto, "legacy", legacyStoredHash),

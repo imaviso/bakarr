@@ -1,6 +1,6 @@
 // oxlint-disable typescript/no-restricted-types -- `unknown` is the honest type at error/cause boundaries (Effect error channels, try/catch causes, Logger messages)
-import * as Command from "effect/unstable/process/ChildProcess";
-import * as CommandExecutor from "effect/unstable/process/ChildProcessSpawner";
+import * as Command from "effect/process/ChildProcess";
+import * as CommandExecutor from "effect/process/ChildProcessSpawner";
 import { Effect, Schema } from "effect";
 
 export class MediaProbeFailure extends Schema.TaggedError<MediaProbeFailure>()(

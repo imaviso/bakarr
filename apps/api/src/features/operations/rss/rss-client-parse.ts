@@ -97,7 +97,7 @@ class RssRootSchema extends Schema.Class<RssRootSchema>("RssRootSchema")({
 
 const ParsedReleaseFromRssItemSchema = RssItemSchema.pipe(
   Schema.decodeTo(ParsedReleaseSchema, {
-    decode: SchemaGetter.transformOrFail((item: RssItemSchema) => {
+    decode: SchemaGetter.transformEffect((item: RssItemSchema) => {
       const { title } = item;
       const { link } = item;
       const infoHash = item["nyaa:infoHash"];
@@ -162,7 +162,7 @@ const ParsedReleaseFromRssItemSchema = RssItemSchema.pipe(
         viewUrl: link.replace("/download/", "/view/").replace(/\.torrent$/i, ""),
       } satisfies ParsedRelease);
     }),
-    encode: SchemaGetter.transformOrFail((release: ParsedRelease) =>
+    encode: SchemaGetter.transformEffect((release: ParsedRelease) =>
       Effect.succeed({
         link: release.viewUrl.replace("/view/", "/download/") + ".torrent",
         pubDate: release.pubDate,

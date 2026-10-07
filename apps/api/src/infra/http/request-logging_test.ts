@@ -1,9 +1,9 @@
 // oxlint-disable typescript/no-restricted-types -- Logger messages and annotations are unknown boundaries.
 import { assert, it } from "@effect/vitest";
 import { Cause, Effect, Exit, Layer, Logger, References } from "effect";
-import * as HttpMiddleware from "effect/unstable/http/HttpMiddleware";
-import * as HttpServerRequest from "effect/unstable/http/HttpServerRequest";
-import * as HttpServerResponse from "effect/unstable/http/HttpServerResponse";
+import * as HttpMiddleware from "effect/http/HttpMiddleware";
+import * as HttpServerRequest from "effect/http/HttpServerRequest";
+import * as HttpServerResponse from "effect/http/HttpServerResponse";
 
 import { AuthUnauthorizedError } from "@/features/auth/errors.ts";
 import { CurrentRequestLog, withRequestLogging } from "@/infra/http/request-logging.ts";

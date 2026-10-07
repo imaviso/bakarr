@@ -158,14 +158,11 @@ export const makeRuntimeLoggerLayer = Effect.fn("Logging.makeRuntimeLoggerLayer"
           return;
         }
 
-        const span = options.fiber.currentSpan;
         sink.write({
           level: options.logLevel,
           line: Formatter.formatJson({
             ...Logger.formatStructured.log(options),
             resource,
-            traceId: span?.traceId,
-            spanId: span?.spanId,
           }),
         });
       }),

@@ -1,4 +1,4 @@
-import * as HttpClient from "effect/unstable/http/HttpClient";
+import * as HttpClient from "effect/http/HttpClient";
 import { Context, Effect, Layer, Schema } from "effect";
 
 import { FileSystem } from "@/infra/filesystem/filesystem.ts";

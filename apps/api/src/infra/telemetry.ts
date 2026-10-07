@@ -1,6 +1,6 @@
 import { Duration, Effect, Layer, Record, Redacted } from "effect";
-import * as FetchHttpClient from "effect/unstable/http/FetchHttpClient";
-import * as Otlp from "effect/unstable/observability/Otlp";
+import * as FetchHttpClient from "effect/http/FetchHttpClient";
+import * as Otlp from "effect/observability/Otlp";
 
 import { ObservabilityConfig } from "@/app/config/observability.ts";
 

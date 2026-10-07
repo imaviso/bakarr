@@ -1,4 +1,5 @@
-import { Context, Effect, Layer, Encoding, Result, Schema } from "effect";
+import { Context, Effect, Layer, Result, Schema } from "effect";
+import { Hex } from "effect/encoding";
 import { timingSafeEqual as nodeTimingSafeEqual } from "node:crypto";
 
 const PASSWORD_SCHEME = "pbkdf2_sha256";
@@ -74,7 +75,7 @@ function timingSafeEqual(left: Uint8Array, right: Uint8Array): boolean {
 }
 
 const parseHex = Effect.fn("Password.parseHex")(function* (value: string, message: string) {
-  const decoded = Encoding.decodeHex(value);
+  const decoded = Hex.decode(value);
 
   if (Result.isFailure(decoded)) {
     return yield* new PasswordError({ message });
@@ -120,12 +121,7 @@ export const hashPassword = Effect.fn("Password.hash")(function* (
   const keyMaterial = yield* crypto.deriveKeyMaterial(password);
   const hash = yield* crypto.deriveBits(keyMaterial, toArrayBuffer(salt), ITERATIONS);
 
-  return [
-    PASSWORD_SCHEME,
-    `${ITERATIONS}`,
-    Encoding.encodeHex(salt),
-    Encoding.encodeHex(hash),
-  ].join("$");
+  return [PASSWORD_SCHEME, `${ITERATIONS}`, Hex.encode(salt), Hex.encode(hash)].join("$");
 });
 
 export const verifyPassword = Effect.fn("Password.verify")(function* (

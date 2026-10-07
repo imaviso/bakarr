@@ -18,7 +18,7 @@ export interface BackgroundWorkerControllerShape {
 export const makeBackgroundWorkerController = Effect.fn(
   "Background.makeBackgroundWorkerController",
 )(function* (options: { readonly spawnWorkers: BackgroundWorkerSpawner }) {
-  const scopeRef = yield* Ref.make<Scope.Scope | null>(null);
+  const scopeRef = yield* Ref.make<Scope.Closeable | null>(null);
   const lifecycleSemaphore = yield* Semaphore.make(1);
 
   const isStarted = Effect.fn("BackgroundWorkerController.isStarted")(function* () {

@@ -1,5 +1,5 @@
-import * as Command from "effect/unstable/process/ChildProcess";
-import * as CommandExecutor from "effect/unstable/process/ChildProcessSpawner";
+import * as Command from "effect/process/ChildProcess";
+import * as CommandExecutor from "effect/process/ChildProcessSpawner";
 import { createHash } from "node:crypto";
 
 import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
