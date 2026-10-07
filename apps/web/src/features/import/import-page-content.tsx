@@ -4,13 +4,13 @@ import {
   RiArrowRightLine,
   RiCheckLine,
   RiCloseLine,
+  RiErrorWarningLine,
   RiFileLine,
   RiFolderOpenLine,
   RiLoader4Line,
   RiNodeTree,
   RiSearchLine,
   RiText,
-  RiUploadLine,
 } from "@remixicon/react";
 import { Link } from "@tanstack/react-router";
 import { Spinner } from "@/components/ui/spinner";
@@ -20,6 +20,7 @@ import { AddAnimeDialog } from "@/features/media/add-media-dialog";
 import { FileBrowser } from "@/features/import/file-browser";
 import { CandidateCard, FileRow, ManualSearch } from "@/features/import";
 import { importSteps, type ImportPageState } from "@/features/import/import-page-state";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DialogDescription, DialogTitle } from "@/components/ui/dialog";
@@ -31,6 +32,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { errorMessage } from "@/api/effect/errors";
+import { animeDisplayTitle } from "@/domain/media/metadata";
 import { cn } from "@/infra/utils";
 
 const DEFAULT_ANIME_SEARCH = {
@@ -55,16 +58,20 @@ export function ImportPageContent(props: ImportPageContentProps) {
         </div>
       </div>
 
-      {props.state.flow.activeAddCandidate && (
+      {props.state.flow.addDialogCandidate && (
         <AddAnimeDialog
-          media={props.state.flow.activeAddCandidate}
+          media={props.state.flow.addDialogCandidate}
           open
           onOpenChange={(nextOpen: boolean) => {
             if (!nextOpen) {
               props.state.flow.closeAddCandidateDialog();
             }
           }}
-          onSuccess={props.state.flow.advanceAddCandidateDialog}
+          onSuccess={() => {
+            if (props.state.flow.addDialogCandidate) {
+              props.state.flow.handleSingleAdded(props.state.flow.addDialogCandidate.id);
+            }
+          }}
         />
       )}
     </>
@@ -148,6 +155,7 @@ function ImportTopBar(props: { state: ImportPageState }) {
 }
 
 function ImportScanStep(props: { state: ImportPageState }) {
+  const hasPreviousScan = props.state.flow.scanMutation.data !== undefined;
   return (
     <div className="h-full flex flex-col overflow-hidden">
       <div className="px-8 py-6 border-b">
@@ -215,6 +223,7 @@ function ImportScanStep(props: { state: ImportPageState }) {
                     }}
                     directoryOnly
                     initialPath={props.state.activeBrowseRoot.path}
+                    selectedPath={props.state.flow.path}
                     height="100%"
                   />
                 )}
@@ -224,25 +233,10 @@ function ImportScanStep(props: { state: ImportPageState }) {
 
           <TabsContent id="manual" className="flex-1 mt-6 min-h-0 overflow-auto">
             <section
-              aria-label="Drop zone for folder import"
-              className={cn(
-                "h-full min-h-75 border-2 border-dashed rounded-none p-8 transition-colors flex flex-col items-center justify-center",
-                props.state.flow.isDragOver
-                  ? "border-primary bg-primary/10"
-                  : "border-muted hover:border-muted-foreground",
-              )}
-              onDragOver={props.state.flow.handleDragOver}
-              onDragLeave={props.state.flow.handleDragLeave}
-              onDrop={props.state.flow.handleDrop}
+              aria-label="Manual folder path for import"
+              className="h-full min-h-75 border rounded-none p-8 flex flex-col items-center justify-center bg-background"
             >
-              <div className="rounded-full bg-muted p-4 mb-4">
-                <RiUploadLine className="h-8 w-8 text-muted-foreground" />
-              </div>
-              <p className="font-medium text-center">Drag and drop a folder here</p>
-              <p className="text-sm text-muted-foreground mt-1 text-center">
-                or enter the path manually below
-              </p>
-              <div className="w-full max-w-lg mt-6 space-y-2">
+              <div className="w-full max-w-lg space-y-2">
                 <Label htmlFor="folder-path-input">Folder Path</Label>
                 <Input
                   id="folder-path-input"
@@ -262,12 +256,24 @@ function ImportScanStep(props: { state: ImportPageState }) {
             </section>
           </TabsContent>
         </Tabs>
+
+        {props.state.flow.scanMutation.error && (
+          <Alert variant="destructive" className="mt-4">
+            <RiErrorWarningLine className="h-4 w-4" />
+            <AlertDescription>
+              {errorMessage(
+                props.state.flow.scanMutation.error,
+                "Scan failed. Check the folder path and try again.",
+              )}
+            </AlertDescription>
+          </Alert>
+        )}
       </div>
 
       <div className="px-8 py-4 border-t bg-muted">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            {props.state.flow.path && (
+            {props.state.flow.path ? (
               <>
                 <RiFolderOpenLine className="h-4 w-4 text-muted-foreground" />
                 <span className="text-sm font-mono text-muted-foreground truncate max-w-md">
@@ -282,31 +288,113 @@ function ImportScanStep(props: { state: ImportPageState }) {
                   <RiCloseLine className="h-3 w-3" />
                 </Button>
               </>
+            ) : (
+              <span className="text-sm text-muted-foreground">
+                Pick a folder above to enable scanning.
+              </span>
             )}
           </div>
-          <Button
-            onPress={props.state.flow.handleScan}
-            isDisabled={!props.state.flow.path || props.state.flow.scanMutation.isPending}
-          >
-            {props.state.flow.scanMutation.isPending ? (
-              <>
-                <RiLoader4Line className="mr-2 h-4 w-4 animate-spin" />
-                Scanning...
-              </>
-            ) : (
-              <>
-                <RiSearchLine className="mr-2 h-4 w-4" />
-                Scan Folder
-              </>
+          <div className="flex items-center gap-3">
+            {hasPreviousScan && (
+              <span className="text-xs text-muted-foreground">
+                Rescanning replaces the current file selection.
+              </span>
             )}
-          </Button>
+            <Button
+              onPress={props.state.flow.handleScan}
+              isDisabled={!props.state.flow.path || props.state.flow.scanMutation.isPending}
+            >
+              {props.state.flow.scanMutation.isPending ? (
+                <>
+                  <RiLoader4Line className="mr-2 h-4 w-4 animate-spin" />
+                  Scanning...
+                </>
+              ) : (
+                <>
+                  <RiSearchLine className="mr-2 h-4 w-4" />
+                  {hasPreviousScan ? "Rescan Folder" : "Scan Folder"}
+                </>
+              )}
+            </Button>
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
+function MissingSeriesPanel(props: { state: ImportPageState }) {
+  const missing = props.state.flow.missingCandidates;
+  const progress = props.state.flow.bulkProgress;
+  const doneCount = progress ? progress.succeeded.length + progress.failed.length : 0;
+  const isWorking = props.state.flow.isBulkAdding || props.state.flow.planMutation.isPending;
+
+  return (
+    <div className="px-8 py-6 border-b bg-accent/5">
+      <div className="flex items-center justify-between mb-2">
+        <h3 className="text-sm font-medium">Add {missing.length} new series before importing</h3>
+        <Badge variant="secondary" className="text-xs">
+          New
+        </Badge>
+      </div>
+      <p className="text-xs text-muted-foreground max-w-3xl">
+        These files point to series that are not in your library yet. Add them below and the import
+        starts automatically. “Add all” uses your first quality profile, the default library folder
+        for each kind, and monitoring turned on.
+      </p>
+      <ul className="mt-4 space-y-2">
+        {missing.map((candidate) => (
+          <li key={candidate.id} className="flex items-center gap-3 border bg-background px-3 py-2">
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium truncate">{animeDisplayTitle(candidate)}</p>
+              <p className="text-xs text-muted-foreground font-mono">ID: {candidate.id}</p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 text-xs gap-1.5 shrink-0"
+              onPress={() => props.state.flow.openAddDialog(candidate)}
+              isDisabled={isWorking}
+            >
+              <RiAddLine className="h-3.5 w-3.5" />
+              Add
+            </Button>
+          </li>
+        ))}
+      </ul>
+      <div className="mt-4 flex items-center gap-3">
+        <Button onPress={props.state.flow.handleAddAllMissing} isDisabled={isWorking} size="sm">
+          {progress ? (
+            <>
+              <RiLoader4Line className="mr-2 h-4 w-4 animate-spin" />
+              Adding {doneCount}/{progress.total}...
+            </>
+          ) : (
+            <>
+              <RiAddLine className="mr-2 h-4 w-4" />
+              Add all with default settings
+            </>
+          )}
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          onPress={props.state.flow.dismissMissing}
+          isDisabled={isWorking}
+        >
+          Not now
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 function ImportReviewStep(props: { state: ImportPageState }) {
+  const allSelected =
+    props.state.flow.scannedFiles.length > 0 &&
+    props.state.flow.selectedFiles.size >= props.state.flow.scannedFiles.length;
+  const importPending =
+    props.state.flow.importMutation.isPending || props.state.flow.planMutation.isPending;
   return (
     <div className="h-full flex flex-col overflow-hidden">
       <div className="px-8 py-6 border-b">
@@ -323,17 +411,64 @@ function ImportReviewStep(props: { state: ImportPageState }) {
               )}
             </p>
             <p className="mt-2 max-w-3xl text-xs text-muted-foreground">
-              Bakarr keeps the import explanation next to each file: coverage, already-mapped
-              episodes, duplicate conflicts, and the match reason that picked a series.
+              Files start selected only when the scan matched them to a series. Assign the rest with
+              the series dropdown on each row, or toggle a suggested series below.
             </p>
           </div>
-          <Badge variant="secondary" className="text-sm">
-            {props.state.flow.selectedFiles.size} selected
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 text-xs"
+              onPress={props.state.flow.selectAll}
+              isDisabled={props.state.flow.isAwaitingToggle}
+            >
+              {allSelected ? "Reselect matched" : "Select all matched"}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 text-xs"
+              onPress={props.state.flow.clearSelection}
+              isDisabled={
+                props.state.flow.selectedFiles.size === 0 || props.state.flow.isAwaitingToggle
+              }
+            >
+              Clear
+            </Button>
+            <Badge variant="secondary" className="text-sm">
+              {props.state.flow.selectedFiles.size} selected
+            </Badge>
+          </div>
         </div>
+        {props.state.flow.lastPlan && props.state.flow.lastPlan.unimportable.length > 0 && (
+          <Alert variant="destructive" className="mt-4">
+            <RiErrorWarningLine className="h-4 w-4" />
+            <AlertDescription>
+              <p className="font-medium">
+                {props.state.flow.lastPlan.unimportable.length} selected file(s) need attention
+                before importing:
+              </p>
+              <ul className="mt-2 space-y-1">
+                {props.state.flow.lastPlan.unimportable.map((entry) => (
+                  <li key={entry.source_path} className="font-mono text-xs">
+                    {entry.source_path.split("/").pop()} — {entry.reason}
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-2">
+                Fix the episode mapping on each row (the S/E button is always editable), then try
+                importing again. Your other selections are kept.
+              </p>
+            </AlertDescription>
+          </Alert>
+        )}
       </div>
 
       <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0">
+        {props.state.flow.missingCandidates.length > 0 && (
+          <MissingSeriesPanel state={props.state} />
+        )}
         <div className="px-8 py-6 border-b bg-muted">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-medium flex items-center gap-2">
@@ -383,7 +518,7 @@ function ImportReviewStep(props: { state: ImportPageState }) {
                       ? (["manual"] as const)
                       : []),
                   ]}
-                  isToggling={props.state.flow.isTogglingCandidate(candidate.id)}
+                  isToggling={props.state.flow.isAwaitingToggle}
                   onToggle={() => props.state.flow.toggleCandidate(candidate)}
                   className=""
                 />
@@ -407,7 +542,7 @@ function ImportReviewStep(props: { state: ImportPageState }) {
               selectedAnimeId={props.state.flow.selectedFiles.get(file.source_path)?.media_id}
               currentEpisode={props.state.flow.selectedFiles.get(file.source_path)?.unit_number}
               currentSeason={props.state.flow.selectedFiles.get(file.source_path)?.season ?? null}
-              onToggle={(id) => props.state.flow.toggleFile(file, id)}
+              onToggle={() => props.state.flow.toggleFile(file)}
               onAnimeChange={(id) => props.state.flow.updateFileAnime(file, id)}
               onMappingChange={(season, episode) =>
                 props.state.flow.updateFileMapping(file, season, episode)
@@ -447,27 +582,32 @@ function ImportReviewStep(props: { state: ImportPageState }) {
             <RiArrowLeftLine className="mr-2 h-4 w-4" />
             Back
           </Button>
-          <Button
-            onPress={props.state.flow.handleImport}
-            isDisabled={
-              props.state.flow.selectedFiles.size === 0 ||
-              props.state.flow.importMutation.isPending ||
-              props.state.flow.isAwaitingToggle
-            }
-          >
-            {props.state.flow.importMutation.isPending ? (
-              <>
-                <RiLoader4Line className="mr-2 h-4 w-4 animate-spin" />
-                Importing...
-              </>
-            ) : (
-              <>
-                Import {props.state.flow.selectedFiles.size} File
-                {props.state.flow.selectedFiles.size !== 1 ? "s" : ""}
-                <RiArrowRightLine className="ml-2 h-4 w-4" />
-              </>
+          <div className="flex items-center gap-3">
+            {props.state.flow.isAwaitingToggle && (
+              <span className="text-xs text-muted-foreground">Updating selection…</span>
             )}
-          </Button>
+            <Button
+              onPress={props.state.flow.handleImport}
+              isDisabled={
+                props.state.flow.selectedFiles.size === 0 ||
+                importPending ||
+                props.state.flow.isAwaitingToggle
+              }
+            >
+              {importPending ? (
+                <>
+                  <RiLoader4Line className="mr-2 h-4 w-4 animate-spin" />
+                  {props.state.flow.planMutation.isPending ? "Checking..." : "Importing..."}
+                </>
+              ) : (
+                <>
+                  Import {props.state.flow.selectedFiles.size} File
+                  {props.state.flow.selectedFiles.size !== 1 ? "s" : ""}
+                  <RiArrowRightLine className="ml-2 h-4 w-4" />
+                </>
+              )}
+            </Button>
+          </div>
         </div>
       </div>
     </div>

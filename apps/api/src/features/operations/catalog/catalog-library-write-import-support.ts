@@ -1,4 +1,9 @@
-import { brandMediaId, type Config, type ImportResult } from "@packages/shared/index.ts";
+import {
+  brandMediaId,
+  type Config,
+  type DownloadSourceMetadata,
+  type ImportResult,
+} from "@packages/shared/index.ts";
 import type { FileSystemShape } from "@/infra/filesystem/filesystem.ts";
 import { EventBus } from "@/infra/effect/event-bus.ts";
 import { MediaRepository } from "@/features/media/shared/media-repository.ts";
@@ -22,6 +27,7 @@ export interface LibraryImportFileInput {
   readonly unit_number: number;
   readonly unit_numbers?: readonly number[];
   readonly season?: number;
+  readonly source_metadata?: DownloadSourceMetadata;
 }
 
 export interface ImportLibraryFilesInput {

@@ -3,6 +3,7 @@ import { Schema } from "effect";
 import {
   SEARCH_RELEASE_CATEGORY_OPTIONS,
   SEARCH_RELEASE_FILTER_OPTIONS,
+  CanonicalUnitNumberSchema,
   DownloadSourceMetadataSchema,
   ImportFileSelectionSchema,
   MediaIdSpaceSchema,
@@ -201,8 +202,8 @@ export class EnabledBodySchema extends Schema.Class<EnabledBodySchema>("EnabledB
 
 class ImportFilesItem extends Schema.Class<ImportFilesItem>("ImportFilesItem")({
   media_id: MediaIdSchema,
-  unit_number: UnitNumberSchema,
-  unit_numbers: Schema.optional(Schema.Array(UnitNumberSchema)),
+  unit_number: CanonicalUnitNumberSchema,
+  unit_numbers: Schema.optional(Schema.Array(CanonicalUnitNumberSchema)),
   season: Schema.optional(Schema.Number),
   source_metadata: Schema.optional(DownloadSourceMetadataSchema),
   source_path: AbsoluteFilesystemPathStringSchema,
@@ -221,8 +222,9 @@ export function toLibraryImportFileInputs(body: ImportFilesBodyInput) {
     media_id: file.media_id,
     source_path: file.source_path,
     unit_number: file.unit_number,
-    ...(file.unit_numbers === undefined ? {} : { unit_numbers: file.unit_numbers }),
+    ...(file.unit_numbers === undefined ? {} : { unit_numbers: [...file.unit_numbers] }),
     ...(file.season === undefined ? {} : { season: file.season }),
+    ...(file.source_metadata === undefined ? {} : { source_metadata: file.source_metadata }),
   }));
 }
 
@@ -262,6 +264,49 @@ export class ImportCandidateSelectionBodySchema extends Schema.Class<ImportCandi
   force_select: Schema.optional(Schema.Boolean),
   files: Schema.mutable(Schema.Array(ScannedFileSchema)),
   selected_candidate_ids: Schema.mutable(Schema.Array(MediaIdSchema)),
+  selected_files: Schema.mutable(Schema.Array(ImportFileSelectionSchema)),
+}) {}
+
+export class ImportFileToggleBodySchema extends Schema.Class<ImportFileToggleBodySchema>(
+  "ImportFileToggleBodySchema",
+)({
+  files: Schema.mutable(Schema.Array(ScannedFileSchema)),
+  selected_candidate_ids: Schema.mutable(Schema.Array(MediaIdSchema)),
+  selected_files: Schema.mutable(Schema.Array(ImportFileSelectionSchema)),
+  source_path: AbsoluteFilesystemPathStringSchema,
+  media_id: Schema.optional(MediaIdSchema),
+}) {}
+
+export class ImportFileMediaBodySchema extends Schema.Class<ImportFileMediaBodySchema>(
+  "ImportFileMediaBodySchema",
+)({
+  files: Schema.mutable(Schema.Array(ScannedFileSchema)),
+  selected_candidate_ids: Schema.mutable(Schema.Array(MediaIdSchema)),
+  selected_files: Schema.mutable(Schema.Array(ImportFileSelectionSchema)),
+  source_path: AbsoluteFilesystemPathStringSchema,
+  media_id: MediaIdSchema,
+}) {}
+
+export class ImportFileMappingBodySchema extends Schema.Class<ImportFileMappingBodySchema>(
+  "ImportFileMappingBodySchema",
+)({
+  files: Schema.mutable(Schema.Array(ScannedFileSchema)),
+  selected_candidate_ids: Schema.mutable(Schema.Array(MediaIdSchema)),
+  selected_files: Schema.mutable(Schema.Array(ImportFileSelectionSchema)),
+  source_path: AbsoluteFilesystemPathStringSchema,
+  season: Schema.optional(Schema.Number),
+  unit_number: Schema.Number,
+}) {}
+
+export class ImportSelectAllBodySchema extends Schema.Class<ImportSelectAllBodySchema>(
+  "ImportSelectAllBodySchema",
+)({
+  files: Schema.mutable(Schema.Array(ScannedFileSchema)),
+}) {}
+
+export class ImportPlanBodySchema extends Schema.Class<ImportPlanBodySchema>(
+  "ImportPlanBodySchema",
+)({
   selected_files: Schema.mutable(Schema.Array(ImportFileSelectionSchema)),
 }) {}
 

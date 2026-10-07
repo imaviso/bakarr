@@ -108,6 +108,7 @@ export interface ScanResult {
   files: ScannedFile[];
   skipped: SkippedFile[];
   candidates: MediaSearchResult[];
+  initial_selection: ImportCandidateSelectionResult;
   truncated?: boolean | undefined | null;
   total_scanned?: number | undefined | null;
 }
@@ -116,6 +117,7 @@ export const ScanResultSchema = Schema.Struct({
   files: Schema.mutable(Schema.Array(ScannedFileSchema)),
   skipped: Schema.mutable(Schema.Array(SkippedFileSchema)),
   candidates: Schema.mutable(Schema.Array(Schema.suspend(() => MediaSearchResultSchema))),
+  initial_selection: Schema.suspend(() => ImportCandidateSelectionResultSchema),
   truncated: Schema.optional(Schema.NullishOr(Schema.Boolean)),
   total_scanned: Schema.optional(Schema.NullishOr(Schema.Number)),
 }).mapFields(Struct.map(Schema.mutableKey));
@@ -231,4 +233,87 @@ export interface ImportCandidateSelectionResult {
 export const ImportCandidateSelectionResultSchema = Schema.Struct({
   selected_candidate_ids: Schema.mutable(Schema.Array(MediaIdSchema)),
   selected_files: Schema.mutable(Schema.Array(ImportFileSelectionSchema)),
+});
+
+export interface ImportSelectionBase {
+  files: ScannedFile[];
+  selected_candidate_ids: MediaId[];
+  selected_files: ImportFileSelection[];
+}
+
+export interface ImportFileToggleRequest extends ImportSelectionBase {
+  source_path: string;
+  media_id?: MediaId | undefined | null;
+}
+
+export const ImportFileToggleRequestSchema = Schema.Struct({
+  files: Schema.mutable(Schema.Array(ScannedFileSchema)),
+  selected_candidate_ids: Schema.mutable(Schema.Array(MediaIdSchema)),
+  selected_files: Schema.mutable(Schema.Array(ImportFileSelectionSchema)),
+  source_path: Schema.String,
+  media_id: Schema.optional(Schema.NullishOr(MediaIdSchema)),
+});
+
+export interface ImportFileMediaRequest extends ImportSelectionBase {
+  source_path: string;
+  media_id: MediaId;
+}
+
+export const ImportFileMediaRequestSchema = Schema.Struct({
+  files: Schema.mutable(Schema.Array(ScannedFileSchema)),
+  selected_candidate_ids: Schema.mutable(Schema.Array(MediaIdSchema)),
+  selected_files: Schema.mutable(Schema.Array(ImportFileSelectionSchema)),
+  source_path: Schema.String,
+  media_id: MediaIdSchema,
+});
+
+export interface ImportFileMappingRequest extends ImportSelectionBase {
+  source_path: string;
+  season?: number | undefined | null;
+  unit_number: number;
+}
+
+export const ImportFileMappingRequestSchema = Schema.Struct({
+  files: Schema.mutable(Schema.Array(ScannedFileSchema)),
+  selected_candidate_ids: Schema.mutable(Schema.Array(MediaIdSchema)),
+  selected_files: Schema.mutable(Schema.Array(ImportFileSelectionSchema)),
+  source_path: Schema.String,
+  season: Schema.optional(Schema.NullishOr(Schema.Number)),
+  unit_number: Schema.Number,
+});
+
+export interface ImportSelectAllRequest {
+  files: ScannedFile[];
+}
+
+export const ImportSelectAllRequestSchema = Schema.Struct({
+  files: Schema.mutable(Schema.Array(ScannedFileSchema)),
+});
+
+export interface UnimportableFile {
+  source_path: string;
+  reason: string;
+}
+
+export const UnimportableFileSchema = Schema.Struct({
+  source_path: Schema.String,
+  reason: Schema.String,
+});
+
+export interface ImportPlanRequest {
+  selected_files: ImportFileSelection[];
+}
+
+export const ImportPlanRequestSchema = Schema.Struct({
+  selected_files: Schema.mutable(Schema.Array(ImportFileSelectionSchema)),
+});
+
+export interface ImportPlanResult {
+  missing_media_ids: MediaId[];
+  unimportable: UnimportableFile[];
+}
+
+export const ImportPlanResultSchema = Schema.Struct({
+  missing_media_ids: Schema.mutable(Schema.Array(MediaIdSchema)),
+  unimportable: Schema.mutable(Schema.Array(UnimportableFileSchema)),
 });

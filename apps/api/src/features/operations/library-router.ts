@@ -4,6 +4,7 @@ import {
   AsyncOperationAcceptedSchema,
   BrowseResultSchema,
   ImportCandidateSelectionResultSchema,
+  ImportPlanResultSchema,
   OperationTaskSchema,
   ScanResultSchema,
   ScannerStateSchema,
@@ -21,7 +22,12 @@ import {
   BrowseQuerySchema,
   ControlUnmappedFolderBodySchema,
   ImportCandidateSelectionBodySchema,
+  ImportFileMappingBodySchema,
+  ImportFileMediaBodySchema,
   ImportFilesBodySchema,
+  ImportFileToggleBodySchema,
+  ImportPlanBodySchema,
+  ImportSelectAllBodySchema,
   ImportUnmappedFolderCandidateBodySchema,
   ScanImportPathBodySchema,
   toLibraryImportFileInputs,
@@ -170,6 +176,101 @@ export const libraryRouter = Layer.mergeAll(
         });
       }),
       schemaJsonResponse(ImportCandidateSelectionResultSchema),
+    ),
+  ),
+  HttpRouter.add(
+    "POST",
+    "/library/import/selection/file",
+    authedRouteResponse(
+      Effect.gen(function* () {
+        const body = yield* decodeJsonBodyWithLabel(
+          ImportFileToggleBodySchema,
+          "toggle import file selection",
+        );
+
+        return yield* (yield* ImportPathScanService).toggleImportFile({
+          files: [...body.files],
+          selected_candidate_ids: [...body.selected_candidate_ids],
+          selected_files: [...body.selected_files],
+          source_path: body.source_path,
+          ...(body.media_id === undefined ? {} : { media_id: body.media_id }),
+        });
+      }),
+      schemaJsonResponse(ImportCandidateSelectionResultSchema),
+    ),
+  ),
+  HttpRouter.add(
+    "POST",
+    "/library/import/selection/file-media",
+    authedRouteResponse(
+      Effect.gen(function* () {
+        const body = yield* decodeJsonBodyWithLabel(
+          ImportFileMediaBodySchema,
+          "set import file series",
+        );
+
+        return yield* (yield* ImportPathScanService).setImportFileMedia({
+          files: [...body.files],
+          selected_candidate_ids: [...body.selected_candidate_ids],
+          selected_files: [...body.selected_files],
+          source_path: body.source_path,
+          media_id: body.media_id,
+        });
+      }),
+      schemaJsonResponse(ImportCandidateSelectionResultSchema),
+    ),
+  ),
+  HttpRouter.add(
+    "POST",
+    "/library/import/selection/file-mapping",
+    authedRouteResponse(
+      Effect.gen(function* () {
+        const body = yield* decodeJsonBodyWithLabel(
+          ImportFileMappingBodySchema,
+          "set import file mapping",
+        );
+
+        return yield* (yield* ImportPathScanService).setImportFileMapping({
+          files: [...body.files],
+          selected_candidate_ids: [...body.selected_candidate_ids],
+          selected_files: [...body.selected_files],
+          source_path: body.source_path,
+          ...(body.season === undefined ? {} : { season: body.season }),
+          unit_number: body.unit_number,
+        });
+      }),
+      schemaJsonResponse(ImportCandidateSelectionResultSchema),
+    ),
+  ),
+  HttpRouter.add(
+    "POST",
+    "/library/import/selection/select-all",
+    authedRouteResponse(
+      Effect.gen(function* () {
+        const body = yield* decodeJsonBodyWithLabel(
+          ImportSelectAllBodySchema,
+          "select all import files",
+        );
+
+        return yield* (yield* ImportPathScanService).selectAllImportFiles({
+          files: [...body.files],
+        });
+      }),
+      schemaJsonResponse(ImportCandidateSelectionResultSchema),
+    ),
+  ),
+  HttpRouter.add(
+    "POST",
+    "/library/import/plan",
+    authedRouteResponse(
+      Effect.gen(function* () {
+        const body = yield* decodeJsonBodyWithLabel(ImportPlanBodySchema, "plan library import");
+
+        return yield* (yield* ImportPathScanService).planImportSelection({
+          selected_files: [...body.selected_files],
+        });
+      }),
+      schemaJsonResponse(ImportPlanResultSchema),
     ),
   ),
   HttpRouter.add(

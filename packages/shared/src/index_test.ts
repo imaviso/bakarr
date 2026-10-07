@@ -955,6 +955,16 @@ it("shared operational detail schemas accept canonical payloads", () => {
         source_path: "/imports/Naruto - 01.mkv",
       },
     ],
+    initial_selection: {
+      selected_candidate_ids: [20],
+      selected_files: [
+        {
+          media_id: 20,
+          unit_number: 1,
+          source_path: "/imports/Naruto - 01.mkv",
+        },
+      ],
+    },
     skipped: [
       {
         path: "/imports/readme.txt",

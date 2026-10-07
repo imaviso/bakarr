@@ -2,13 +2,19 @@ import { keepPreviousData, queryOptions, useMutation, useQueryClient } from "@ta
 import type {
   BulkUnmappedFolderControlRequest,
   ImportCandidateSelectionRequest,
+  ImportFileMappingRequest,
+  ImportFileMediaRequest,
   ImportFileRequest,
+  ImportFileToggleRequest,
+  ImportPlanRequest,
+  ImportSelectAllRequest,
   UnmappedFolderControlRequest,
   UnmappedFolderImportRequest,
 } from "./contracts";
 import {
   BrowseResultSchema,
   ImportCandidateSelectionResultSchema,
+  ImportPlanResultSchema,
   ScanResultSchema,
   ScannerStateSchema,
 } from "@bakarr/shared";
@@ -137,6 +143,82 @@ export function usePreviewImportSelectionMutation() {
     mutationFn: (data: ImportCandidateSelectionRequest) =>
       runApiEffect(
         fetchJson(ImportCandidateSelectionResultSchema, `${API_BASE}/library/import/selection`, {
+          method: "POST",
+          body: data,
+        }),
+      ),
+  });
+}
+
+export function useToggleImportFileMutation() {
+  return useMutation({
+    mutationFn: (data: ImportFileToggleRequest) =>
+      runApiEffect(
+        fetchJson(
+          ImportCandidateSelectionResultSchema,
+          `${API_BASE}/library/import/selection/file`,
+          {
+            method: "POST",
+            body: data,
+          },
+        ),
+      ),
+  });
+}
+
+export function useSetImportFileMediaMutation() {
+  return useMutation({
+    mutationFn: (data: ImportFileMediaRequest) =>
+      runApiEffect(
+        fetchJson(
+          ImportCandidateSelectionResultSchema,
+          `${API_BASE}/library/import/selection/file-media`,
+          {
+            method: "POST",
+            body: data,
+          },
+        ),
+      ),
+  });
+}
+
+export function useSetImportFileMappingMutation() {
+  return useMutation({
+    mutationFn: (data: ImportFileMappingRequest) =>
+      runApiEffect(
+        fetchJson(
+          ImportCandidateSelectionResultSchema,
+          `${API_BASE}/library/import/selection/file-mapping`,
+          {
+            method: "POST",
+            body: data,
+          },
+        ),
+      ),
+  });
+}
+
+export function useSelectAllImportFilesMutation() {
+  return useMutation({
+    mutationFn: (data: ImportSelectAllRequest) =>
+      runApiEffect(
+        fetchJson(
+          ImportCandidateSelectionResultSchema,
+          `${API_BASE}/library/import/selection/select-all`,
+          {
+            method: "POST",
+            body: data,
+          },
+        ),
+      ),
+  });
+}
+
+export function usePlanImportMutation() {
+  return useMutation({
+    mutationFn: (data: ImportPlanRequest) =>
+      runApiEffect(
+        fetchJson(ImportPlanResultSchema, `${API_BASE}/library/import/plan`, {
           method: "POST",
           body: data,
         }),

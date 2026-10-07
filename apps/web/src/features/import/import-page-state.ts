@@ -20,7 +20,7 @@ export const importSteps: { id: Step; label: string; description: string }[] = [
 
 interface CreateImportPageStateOptions {
   mediaId: number | undefined;
-  onImportSuccess: () => void;
+  onImportSuccess?: () => void;
 }
 
 export function useImportPageState(options: CreateImportPageStateOptions) {
@@ -31,7 +31,7 @@ export function useImportPageState(options: CreateImportPageStateOptions) {
     onImportQueued: (taskId) => {
       setLatestImportTaskId(taskId);
     },
-    onImportSuccess: options.onImportSuccess,
+    ...(options.onImportSuccess === undefined ? {} : { onImportSuccess: options.onImportSuccess }),
   });
 
   const { data: config } = useSuspenseQuery(systemConfigQueryOptions());

@@ -15,7 +15,7 @@ export interface FileRowProps {
   selectedAnimeId?: MediaId | undefined;
   currentEpisode?: number | null | undefined;
   currentSeason?: number | null | undefined;
-  onToggle: (mediaId: MediaId) => void;
+  onToggle: () => void;
   onAnimeChange: (mediaId: MediaId) => void;
   onMappingChange: (season: number, episode: number) => void;
 }

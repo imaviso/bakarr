@@ -2,6 +2,12 @@ import { brandMediaId, type MediaSearchResult, type ScanResult } from "@packages
 import type {
   ImportCandidateSelectionRequest,
   ImportCandidateSelectionResult,
+  ImportFileMappingRequest,
+  ImportFileMediaRequest,
+  ImportFileToggleRequest,
+  ImportPlanRequest,
+  ImportPlanResult,
+  ImportSelectAllRequest,
 } from "@packages/shared/index.ts";
 import { DatabaseError } from "@/db/database.ts";
 import { summarizeEpisodeCoverage } from "@/features/media/shared/derivations.ts";
@@ -30,7 +36,14 @@ import {
   findBestLocalMediaMatch,
   scoreMediaRowMatch,
 } from "@/features/operations/library/library-import-analysis-support.ts";
-import { applyImportCandidateSelection } from "@/features/operations/import-scan/import-selection-support.ts";
+import {
+  applyImportCandidateSelection,
+  buildInitialImportSelection,
+  selectAllImportFiles,
+  setImportFileMappingSelection,
+  setImportFileMediaSelection,
+  toggleImportFileSelection,
+} from "@/features/operations/import-scan/import-selection-support.ts";
 import { toMediaSearchCandidate } from "@/features/operations/library/library-import.ts";
 import type { NamingSettings } from "@/features/operations/repository/types.ts";
 import {
@@ -155,109 +168,116 @@ const scanImportPathEffect = Effect.fn("ImportPathScanService.scanImportPathEffe
       candidateMap.set(row.id, yield* toMediaSearchCandidate(row));
     }
 
+    const files = yield* Effect.forEach(enrichedFiles, (file) =>
+      Effect.gen(function* () {
+        const localMatch = input.mediaId
+          ? selectedAnimeRow
+          : findBestLocalMediaMatch(file.parsed_title, animeRows);
+        const remoteMatch =
+          !input.mediaId && !localMatch
+            ? findBestRemoteCandidate(file.parsed_title, [...candidateMap.values()])
+            : undefined;
+        const remoteCandidate = remoteMatch?.candidate;
+        let matchConfidence: number | undefined;
+
+        if (input.mediaId) {
+          matchConfidence = 1;
+        } else if (localMatch) {
+          matchConfidence = roundConfidence(scoreMediaRowMatch(file.parsed_title, localMatch));
+        } else {
+          matchConfidence = remoteMatch?.confidence;
+        }
+        let targetAnime: ScanResult["files"][number]["matched_media"];
+
+        if (input.mediaId) {
+          targetAnime = selectedAnimeRow
+            ? { id: brandMediaId(selectedAnimeRow.id), title: selectedAnimeRow.titleRomaji }
+            : null;
+        } else if (localMatch) {
+          targetAnime = { id: brandMediaId(localMatch.id), title: localMatch.titleRomaji };
+        }
+
+        let matchReason = file.match_reason;
+
+        if (input.mediaId) {
+          matchReason = "Using the selected media for this import scan";
+        } else if (localMatch) {
+          matchReason = `Matched a library title to the parsed filename title ${JSON.stringify(file.parsed_title)}`;
+        } else if (remoteCandidate) {
+          matchReason = `Matched an AniList result to the parsed filename title ${JSON.stringify(file.parsed_title)}`;
+        }
+        const namingAnimeRow = targetAnime ? animeRowsById.get(targetAnime.id) : undefined;
+        const librarySignals = buildScannedFileLibrarySignals({
+          file,
+          mappingIndex,
+          targetAnime,
+        });
+        const namingPlan = yield* buildScannedFileNamingPlan({
+          animeRow: namingAnimeRow,
+          ...(() => {
+            const episodeRows = selectUnitRowsForFile(
+              file,
+              episodeRowsByAnimeEpisode,
+              targetAnime?.id,
+            );
+            return episodeRows === undefined ? {} : { episodeRows };
+          })(),
+          file,
+          naming: input.naming,
+          namingSettings,
+        });
+
+        return {
+          air_date: file.air_date,
+          audio_channels: file.audio_channels,
+          audio_codec: file.audio_codec,
+          coverage_summary:
+            file.coverage_summary ??
+            summarizeEpisodeCoverage({
+              ...(file.air_date === undefined ? {} : { airDate: file.air_date }),
+              ...(file.unit_numbers === undefined ? {} : { unitNumbers: file.unit_numbers }),
+            }),
+          unit_number: file.unit_number,
+          unit_numbers: file.unit_numbers,
+          unit_title: file.unit_title,
+          unit_conflict: librarySignals.unit_conflict,
+          existing_mapping: librarySignals.existing_mapping,
+          filename: file.filename,
+          group: file.group,
+          match_confidence: matchConfidence,
+          match_reason: matchReason,
+          matched_media: localMatch
+            ? { id: brandMediaId(localMatch.id), title: localMatch.titleRomaji }
+            : undefined,
+          needs_manual_mapping: file.needs_manual_mapping,
+          parsed_title: file.parsed_title,
+          quality: file.quality,
+          resolution: file.resolution,
+          season: file.season,
+          size: file.size,
+          source_identity: file.source_identity,
+          source_path: file.source_path,
+          suggested_candidate_id: localMatch ? brandMediaId(localMatch.id) : remoteCandidate?.id,
+          naming_fallback_used: namingPlan.naming_fallback_used,
+          naming_filename: namingPlan.naming_filename,
+          naming_format_used: namingPlan.naming_format_used,
+          naming_metadata_snapshot: namingPlan.naming_metadata_snapshot,
+          naming_missing_fields: namingPlan.naming_missing_fields,
+          naming_warnings: namingPlan.naming_warnings,
+          video_codec: file.video_codec,
+          warnings: file.warnings,
+        };
+      }),
+    );
+    const initialSelection = buildInitialImportSelection(files);
+
     return {
       candidates: [...candidateMap.values()],
-      files: yield* Effect.forEach(enrichedFiles, (file) =>
-        Effect.gen(function* () {
-          const localMatch = input.mediaId
-            ? selectedAnimeRow
-            : findBestLocalMediaMatch(file.parsed_title, animeRows);
-          const remoteMatch =
-            !input.mediaId && !localMatch
-              ? findBestRemoteCandidate(file.parsed_title, [...candidateMap.values()])
-              : undefined;
-          const remoteCandidate = remoteMatch?.candidate;
-          let matchConfidence: number | undefined;
-
-          if (input.mediaId) {
-            matchConfidence = 1;
-          } else if (localMatch) {
-            matchConfidence = roundConfidence(scoreMediaRowMatch(file.parsed_title, localMatch));
-          } else {
-            matchConfidence = remoteMatch?.confidence;
-          }
-          let targetAnime: ScanResult["files"][number]["matched_media"];
-
-          if (input.mediaId) {
-            targetAnime = selectedAnimeRow
-              ? { id: brandMediaId(selectedAnimeRow.id), title: selectedAnimeRow.titleRomaji }
-              : null;
-          } else if (localMatch) {
-            targetAnime = { id: brandMediaId(localMatch.id), title: localMatch.titleRomaji };
-          }
-
-          let matchReason = file.match_reason;
-
-          if (input.mediaId) {
-            matchReason = "Using the selected media for this import scan";
-          } else if (localMatch) {
-            matchReason = `Matched a library title to the parsed filename title ${JSON.stringify(file.parsed_title)}`;
-          } else if (remoteCandidate) {
-            matchReason = `Matched an AniList result to the parsed filename title ${JSON.stringify(file.parsed_title)}`;
-          }
-          const namingAnimeRow = targetAnime ? animeRowsById.get(targetAnime.id) : undefined;
-          const librarySignals = buildScannedFileLibrarySignals({
-            file,
-            mappingIndex,
-            targetAnime,
-          });
-          const namingPlan = yield* buildScannedFileNamingPlan({
-            animeRow: namingAnimeRow,
-            ...(() => {
-              const episodeRows = selectUnitRowsForFile(
-                file,
-                episodeRowsByAnimeEpisode,
-                targetAnime?.id,
-              );
-              return episodeRows === undefined ? {} : { episodeRows };
-            })(),
-            file,
-            naming: input.naming,
-            namingSettings,
-          });
-
-          return {
-            air_date: file.air_date,
-            audio_channels: file.audio_channels,
-            audio_codec: file.audio_codec,
-            coverage_summary:
-              file.coverage_summary ??
-              summarizeEpisodeCoverage({
-                ...(file.air_date === undefined ? {} : { airDate: file.air_date }),
-                ...(file.unit_numbers === undefined ? {} : { unitNumbers: file.unit_numbers }),
-              }),
-            unit_number: file.unit_number,
-            unit_numbers: file.unit_numbers,
-            unit_title: file.unit_title,
-            unit_conflict: librarySignals.unit_conflict,
-            existing_mapping: librarySignals.existing_mapping,
-            filename: file.filename,
-            group: file.group,
-            match_confidence: matchConfidence,
-            match_reason: matchReason,
-            matched_media: localMatch
-              ? { id: brandMediaId(localMatch.id), title: localMatch.titleRomaji }
-              : undefined,
-            needs_manual_mapping: file.needs_manual_mapping,
-            parsed_title: file.parsed_title,
-            quality: file.quality,
-            resolution: file.resolution,
-            season: file.season,
-            size: file.size,
-            source_identity: file.source_identity,
-            source_path: file.source_path,
-            suggested_candidate_id: localMatch ? brandMediaId(localMatch.id) : remoteCandidate?.id,
-            naming_fallback_used: namingPlan.naming_fallback_used,
-            naming_filename: namingPlan.naming_filename,
-            naming_format_used: namingPlan.naming_format_used,
-            naming_metadata_snapshot: namingPlan.naming_metadata_snapshot,
-            naming_missing_fields: namingPlan.naming_missing_fields,
-            naming_warnings: namingPlan.naming_warnings,
-            video_codec: file.video_codec,
-            warnings: file.warnings,
-          };
-        }),
-      ),
+      files,
+      initial_selection: {
+        selected_candidate_ids: [...initialSelection.selected_candidate_ids],
+        selected_files: [...initialSelection.selected_files],
+      },
       skipped: discovery.skippedFiles,
       total_scanned: discovery.analyzed.length,
       truncated: discovery.truncated || undefined,
@@ -269,6 +289,9 @@ export interface ImportPathScanServiceShape {
   readonly applyImportCandidateSelection: (
     input: ImportCandidateSelectionRequest,
   ) => Effect.Effect<ImportCandidateSelectionResult>;
+  readonly planImportSelection: (
+    input: ImportPlanRequest,
+  ) => Effect.Effect<ImportPlanResult, DatabaseError>;
   readonly scanImportPath: (input: {
     readonly mediaId?: number;
     readonly limit?: number;
@@ -277,6 +300,18 @@ export interface ImportPathScanServiceShape {
     ScanResult,
     DatabaseError | DomainInputError | DomainPathError | InfrastructureError
   >;
+  readonly selectAllImportFiles: (
+    input: ImportSelectAllRequest,
+  ) => Effect.Effect<ImportCandidateSelectionResult>;
+  readonly setImportFileMapping: (
+    input: ImportFileMappingRequest,
+  ) => Effect.Effect<ImportCandidateSelectionResult>;
+  readonly setImportFileMedia: (
+    input: ImportFileMediaRequest,
+  ) => Effect.Effect<ImportCandidateSelectionResult>;
+  readonly toggleImportFile: (
+    input: ImportFileToggleRequest,
+  ) => Effect.Effect<ImportCandidateSelectionResult>;
 }
 
 export class ImportPathScanService extends Context.Service<
@@ -373,9 +408,65 @@ export class ImportPathScanService extends Context.Service<
           Effect.sync(() => applyImportCandidateSelection(input)),
       );
 
+      const planImportSelection = Effect.fn("ImportPathScanService.planImportSelection")(function* (
+        input: ImportPlanRequest,
+      ) {
+        const mediaIds = [...new Set(input.selected_files.map((file) => file.media_id))];
+        const existing = yield* mediaRepository.findExistingMediaIds(mediaIds);
+        const existingIds = new Set(existing);
+        const seenPaths = new Set<string>();
+        const unimportable: ImportPlanResult["unimportable"] = [];
+
+        for (const file of input.selected_files) {
+          if (seenPaths.has(file.source_path)) {
+            unimportable.push({
+              reason: "This file is selected more than once",
+              source_path: file.source_path,
+            });
+            continue;
+          }
+
+          seenPaths.add(file.source_path);
+
+          if (!Number.isFinite(file.unit_number) || Math.floor(file.unit_number) < 1) {
+            unimportable.push({
+              reason: "Set an episode number of 1 or higher before importing",
+              source_path: file.source_path,
+            });
+          }
+        }
+
+        return {
+          missing_media_ids: mediaIds.filter((id) => !existingIds.has(id)),
+          unimportable,
+        } satisfies ImportPlanResult;
+      });
+
+      const selectAllSelection = Effect.fn("ImportPathScanService.selectAllImportFiles")(
+        (input: ImportSelectAllRequest) => Effect.sync(() => selectAllImportFiles(input)),
+      );
+
+      const setFileMappingSelection = Effect.fn("ImportPathScanService.setImportFileMapping")(
+        (input: ImportFileMappingRequest) =>
+          Effect.sync(() => setImportFileMappingSelection(input)),
+      );
+
+      const setFileMediaSelection = Effect.fn("ImportPathScanService.setImportFileMedia")(
+        (input: ImportFileMediaRequest) => Effect.sync(() => setImportFileMediaSelection(input)),
+      );
+
+      const toggleFileSelection = Effect.fn("ImportPathScanService.toggleImportFile")(
+        (input: ImportFileToggleRequest) => Effect.sync(() => toggleImportFileSelection(input)),
+      );
+
       return {
         applyImportCandidateSelection: applySelection,
+        planImportSelection,
         scanImportPath,
+        selectAllImportFiles: selectAllSelection,
+        setImportFileMapping: setFileMappingSelection,
+        setImportFileMedia: setFileMediaSelection,
+        toggleImportFile: toggleFileSelection,
       } satisfies ImportPathScanServiceShape;
     }),
   );

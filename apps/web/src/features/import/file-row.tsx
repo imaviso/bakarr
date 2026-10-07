@@ -23,7 +23,9 @@ import type { FileRowProps } from "./types";
 
 export function FileRow(props: FileRowProps) {
   const matchedAnimeId = props.file.matched_media?.id || props.selectedAnimeId;
-  const hasMatch = !!matchedAnimeId;
+  const suggestedAnimeId = props.file.suggested_candidate_id;
+  const assignableAnimeId = matchedAnimeId || suggestedAnimeId;
+  const hasMatch = !!assignableAnimeId;
 
   const displayEpisode = props.currentEpisode ?? Math.floor(props.file.unit_number);
   const displaySeason = props.currentSeason ?? props.file.season;
@@ -53,9 +55,7 @@ export function FileRow(props: FileRowProps) {
           isDisabled={!hasMatch}
           aria-label={`Select ${props.file.filename}`}
           onChange={() => {
-            if (matchedAnimeId) {
-              props.onToggle(matchedAnimeId);
-            }
+            props.onToggle();
           }}
           className="shrink-0"
         />
@@ -201,7 +201,6 @@ export function FileRow(props: FileRowProps) {
           <EditMappingPopover
             episode={displayEpisode}
             season={displaySeason ?? undefined}
-            disabled={!props.isSelected}
             onSave={props.onMappingChange}
           />
           {props.file.needs_manual_mapping && <Badge variant="outline">Manual</Badge>}
@@ -221,9 +220,6 @@ export function FileRow(props: FileRowProps) {
                   )?.id;
                   if (newId !== undefined) {
                     props.onAnimeChange(newId);
-                    if (!props.isSelected) {
-                      props.onToggle(newId);
-                    }
                   }
                 }}
               >
@@ -263,7 +259,7 @@ export function FileRow(props: FileRowProps) {
                     (option) => String(option.id) === String(value),
                   )?.id;
                   if (newId !== undefined) {
-                    props.onToggle(newId);
+                    props.onAnimeChange(newId);
                   }
                 }}
               >

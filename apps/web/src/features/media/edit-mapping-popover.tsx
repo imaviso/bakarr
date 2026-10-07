@@ -12,7 +12,7 @@ import { FieldError } from "@/components/shared/field-error";
 const EditMappingSchema = Schema.Struct({
   episode: Schema.Number.pipe(
     Schema.check(Schema.isInt()),
-    Schema.check(Schema.isGreaterThanOrEqualTo(0)),
+    Schema.check(Schema.isGreaterThanOrEqualTo(1)),
   ),
   season: Schema.Number.pipe(
     Schema.check(Schema.isInt()),
@@ -107,7 +107,7 @@ export function EditMappingPopover(props: EditMappingPopoverProps) {
                   <Input
                     id="edit-mapping-episode"
                     type="number"
-                    min={0}
+                    min={1}
                     className="h-8"
                     value={field.state.value}
                     onBlur={field.handleBlur}

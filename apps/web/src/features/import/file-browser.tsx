@@ -2,6 +2,7 @@ import {
   RiArrowLeftSLine,
   RiArrowRightSLine,
   RiArrowUpLine,
+  RiCheckLine,
   RiFileLine,
   RiFolderLine,
   RiFolderOpenLine,
@@ -32,6 +33,8 @@ interface FileBrowserProps {
   initialPath?: string;
   /** Height of the browser */
   height?: string;
+  /** Currently selected path, shown in the footer */
+  selectedPath?: string;
 }
 
 export function FileBrowser(props: FileBrowserProps) {
@@ -41,7 +44,6 @@ export function FileBrowser(props: FileBrowserProps) {
 
   const [currentPath, setCurrentPath] = useState(initialPath);
   const [manualPath, setManualPath] = useState(initialPath);
-  const [selectedPath, setSelectedPath] = useState<string | null>(null);
   const [pageOffset, setPageOffset] = useState(0);
 
   const browserQuery = useQuery(
@@ -64,22 +66,15 @@ export function FileBrowser(props: FileBrowserProps) {
   const handleNavigate = (path: string) => {
     setCurrentPath(path);
     setManualPath(path);
-    setSelectedPath(null);
     setPageOffset(0);
   };
 
-  const handleSelect = (entry: BrowseEntry) => {
+  const handleOpenEntry = (entry: BrowseEntry) => {
     if (entry.is_directory) {
       handleNavigate(entry.path);
-    } else if (!directoryOnly) {
-      setSelectedPath(entry.path);
-      props.onSelect(entry.path);
+      return;
     }
-  };
-
-  const handleDirectorySelect = (entry: BrowseEntry) => {
-    if (entry.is_directory) {
-      setSelectedPath(entry.path);
+    if (!directoryOnly) {
       props.onSelect(entry.path);
     }
   };
@@ -97,7 +92,6 @@ export function FileBrowser(props: FileBrowserProps) {
 
   const handleManualNavigate = () => {
     setCurrentPath(manualPath);
-    setSelectedPath(null);
     setPageOffset(0);
   };
 
@@ -111,6 +105,9 @@ export function FileBrowser(props: FileBrowserProps) {
   const breadcrumbs = path && path !== "/" ? path.split("/").filter(Boolean) : [];
 
   const isFullHeight = height === "100%";
+  const currentSelectedPath = props.selectedPath ?? "";
+  const isCurrentSelected =
+    currentSelectedPath.length > 0 && browserQuery.data?.current_path === currentSelectedPath;
 
   return (
     <div
@@ -222,9 +219,8 @@ export function FileBrowser(props: FileBrowserProps) {
               <FileEntry
                 key={entry.path}
                 entry={entry}
-                isSelected={selectedPath === entry.path}
-                onNavigate={() => handleSelect(entry)}
-                onSelect={() => handleDirectorySelect(entry)}
+                isCurrent={currentSelectedPath === entry.path}
+                onOpen={() => handleOpenEntry(entry)}
                 directoryOnly={directoryOnly}
               />
             ))}
@@ -261,39 +257,67 @@ export function FileBrowser(props: FileBrowserProps) {
         </div>
       )}
 
-      {/* Selected path indicator */}
-      {selectedPath && (
-        <div className="px-3 py-2 border-t bg-primary/10 text-xs">
-          <span className="text-muted-foreground">Selected:</span>
-          <span className="font-mono text-primary">{selectedPath}</span>
+      {/* Current folder selector */}
+      <div className="px-3 py-2 border-t bg-muted text-xs shrink-0">
+        <div className="flex items-center gap-2">
+          <span className="text-muted-foreground shrink-0">This folder:</span>
+          <span className="font-mono truncate flex-1">
+            {browserQuery.data?.current_path || currentPath || "Loading…"}
+          </span>
+          <Button
+            variant="secondary"
+            size="sm"
+            className="h-7 text-xs gap-1.5 shrink-0"
+            isDisabled={!browserQuery.data?.current_path || isCurrentSelected}
+            onPress={() => {
+              if (browserQuery.data?.current_path) {
+                props.onSelect(browserQuery.data.current_path);
+              }
+            }}
+          >
+            {isCurrentSelected ? (
+              <>
+                <RiCheckLine className="h-3.5 w-3.5" />
+                Selected
+              </>
+            ) : (
+              <>
+                <RiFolderOpenLine className="h-3.5 w-3.5" />
+                Use this folder
+              </>
+            )}
+          </Button>
         </div>
-      )}
+        <p className="mt-1 text-muted-foreground">
+          Click a folder to open it. Click “Use this folder” to import from the folder shown above.
+        </p>
+      </div>
     </div>
   );
 }
 
 interface FileEntryProps {
   entry: BrowseEntry;
-  isSelected: boolean;
-  onNavigate: () => void;
-  onSelect: () => void;
+  isCurrent: boolean;
+  onOpen: () => void;
   directoryOnly: boolean;
 }
 
 function FileEntry(props: FileEntryProps) {
+  const isClickable = props.entry.is_directory || !props.directoryOnly;
   return (
     <TooltipTrigger>
       <Button
         variant="ghost"
-        onPress={props.onSelect}
-        onDoubleClick={props.onNavigate}
+        onPress={props.onOpen}
+        isDisabled={!isClickable}
         className={cn(
           "flex h-auto w-full items-center gap-2 rounded-none px-2 py-1.5 text-left font-normal",
-          props.isSelected ? "bg-primary/10 text-primary" : "hover:bg-muted",
+          props.isCurrent ? "bg-primary/10 text-primary" : "hover:bg-muted",
         )}
       >
         {props.entry.is_directory ? (
-          props.isSelected ? (
+          props.isCurrent ? (
             <RiFolderOpenLine className="h-4 w-4 text-primary shrink-0" />
           ) : (
             <RiFolderLine className="h-4 w-4 text-muted-foreground group-hover/button:text-foreground shrink-0" />
@@ -311,9 +335,7 @@ function FileEntry(props: FileEntryProps) {
           <RiArrowRightSLine className="h-3 w-3 text-muted-foreground opacity-0 group-hover/button:opacity-100 transition-opacity shrink-0" />
         )}
       </Button>
-      <Tooltip>
-        {props.entry.is_directory ? "Double-click to open, click to select" : props.entry.path}
-      </Tooltip>
+      <Tooltip>{props.entry.is_directory ? "Click to open this folder" : props.entry.path}</Tooltip>
     </TooltipTrigger>
   );
 }

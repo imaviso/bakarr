@@ -1,26 +1,33 @@
-import { useEffectEvent, useReducer, useRef, useState } from "react";
+import { useReducer, useRef } from "react";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import type { MediaId, MediaSearchResult, ImportFileRequest, ScannedFile } from "@/api/contracts";
+import type {
+  ImportFileSelection,
+  ImportPlanResult,
+  MediaId,
+  MediaKind,
+  MediaSearchResult,
+  ScannedFile,
+} from "@/api/contracts";
+import { errorMessage } from "@/api/effect/errors";
 import { mediaListQueryOptions } from "@/api/media";
+import { useAddMediaMutation } from "@/api/media-mutations";
+import { profilesQueryOptions } from "@/api/profiles";
+import { systemConfigQueryOptions } from "@/api/system-config";
 import {
   useImportFilesMutation,
+  usePlanImportMutation,
   usePreviewImportPathMutation,
   usePreviewImportSelectionMutation,
+  useSelectAllImportFilesMutation,
+  useSetImportFileMappingMutation,
+  useSetImportFileMediaMutation,
+  useToggleImportFileMutation,
 } from "@/api/system-library";
-import { buildImportFileRequest, findMissingImportCandidates } from "./import-flow";
-import { createImportDropzoneHandlers } from "./import-dropzone";
-import {
-  toggleSelectedImportFile,
-  updateSelectedImportFileAnime,
-  updateSelectedImportFileMapping,
-} from "./import-file-selection";
 import type { Step } from "./types";
 
 interface ImportFlowOptions {
   mediaId?: number;
-  autoImportAfterMissingCandidatesResolved?: boolean;
-  beforeImport?: () => void;
   onImportSuccess?: () => void;
   onImportQueued?: (taskId: number | undefined) => void;
 }
@@ -29,17 +36,25 @@ export function toImportInputMode(value: string | null | undefined): "browser" |
   return value === "manual" ? "manual" : "browser";
 }
 
+interface BulkProgress {
+  total: number;
+  succeeded: MediaId[];
+  failed: MediaId[];
+}
+
 interface State {
   path: string;
   step: Step;
-  selectedFiles: Map<string, ImportFileRequest>;
+  selectedFiles: Map<string, ImportFileSelection>;
   inputMode: "browser" | "manual";
-  isDragOver: boolean;
   selectedCandidateIds: Set<MediaId>;
   manualCandidates: MediaSearchResult[];
   isSearchOpen: boolean;
-  pendingAddCandidates: MediaSearchResult[];
-  currentAddIndex: number;
+  missingCandidates: MediaSearchResult[];
+  addDialogCandidate: MediaSearchResult | null;
+  bulkProgress: BulkProgress | null;
+  pendingCandidateId: MediaId | null;
+  lastPlan: ImportPlanResult | null;
 }
 
 type Action =
@@ -47,36 +62,45 @@ type Action =
   | { type: "setPath"; path: string }
   | { type: "setStep"; step: Step }
   | { type: "setInputMode"; mode: "browser" | "manual" }
-  | { type: "setIsDragOver"; value: boolean }
   | { type: "setIsSearchOpen"; value: boolean }
-  | { type: "scanSuccess"; preselected: Map<string, ImportFileRequest>; candidateIds: Set<MediaId> }
   | {
-      type: "toggleCandidateSuccess";
+      type: "selectionSuccess";
       candidateIds: Set<MediaId>;
-      files: Map<string, ImportFileRequest>;
+      files: Map<string, ImportFileSelection>;
     }
+  | { type: "setPendingCandidate"; candidateId: MediaId | null }
   | { type: "manualAdd"; candidate: MediaSearchResult }
-  | { type: "startAddCandidates"; candidates: MediaSearchResult[] }
-  | { type: "advanceAddCandidate" }
-  | { type: "closeAddCandidateDialog" }
-  | { type: "toggleFile"; file: ScannedFile; targetAnimeId: MediaId }
-  | { type: "updateFileAnime"; file: ScannedFile; newAnimeId: MediaId }
-  | { type: "updateFileMapping"; file: ScannedFile; season: number; episode: number };
+  | { type: "planMissing"; candidates: MediaSearchResult[] }
+  | { type: "clearMissing" }
+  | { type: "openAddDialog"; candidate: MediaSearchResult }
+  | { type: "closeAddDialog" }
+  | { type: "removeMissing"; candidateId: MediaId }
+  | { type: "bulkAddStart"; total: number }
+  | { type: "bulkAddSettled"; candidateId: MediaId; ok: boolean }
+  | { type: "bulkAddPartial"; failedIds: readonly MediaId[] }
+  | { type: "planSuccess"; plan: ImportPlanResult }
+  | { type: "clearPlan" };
 
 const initialState: State = {
   path: "",
   step: "scan",
   selectedFiles: new Map(),
   inputMode: "browser",
-  isDragOver: false,
   selectedCandidateIds: new Set(),
   manualCandidates: [],
   isSearchOpen: false,
-  pendingAddCandidates: [],
-  currentAddIndex: 0,
+  missingCandidates: [],
+  addDialogCandidate: null,
+  bulkProgress: null,
+  pendingCandidateId: null,
+  lastPlan: null,
 };
 
 const EMPTY_CANDIDATES: readonly MediaSearchResult[] = [];
+
+function toSelectionMap(files: readonly ImportFileSelection[]) {
+  return new Map(files.map((file) => [file.source_path, file] as const));
+}
 
 function reducer(state: State, action: Action): State {
   switch (action.type) {
@@ -88,92 +112,115 @@ function reducer(state: State, action: Action): State {
       return { ...state, step: action.step };
     case "setInputMode":
       return { ...state, inputMode: action.mode };
-    case "setIsDragOver":
-      return { ...state, isDragOver: action.value };
     case "setIsSearchOpen":
       return { ...state, isSearchOpen: action.value };
-    case "scanSuccess":
+    case "selectionSuccess":
       return {
         ...state,
-        selectedFiles: action.preselected,
-        selectedCandidateIds: action.candidateIds,
-        step: "review",
-      };
-    case "toggleCandidateSuccess":
-      return {
-        ...state,
-        selectedCandidateIds: action.candidateIds,
         selectedFiles: action.files,
+        selectedCandidateIds: action.candidateIds,
+        pendingCandidateId: null,
+        lastPlan: null,
       };
+    case "setPendingCandidate":
+      return { ...state, pendingCandidateId: action.candidateId };
     case "manualAdd":
       return {
         ...state,
         manualCandidates: [...state.manualCandidates, action.candidate],
         isSearchOpen: false,
       };
-    case "startAddCandidates":
+    case "planMissing":
+      return { ...state, missingCandidates: action.candidates, bulkProgress: null };
+    case "clearMissing":
+      return { ...state, missingCandidates: [], addDialogCandidate: null, bulkProgress: null };
+    case "openAddDialog":
+      return { ...state, addDialogCandidate: action.candidate };
+    case "closeAddDialog":
+      return { ...state, addDialogCandidate: null };
+    case "removeMissing": {
+      const remaining = state.missingCandidates.filter(
+        (candidate) => candidate.id !== action.candidateId,
+      );
       return {
         ...state,
-        pendingAddCandidates: action.candidates,
-        currentAddIndex: 0,
+        missingCandidates: remaining,
+        ...(remaining.length === 0 ? { bulkProgress: null } : {}),
       };
-    case "advanceAddCandidate": {
-      const nextIndex = state.currentAddIndex + 1;
-      if (nextIndex >= state.pendingAddCandidates.length) {
-        return { ...state, pendingAddCandidates: [], currentAddIndex: 0 };
+    }
+    case "bulkAddStart":
+      return {
+        ...state,
+        bulkProgress: { total: action.total, succeeded: [], failed: [] },
+      };
+    case "bulkAddSettled": {
+      if (!state.bulkProgress) {
+        return state;
       }
-      return { ...state, currentAddIndex: nextIndex };
+      const next: BulkProgress = {
+        total: state.bulkProgress.total,
+        succeeded:
+          action.ok && !state.bulkProgress.succeeded.includes(action.candidateId)
+            ? [...state.bulkProgress.succeeded, action.candidateId]
+            : state.bulkProgress.succeeded,
+        failed:
+          !action.ok && !state.bulkProgress.failed.includes(action.candidateId)
+            ? [...state.bulkProgress.failed, action.candidateId]
+            : state.bulkProgress.failed,
+      };
+      return { ...state, bulkProgress: next };
     }
-    case "closeAddCandidateDialog":
-      return { ...state, pendingAddCandidates: [], currentAddIndex: 0 };
-    case "toggleFile": {
-      const next = toggleSelectedImportFile(state.selectedFiles, action.file, action.targetAnimeId);
-      return { ...state, selectedFiles: next };
-    }
-    case "updateFileAnime": {
-      const next = updateSelectedImportFileAnime(
-        state.selectedFiles,
-        action.file,
-        action.newAnimeId,
-      );
-      return { ...state, selectedFiles: next };
-    }
-    case "updateFileMapping": {
-      const next = updateSelectedImportFileMapping(
-        state.selectedFiles,
-        action.file,
-        action.season,
-        action.episode,
-      );
-      return { ...state, selectedFiles: next };
-    }
+    case "bulkAddPartial":
+      return {
+        ...state,
+        bulkProgress: null,
+        missingCandidates: state.missingCandidates.filter((candidate) =>
+          action.failedIds.includes(candidate.id),
+        ),
+      };
+    case "planSuccess":
+      return { ...state, lastPlan: action.plan };
+    case "clearPlan":
+      return { ...state, lastPlan: null };
     default:
       return state;
   }
 }
 
+function rootFolderForMediaKind(
+  library: { anime_path: string; manga_path: string; light_novel_path: string },
+  mediaKind: MediaKind | null | undefined,
+) {
+  if (mediaKind === "manga") {
+    return library.manga_path;
+  }
+
+  if (mediaKind === "light_novel") {
+    return library.light_novel_path;
+  }
+
+  return library.anime_path;
+}
+
 export function useImportFlow(options: ImportFlowOptions = {}) {
   const [state, dispatch] = useReducer(reducer, initialState);
-  // Latest selection snapshot for async callbacks: rapid candidate toggles must
-  // read the current state at execution time, not the render-time closure.
-  const getLatestSelection = useEffectEvent(() => ({
-    selectedCandidateIds: state.selectedCandidateIds,
-    selectedFiles: state.selectedFiles,
-  }));
-  // Serializes candidate toggles: each request builds on the previous
-  // response's selection, so concurrent toggles cannot overwrite each other.
-  const toggleChainRef = useRef<Promise<void> | null>(null);
-  const toggleChain = () => {
-    toggleChainRef.current ??= Promise.resolve();
-    return toggleChainRef.current;
-  };
-
-  const [pendingToggles, setPendingToggles] = useState(0);
 
   const scanMutation = usePreviewImportPathMutation();
   const importMutation = useImportFilesMutation();
   const importSelectionMutation = usePreviewImportSelectionMutation();
+  const toggleFileMutation = useToggleImportFileMutation();
+  const setFileMediaMutation = useSetImportFileMediaMutation();
+  const setFileMappingMutation = useSetImportFileMappingMutation();
+  const selectAllMutation = useSelectAllImportFilesMutation();
+  const planMutation = usePlanImportMutation();
+  const addMediaMutation = useAddMediaMutation();
   const { data: animeList } = useSuspenseQuery(mediaListQueryOptions());
+  const { data: profiles } = useSuspenseQuery(profilesQueryOptions());
+  const { data: config } = useSuspenseQuery(systemConfigQueryOptions());
+  // Tracks one bulk-add run: per-candidate outcomes until the last parallel
+  // mutation settles, then the flow advances. Scoped to the run, not the
+  // module, so overlapping runs cannot corrupt each other.
+  const bulkRunRef = useRef<{ total: number; settled: Map<MediaId, boolean> } | null>(null);
 
   const scannedFiles = [...(scanMutation.data?.files ?? [])].toSorted((a, b) => {
     const seasonA = a.season ?? 0;
@@ -193,41 +240,176 @@ export function useImportFlow(options: ImportFlowOptions = {}) {
     ),
   ];
   const libraryIds = new Set(animeList.map((media) => media.id));
-  const activeAddCandidate = state.pendingAddCandidates[state.currentAddIndex];
+
+  const isSelectionPending =
+    importSelectionMutation.isPending ||
+    toggleFileMutation.isPending ||
+    setFileMediaMutation.isPending ||
+    setFileMappingMutation.isPending ||
+    selectAllMutation.isPending;
+
+  // Selection mutations are serialized by disabling their triggers while one
+  // is in flight. The server owns the selection math; the client only stores
+  // the latest server answer.
+  const guardSelectionPending = () => {
+    if (isSelectionPending) {
+      toast.info("Wait for the current update to finish, then try again.");
+      return true;
+    }
+    return false;
+  };
+
+  const selectionPayload = () => ({
+    files: scanMutation.data?.files ?? [],
+    selected_candidate_ids: [...state.selectedCandidateIds],
+    selected_files: [...state.selectedFiles.values()],
+  });
+
+  const applySelectionResult = (next: {
+    selected_candidate_ids: readonly MediaId[];
+    selected_files: readonly ImportFileSelection[];
+  }) => {
+    dispatch({
+      type: "selectionSuccess",
+      candidateIds: new Set(next.selected_candidate_ids),
+      files: toSelectionMap(next.selected_files),
+    });
+  };
 
   const toggleCandidate = (candidate: MediaSearchResult, forceSelect = false) => {
-    const run = toggleChain().then(() => {
-      const latest = getLatestSelection();
-      return new Promise<void>((resolve) => {
-        importSelectionMutation.mutate(
-          {
-            candidate_id: candidate.id,
-            candidate_title:
-              candidate.title.english || candidate.title.romaji || candidate.title.native || "",
-            force_select: forceSelect,
-            files: scanMutation.data?.files ?? [],
-            selected_candidate_ids: [...latest.selectedCandidateIds],
-            selected_files: [...latest.selectedFiles.values()],
-          },
-          {
-            onSuccess: (next) => {
-              dispatch({
-                type: "toggleCandidateSuccess",
-                candidateIds: new Set(next.selected_candidate_ids),
-                files: new Map(next.selected_files.map((file) => [file.source_path, file])),
-              });
-              resolve();
-            },
-            onError: () => {
-              resolve();
-            },
-          },
-        );
-      });
-    });
-    toggleChainRef.current = run;
-    setPendingToggles((count) => count + 1);
-    void run.finally(() => setPendingToggles((count) => count - 1));
+    if (guardSelectionPending()) {
+      return;
+    }
+    dispatch({ type: "setPendingCandidate", candidateId: candidate.id });
+    importSelectionMutation.mutate(
+      {
+        ...selectionPayload(),
+        candidate_id: candidate.id,
+        candidate_title:
+          candidate.title.english || candidate.title.romaji || candidate.title.native || "",
+        ...(forceSelect ? { force_select: true } : {}),
+      },
+      {
+        onSuccess: (next) => applySelectionResult(next),
+        onError: (error) => {
+          dispatch({ type: "setPendingCandidate", candidateId: null });
+          toast.error(errorMessage(error, "Could not update the series selection"));
+        },
+      },
+    );
+  };
+
+  const toggleFile = (file: ScannedFile, targetAnimeId?: MediaId) => {
+    if (guardSelectionPending()) {
+      return;
+    }
+    toggleFileMutation.mutate(
+      {
+        ...selectionPayload(),
+        source_path: file.source_path,
+        ...(targetAnimeId === undefined ? {} : { media_id: targetAnimeId }),
+      },
+      {
+        onSuccess: (next) => {
+          applySelectionResult(next);
+          const stillUnselected = !next.selected_files.some(
+            (entry) => entry.source_path === file.source_path,
+          );
+          if (stillUnselected) {
+            toast.info("Choose a series for this file before selecting it.");
+          }
+        },
+        onError: (error) => {
+          toast.error(errorMessage(error, "Could not update the file selection"));
+        },
+      },
+    );
+  };
+
+  const updateFileAnime = (file: ScannedFile, newAnimeId: MediaId) => {
+    if (guardSelectionPending()) {
+      return;
+    }
+    setFileMediaMutation.mutate(
+      {
+        ...selectionPayload(),
+        source_path: file.source_path,
+        media_id: newAnimeId,
+      },
+      {
+        onSuccess: (next) => {
+          applySelectionResult(next);
+          const stillUnselected = !next.selected_files.some(
+            (entry) => entry.source_path === file.source_path,
+          );
+          if (stillUnselected) {
+            toast.info("Set the episode number first, then pick a series.");
+          }
+        },
+        onError: (error) => {
+          toast.error(errorMessage(error, "Could not change the series for this file"));
+        },
+      },
+    );
+  };
+
+  const updateFileMapping = (file: ScannedFile, season: number, episode: number) => {
+    if (guardSelectionPending()) {
+      return;
+    }
+    setFileMappingMutation.mutate(
+      {
+        ...selectionPayload(),
+        source_path: file.source_path,
+        ...(season === undefined ? {} : { season }),
+        unit_number: episode,
+      },
+      {
+        onSuccess: (next) => {
+          applySelectionResult(next);
+          const stillUnselected = !next.selected_files.some(
+            (entry) => entry.source_path === file.source_path,
+          );
+          if (stillUnselected) {
+            toast.info("Pick a series for this file to keep the new mapping.");
+          }
+        },
+        onError: (error) => {
+          toast.error(errorMessage(error, "Could not update the episode mapping"));
+        },
+      },
+    );
+  };
+
+  const selectAll = () => {
+    if (guardSelectionPending()) {
+      return;
+    }
+    selectAllMutation.mutate(
+      { files: scanMutation.data?.files ?? [] },
+      {
+        onSuccess: (next) => {
+          applySelectionResult(next);
+          toast.info(
+            next.selected_files.length > 0
+              ? `Selected ${next.selected_files.length} file(s) with a matched series.`
+              : "No files have a matched series yet. Add a series or assign files manually.",
+          );
+        },
+        onError: (error) => {
+          toast.error(errorMessage(error, "Could not select all files"));
+        },
+      },
+    );
+  };
+
+  const clearSelection = () => {
+    dispatch({ type: "selectionSuccess", candidateIds: new Set(), files: new Map() });
+  };
+
+  const handleReset = () => {
+    bulkRunRef.current = null;
+    dispatch({ type: "reset" });
   };
 
   const handleScan = () => {
@@ -239,110 +421,167 @@ export function useImportFlow(options: ImportFlowOptions = {}) {
       },
       {
         onSuccess: (data) => {
-          const preselected = new Map<string, ImportFileRequest>();
-          const newSelectedCandidates = new Set<MediaId>();
-
-          data.files.forEach((file) => {
-            if (file.matched_media) {
-              preselected.set(
-                file.source_path,
-                buildImportFileRequest({
-                  mediaId: file.matched_media.id,
-                  file,
-                }),
-              );
-              return;
-            }
-
-            if (file.suggested_candidate_id) {
-              preselected.set(
-                file.source_path,
-                buildImportFileRequest({
-                  mediaId: file.suggested_candidate_id,
-                  file,
-                }),
-              );
-              newSelectedCandidates.add(file.suggested_candidate_id);
-            }
+          bulkRunRef.current = null;
+          dispatch({ type: "clearMissing" });
+          dispatch({
+            type: "selectionSuccess",
+            candidateIds: new Set(data.initial_selection.selected_candidate_ids),
+            files: toSelectionMap(data.initial_selection.selected_files),
           });
-
-          dispatch({ type: "scanSuccess", preselected, candidateIds: newSelectedCandidates });
+          dispatch({ type: "setStep", step: "review" });
+        },
+        onError: (error) => {
+          toast.error(errorMessage(error, "Scan failed. Check the folder path and try again."));
         },
       },
     );
   };
 
-  const handleImportWithLibraryIds = (localAnimeIds: ReadonlySet<MediaId>) => {
-    const files = Array.from(state.selectedFiles.values());
-    const missingCandidates = findMissingImportCandidates({
-      files,
-      localAnimeIds,
-      candidates: candidates,
-    });
-
-    if (missingCandidates.length > 0) {
-      dispatch({ type: "startAddCandidates", candidates: missingCandidates });
-      return;
-    }
-
-    options.beforeImport?.();
-
-    importMutation.mutate(files, {
+  const startImport = (files: readonly ImportFileSelection[]) => {
+    importMutation.mutate([...files], {
       onSuccess: (accepted) => {
         toast.info(accepted.message);
         options.onImportQueued?.(accepted.task_id);
         options.onImportSuccess?.();
       },
+      onError: (error) => {
+        toast.error(errorMessage(error, "Could not start the import"));
+      },
     });
   };
 
   const handleImport = () => {
-    handleImportWithLibraryIds(libraryIds);
-  };
-
-  const advanceAddCandidateDialog = () => {
-    if (state.currentAddIndex + 1 >= state.pendingAddCandidates.length) {
-      const nextLibraryIds = new Set(libraryIds);
-      for (let index = 0; index <= state.currentAddIndex; index++) {
-        const candidate = state.pendingAddCandidates[index];
-        if (candidate) nextLibraryIds.add(candidate.id);
-      }
-
-      dispatch({ type: "closeAddCandidateDialog" });
-      if (options.autoImportAfterMissingCandidatesResolved ?? true) {
-        handleImportWithLibraryIds(nextLibraryIds);
-      }
+    const files = Array.from(state.selectedFiles.values());
+    if (files.length === 0) {
+      toast.info("Select at least one file to import.");
       return;
     }
+    planMutation.mutate(
+      { selected_files: files },
+      {
+        onSuccess: (plan) => {
+          if (plan.unimportable.length > 0) {
+            dispatch({ type: "planSuccess", plan });
+            toast.error(
+              `${plan.unimportable.length} selected file(s) need attention before importing.`,
+            );
+            return;
+          }
+          const byId = new Map(candidates.map((candidate) => [candidate.id, candidate] as const));
+          const missing = plan.missing_media_ids.flatMap((id) => {
+            const candidate = byId.get(id);
+            return candidate ? [candidate] : [];
+          });
+          if (missing.length > 0) {
+            dispatch({ type: "planMissing", candidates: missing });
+            return;
+          }
+          if (plan.missing_media_ids.length > 0) {
+            toast.error("Some selected series are missing details. Rescan and try again.");
+            return;
+          }
+          dispatch({ type: "clearPlan" });
+          startImport(files);
+        },
+        onError: (error) => {
+          toast.error(errorMessage(error, "Could not check the import plan"));
+        },
+      },
+    );
+  };
 
-    dispatch({ type: "advanceAddCandidate" });
+  const handleSingleAdded = (candidateId: MediaId) => {
+    const remaining = state.missingCandidates.filter((candidate) => candidate.id !== candidateId);
+    dispatch({ type: "removeMissing", candidateId });
+    if (remaining.length === 0) {
+      dispatch({ type: "clearMissing" });
+      handleImport();
+    }
+  };
+
+  const handleAddAllMissing = () => {
+    if (state.missingCandidates.length === 0 || state.bulkProgress) {
+      return;
+    }
+    const defaultProfile = profiles[0]?.name;
+    if (!defaultProfile) {
+      toast.error("No quality profile exists yet. Add one in Settings first.");
+      return;
+    }
+    const snapshot = [...state.missingCandidates];
+    dispatch({ type: "bulkAddStart", total: snapshot.length });
+    bulkRunRef.current = { total: snapshot.length, settled: new Map() };
+    for (const candidate of snapshot) {
+      addMediaMutation.mutate(
+        {
+          id: candidate.id,
+          ...(candidate.id_space == null ? {} : { id_space: candidate.id_space }),
+          ...(candidate.media_kind == null ? {} : { media_kind: candidate.media_kind }),
+          profile_name: defaultProfile,
+          root_folder: rootFolderForMediaKind(config.library, candidate.media_kind),
+          monitor_and_search: true,
+          monitored: true,
+          release_profile_ids: [],
+        },
+        {
+          onSuccess: () => handleBulkSettled(snapshot, candidate.id, true),
+          onError: (error) => {
+            toast.error(
+              errorMessage(error, `Could not add ${candidate.title.romaji ?? candidate.id}`),
+            );
+            handleBulkSettled(snapshot, candidate.id, false);
+          },
+        },
+      );
+    }
+  };
+
+  const handleBulkSettled = (
+    snapshot: readonly MediaSearchResult[],
+    candidateId: MediaId,
+    ok: boolean,
+  ) => {
+    const run = bulkRunRef.current;
+    if (!run) {
+      return;
+    }
+    run.settled.set(candidateId, ok);
+    dispatch({ type: "bulkAddSettled", candidateId, ok });
+    if (run.settled.size < run.total) {
+      return;
+    }
+    bulkRunRef.current = null;
+    const failedIds = snapshot
+      .filter((candidate) => run.settled.get(candidate.id) !== true)
+      .map((candidate) => candidate.id);
+    if (failedIds.length === 0) {
+      toast.success(`Added ${snapshot.length} series to the library. Starting import.`);
+      dispatch({ type: "clearMissing" });
+      handleImport();
+      return;
+    }
+    toast.error(
+      `${failedIds.length} of ${snapshot.length} series could not be added. Fix them individually below.`,
+    );
+    dispatch({ type: "bulkAddPartial", failedIds });
   };
 
   const isTogglingCandidate = (candidateId: number) =>
-    importSelectionMutation.isPending &&
-    importSelectionMutation.variables?.candidate_id === candidateId;
-
-  const dropzoneHandlers = createImportDropzoneHandlers({
-    setInputMode: (mode) => dispatch({ type: "setInputMode", mode }),
-    setIsDragOver: (value) => dispatch({ type: "setIsDragOver", value }),
-    setPath: (path) => dispatch({ type: "setPath", path }),
-  });
-
-  // Import submits the current selection; block while any serialized toggle is
-  // queued or in flight so it cannot send a selection that is about to change.
-  // Chain depth is the source of truth — `isPending` misses queued toggles.
-  const isAwaitingToggle = pendingToggles > 0;
+    state.pendingCandidateId === candidateId && isSelectionPending;
 
   return {
-    activeAddCandidate,
-    advanceAddCandidateDialog,
+    addDialogCandidate: state.addDialogCandidate,
+    openAddDialog: (candidate: MediaSearchResult) => dispatch({ type: "openAddDialog", candidate }),
+    closeAddCandidateDialog: () => dispatch({ type: "closeAddDialog" }),
+    handleSingleAdded,
+    handleAddAllMissing,
+    dismissMissing: () => dispatch({ type: "clearMissing" }),
+    missingCandidates: state.missingCandidates,
+    bulkProgress: state.bulkProgress,
+    isBulkAdding: state.bulkProgress !== null,
     animeList,
     candidates,
-    closeAddCandidateDialog: () => dispatch({ type: "closeAddCandidateDialog" }),
-    currentAddIndex: state.currentAddIndex,
-    handleDragLeave: dropzoneHandlers.handleDragLeave,
-    handleDragOver: dropzoneHandlers.handleDragOver,
-    handleDrop: dropzoneHandlers.handleDrop,
+    clearSelection,
     handleImport,
     handleManualAdd: (candidate: MediaSearchResult) => {
       dispatch({ type: "manualAdd", candidate });
@@ -352,17 +591,18 @@ export function useImportFlow(options: ImportFlowOptions = {}) {
     importMutation,
     importSelectionMutation,
     inputMode: state.inputMode,
-    isDragOver: state.isDragOver,
-    isSearchOpen: state.isSearchOpen,
-    isAwaitingToggle,
+    isAwaitingToggle: isSelectionPending,
     isTogglingCandidate,
+    lastPlan: state.lastPlan,
+    clearPlan: () => dispatch({ type: "clearPlan" }),
     libraryIds,
     manualCandidates: state.manualCandidates,
     path: state.path,
-    pendingAddCandidates: state.pendingAddCandidates,
-    reset: () => dispatch({ type: "reset" }),
+    planMutation,
+    reset: handleReset,
     scanMutation,
     scannedFiles,
+    selectAll,
     selectedCandidateIds: state.selectedCandidateIds,
     selectedFiles: state.selectedFiles,
     setInputMode: (mode: "browser" | "manual") => dispatch({ type: "setInputMode", mode }),
@@ -372,11 +612,11 @@ export function useImportFlow(options: ImportFlowOptions = {}) {
     skippedFiles,
     step: state.step,
     toggleCandidate,
-    toggleFile: (file: ScannedFile, targetAnimeId: MediaId) =>
-      dispatch({ type: "toggleFile", file, targetAnimeId }),
-    updateFileAnime: (file: ScannedFile, newAnimeId: MediaId) =>
-      dispatch({ type: "updateFileAnime", file, newAnimeId }),
-    updateFileMapping: (file: ScannedFile, season: number, episode: number) =>
-      dispatch({ type: "updateFileMapping", file, season, episode }),
+    toggleFile,
+    updateFileAnime,
+    updateFileMapping,
+    isSearchOpen: state.isSearchOpen,
   };
 }
+
+export type ImportFlow = ReturnType<typeof useImportFlow>;
