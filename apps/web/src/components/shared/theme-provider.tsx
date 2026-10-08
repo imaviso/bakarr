@@ -5,18 +5,21 @@ type ResolvedTheme = "dark" | "light";
 
 type ThemeProviderProps = {
   children: React.ReactNode;
-  defaultTheme?: Theme;
-  storageKey?: string;
-  disableTransitionOnChange?: boolean;
 };
 
 const COLOR_SCHEME_QUERY = "(prefers-color-scheme: dark)";
 const THEME_VALUES = new Set<string>(["dark", "light", "system"]);
+const THEME_STORAGE_KEY = "bakarr-ui-theme";
+const DEFAULT_THEME: Theme = "system";
+const DISABLE_TRANSITIONS_ON_CHANGE = true;
 
 const listeners = new Set<() => void>();
-let currentTheme: Theme = "system";
-let themeStorageKey = "theme";
-let disableTransitionsOnChange = true;
+let currentTheme: Theme = readStoredTheme();
+
+function readStoredTheme(): Theme {
+  const stored = localStorage.getItem(THEME_STORAGE_KEY);
+  return isTheme(stored) ? stored : DEFAULT_THEME;
+}
 
 function emit() {
   for (const listener of listeners) {
@@ -108,7 +111,7 @@ function isEditableTarget(target: EventTarget | null) {
 
 function applyThemeToDocument(nextResolvedTheme: ResolvedTheme) {
   const root = document.documentElement;
-  const cleanupTransitions = disableTransitionsOnChange
+  const cleanupTransitions = DISABLE_TRANSITIONS_ON_CHANGE
     ? disableTransitionsTemporarily()
     : undefined;
 
@@ -120,23 +123,12 @@ function applyThemeToDocument(nextResolvedTheme: ResolvedTheme) {
 }
 
 export function setTheme(nextTheme: Theme) {
-  localStorage.setItem(themeStorageKey, nextTheme);
+  localStorage.setItem(THEME_STORAGE_KEY, nextTheme);
   currentTheme = nextTheme;
   emit();
 }
 
-export function ThemeProvider({
-  children,
-  defaultTheme = "system",
-  storageKey = "theme",
-  disableTransitionOnChange = true,
-}: ThemeProviderProps) {
-  themeStorageKey = storageKey;
-  disableTransitionsOnChange = disableTransitionOnChange;
-
-  const storedTheme = localStorage.getItem(storageKey);
-  currentTheme = isTheme(storedTheme) ? storedTheme : defaultTheme;
-
+export function ThemeProvider({ children }: ThemeProviderProps) {
   const theme = useSyncExternalStore(subscribeTheme, getTheme, getTheme);
   const systemTheme = useSystemTheme();
   const resolvedTheme: ResolvedTheme = theme === "system" ? systemTheme : theme;
@@ -182,13 +174,13 @@ export function ThemeProvider({
   useEffect(() => {
     const handleStorageChange = (event: StorageEvent) => {
       if (event.storageArea !== localStorage) return;
-      if (event.key !== storageKey) return;
-      setTheme(isTheme(event.newValue) ? event.newValue : defaultTheme);
+      if (event.key !== THEME_STORAGE_KEY) return;
+      setTheme(isTheme(event.newValue) ? event.newValue : DEFAULT_THEME);
     };
 
     window.addEventListener("storage", handleStorageChange);
     return () => window.removeEventListener("storage", handleStorageChange);
-  }, [defaultTheme, storageKey]);
+  }, []);
 
   return <>{children}</>;
 }

@@ -18,7 +18,7 @@ export const Route = createRootRouteWithContext<{
 function RootComponent() {
   return (
     <AuthProvider>
-      <ThemeProvider storageKey="bakarr-ui-theme">
+      <ThemeProvider>
         <GlobalSpinner />
         <Outlet />
         <Toaster />

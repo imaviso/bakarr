@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { RiArrowLeftSLine, RiArrowRightSLine, RiCheckLine, RiCircleLine } from "@remixicon/react";
 import { Link } from "@tanstack/react-router";
 import {
@@ -41,7 +42,8 @@ interface AnimeCalendarProps {
 }
 
 export function AnimeCalendar(props: AnimeCalendarProps) {
-  const currentDate = props.month ? parseMonthKey(props.month) : new Date();
+  const [fallbackDate] = useState(() => new Date());
+  const currentDate = props.month ? parseMonthKey(props.month) : fallbackDate;
 
   const fetchStart = subMonths(startOfWeek(startOfMonth(currentDate)), 1);
   const fetchEnd = addMonths(endOfWeek(endOfMonth(currentDate)), 1);

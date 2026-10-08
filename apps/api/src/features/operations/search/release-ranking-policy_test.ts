@@ -138,13 +138,13 @@ it("isBatchReleaseTitle detects anime and volume batches", () => {
 
 it("compareAcceptableReleases ranks singles before batches within same action tier", () => {
   const single = {
-    action: { Accept: { is_seadex: false, quality: web1080, score: 5 } } as DownloadAction,
+    action: { Accept: { is_seadex: false, quality: web1080, score: 5 } } satisfies DownloadAction,
     isBatch: false,
     seeders: 1,
     sizeBytes: 100,
   };
   const batch = {
-    action: { Accept: { is_seadex: false, quality: web1080, score: 70 } } as DownloadAction,
+    action: { Accept: { is_seadex: false, quality: web1080, score: 70 } } satisfies DownloadAction,
     isBatch: true,
     seeders: 50,
     sizeBytes: 3000,
@@ -158,7 +158,7 @@ it("compareAcceptableReleases ranks singles before batches within same action ti
         reason: "better",
         score: 5,
       },
-    } as DownloadAction,
+    } satisfies DownloadAction,
     isBatch: false,
     seeders: 1,
     sizeBytes: 100,

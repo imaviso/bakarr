@@ -39,7 +39,7 @@ it("isAnimeReleaseSeasonMismatch rejects S02E18 for 4th Season media", () => {
     titleRomaji: "Re:Zero kara Hajimeru Isekai Seikatsu 4th Season",
     titleEnglish: null,
     format: "TV",
-    synonyms: [] as string[],
+    synonyms: new Array<string>(),
   };
 
   assert.deepStrictEqual(
@@ -62,7 +62,7 @@ it("isAnimeReleaseSeasonMismatch rejects S02E18 for 4th Season media", () => {
 });
 
 it("isAnimeReleaseSeasonMismatch defaults marker-less media to season 1", () => {
-  const media = { titleRomaji: "Release that Witch", format: "TV", synonyms: [] as string[] };
+  const media = { titleRomaji: "Release that Witch", format: "TV", synonyms: new Array<string>() };
 
   assert.deepStrictEqual(
     isAnimeReleaseSeasonMismatch({
@@ -90,14 +90,14 @@ it("isAnimeReleaseSeasonMismatch defaults marker-less media to season 1", () => 
 it("isAnimeReleaseSeasonMismatch rejects S00 for TV but allows OVA", () => {
   assert.deepStrictEqual(
     isAnimeReleaseSeasonMismatch({
-      media: { titleRomaji: "Show", format: "TV", synonyms: [] as string[] },
+      media: { titleRomaji: "Show", format: "TV", synonyms: new Array<string>() },
       releaseTitle: "Show S00E03 [1080p]",
     }),
     true,
   );
   assert.deepStrictEqual(
     isAnimeReleaseSeasonMismatch({
-      media: { titleRomaji: "Show OVA", format: "OVA", synonyms: [] as string[] },
+      media: { titleRomaji: "Show OVA", format: "OVA", synonyms: new Array<string>() },
       releaseTitle: "Show S00E03 [1080p]",
     }),
     false,
@@ -142,7 +142,7 @@ it("inferExpectedAnimeSeason includes native titles", () => {
 it("isAnimeReleaseSeasonMismatch allows S00 for film-like media", () => {
   assert.deepStrictEqual(
     isAnimeReleaseSeasonMismatch({
-      media: { titleRomaji: "Show Film", format: "TV", synonyms: [] as string[] },
+      media: { titleRomaji: "Show Film", format: "TV", synonyms: new Array<string>() },
       releaseTitle: "Show S00E01 [1080p]",
     }),
     false,
@@ -178,7 +178,7 @@ it("isAnimeReleaseSeasonMismatch rejects marker-less absolute for sequels", () =
     titleRomaji: "Mushoku Tensei III: Isekai Ittara Honki Dasu",
     titleEnglish: "Mushoku Tensei: Jobless Reincarnation Season 3",
     format: "TV",
-    synonyms: [] as string[],
+    synonyms: new Array<string>(),
   };
 
   assert.deepStrictEqual(

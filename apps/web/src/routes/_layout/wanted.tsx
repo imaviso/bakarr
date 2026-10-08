@@ -156,27 +156,98 @@ function WantedPage() {
                   )}
                   {virtualItems.map((vRow) => {
                     const item = data[vRow.index];
+                    if (!item) return null;
+                    const statusLabel =
+                      item.airing_status === "future"
+                        ? "Upcoming"
+                        : item.airing_status === "aired"
+                          ? "Missing"
+                          : undefined;
+                    const unitLabel = mediaUnitLabel(item.unit_kind);
                     return (
-                      item && (
-                        <WantedRow
-                          key={`${item.media_id}-${item.unit_number}`}
-                          item={item}
-                          airingPreferences={airingPreferences}
-                          ref={(node) => rowVirtualizer.measureElement(node)}
-                          data-index={vRow.index}
-                          onSearch={() => {
-                            setSearchModalState({
-                              open: true,
-                              mediaId: item.media_id,
-                              unitNumber: item.unit_number,
-                              unitKind: item.unit_kind,
-                              ...(item.unit_title === undefined
-                                ? {}
-                                : { unitTitle: item.unit_title }),
-                            });
-                          }}
-                        />
-                      )
+                      <TableRow
+                        key={`${item.media_id}-${item.unit_number}`}
+                        ref={rowVirtualizer.measureElement}
+                        data-index={vRow.index}
+                      >
+                        <TableCell>
+                          <div className="h-10 w-7 rounded-none overflow-hidden bg-muted">
+                            {item.media_image && (
+                              <img
+                                src={item.media_image}
+                                alt={item.media_title}
+                                width={28}
+                                height={40}
+                                loading="lazy"
+                                className="h-full w-full object-cover"
+                              />
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="font-medium whitespace-normal break-words">
+                          <Link
+                            to="/media/$id"
+                            params={{ id: item.media_id.toString() }}
+                            className="hover:underline"
+                          >
+                            {item.media_title}
+                          </Link>
+                          {item.next_airing_unit && (
+                            <div className="mt-1 text-xs text-muted-foreground">
+                              {formatNextAiringUnit(item.next_airing_unit, airingPreferences) ||
+                                "Next airing scheduled"}
+                            </div>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-col items-start gap-1">
+                            <Badge variant="outline" className="tabular-nums">
+                              {unitLabel} {item.unit_number.toString().padStart(2, "0")}
+                            </Badge>
+                            {statusLabel && (
+                              <Badge
+                                variant={item.airing_status === "aired" ? "outline" : "secondary"}
+                              >
+                                {statusLabel}
+                              </Badge>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="hidden md:table-cell text-muted-foreground truncate max-w-50">
+                          {item.unit_title || "-"}
+                        </TableCell>
+                        <TableCell className="text-sm tabular-nums">
+                          {formatAiringDateTimeWithPreferences(
+                            item.aired ?? undefined,
+                            airingPreferences,
+                          ) || "-"}
+                        </TableCell>
+                        <TableCell>
+                          <DropdownMenuTrigger>
+                            <IconButton aria-label={`${unitLabel} options`}>
+                              <RiMoreLine className="h-4 w-4" />
+                            </IconButton>
+                            <DropdownMenu>
+                              <DropdownMenuItem
+                                onAction={() => {
+                                  setSearchModalState({
+                                    open: true,
+                                    mediaId: item.media_id,
+                                    unitNumber: item.unit_number,
+                                    unitKind: item.unit_kind,
+                                    ...(item.unit_title === undefined
+                                      ? {}
+                                      : { unitTitle: item.unit_title }),
+                                  });
+                                }}
+                              >
+                                <RiSearchLine className="mr-2 h-4 w-4" />
+                                Search
+                              </DropdownMenuItem>
+                            </DropdownMenu>
+                          </DropdownMenuTrigger>
+                        </TableCell>
+                      </TableRow>
                     );
                   })}
                   {paddingBottom > 0 && (
@@ -211,89 +282,5 @@ function WantedPage() {
         />
       </Suspense>
     </PageShell>
-  );
-}
-
-function WantedRow(props: {
-  item: MissingUnit;
-  airingPreferences: ReturnType<typeof getAiringDisplayPreferences>;
-  onSearch: () => void;
-  ref?: (node: Element | null) => void;
-  "data-index"?: number;
-}) {
-  const statusLabel =
-    props.item.airing_status === "future"
-      ? "Upcoming"
-      : props.item.airing_status === "aired"
-        ? "Missing"
-        : undefined;
-  const unitLabel = mediaUnitLabel(props.item.unit_kind);
-
-  return (
-    <TableRow ref={props.ref} data-index={props["data-index"]}>
-      <TableCell>
-        <div className="h-10 w-7 rounded-none overflow-hidden bg-muted">
-          {props.item.media_image && (
-            <img
-              src={props.item.media_image}
-              alt={props.item.media_title}
-              width={28}
-              height={40}
-              loading="lazy"
-              className="h-full w-full object-cover"
-            />
-          )}
-        </div>
-      </TableCell>
-      <TableCell className="font-medium whitespace-normal break-words">
-        <Link
-          to="/media/$id"
-          params={{ id: props.item.media_id.toString() }}
-          className="hover:underline"
-        >
-          {props.item.media_title}
-        </Link>
-        {props.item.next_airing_unit && (
-          <div className="mt-1 text-xs text-muted-foreground">
-            {formatNextAiringUnit(props.item.next_airing_unit, props.airingPreferences) ||
-              "Next airing scheduled"}
-          </div>
-        )}
-      </TableCell>
-      <TableCell>
-        <div className="flex flex-col items-start gap-1">
-          <Badge variant="outline" className="tabular-nums">
-            {unitLabel} {props.item.unit_number.toString().padStart(2, "0")}
-          </Badge>
-          {statusLabel && (
-            <Badge variant={props.item.airing_status === "aired" ? "outline" : "secondary"}>
-              {statusLabel}
-            </Badge>
-          )}
-        </div>
-      </TableCell>
-      <TableCell className="hidden md:table-cell text-muted-foreground truncate max-w-50">
-        {props.item.unit_title || "-"}
-      </TableCell>
-      <TableCell className="text-sm tabular-nums">
-        {formatAiringDateTimeWithPreferences(
-          props.item.aired ?? undefined,
-          props.airingPreferences,
-        ) || "-"}
-      </TableCell>
-      <TableCell>
-        <DropdownMenuTrigger>
-          <IconButton aria-label={`${unitLabel} options`}>
-            <RiMoreLine className="h-4 w-4" />
-          </IconButton>
-          <DropdownMenu>
-            <DropdownMenuItem onAction={props.onSearch}>
-              <RiSearchLine className="mr-2 h-4 w-4" />
-              Search
-            </DropdownMenuItem>
-          </DropdownMenu>
-        </DropdownMenuTrigger>
-      </TableCell>
-    </TableRow>
   );
 }

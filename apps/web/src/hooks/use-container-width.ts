@@ -16,7 +16,7 @@ export function useContainerWidth() {
       cancelAnimationFrame(rafRef.current);
       rafRef.current = 0;
     }
-    if (!node) return;
+    if (!node) return undefined;
 
     const ro = new ResizeObserver(([entry]) => {
       if (!entry) return;

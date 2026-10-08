@@ -24,7 +24,7 @@ const SHORT_SEASON_PATTERN = /\bS(\d{1,2})\b/i;
 // before a subtitle separator ("Mushoku Tensei III: ...", "Mushoku Tensei III - 14",
 // "無職転生III ～..."). Require a separator/end lookahead so "Hunter x Hunter"
 // (X between words) is not season 10.
-const ROMAN_SEASON_PATTERN = /\b(II|III|IV|V|VI|VII|VIII|IX|X)\b(?=\s*(?:[:(\[–—\-～~]|$))/i;
+const ROMAN_SEASON_PATTERN = /\b(II|III|IV|V|VI|VII|VIII|IX|X)\b(?=\s*(?:[:([–—\-～~]|$))/i;
 const ROMAN_SEASON_TRAILING_PAREN_PATTERN = /\b(II|III|IV|V|VI|VII|VIII|IX|X)\s*\(.*\)\s*$/i;
 const SPECIAL_TITLE_PATTERN = /\b(?:ova|ona|oad|special|specials|movie|film)\b/i;
 

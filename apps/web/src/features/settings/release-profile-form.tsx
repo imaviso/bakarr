@@ -35,13 +35,6 @@ const ReleaseProfileSchema = Schema.Struct({
   ),
 });
 
-function createRuleRowIds(
-  rules: ReleaseProfile["rules"] | undefined,
-  ref: React.MutableRefObject<number>,
-): string[] {
-  return (rules ?? []).map(() => nextRuleRowId(ref));
-}
-
 function nextRuleRowId(ref: React.MutableRefObject<number>): string {
   ref.current += 1;
   return `release-rule-${ref.current}`;
@@ -57,7 +50,7 @@ export function ReleaseProfileForm(props: {
   const isEditing = !!props.profile;
   const ruleRowIdCounterRef = useRef(0);
   const [ruleRowIds, setRuleRowIds] = useState<string[]>(() =>
-    createRuleRowIds(props.profile?.rules, ruleRowIdCounterRef),
+    (props.profile?.rules ?? []).map((_, index) => `release-rule-initial-${index}`),
   );
 
   const form = useForm({
