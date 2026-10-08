@@ -32,10 +32,6 @@ import { MediaRepository } from "@/features/media/shared/media-repository.ts";
 import { MediaUnitRepository } from "@/features/media/units/media-unit-repository.ts";
 import { DownloadReconciliationService } from "@/features/operations/download/download-reconciliation-service.ts";
 import { LibraryNaming } from "@/features/operations/library/library-naming.ts";
-import {
-  buildClaimToken,
-  isClaimToken,
-} from "@/features/operations/download/download-claim-token.ts";
 import { DownloadTorrentSyncService } from "@/features/operations/download/download-torrent-sync-service.ts";
 
 // `it.scoped` runs the service under the whose `nowIso()` starts at
@@ -214,6 +210,8 @@ const seedMedia = (db: AppDatabase) =>
 
 interface SeededDownloadInput {
   readonly infoHash: string;
+  readonly reconcileClaim?: string | null;
+  readonly reconcileClaimedAt?: string | null;
   readonly reconciledAt?: string | null;
   readonly status: string;
   readonly lastSyncedAt?: string;
@@ -232,6 +230,8 @@ const seedDownload = (db: AppDatabase, input: SeededDownloadInput) =>
         mediaId: 1,
         mediaTitle: "Naruto",
         reconciledAt: input.reconciledAt ?? null,
+        reconcileClaim: input.reconcileClaim ?? null,
+        reconcileClaimedAt: input.reconcileClaimedAt ?? null,
         status: input.status,
         torrentName: `torrent-${input.infoHash}`,
         unitNumber: 1,
@@ -251,10 +251,10 @@ it.effect("sync treats a fresh claim as not imported and leaves it for retry", (
     run: (db, databaseFile, client, _exec) =>
       Effect.gen(function* () {
         yield* seedMedia(db);
-        const freshClaim = buildClaimToken(minutesAgoIso(5), "fresh-uuid");
         yield* seedDownload(db, {
           infoHash: "hash-fresh-claim",
-          reconciledAt: freshClaim,
+          reconcileClaim: "fresh-uuid",
+          reconcileClaimedAt: minutesAgoIso(5),
           status: "completed",
         });
 
@@ -265,8 +265,8 @@ it.effect("sync treats a fresh claim as not imported and leaves it for retry", (
 
         const row = yield* loadDownloadRow(db, "hash-fresh-claim");
         // Fresh claim is NOT swept and NOT treated as imported
-        assert.deepStrictEqual(row?.reconciledAt, freshClaim);
-        assert.deepStrictEqual(isClaimToken(row?.reconciledAt), true);
+        assert.deepStrictEqual(row?.reconcileClaim, "fresh-uuid");
+        assert.deepStrictEqual(row?.reconciledAt, null);
         // preservedImported=false means raw qBittorrent state wins over "imported"
         assert.deepStrictEqual(row?.externalState, "pausedUP");
         assert.deepStrictEqual(row?.status, "completed");
@@ -280,10 +280,10 @@ it.effect("sync sweeps stale claims so auto-reconcile can retry", () =>
     run: (db, databaseFile, client, _exec) =>
       Effect.gen(function* () {
         yield* seedMedia(db);
-        const staleClaim = buildClaimToken(minutesAgoIso(31), "stale-uuid");
         yield* seedDownload(db, {
           infoHash: "hash-stale-claim",
-          reconciledAt: staleClaim,
+          reconcileClaim: "stale-uuid",
+          reconcileClaimedAt: minutesAgoIso(31),
           status: "completed",
         });
 
@@ -293,7 +293,7 @@ it.effect("sync sweeps stale claims so auto-reconcile can retry", () =>
         yield* service.syncDownloadsWithQBitEffect();
 
         const row = yield* loadDownloadRow(db, "hash-stale-claim");
-        assert.deepStrictEqual(row?.reconciledAt, null);
+        assert.deepStrictEqual(row?.reconcileClaim, null);
       }),
     schema,
   }),

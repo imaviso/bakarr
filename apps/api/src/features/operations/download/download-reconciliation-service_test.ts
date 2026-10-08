@@ -27,7 +27,6 @@ import { MediaRepository } from "@/features/media/shared/media-repository.ts";
 import { MediaUnitRepository } from "@/features/media/units/media-unit-repository.ts";
 import { DownloadReconciliationService } from "@/features/operations/download/download-reconciliation-service.ts";
 import { LibraryNaming } from "@/features/operations/library/library-naming.ts";
-import { buildClaimToken } from "@/features/operations/download/download-claim-token.ts";
 
 it.effect("reconcile releases the claim when the download content is unreachable", () =>
   withSqliteTestDbEffect({
@@ -118,7 +117,7 @@ it.effect("reconcile skips downloads already marked reconciled", () =>
   }),
 );
 
-it.effect("claim round-trip: prefixed token claims once and releases exactly", () =>
+it.effect("claim round-trip: opaque token claims once and releases exactly", () =>
   withSqliteTestDbEffect({
     run: (db, _databaseFile, client, _exec) =>
       Effect.gen(function* () {
@@ -145,29 +144,38 @@ it.effect("claim round-trip: prefixed token claims once and releases exactly", (
         );
 
         const repo = makeDownloadRepository(db, client);
-        const claimToken = buildClaimToken("2026-01-01T00:00:00.000Z", "roundtrip-uuid");
+        const claimToken = "roundtrip-uuid";
+        const claimedAt = "2026-01-01T00:00:00.000Z";
 
         // First claim wins; a concurrent claim for the same row loses.
-        assert.deepStrictEqual(yield* repo.claimDownloadReconciliation(1, claimToken), true);
         assert.deepStrictEqual(
-          yield* repo.claimDownloadReconciliation(
-            1,
-            buildClaimToken("2026-01-01T00:00:01.000Z", "other-uuid"),
-          ),
+          yield* repo.claimDownloadReconciliation(1, claimToken, claimedAt),
+          true,
+        );
+        assert.deepStrictEqual(
+          yield* repo.claimDownloadReconciliation(1, "other-uuid", "2026-01-01T00:00:01.000Z"),
           false,
         );
-        assert.deepStrictEqual(yield* loadReconciledAt(db, 1), claimToken);
+        assert.deepStrictEqual(yield* loadReconcileClaim(db, 1), {
+          claim: claimToken,
+          claimedAt,
+          reconciledAt: null,
+        });
 
         // Release with a mismatched token is a no-op (finalize already won).
         yield* repo.releaseDownloadReconciliationClaim({
           downloadId: 1,
-          claimToken: buildClaimToken("2026-01-01T00:00:02.000Z", "wrong-uuid"),
+          claimToken: "wrong-uuid",
         });
-        assert.deepStrictEqual(yield* loadReconciledAt(db, 1), claimToken);
+        assert.deepStrictEqual((yield* loadReconcileClaim(db, 1)).claim, claimToken);
 
-        // Release with the exact token resets reconciledAt for retry.
+        // Release with the exact token clears the claim for retry.
         yield* repo.releaseDownloadReconciliationClaim({ downloadId: 1, claimToken });
-        assert.deepStrictEqual(yield* loadReconciledAt(db, 1), null);
+        assert.deepStrictEqual(yield* loadReconcileClaim(db, 1), {
+          claim: null,
+          claimedAt: null,
+          reconciledAt: null,
+        });
       }),
     schema,
   }),
@@ -250,6 +258,28 @@ const loadReconciledAt = (db: AppDatabase, id: number) =>
       .prepare()
       .effect(),
   ).pipe(Effect.map((rows) => rows[0]?.reconciledAt ?? null));
+
+const loadReconcileClaim = (db: AppDatabase, id: number) =>
+  tryDatabaseQuery(
+    "Failed to load download claim for reconcile test",
+    db
+      .select({
+        claim: downloads.reconcileClaim,
+        claimedAt: downloads.reconcileClaimedAt,
+        reconciledAt: downloads.reconciledAt,
+      })
+      .from(downloads)
+      .where(eq(downloads.id, id))
+      .limit(1)
+      .prepare()
+      .effect(),
+  ).pipe(
+    Effect.map((rows) => ({
+      claim: rows[0]?.claim ?? null,
+      claimedAt: rows[0]?.claimedAt ?? null,
+      reconciledAt: rows[0]?.reconciledAt ?? null,
+    })),
+  );
 
 function makeReconcileMediaRow(): typeof media.$inferInsert {
   return {

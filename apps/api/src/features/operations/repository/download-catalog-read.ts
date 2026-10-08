@@ -20,7 +20,6 @@ import {
   type DownloadEventRowLike,
 } from "@/features/operations/download/download-event-presentations.ts";
 import { parseCoveredUnitsEffect } from "@/features/operations/download/download-coverage.ts";
-import { isClaimToken } from "@/features/operations/download/download-claim-token.ts";
 import { StoredDataError } from "@/features/errors.ts";
 import type { DownloadPresentationContext } from "@/features/operations/repository/types.ts";
 import type { DbExecutor } from "@/infra/effect/db.ts";
@@ -257,11 +256,11 @@ export const loadDownloadPresentationContexts = Effect.fn(
 });
 
 /**
- * A claim token in `reconciledAt` marks an in-flight (or crashed) import, not
- * a completed one: the row must not present an imported path yet.
+ * `reconciledAt` carries only finalized import timestamps now (in-flight
+ * claims live in `reconcile_claim`): a non-null value means reconciled.
  */
 function isImportedReconciled(status: string, reconciledAt: string | null): boolean {
-  return (status === "imported" || reconciledAt !== null) && !isClaimToken(reconciledAt);
+  return status === "imported" || reconciledAt !== null;
 }
 
 export interface DownloadEventListQuery {

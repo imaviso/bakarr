@@ -136,6 +136,50 @@ export function inferCoveredUnitNumbers(input: {
   return [input.requestedEpisode];
 }
 
+export type CoverageFileMatch =
+  | { readonly _tag: "Skip" }
+  | { readonly _tag: "Units"; readonly units: readonly number[] }
+  | { readonly _tag: "ParseIdentity" };
+
+/**
+ * Single file-coverage core shared by torrent-list refinement and on-disk
+ * reconcile scans. Cross-type guard + volume extraction live here once;
+ * each caller keeps its own candidate rule (refine accepts only
+ * `episode`-classified files, reconcile skips only extras/samples) so
+ * behavior at each site is unchanged.
+ */
+export function matchCoverageFile(input: {
+  readonly fileName: string;
+  readonly fullPath: string;
+  readonly isCandidate: boolean;
+  readonly wantVolumes: boolean;
+}): CoverageFileMatch {
+  // Cross-type files never contribute coverage: anime episodes must not
+  // refine manga coverage (and vice versa) when torrents share a client
+  // save directory with unrelated downloads.
+  if (
+    hasUnitExtension(
+      input.fileName,
+      input.wantVolumes ? VIDEO_UNIT_FILE_EXTENSIONS : VOLUME_UNIT_FILE_EXTENSIONS,
+    )
+  ) {
+    return { _tag: "Skip" };
+  }
+
+  if (!input.isCandidate) {
+    return { _tag: "Skip" };
+  }
+
+  if (input.wantVolumes) {
+    const volumes = parseVolumeNumbersFromTitle(input.fileName);
+    if (volumes.length > 0) {
+      return { _tag: "Units", units: volumes };
+    }
+  }
+
+  return { _tag: "ParseIdentity" };
+}
+
 export function inferCoveredUnitsFromTorrentContents(input: {
   readonly files: readonly TorrentFile[];
   readonly parseVolumeNumbers?: boolean;
@@ -148,32 +192,20 @@ export function inferCoveredUnitsFromTorrentContents(input: {
     const fullPath = `${input.rootName.replace(/\/+$/, "")}/${file.name.replace(/^\/+/, "")}`;
     const fileName = file.name.split("/").pop() ?? file.name;
 
-    // Cross-type files never contribute coverage: anime episodes must not
-    // refine manga coverage (and vice versa) when torrents share a client
-    // save directory with unrelated downloads.
-    if (
-      hasUnitExtension(
-        fileName,
-        wantVolumes ? VIDEO_UNIT_FILE_EXTENSIONS : VOLUME_UNIT_FILE_EXTENSIONS,
-      )
-    ) {
+    const match = matchCoverageFile({
+      fileName,
+      fullPath,
+      isCandidate: classifyMediaArtifact(fullPath, fileName).kind === "episode",
+      wantVolumes,
+    });
+    if (match._tag === "Skip") {
       continue;
     }
-
-    const classification = classifyMediaArtifact(fullPath, fileName);
-
-    if (classification.kind !== "episode") {
-      continue;
-    }
-
-    if (wantVolumes) {
-      const volumes = parseVolumeNumbersFromTitle(fileName);
-      if (volumes.length > 0) {
-        for (const volume of volumes) {
-          mediaUnits.add(volume);
-        }
-        continue;
+    if (match._tag === "Units") {
+      for (const volume of match.units) {
+        mediaUnits.add(volume);
       }
+      continue;
     }
 
     const context = buildPathParseContext(input.rootName, fullPath);
@@ -192,6 +224,11 @@ export function inferCoveredUnitsFromTorrentContents(input: {
   return [...mediaUnits].toSorted((left, right) => left - right);
 }
 
+function isSkippedCoverageArtifact(path: string, fileName: string): boolean {
+  const classification = classifyMediaArtifact(path, fileName);
+  return classification.kind === "extra" || classification.kind === "sample";
+}
+
 export function resolveReconciledBatchUnitNumbers(input: {
   readonly path: string;
   readonly coveredUnits: readonly number[];
@@ -201,22 +238,17 @@ export function resolveReconciledBatchUnitNumbers(input: {
   const fileName = input.path.split("/").pop() ?? input.path;
   const wantVolumes = input.parseVolumeNumbers === true;
 
-  // Cross-type files never map: a video file is not a manga volume even
-  // when its bare number coincides (and vice versa for anime).
-  if (
-    hasUnitExtension(
-      fileName,
-      wantVolumes ? VIDEO_UNIT_FILE_EXTENSIONS : VOLUME_UNIT_FILE_EXTENSIONS,
-    )
-  ) {
+  const match = matchCoverageFile({
+    fileName,
+    fullPath: input.path,
+    isCandidate: !isSkippedCoverageArtifact(input.path, fileName),
+    wantVolumes,
+  });
+  if (match._tag === "Skip") {
     return [];
   }
-
-  if (wantVolumes) {
-    const volumes = parseVolumeNumbersFromTitle(fileName);
-    if (volumes.length > 0) {
-      return volumes;
-    }
+  if (match._tag === "Units") {
+    return [...match.units];
   }
 
   const identity = parseFileSourceIdentity(input.path).source_identity;

@@ -12,6 +12,10 @@ import {
   parseCoveredUnitsEffect,
   toCoveredUnitsJson,
 } from "@/features/operations/download/download-coverage.ts";
+import {
+  buildDownloadImportEventMetadata,
+  isStaleReconcileClaim,
+} from "@/features/operations/download/download-import-meta.ts";
 import { OperationsProgress } from "@/features/operations/tasks/operations-progress-service.ts";
 import { OperationsTaskLauncherService } from "@/features/operations/tasks/operations-task-launcher-service.ts";
 import {
@@ -25,10 +29,7 @@ import {
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 import { TorrentClientService } from "@/features/operations/torrent/torrent-client-service.ts";
 import { nowIso as currentNowIso } from "@/infra/time.ts";
-import {
-  isPreservedImport,
-  isStaleClaimToken,
-} from "@/features/operations/download/download-claim-token.ts";
+import type { TorrentFile } from "@/features/operations/torrent/torrent-domain.ts";
 import { DownloadReconciliationService } from "@/features/operations/download/download-reconciliation-service.ts";
 import { MediaRepository } from "@/features/media/shared/media-repository.ts";
 import { DatabaseError } from "@/db/database.ts";
@@ -65,6 +66,14 @@ const mapSyncError = (error: unknown): DownloadTorrentSyncError =>
         cause: error,
       });
 
+const failureTagOf = (error: unknown): string => {
+  const tag =
+    error !== null && typeof error === "object" && "_tag" in error
+      ? Reflect.get(error, "_tag")
+      : undefined;
+  return typeof tag === "string" ? tag : "Unknown";
+};
+
 export class DownloadTorrentSyncService extends Context.Service<
   DownloadTorrentSyncService,
   DownloadTorrentSyncServiceShape
@@ -81,6 +90,11 @@ export class DownloadTorrentSyncService extends Context.Service<
       const progress = yield* OperationsProgress;
       const taskLauncher = yield* OperationsTaskLauncherService;
       const syncSemaphore = yield* Semaphore.make(1);
+      // Single-fetch cache (Q4): batch coverage refinement already lists each
+      // torrent's files; the reconcile loop below reuses the same lists
+      // instead of calling the client a second time for the same hash.
+      // Absent = not fetched (fetch on demand); null = unavailable (unscoped).
+      const torrentContentsCache = new Map<string, readonly TorrentFile[] | null>();
 
       const refineBatchCoverageFromTorrentFiles = Effect.fn(
         "TorrentSync.refineBatchCoverageFromTorrentFiles",
@@ -97,6 +111,7 @@ export class DownloadTorrentSyncService extends Context.Service<
           .pipe(Effect.result);
 
         if (contentsResult._tag === "Failure") {
+          torrentContentsCache.set(refineInput.infoHash, null);
           yield* Effect.logDebug("Failed to inspect torrent file list").pipe(
             Effect.annotateLogs({
               downloadId: refineInput.downloadId,
@@ -108,8 +123,11 @@ export class DownloadTorrentSyncService extends Context.Service<
         }
 
         if (contentsResult.success._tag === "Disabled") {
+          torrentContentsCache.set(refineInput.infoHash, null);
           return;
         }
+
+        torrentContentsCache.set(refineInput.infoHash, contentsResult.success.files);
 
         const mediaRowOption = yield* mediaRepository
           .getMediaRow(refineInput.mediaId)
@@ -145,19 +163,17 @@ export class DownloadTorrentSyncService extends Context.Service<
         });
 
         const coverageNow = yield* currentNowIso();
+        const eventMetadata = yield* buildDownloadImportEventMetadata({
+          coveredUnitsJson: encodedInferredEpisodes,
+          ...(refineInput.sourceMetadata ? { sourceMetadata: refineInput.sourceMetadata } : {}),
+        });
         yield* syncRepo.insertDownloadEvent(
           {
             mediaId: refineInput.mediaId,
             downloadId: refineInput.downloadId,
             eventType: "download.coverage_refined",
-            metadataJson: {
-              covered_units: inferredEpisodes,
-              ...(refineInput.sourceMetadata
-                ? { source_metadata: refineInput.sourceMetadata }
-                : {}),
-            },
+            metadata: eventMetadata,
             message: `Refined batch mediaUnits from torrent file list: ${inferredEpisodes.join(", ")}`,
-            metadata: encodedInferredEpisodes,
           },
           coverageNow,
         );
@@ -193,18 +209,18 @@ export class DownloadTorrentSyncService extends Context.Service<
                 return null;
               }
 
-              const coveredUnits = yield* parseCoveredUnitsEffect(existing.coveredUnits);
               const sourceMetadata = yield* decodeDownloadSourceMetadata(existing.sourceMetadata);
+              const eventMetadata = yield* buildDownloadImportEventMetadata({
+                coveredUnitsJson: existing.coveredUnits,
+                ...(sourceMetadata ? { sourceMetadata } : {}),
+              });
 
               return {
                 mediaId: existing.mediaId,
                 downloadId: existing.id,
                 eventType: "download.status_changed",
                 fromStatus: existing.status,
-                metadataJson: {
-                  covered_units: coveredUnits,
-                  ...(sourceMetadata ? { source_metadata: sourceMetadata } : {}),
-                },
+                metadata: eventMetadata,
                 message: `${existing.torrentName} moved to ${row.nextStatus}`,
                 toStatus: row.nextStatus,
               } satisfies DownloadEventRecordInput;
@@ -249,12 +265,14 @@ export class DownloadTorrentSyncService extends Context.Service<
             const syncNow = yield* currentNowIso();
 
             // Sweep reconciliation claims orphaned by a hard crash: the claim
-            // token embeds its timestamp, so anything past the threshold has
-            // no live fiber and must be released for auto-reconcile to retry.
-            // Claims held by this process are never stale, no matter how long
-            // their import runs (slow storage can exceed any fixed threshold).
+            // timestamp lets the sync pass detect stale claims, while claims
+            // held by this process are never stale, no matter how long their
+            // import runs (slow storage can exceed any fixed threshold).
             for (const existing of allExistingDownloads) {
-              if (!isStaleClaimToken(existing.reconciledAt, syncNow)) {
+              if (!existing.reconcileClaim) {
+                continue;
+              }
+              if (!isStaleReconcileClaim(existing.reconcileClaimedAt, syncNow)) {
                 continue;
               }
 
@@ -264,12 +282,12 @@ export class DownloadTorrentSyncService extends Context.Service<
 
               yield* syncRepo.releaseDownloadReconciliationClaim({
                 downloadId: existing.id,
-                claimToken: existing.reconciledAt ?? "",
+                claimToken: existing.reconcileClaim,
               });
               yield* Effect.logWarning("Released stale reconciliation claim").pipe(
                 Effect.annotateLogs({
                   downloadId: existing.id,
-                  claimToken: existing.reconciledAt ?? "",
+                  claimToken: existing.reconcileClaim,
                 }),
               );
             }
@@ -278,9 +296,10 @@ export class DownloadTorrentSyncService extends Context.Service<
               const status = torrent.state;
               const hash = torrent.hash.toLowerCase();
               const existing = existingDownloadsMap.get(hash);
-              // A leftover claim token means the import never finished — treat
-              // the row as not imported so presentation stays actionable.
-              const preservedImported = isPreservedImport(existing?.reconciledAt);
+              // A finalized import stays imported regardless of later client
+              // state — `reconciledAt` carries only finalized timestamps now,
+              // so no token branch is needed to keep presentation actionable.
+              const preservedImported = existing?.reconciledAt != null;
               const nextStatus = preservedImported ? "imported" : status;
               const nextExternalState = preservedImported
                 ? (existing?.externalState ?? "imported")
@@ -377,7 +396,7 @@ export class DownloadTorrentSyncService extends Context.Service<
                 readonly torrentName: string;
               }[] => {
                 const existing = existingDownloadsMap.get(updateRow.hash);
-                const preservedImported = isPreservedImport(existing?.reconciledAt);
+                const preservedImported = existing?.reconciledAt != null;
 
                 if (!existing || !existing.isBatch || preservedImported) {
                   return [];
@@ -414,7 +433,9 @@ export class DownloadTorrentSyncService extends Context.Service<
             );
 
             // One poisoned download must not abort the whole sync pass: each
-            // reconcile is isolated, failures are logged and counted.
+            // reconcile is isolated, failures are logged and counted per
+            // error tag (Q6) so the poison class stays visible.
+            const failureTags = new Map<string, number>();
             let failedReconciliations = 0;
             for (const updateRow of updateRows) {
               if (
@@ -424,20 +445,25 @@ export class DownloadTorrentSyncService extends Context.Service<
                 continue;
               }
 
+              const cachedContents = torrentContentsCache.get(updateRow.hash);
               const reconcileResult = yield* Effect.result(
                 reconciliationService.reconcileCompletedTorrentEffect(
                   updateRow.hash,
                   updateRow.contentPath ?? updateRow.savePath ?? undefined,
+                  cachedContents,
                 ),
               );
 
               if (reconcileResult._tag === "Failure") {
                 failedReconciliations += 1;
+                const tag = failureTagOf(reconcileResult.failure);
+                failureTags.set(tag, (failureTags.get(tag) ?? 0) + 1);
                 yield* Effect.logWarning(
                   "Failed to reconcile completed download; continuing with remaining torrents",
                 ).pipe(
                   Effect.annotateLogs({
                     downloadHash: updateRow.hash,
+                    failureTag: tag,
                     ...errorLogAnnotations(reconcileResult.failure),
                   }),
                 );
@@ -446,7 +472,10 @@ export class DownloadTorrentSyncService extends Context.Service<
 
             if (failedReconciliations > 0) {
               yield* Effect.logWarning("Download sync finished with reconciliation failures").pipe(
-                Effect.annotateLogs({ failedReconciliations }),
+                Effect.annotateLogs({
+                  failedReconciliations,
+                  failureTags: [...failureTags].map(([tag, count]) => `${tag}:${count}`),
+                }),
               );
             }
           }).pipe(Effect.mapError((error) => mapSyncError(error)));

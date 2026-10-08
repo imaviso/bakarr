@@ -24,17 +24,16 @@ import {
   parseCoveredUnitsEffect,
   resolveReconciledBatchUnitNumbers,
 } from "@/features/operations/download/download-coverage.ts";
+import { buildDownloadImportEventMetadata } from "@/features/operations/download/download-import-meta.ts";
 import {
   resolveAccessibleDownloadPath,
   resolveBatchContentPaths,
   resolveCompletedContentPath,
 } from "@/features/operations/download/download-paths.ts";
-import {
-  decodeDownloadSourceMetadata,
-  encodeDownloadEventMetadata,
-} from "@/features/operations/repository/download-repository.ts";
+import { decodeDownloadSourceMetadata } from "@/features/operations/repository/download-repository.ts";
 import { DownloadRepository } from "@/features/operations/repository/download-repository.ts";
 import { TorrentClientService } from "@/features/operations/torrent/torrent-client-service.ts";
+import type { TorrentFile } from "@/features/operations/torrent/torrent-domain.ts";
 import type {
   OperationsConflictError,
   OperationsNotFoundError,
@@ -66,6 +65,11 @@ type DownloadReconciliationContext = {
   readonly runtimeConfig: Config;
   readonly storedSourceMetadata: DownloadSourceMetadata | undefined;
   readonly resolvedContentRoot: string;
+  /**
+   * Torrent file list prefetched by the sync pass (Q4 single fetch).
+   * `undefined` fetches on demand; `null` means unavailable (unscoped scan).
+   */
+  readonly prefetchedTorrentFiles?: readonly TorrentFile[] | null;
 };
 
 type RuntimeConfigLoader = () => Effect.Effect<Config, RuntimeConfigSnapshotError>;
@@ -112,6 +116,7 @@ export const loadDownloadReconciliationContext = Effect.fn(
     readonly contentPath: string;
     readonly getRuntimeConfig: RuntimeConfigLoader;
     readonly mediaRepository: typeof MediaRepository.Service;
+    readonly prefetchedTorrentFiles?: readonly TorrentFile[] | null;
   },
 ) {
   const storedSourceMetadata = yield* decodeDownloadSourceMetadata(input.row.sourceMetadata);
@@ -151,6 +156,9 @@ export const loadDownloadReconciliationContext = Effect.fn(
     runtimeConfig,
     row: input.row,
     storedSourceMetadata,
+    ...(input.prefetchedTorrentFiles === undefined
+      ? {}
+      : { prefetchedTorrentFiles: input.prefetchedTorrentFiles }),
   } satisfies DownloadReconciliationContext);
 });
 
@@ -167,6 +175,13 @@ const resolveTorrentScopedBatchPaths = Effect.fn(
     return [...batchPaths];
   }
 
+  if (input.prefetchedTorrentFiles !== undefined) {
+    if (input.prefetchedTorrentFiles === null) {
+      return [...batchPaths];
+    }
+    return yield* scopeBatchPathsToTorrentFiles(input, batchPaths, input.prefetchedTorrentFiles);
+  }
+
   const files = yield* input.torrentClientService
     .listTorrentContentsIfEnabled(input.row.infoHash)
     .pipe(
@@ -178,39 +193,49 @@ const resolveTorrentScopedBatchPaths = Effect.fn(
     return [...batchPaths];
   }
 
-  const root = input.resolvedContentRoot.replace(/\/+$/, "");
-  const completePaths = new Set(
-    files
-      .filter((file) => file.progress >= 1)
-      .map((file) => `${root}/${file.name.replace(/^\/+/, "")}`),
-  );
-  const scoped = batchPaths.filter((path) => completePaths.has(path));
-
-  if (scoped.length === 0) {
-    yield* Effect.logWarning(
-      "Batch torrent file list matched no complete on-disk files; leaving unreconciled for retry",
-    ).pipe(
-      Effect.annotateLogs({
-        mediaTitle: input.row.mediaTitle,
-        downloadId: input.row.id,
-      }),
-    );
-    return null;
-  }
-
-  if (scoped.length !== batchPaths.length) {
-    yield* Effect.logDebug("Filtered batch candidates to torrent file list").pipe(
-      Effect.annotateLogs({
-        mediaTitle: input.row.mediaTitle,
-        downloadId: input.row.id,
-        kept: scoped.length,
-        scanned: batchPaths.length,
-      }),
-    );
-  }
-
-  return scoped;
+  return yield* scopeBatchPathsToTorrentFiles(input, batchPaths, files);
 });
+
+const scopeBatchPathsToTorrentFiles = Effect.fn("DownloadReconcile.scopeBatchPathsToTorrentFiles")(
+  function* (
+    input: DownloadReconciliationContext,
+    batchPaths: readonly string[],
+    files: readonly TorrentFile[],
+  ) {
+    const root = input.resolvedContentRoot.replace(/\/+$/, "");
+    const completePaths = new Set(
+      files
+        .filter((file) => file.progress >= 1)
+        .map((file) => `${root}/${file.name.replace(/^\/+/, "")}`),
+    );
+    const scoped = batchPaths.filter((path) => completePaths.has(path));
+
+    if (scoped.length === 0) {
+      yield* Effect.logWarning(
+        "Batch torrent file list matched no complete on-disk files; leaving unreconciled for retry",
+      ).pipe(
+        Effect.annotateLogs({
+          mediaTitle: input.row.mediaTitle,
+          downloadId: input.row.id,
+        }),
+      );
+      return null;
+    }
+
+    if (scoped.length !== batchPaths.length) {
+      yield* Effect.logDebug("Filtered batch candidates to torrent file list").pipe(
+        Effect.annotateLogs({
+          mediaTitle: input.row.mediaTitle,
+          downloadId: input.row.id,
+          kept: scoped.length,
+          scanned: batchPaths.length,
+        }),
+      );
+    }
+
+    return scoped;
+  },
+);
 
 export const reconcileBatchDownloadEffect = Effect.fn("DownloadReconcile.reconcileBatchDownload")(
   function* (input: DownloadReconciliationContext) {
@@ -400,11 +425,10 @@ export const reconcileBatchDownloadEffect = Effect.fn("DownloadReconcile.reconci
     }
 
     const batchNow = yield* input.nowIso();
-    const storedCoveredEpisodes = yield* parseCoveredUnitsEffect(input.row.coveredUnits);
-    const eventMetadata = yield* encodeDownloadEventMetadata({
-      covered_units: storedCoveredEpisodes,
-      imported_path: input.animeRow.rootFolder,
-      ...(input.storedSourceMetadata ? { source_metadata: input.storedSourceMetadata } : {}),
+    const eventMetadata = yield* buildDownloadImportEventMetadata({
+      coveredUnitsJson: input.row.coveredUnits,
+      importedPath: input.animeRow.rootFolder,
+      ...(input.storedSourceMetadata ? { sourceMetadata: input.storedSourceMetadata } : {}),
     });
 
     yield* input.repo.finalizeDownloadImport({
@@ -520,11 +544,10 @@ export const reconcileSingleDownloadEffect = Effect.fn(
     managedPath,
   );
   const singleNow = yield* input.nowIso();
-  const storedCoveredEpisodes = yield* parseCoveredUnitsEffect(input.row.coveredUnits);
-  const eventMetadata = yield* encodeDownloadEventMetadata({
-    covered_units: storedCoveredEpisodes,
-    imported_path: managedPath,
-    ...(input.storedSourceMetadata ? { source_metadata: input.storedSourceMetadata } : {}),
+  const eventMetadata = yield* buildDownloadImportEventMetadata({
+    coveredUnitsJson: input.row.coveredUnits,
+    importedPath: managedPath,
+    ...(input.storedSourceMetadata ? { sourceMetadata: input.storedSourceMetadata } : {}),
   });
 
   yield* input.repo.finalizeDownloadImport({

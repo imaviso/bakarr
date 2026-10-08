@@ -20,10 +20,10 @@ import {
   shouldDeleteImportedData,
   shouldRemoveTorrentOnImport,
 } from "@/features/operations/download/download-reconciliation-policy.ts";
-import { buildClaimToken } from "@/features/operations/download/download-claim-token.ts";
 import { causeLogAnnotations } from "@/infra/logging.ts";
 import { OperationsConflictError, OperationsNotFoundError } from "@/features/operations/errors.ts";
 import { MediaRepository } from "@/features/media/shared/media-repository.ts";
+import type { TorrentFile } from "@/features/operations/torrent/torrent-domain.ts";
 import { MediaUnitRepository } from "@/features/media/units/media-unit-repository.ts";
 
 export interface DownloadReconciliationServiceShape {
@@ -41,6 +41,7 @@ export interface DownloadReconciliationServiceShape {
   readonly reconcileCompletedTorrentEffect: (
     infoHash: string,
     contentPath: string | undefined,
+    prefetchedFiles?: readonly TorrentFile[] | null,
   ) => Effect.Effect<void, ReconcileCompletedError>;
   readonly reconcileDownloadByIdEffect: (id: number) => Effect.Effect<void, ReconcileByIdError>;
 }
@@ -101,24 +102,28 @@ export class DownloadReconciliationService extends Context.Service<
       });
 
       // Atomic claim: only one concurrent reconcile may import a given download.
-      // The token (`claim:<isotimestamp>:<uuid>`) marks an in-flight claim;
-      // finalization overwrites it with a timestamp, so a leftover token always
-      // means the claim must be released for retry. The embedded timestamp lets
-      // the sync pass sweep claims orphaned by a hard crash.
+      // The opaque token lives in `reconcile_claim` (with `reconcile_claimed_at`);
+      // finalization clears it and stamps `reconciledAt`, so a leftover claim
+      // always means the row must be released for retry. The embedded timestamp
+      // lets the sync pass sweep claims orphaned by a hard crash.
       const reconcileCompletedTorrentEffect = Effect.fn(
         "DownloadReconcile.reconcileCompletedTorrent",
-      )(function* (infoHash: string, contentPath: string | undefined) {
+      )(function* (
+        infoHash: string,
+        contentPath: string | undefined,
+        prefetchedFiles?: readonly TorrentFile[] | null,
+      ) {
         if (!contentPath) {
           return;
         }
 
         const row = yield* repo.loadDownloadByInfoHash(infoHash);
-        if (!row || row.reconciledAt) {
+        if (!row || row.reconciledAt || row.reconcileClaim) {
           return;
         }
 
         const claimNow = yield* nowIso();
-        const claimToken = buildClaimToken(claimNow, yield* randomUuid());
+        const claimToken = yield* randomUuid();
         const unmarkLiveSet = Ref.update(liveClaimIds, (ids) => {
           const next = new Set(ids);
           next.delete(row.id);
@@ -131,7 +136,7 @@ export class DownloadReconciliationService extends Context.Service<
         // stale claim until restart. Losing the claim race removes the mark
         // inline; a won claim stays (the import block below owns its release).
         const claimed = yield* Ref.update(liveClaimIds, (ids) => new Set(ids).add(row.id)).pipe(
-          Effect.andThen(repo.claimDownloadReconciliation(row.id, claimToken)),
+          Effect.andThen(repo.claimDownloadReconciliation(row.id, claimToken, claimNow)),
           Effect.onExit((exit) =>
             exit._tag === "Failure" ? unmarkLiveSet.pipe(Effect.ignore) : Effect.void,
           ),
@@ -156,6 +161,7 @@ export class DownloadReconciliationService extends Context.Service<
             contentPath,
             getRuntimeConfig,
             mediaRepository,
+            ...(prefetchedFiles === undefined ? {} : { prefetchedTorrentFiles: prefetchedFiles }),
           });
 
           if (Option.isNone(context)) {

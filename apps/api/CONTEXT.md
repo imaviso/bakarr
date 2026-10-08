@@ -34,6 +34,9 @@ A torrent download managed by qBittorrent. Has lifecycle states (queued,
 downloading, completed, failed, reconciled). Reconciliation matches
 completed torrents to media+unit, maps files, and records the event.
 Covered units track which unit numbers a batch download covers.
+A reconciliation claim is the opaque in-flight marker (plus timestamp) held
+while one import runs; only its holder may finalize, and claims orphaned by
+a crash release for retry.
 
 ### Quality Profile
 

@@ -10,10 +10,6 @@ import type { DownloadPresentationContext } from "@/features/operations/reposito
 import { StoredDataError } from "@/features/errors.ts";
 import { decodeDownloadSourceMetadata } from "@/features/operations/repository/download-repository.ts";
 import { parseCoveredUnitsEffect } from "@/features/operations/download/download-coverage.ts";
-import {
-  isClaimToken,
-  isPreservedImport,
-} from "@/features/operations/download/download-claim-token.ts";
 import { Effect } from "effect";
 
 type DownloadRow = typeof downloads.$inferSelect;
@@ -34,7 +30,7 @@ export const toDownload = Effect.fn("OperationsPresentation.toDownload")(functio
   const coveredUnits = yield* parseCoveredUnitsEffect(row.coveredUnits);
   const coveragePending = row.isBatch && coveredUnits.length === 0;
   const sourceMetadata = yield* decodeDownloadSourceMetadata(row.sourceMetadata);
-  const policy = resolveDownloadActionPolicy(row.status, row.reconciledAt);
+  const policy = resolveDownloadActionPolicy(row.status, row.reconciledAt !== null);
 
   return {
     added_at: row.addedAt,
@@ -85,7 +81,7 @@ export const toDownloadStatus = Effect.fn("OperationsPresentation.toDownloadStat
       message: "Stored download info hash is missing",
     }));
   const sourceMetadata = yield* decodeDownloadSourceMetadata(row.sourceMetadata);
-  const policy = resolveDownloadActionPolicy(row.status, row.reconciledAt);
+  const policy = resolveDownloadActionPolicy(row.status, row.reconciledAt !== null);
 
   const result: DownloadStatus = {
     media_id: brandMediaId(row.mediaId),
@@ -113,23 +109,21 @@ export const toDownloadStatus = Effect.fn("OperationsPresentation.toDownloadStat
 });
 
 /**
- * A claim token in `reconciledAt` marks an in-flight (or crashed) import, not
- * a completed one: presentation treats it as not reconciled so the row stays
- * actionable and no fake timestamp leaks to the UI.
+ * `reconciledAt` carries only finalized import timestamps now (in-flight
+ * claims live in `reconcile_claim`): a non-null value means reconciled.
  */
 function toPresentedReconciledAt(reconciledAt: string | null): string | undefined {
-  return reconciledAt === null || isClaimToken(reconciledAt) ? undefined : reconciledAt;
+  return reconciledAt ?? undefined;
 }
 
 function resolveDownloadActionPolicy(
   status: string | null | undefined,
-  reconciledAt: string | null | undefined,
+  reconciled: boolean,
 ): {
   readonly download: DownloadAllowedAction[] | undefined;
   readonly runtime: DownloadAllowedAction[] | undefined;
 } {
   const state = normalizeDownloadState(status);
-  const reconciled = isPreservedImport(reconciledAt);
   const download = new Set<DownloadAllowedAction>(["delete"]);
   const runtime = new Set<DownloadAllowedAction>(["delete"]);
 

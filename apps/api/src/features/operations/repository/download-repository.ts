@@ -95,14 +95,16 @@ export interface DownloadRepositoryShape {
   ) => Effect.Effect<void, DatabaseError | StoredDataError>;
   /**
    * Atomic claim: only one concurrent reconcile may import a given download.
-   * Sets `reconciledAt` to the token (`claim:<isotimestamp>:<uuid>`) only when
-   * it is currently NULL; returns whether the claim was acquired. The token
-   * marks an in-flight claim; finalization overwrites it with a timestamp, so
-   * a leftover token always means the claim must be released for retry.
+   * Sets the opaque `reconcile_claim` token (with `reconcile_claimed_at`) only
+   * when no claim is held and the row is not finalized; returns whether the
+   * claim was acquired. Finalization clears the claim and stamps
+   * `reconciledAt`, so a leftover claim always means the import must be
+   * released for retry.
    */
   readonly claimDownloadReconciliation: (
     downloadId: number,
     claimToken: string,
+    claimedAt: string,
   ) => Effect.Effect<boolean, DatabaseError>;
   readonly deleteDownloadRow: (id: number) => Effect.Effect<void, DatabaseError>;
   /**
@@ -247,9 +249,9 @@ export interface DownloadRepositoryShape {
     readonly now: string;
   }) => Effect.Effect<void, DatabaseError>;
   /**
-   * Compensating release for `claimDownloadReconciliation`: resets
-   * `reconciledAt` to NULL only when it still equals the token, so a finalize
-   * that already overwrote the token with a timestamp is left untouched.
+   * Compensating release for `claimDownloadReconciliation`: clears the claim
+   * only when it still equals the token, so a finalize that already cleared
+   * it is left untouched.
    */
   readonly releaseDownloadReconciliationClaim: (input: {
     readonly claimToken: string;
@@ -296,8 +298,8 @@ export function makeDownloadRepositoryShape(
   return {
     bulkUpdateTorrentSyncRows: (chunk, events, createdAt) =>
       bulkUpdateTorrentSyncRows(db, exec, chunk, events, createdAt),
-    claimDownloadReconciliation: (downloadId, claimToken) =>
-      claimDownloadReconciliation(db, exec, downloadId, claimToken),
+    claimDownloadReconciliation: (downloadId, claimToken, claimedAt) =>
+      claimDownloadReconciliation(db, exec, downloadId, claimToken, claimedAt),
     deleteDownloadRow: (id) => deleteDownloadRow(db, exec, id, "Failed to remove download"),
     deleteDownloadWithEventTx: (input) => deleteDownloadWithEventTx(db, exec, input),
     failStaleQueuedDownloads: (input) => failStaleQueuedDownloads(db, exec, input),
@@ -464,9 +466,11 @@ const finalizeDownloadImport = Effect.fn("DownloadRepository.finalizeDownloadImp
           progress: 100,
           status: "imported",
           reconciledAt: input.now,
+          reconcileClaim: null,
+          reconcileClaimedAt: null,
         })
         .where(
-          and(eq(downloads.id, input.downloadId), eq(downloads.reconciledAt, input.claimToken)),
+          and(eq(downloads.id, input.downloadId), eq(downloads.reconcileClaim, input.claimToken)),
         )
         .returning({ id: downloads.id })
         .prepare()
@@ -828,12 +832,19 @@ const loadDownloadByInfoHash = Effect.fn("DownloadRepository.loadDownloadByInfoH
 ) {
   // Migration 0031 allows several rows per info_hash (terminal + in-flight).
   // Reconcile targets the current attempt: not yet reconciled, newest insert.
+  // Claimed-but-unfinished rows are excluded: their claim holder owns them.
   const rows = yield* exec.runQuery(
     "Failed to reconcile completed download",
     db
       .select()
       .from(downloads)
-      .where(and(eq(downloads.infoHash, infoHash), isNull(downloads.reconciledAt)))
+      .where(
+        and(
+          eq(downloads.infoHash, infoHash),
+          isNull(downloads.reconciledAt),
+          isNull(downloads.reconcileClaim),
+        ),
+      )
       .orderBy(desc(downloads.id))
       .limit(1)
       .prepare()
@@ -890,9 +901,11 @@ const markDownloadReconciled = Effect.fn("DownloadRepository.markDownloadReconci
             progress: 100,
             status: "imported",
             reconciledAt: input.now,
+            reconcileClaim: null,
+            reconcileClaimedAt: null,
           })
           .where(
-            and(eq(downloads.id, input.downloadId), eq(downloads.reconciledAt, input.claimToken)),
+            and(eq(downloads.id, input.downloadId), eq(downloads.reconcileClaim, input.claimToken)),
           )
           .returning({ id: downloads.id })
           .prepare()
@@ -905,33 +918,46 @@ const markDownloadReconciled = Effect.fn("DownloadRepository.markDownloadReconci
             message: "Failed to reconcile completed download",
           });
         }
+      } else {
+        yield* db
+          .update(downloads)
+          .set({
+            externalState: "imported",
+            progress: 100,
+            status: "imported",
+            reconciledAt: input.now,
+          })
+          .where(eq(downloads.id, input.downloadId))
+          .prepare()
+          .effect();
       }
-      yield* db
-        .update(downloads)
-        .set({
-          externalState: "imported",
-          progress: 100,
-          status: "imported",
-          reconciledAt: input.now,
-        })
-        .where(eq(downloads.id, input.downloadId))
-        .prepare()
-        .effect();
     }),
   );
 });
 
 const claimDownloadReconciliation = Effect.fn("DownloadRepository.claimDownloadReconciliation")(
-  function* (db: AppDatabase, exec: DbExecutor, downloadId: number, claimToken: string) {
+  function* (
+    db: AppDatabase,
+    exec: DbExecutor,
+    downloadId: number,
+    claimToken: string,
+    claimedAt: string,
+  ) {
     // Claim by id, not info_hash: with migration 0031 several rows can share a
-    // hash (terminal + in-flight), and an isNull(reconciledAt) match by hash
-    // could claim a stale failed row instead of the row reconcile loaded.
+    // hash (terminal + in-flight), and a claim match by hash could claim a
+    // stale failed row instead of the row reconcile loaded.
     const claimedRows = yield* exec.runQuery(
       "Failed to claim download reconciliation",
       db
         .update(downloads)
-        .set({ reconciledAt: claimToken })
-        .where(and(eq(downloads.id, downloadId), isNull(downloads.reconciledAt)))
+        .set({ reconcileClaim: claimToken, reconcileClaimedAt: claimedAt })
+        .where(
+          and(
+            eq(downloads.id, downloadId),
+            isNull(downloads.reconcileClaim),
+            isNull(downloads.reconciledAt),
+          ),
+        )
         .returning({ id: downloads.id })
         .prepare()
         .effect(),
@@ -951,8 +977,10 @@ const releaseDownloadReconciliationClaim = Effect.fn(
     "Failed to release download reconciliation claim",
     db
       .update(downloads)
-      .set({ reconciledAt: null })
-      .where(and(eq(downloads.id, input.downloadId), eq(downloads.reconciledAt, input.claimToken)))
+      .set({ reconcileClaim: null, reconcileClaimedAt: null })
+      .where(
+        and(eq(downloads.id, input.downloadId), eq(downloads.reconcileClaim, input.claimToken)),
+      )
       .prepare()
       .effect(),
   );

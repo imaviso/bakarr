@@ -235,6 +235,8 @@ export const downloads = sqliteTable(
     retryCount: integer("retry_count").notNull().default(0),
     lastErrorAt: text("last_error_at"),
     reconciledAt: text("reconciled_at"),
+    reconcileClaim: text("reconcile_claim"),
+    reconcileClaimedAt: text("reconcile_claimed_at"),
   },
   (table) => [
     index("downloads_status_id_idx").on(table.status, table.id),

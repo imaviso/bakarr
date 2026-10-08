@@ -260,6 +260,13 @@
       "when": 1774860000000,
       "tag": "0036_clear_literature_next_airing",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1774870000000,
+      "tag": "0037_download_reconcile_claim",
+      "breakpoints": true
     }
   ]
 }

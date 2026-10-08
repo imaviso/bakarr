@@ -31,6 +31,8 @@ function makeDownloadRow(overrides: Partial<DownloadRow>): DownloadRow {
     magnet: null,
     progress: 0,
     reconciledAt: null,
+    reconcileClaim: null,
+    reconcileClaimedAt: null,
     retryCount: 0,
     savePath: null,
     sourceMetadata: null,
@@ -98,16 +100,18 @@ it.effect("toDownload marks batch coverage pending only when covered mediaUnits 
   }),
 );
 
-it.effect("a claim token in reconciledAt keeps the download actionable", () =>
+it.effect("an in-flight claim keeps the download actionable", () =>
   Effect.gen(function* () {
     const claimed = yield* toDownload(
       makeDownloadRow({
-        reconciledAt: "claim:2025-01-01T00:00:00.000Z:uuid",
+        reconciledAt: null,
+        reconcileClaim: "uuid",
+        reconcileClaimedAt: "2025-01-01T00:00:00.000Z",
         status: "completed",
       }),
     );
 
-    // Claim = import in flight/crashed: reconcile stays available and no fake
+    // Claim = import in flight/crashed: reconcile stays available and no
     // timestamp leaks into the presentation.
     assert.deepStrictEqual(claimed.allowed_actions, ["delete", "reconcile"]);
     assert.deepStrictEqual(claimed.reconciled_at, undefined);
