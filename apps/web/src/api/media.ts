@@ -16,6 +16,7 @@ import {
   RenamePreviewItemSchema,
   RenameResultSchema,
   MediaUnitSchema,
+  SeaDexEntryNullableSchema,
   UnitSearchResultSchema,
   SearchResultsSchema,
   SeasonalMediaResponseSchema,
@@ -111,6 +112,30 @@ export function unitsQueryOptions(mediaId: number) {
         ),
       ),
     staleTime: 1000 * 60 * 5,
+  });
+}
+
+export function seadexEntryQueryOptions(mediaId: number) {
+  return queryOptions({
+    queryKey: animeKeys.seadex(mediaId),
+    queryFn: ({ signal }) =>
+      runApiEffect(
+        fetchJson(
+          SeaDexEntryNullableSchema,
+          `${API_BASE}/media/${mediaId}/seadex`,
+          undefined,
+          signal,
+        ),
+      ),
+    retry: 1,
+    staleTime: 1000 * 60 * 30,
+  });
+}
+
+export function useSeaDexEntryQuery(mediaId: number, options?: { enabled?: boolean }) {
+  return useQuery({
+    ...seadexEntryQueryOptions(mediaId),
+    enabled: !!mediaId && (options?.enabled ?? true),
   });
 }
 

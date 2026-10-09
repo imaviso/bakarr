@@ -21,6 +21,7 @@ export * from "./file-mapping.ts";
 export * from "./scan-import.ts";
 export * from "./download-action.ts";
 export * from "./search.ts";
+export * from "./seadex.ts";
 export * from "./media-search.ts";
 export * from "./seasonal.ts";
 export * from "./unmapped.ts";

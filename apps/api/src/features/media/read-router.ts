@@ -10,6 +10,7 @@ import {
   ReaderPagesResponseSchema,
   RenamePreviewItemSchema,
   RssFeedSchema,
+  SeaDexEntryNullableSchema,
   SeasonalMediaResponseSchema,
   VideoFileSchema,
 } from "@packages/shared/index.ts";
@@ -20,6 +21,7 @@ import { MediaStreamService } from "@/features/media/stream/media-stream-service
 import { MediaReaderService } from "@/features/media/reader/media-reader-service.ts";
 import { CatalogRssService } from "@/features/operations/catalog/catalog-rss-service.ts";
 import { MediaRepository } from "@/features/media/shared/media-repository.ts";
+import { SearchReleaseService } from "@/features/operations/search/search-orchestration-release-search.ts";
 import { LibraryNaming } from "@/features/operations/library/library-naming.ts";
 import { buildRenamePreview } from "@/features/operations/library/library-import.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
@@ -166,6 +168,17 @@ export const mediaReadRouter = Layer.mergeAll(
         return yield* (yield* MediaFileService).listFiles(params.id);
       }),
       schemaJsonResponse(Schema.Array(VideoFileSchema)),
+    ),
+  ),
+  HttpRouter.add(
+    "GET",
+    "/media/:id/seadex",
+    authedRouteResponse(
+      Effect.gen(function* () {
+        const params = yield* decodePathParams(IdParamsSchema);
+        return yield* (yield* SearchReleaseService).getSeaDexEntryForMedia(params.id);
+      }),
+      schemaJsonResponse(SeaDexEntryNullableSchema),
     ),
   ),
   HttpRouter.add(

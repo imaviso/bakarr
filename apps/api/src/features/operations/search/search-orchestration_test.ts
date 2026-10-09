@@ -547,6 +547,99 @@ it.effect("searchUnitReleases rejects marker-less absolute for sequel media", ()
   }),
 );
 
+it.effect("getSeaDexEntryForMedia returns entry for anime", () =>
+  withSqliteTestDbEffect({
+    run: (db, _databaseFile, client, exec) =>
+      Effect.gen(function* () {
+        const config = makeTestConfig("/tmp/test.sqlite");
+        yield* exec.runQuery(
+          "Failed to insert test media",
+          db
+            .insert(media)
+            .values(makeMediaRow({ id: 20 }))
+            .prepare()
+            .effect(),
+        );
+        const searchReleaseService = yield* withSearchReleaseService({
+          client,
+          config,
+          db,
+          rssClient: RssClient.of({
+            fetchItems: () => Effect.succeed([]),
+          }),
+          seadexClient: SeaDexClient.of({
+            getEntryByAniListId: (aniListId: number) =>
+              Effect.succeed(
+                Option.some({
+                  alID: aniListId,
+                  comparison: "https://releases.moe/compare/show",
+                  incomplete: false,
+                  notes: "Preferred release",
+                  releases: [
+                    {
+                      dualAudio: true,
+                      groupedUrl: "https://releases.moe/collections/show",
+                      infoHash: "abcdef0123456789abcdef0123456789abcdef01",
+                      isBest: true,
+                      releaseGroup: "SubsPlease",
+                      tags: ["Best"],
+                      tracker: "Nyaa",
+                      url: "https://nyaa.si/view/123456",
+                    },
+                  ],
+                }),
+              ),
+          }),
+        });
+
+        const entry = yield* searchReleaseService.getSeaDexEntryForMedia(20);
+
+        assert.deepStrictEqual(entry?.alID, 20);
+        assert.deepStrictEqual(entry?.releases.length, 1);
+        assert.deepStrictEqual(entry?.releases[0]?.releaseGroup, "SubsPlease");
+      }),
+    schema: dbSchema,
+  }),
+);
+
+it.effect("getSeaDexEntryForMedia returns null for manga and missing entries", () =>
+  withSqliteTestDbEffect({
+    run: (db, _databaseFile, client, exec) =>
+      Effect.gen(function* () {
+        const config = makeTestConfig("/tmp/test.sqlite");
+        yield* exec.runQuery(
+          "Failed to insert test manga",
+          db
+            .insert(media)
+            .values(makeMediaRow({ id: 21, mediaKind: "manga", rootFolder: "/library/Manga" }))
+            .prepare()
+            .effect(),
+        );
+        yield* exec.runQuery(
+          "Failed to insert test anime",
+          db
+            .insert(media)
+            .values(makeMediaRow({ id: 22, rootFolder: "/library/Show22" }))
+            .prepare()
+            .effect(),
+        );
+        const searchReleaseService = yield* withSearchReleaseService({
+          client,
+          config,
+          db,
+          rssClient: RssClient.of({
+            fetchItems: () => Effect.succeed([]),
+          }),
+          seadexClient: makeSeaDexNoneClient(),
+        });
+
+        assert.deepStrictEqual(yield* searchReleaseService.getSeaDexEntryForMedia(21), null);
+        assert.deepStrictEqual(yield* searchReleaseService.getSeaDexEntryForMedia(22), null);
+      }),
+    schema: dbSchema,
+  }),
+);
+
 it.effect("searchUnitReleases accepts number-less titles for single-unit movies", () =>
   withSqliteTestDbEffect({
     run: (db, _databaseFile, client, _exec) =>

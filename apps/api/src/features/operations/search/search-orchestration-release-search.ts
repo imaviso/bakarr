@@ -1,6 +1,6 @@
 import { Context, Effect, Layer, Option } from "effect";
 
-import type { Config, SearchResults } from "@packages/shared/index.ts";
+import type { Config, SeaDexEntry, SearchResults } from "@packages/shared/index.ts";
 import { DatabaseError } from "@/db/database.ts";
 import { media } from "@/db/schema.ts";
 import { compactLogAnnotations, errorLogAnnotations } from "@/infra/logging.ts";
@@ -58,6 +58,9 @@ export interface SearchReleaseServiceShape {
     animeRow: typeof media.$inferSelect,
     releases: readonly ParsedRelease[],
   ) => Effect.Effect<ParsedRelease[]>;
+  readonly getSeaDexEntryForMedia: (
+    mediaId: number,
+  ) => Effect.Effect<SeaDexEntry | null, DatabaseError | MediaNotFoundError | ExternalCallError>;
   readonly searchUnitReleases: (
     animeRow: typeof media.$inferSelect,
     unitNumber: number,
@@ -442,6 +445,42 @@ export class SearchReleaseService extends Context.Service<
         return enriched;
       });
 
+      const getSeaDexEntryForMedia = Effect.fn("SearchRelease.getSeaDexEntryForMedia")(function* (
+        mediaId: number,
+      ) {
+        yield* Effect.annotateCurrentSpan("mediaId", mediaId);
+        const animeRow = yield* mediaRepository.getMediaRow(mediaId);
+
+        if (animeRow.mediaKind !== "anime") {
+          return null;
+        }
+
+        const entry = yield* seadexClient.getEntryByAniListId(animeRow.id);
+
+        if (Option.isNone(entry)) {
+          return null;
+        }
+
+        const value = entry.value;
+        const result: SeaDexEntry = {
+          alID: value.alID,
+          comparison: value.comparison ?? undefined,
+          incomplete: value.incomplete,
+          notes: value.notes ?? undefined,
+          releases: value.releases.map((release) => ({
+            dualAudio: release.dualAudio,
+            groupedUrl: release.groupedUrl,
+            infoHash: release.infoHash ?? undefined,
+            isBest: release.isBest,
+            releaseGroup: release.releaseGroup,
+            tags: [...release.tags],
+            tracker: release.tracker,
+            url: release.url,
+          })),
+        };
+        return result;
+      });
+
       const searchReleases = Effect.fn("SearchRelease.searchReleases")(function* (
         query: string,
         mediaId?: number,
@@ -488,6 +527,7 @@ export class SearchReleaseService extends Context.Service<
 
       return {
         enrichSeaDexReleases,
+        getSeaDexEntryForMedia,
         searchUnitReleases,
         searchNyaaReleases,
         searchReleases,

@@ -7,6 +7,7 @@ import { AnimeDetailsMeta } from "@/features/media/media-details-meta";
 import { AnimeDetailsSidebar } from "@/features/media/media-details-sidebar";
 import { cleanSynopsis, getAiringDisplayPreferences } from "@/domain/media/metadata";
 import { AnimeEpisodesPanel } from "@/features/media/media-units-panel";
+import { MediaSeaDexReleases } from "@/features/media/media-seadex-releases";
 import { AnimeDiscoverySection } from "@/features/media/media-discovery";
 import { AnimeError } from "@/features/media/media-error";
 import { AnimeDetailsDialogsProvider } from "@/features/media/media-details-dialogs-context";
@@ -207,6 +208,8 @@ function AnimeDetailsPage() {
               onPlayInMpv={actions.handlePlayInMpv}
               onCopyStreamLink={actions.handleCopyStreamLink}
             />
+
+            <MediaSeaDexReleases mediaId={mediaId} mediaKind={media.media_kind} />
 
             <AnimeDiscoverySection media={media} libraryIds={libraryIds} />
           </div>
